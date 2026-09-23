@@ -1,0 +1,22 @@
+# Never commit secrets. Supabase keys, gateway keys and tokens live in
+# Vercel/Supabase environment settings only.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+node_modules/
+.next/
+out/
+dist/
+build/
+.vercel/
+.turbo/
+
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+coverage/
+.supabase/

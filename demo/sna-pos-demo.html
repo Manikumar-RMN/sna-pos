@@ -1,0 +1,1057 @@
+<title>SNA POS Billing Demo</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600&display=swap">
+<style>
+:root{
+  --violet-600:#6D4AFF; --violet-500:#8168FF; --violet-100:#EDE9FF;
+  --blue-500:#3B6EF5;
+  --ground:#F6F5FB; --panel:#FFFFFF; --panel-2:#FBFAFE;
+  --line:#E3E0F0; --line-soft:#EFEDF7;
+  --ink:#16132A; --ink-2:#4A4560; --ink-3:#7C7694;
+  --ok:#107A46; --ok-bg:#E4F5EC;
+  --warn:#9A5B02; --warn-bg:#FCF0DC;
+  --bad:#C22D2D; --bad-bg:#FBE7E7;
+  --veg:#1B8A3E; --nonveg:#B5401C;
+  --shadow:0 1px 2px rgba(22,19,42,.06),0 8px 24px -12px rgba(22,19,42,.18);
+  --shadow-lift:0 2px 4px rgba(22,19,42,.08),0 16px 40px -16px rgba(22,19,42,.3);
+  --r:14px; --r-sm:10px;
+  --tap:48px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --violet-600:#9A82FF; --violet-500:#8168FF; --violet-100:#251F45;
+    --blue-500:#6E95FF;
+    --ground:#0B1020; --panel:#141A2E; --panel-2:#1A2138;
+    --line:#2A3250; --line-soft:#222942;
+    --ink:#F1F3F9; --ink-2:#B6BDD4; --ink-3:#848CA8;
+    --ok:#4ADE80; --ok-bg:#13351F;
+    --warn:#F5B44C; --warn-bg:#3A2A0D;
+    --bad:#FF8080; --bad-bg:#3B1717;
+    --veg:#4ADE80; --nonveg:#FF9A6B;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
+    --shadow-lift:0 2px 6px rgba(0,0,0,.5),0 16px 40px -14px rgba(0,0,0,.8);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --violet-600:#9A82FF; --violet-500:#8168FF; --violet-100:#251F45;
+  --blue-500:#6E95FF;
+  --ground:#0B1020; --panel:#141A2E; --panel-2:#1A2138;
+  --line:#2A3250; --line-soft:#222942;
+  --ink:#F1F3F9; --ink-2:#B6BDD4; --ink-3:#848CA8;
+  --ok:#4ADE80; --ok-bg:#13351F;
+  --warn:#F5B44C; --warn-bg:#3A2A0D;
+  --bad:#FF8080; --bad-bg:#3B1717;
+  --veg:#4ADE80; --nonveg:#FF9A6B;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
+  --shadow-lift:0 2px 6px rgba(0,0,0,.5),0 16px 40px -14px rgba(0,0,0,.8);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:Inter,'Noto Sans Tamil',system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-size:15px; line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+.ta{font-family:'Noto Sans Tamil',Inter,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,select{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* ---------- app shell ---------- */
+.app{display:flex;flex-direction:column;height:100%;min-height:0}
+
+.topbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 16px; padding-top:calc(10px + env(safe-area-inset-top,0px));
+  background:var(--panel);border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:9px;margin-right:2px}
+.mark{
+  width:32px;height:32px;border-radius:9px;display:grid;place-items:center;
+  background:var(--violet-600);color:#fff;font-weight:700;font-size:13px;letter-spacing:-.02em;flex:none;
+}
+.brand b{font-size:15px;font-weight:700;letter-spacing:-.01em;display:block;line-height:1.1}
+.brand span{font-size:11px;color:var(--ink-3);display:block;line-height:1.2}
+.spacer{flex:1 1 auto;min-width:8px}
+
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  height:34px;padding:0 11px;border-radius:999px;
+  border:1px solid var(--line);background:var(--panel-2);
+  font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;
+}
+.pill.on{background:var(--ok-bg);border-color:transparent;color:var(--ok)}
+.pill.off{background:var(--warn-bg);border-color:transparent;color:var(--warn)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.pill.seg{padding:0;overflow:hidden;background:var(--panel-2)}
+.pill.seg button{height:32px;padding:0 11px;font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.pill.seg button[aria-pressed="true"]{background:var(--violet-600);color:#fff}
+
+.who{text-align:right;line-height:1.15;margin-left:2px}
+.who b{font-size:12.5px;display:block}
+.who span{font-size:11px;color:var(--ink-3)}
+
+/* ---------- banner ---------- */
+.banner{
+  display:flex;align-items:center;gap:9px;padding:8px 16px;
+  background:var(--warn-bg);color:var(--warn);font-size:12.5px;font-weight:600;
+  border-bottom:1px solid var(--line);
+}
+
+/* ---------- main split ---------- */
+.main{flex:1 1 auto;display:flex;min-height:0;gap:0}
+.menu{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;min-height:0}
+.cart{
+  width:min(400px,38vw);flex:none;background:var(--panel);
+  border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;
+}
+
+.menutop{padding:12px 16px 0;display:flex;flex-direction:column;gap:10px}
+.search{
+  display:flex;align-items:center;gap:9px;height:var(--tap);padding:0 14px;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+}
+.search input{flex:1;border:0;background:none;outline:none;font-size:15px;min-width:0}
+.search input::placeholder{color:var(--ink-3)}
+.search svg{flex:none;color:var(--ink-3)}
+
+.cats{display:flex;gap:7px;overflow-x:auto;padding-bottom:10px;scrollbar-width:thin}
+.cats button{
+  height:38px;padding:0 14px;border-radius:999px;white-space:nowrap;flex:none;
+  background:var(--panel);border:1px solid var(--line);
+  font-size:13.5px;font-weight:600;color:var(--ink-2);
+}
+.cats button[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+
+.grid{
+  flex:1 1 auto;overflow-y:auto;min-height:0;
+  padding:2px 16px 16px;
+  display:grid;gap:10px;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  align-content:start;
+}
+.tile{
+  position:relative;text-align:left;min-height:96px;padding:11px 12px 10px;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  display:flex;flex-direction:column;gap:3px;box-shadow:var(--shadow);
+  transition:transform .08s ease,border-color .12s ease;
+}
+.tile:hover{border-color:var(--violet-500)}
+.tile:active{transform:scale(.975)}
+.tile .nm{font-size:14px;font-weight:600;line-height:1.25;padding-right:16px}
+.tile .nm-ta{font-size:12px;color:var(--ink-3);line-height:1.3}
+.tile .pr{margin-top:auto;font-size:15px;font-weight:700;letter-spacing:-.01em}
+.tile .qty{
+  position:absolute;top:8px;right:8px;min-width:22px;height:22px;padding:0 5px;
+  border-radius:7px;background:var(--violet-600);color:#fff;
+  font-size:12px;font-weight:700;display:grid;place-items:center;
+}
+.vd{position:absolute;bottom:11px;right:11px;width:12px;height:12px;border-radius:3px;border:1.5px solid var(--veg);display:grid;place-items:center}
+.vd::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--veg)}
+.vd.n{border-color:var(--nonveg)}
+.vd.n::after{background:var(--nonveg)}
+.empty{grid-column:1/-1;padding:44px 12px;text-align:center;color:var(--ink-3);font-size:14px}
+
+/* ---------- cart ---------- */
+.carthead{
+  padding:13px 16px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.carthead h2{margin:0;font-size:15px;font-weight:700;letter-spacing:-.01em}
+.otype{display:flex;gap:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel-2)}
+.otype button{height:32px;padding:0 11px;font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.otype button[aria-pressed="true"]{background:var(--violet-600);color:#fff}
+.tablesel{
+  height:32px;padding:0 8px;border-radius:9px;border:1px solid var(--line);
+  background:var(--panel-2);font-size:12.5px;font-weight:600;
+}
+
+.lines{flex:1 1 auto;overflow-y:auto;min-height:0;padding:6px 10px}
+.line{
+  display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;
+  padding:10px 6px;border-bottom:1px solid var(--line-soft);
+}
+.line .l-nm{font-size:14px;font-weight:600;line-height:1.3}
+.line .l-sub{grid-column:1;font-size:11.5px;color:var(--ink-3)}
+.line .l-amt{grid-row:1;grid-column:2;font-size:14.5px;font-weight:700}
+.stepper{grid-row:2;grid-column:2;display:flex;align-items:center;gap:2px;justify-self:end}
+.stepper button{
+  width:30px;height:30px;border-radius:8px;background:var(--panel-2);
+  border:1px solid var(--line);display:grid;place-items:center;font-size:16px;font-weight:600;color:var(--ink-2);
+}
+.stepper button:active{background:var(--violet-100)}
+.stepper .q{min-width:28px;text-align:center;font-size:14px;font-weight:700}
+.cart-empty{padding:52px 20px;text-align:center;color:var(--ink-3)}
+.cart-empty .big{font-size:15px;font-weight:600;color:var(--ink-2);margin-bottom:5px}
+.cart-empty .sm{font-size:13px;line-height:1.5}
+
+.totals{border-top:1px solid var(--line);padding:12px 16px 0;display:flex;flex-direction:column;gap:6px}
+.trow{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-2)}
+.trow.tax{font-size:12.5px;color:var(--ink-3)}
+.trow b{font-weight:600;color:var(--ink)}
+.trow.disc{color:var(--ok)}
+.grand{
+  display:flex;justify-content:space-between;align-items:baseline;
+  margin-top:4px;padding-top:11px;border-top:1px dashed var(--line);
+}
+.grand span{font-size:13.5px;font-weight:600;color:var(--ink-2)}
+.grand b{font-size:29px;font-weight:700;letter-spacing:-.025em;line-height:1}
+
+.cartfoot{padding:12px 16px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:9px}
+.btn{
+  height:var(--tap);border-radius:var(--r-sm);font-size:15px;font-weight:600;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);
+  transition:filter .12s ease;
+}
+.btn:hover:not(:disabled){filter:brightness(.97)}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.btn.pri{background:var(--violet-600);color:#fff;border-color:transparent;flex:1}
+.btn.ghost{flex:none;padding:0 14px}
+.btn.wide{width:100%}
+.btn.danger{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+
+/* ---------- modal ---------- */
+.scrim{
+  position:fixed;inset:0;background:rgba(10,8,20,.55);backdrop-filter:blur(3px);
+  display:grid;place-items:center;padding:16px;z-index:50;
+}
+.sheet{
+  width:100%;max-width:520px;max-height:88vh;overflow-y:auto;
+  background:var(--panel);border-radius:18px;box-shadow:var(--shadow-lift);
+  border:1px solid var(--line);
+}
+.sheet.wide{max-width:660px}
+.sheethead{
+  position:sticky;top:0;background:var(--panel);z-index:1;
+  padding:16px 18px 12px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.sheethead h3{margin:0;font-size:17px;font-weight:700;letter-spacing:-.015em}
+.sheethead p{margin:2px 0 0;font-size:12.5px;color:var(--ink-3)}
+.x{width:34px;height:34px;border-radius:9px;background:var(--panel-2);border:1px solid var(--line);display:grid;place-items:center;flex:none;font-size:17px;color:var(--ink-2)}
+.sheetbody{padding:16px 18px}
+.sheetfoot{padding:0 18px 18px;display:flex;gap:9px}
+
+.paygrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:9px;margin-bottom:16px}
+.pay{
+  min-height:74px;border-radius:var(--r);border:1.5px solid var(--line);background:var(--panel-2);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  font-size:13.5px;font-weight:600;color:var(--ink-2);
+}
+.pay[aria-pressed="true"]{border-color:var(--violet-600);background:var(--violet-100);color:var(--violet-600)}
+.pay .ic{display:grid;place-items:center;line-height:0}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:6px}
+.field input{
+  width:100%;height:52px;padding:0 14px;border-radius:var(--r-sm);
+  border:1px solid var(--line);background:var(--panel-2);outline:none;
+  font-size:21px;font-weight:700;
+}
+.field input:focus{border-color:var(--violet-600)}
+.quick{display:flex;gap:7px;flex-wrap:wrap}
+.quick button{height:42px;padding:0 15px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);font-size:14.5px;font-weight:600}
+.quick button[aria-pressed="true"]{border-color:var(--violet-600);background:var(--violet-100);color:var(--violet-600)}
+
+.change{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:13px 15px;border-radius:var(--r);background:var(--ok-bg);color:var(--ok);margin-bottom:4px;
+}
+.change span{font-size:13px;font-weight:600}
+.change b{font-size:25px;font-weight:700;letter-spacing:-.02em}
+.change.short{background:var(--bad-bg);color:var(--bad)}
+
+/* ---------- receipt ---------- */
+.receipt{
+  background:#fff;color:#111;border-radius:10px;padding:18px 16px;
+  font-family:'Courier New',ui-monospace,monospace;font-size:12px;line-height:1.55;
+  max-width:340px;margin:0 auto;box-shadow:var(--shadow);
+}
+.receipt h4{margin:0 0 1px;text-align:center;font-size:15px;letter-spacing:.06em;font-family:Inter,sans-serif}
+.receipt .ctr{text-align:center}
+.receipt .rule{border-top:1px dashed #999;margin:8px 0}
+.receipt .r{display:flex;justify-content:space-between;gap:10px}
+.receipt .r span:last-child{white-space:nowrap}
+.receipt .tot{font-weight:700;font-size:14px}
+.receipt .muted{color:#666;font-size:10.5px}
+
+/* ---------- day close / agent ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.stat{padding:13px 14px;border-radius:var(--r);background:var(--panel-2);border:1px solid var(--line)}
+.stat span{display:block;font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:3px}
+.stat b{font-size:20px;font-weight:700;letter-spacing:-.02em}
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th{text-align:left;font-size:11.5px;font-weight:600;color:var(--ink-3);padding:0 0 7px;border-bottom:1px solid var(--line)}
+.tbl td{padding:9px 0;border-bottom:1px solid var(--line-soft)}
+.tbl td:last-child,.tbl th:last-child{text-align:right}
+
+.ask{display:flex;gap:8px;margin-bottom:14px}
+.ask input{flex:1;height:var(--tap);padding:0 14px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);outline:none;font-size:14.5px;min-width:0}
+.ask input:focus{border-color:var(--violet-600)}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.chips button{height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel-2);font-size:12.5px;font-weight:500;color:var(--ink-2);text-align:left}
+.answer{padding:14px 15px;border-radius:var(--r);background:var(--violet-100);border:1px solid var(--line);font-size:14px;line-height:1.6}
+.answer .q{font-size:12px;font-weight:600;color:var(--ink-3);margin-bottom:6px}
+.note{
+  margin-top:14px;padding:11px 13px;border-radius:var(--r-sm);
+  background:var(--panel-2);border:1px solid var(--line);
+  font-size:12px;color:var(--ink-3);line-height:1.55;
+}
+
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:80;
+  padding:12px 18px;border-radius:999px;background:var(--ink);color:var(--ground);
+  font-size:13.5px;font-weight:600;box-shadow:var(--shadow-lift);
+}
+
+@media (max-width:860px){
+  .main{flex-direction:column}
+  .cart{width:auto;border-left:0;border-top:1px solid var(--line);max-height:52vh}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr))}
+  .who{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark">SNA</div>
+      <div><b>SNA POS</b><span id="branchLabel">Karaikudi · Main Branch</span></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="pill" id="netBtn" title="Demo control: switch the internet off"><i class="dot"></i><span id="netTxt">Online</span></button>
+    <span class="pill off" id="pendingPill" hidden><i class="dot"></i><span id="pendingTxt">0 pending</span></span>
+    <div class="pill seg" role="group" aria-label="Language">
+      <button id="langEn" aria-pressed="true">EN</button>
+      <button id="langTa" class="ta" aria-pressed="false">தமிழ்</button>
+    </div>
+    <button class="pill" id="themeBtn" aria-label="Switch theme">◐</button>
+    <button class="pill" id="agentBtn">✦ Ask</button>
+    <button class="pill" id="dayBtn">Day close</button>
+    <div class="who"><b>Manikumar</b><span>Cashier · Shift open</span></div>
+  </header>
+
+  <div class="banner" id="offlineBanner" hidden>
+    <i class="dot"></i><span id="offlineTxt">Working offline — billing continues and everything syncs when the internet returns.</span>
+  </div>
+
+  <div class="main">
+    <section class="menu">
+      <div class="menutop">
+        <label class="search">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="search" type="text" placeholder="Search the menu…" autocomplete="off">
+        </label>
+        <div class="cats" id="cats"></div>
+      </div>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <aside class="cart">
+      <div class="carthead">
+        <h2 id="cartTitle">Current order</h2>
+        <div class="spacer"></div>
+        <div class="otype" role="group" aria-label="Order type">
+          <button id="otDine" aria-pressed="true">Dine-in</button>
+          <button id="otTake" aria-pressed="false">Takeaway</button>
+        </div>
+        <select class="tablesel" id="tableSel" aria-label="Table">
+          <option value="T-01">T-01</option><option value="T-02">T-02</option>
+          <option value="T-03">T-03</option><option value="T-04">T-04</option>
+          <option value="T-05">T-05</option><option value="T-06">T-06</option>
+        </select>
+      </div>
+      <div class="lines" id="lines"></div>
+      <div class="totals" id="totals"></div>
+      <div class="cartfoot">
+        <button class="btn ghost" id="discBtn" disabled>Discount</button>
+        <button class="btn pri" id="payBtn" disabled>Take payment</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* =====================================================================
+   SNA POS — billing demo
+   Money is handled in PAISE (integers) everywhere, exactly as the
+   schema stores numeric(14,2). Nothing is ever a floating-point rupee.
+   Tax groups and their components mirror sna_pos_schema_v2.sql:
+   a group carries a total rate and named components that print on the
+   bill, so a UAE build would swap CGST+SGST for a single VAT line
+   with no change to the code below.
+   ===================================================================== */
+
+var TAX_GROUPS = {
+  food5:  { name:'Food 5%',      inclusive:false, components:[
+              {name:'CGST', rate:2.5}, {name:'SGST', rate:2.5} ] },
+  bev12:  { name:'Packaged 12%', inclusive:false, components:[
+              {name:'CGST', rate:6.0}, {name:'SGST', rate:6.0} ] }
+};
+
+/* A real Chettinad menu — this is Karaikudi, so the menu is the local one. */
+var MENU = [
+  {c:'Tiffin', n:'Idli (2 pcs)',        ta:'இட்லி (2)',            p:4000,  v:1, t:'food5'},
+  {c:'Tiffin', n:'Medu Vada (2 pcs)',   ta:'மெது வடை (2)',        p:4500,  v:1, t:'food5'},
+  {c:'Tiffin', n:'Ven Pongal',          ta:'வெண் பொங்கல்',         p:6000,  v:1, t:'food5'},
+  {c:'Tiffin', n:'Masala Dosa',         ta:'மசாலா தோசை',           p:8000,  v:1, t:'food5'},
+  {c:'Tiffin', n:'Plain Dosa',          ta:'தோசை',                 p:5500,  v:1, t:'food5'},
+  {c:'Tiffin', n:'Poori Masala',        ta:'பூரி மசாலா',           p:7000,  v:1, t:'food5'},
+  {c:'Tiffin', n:'Rava Kichadi',        ta:'ரவா கிச்சடி',          p:6500,  v:1, t:'food5'},
+
+  {c:'Chettinad', n:'Chettinad Chicken', ta:'செட்டிநாடு சிக்கன்',  p:28000, v:0, t:'food5'},
+  {c:'Chettinad', n:'Mutton Chukka',     ta:'மட்டன் சுக்கா',       p:36000, v:0, t:'food5'},
+  {c:'Chettinad', n:'Nattu Kozhi Kuzhambu', ta:'நாட்டுக் கோழி குழம்பு', p:32000, v:0, t:'food5'},
+  {c:'Chettinad', n:'Meen Kuzhambu',     ta:'மீன் குழம்பு',        p:26000, v:0, t:'food5'},
+  {c:'Chettinad', n:'Kari Dosa',         ta:'கறி தோசை',            p:18000, v:0, t:'food5'},
+
+  {c:'Rice & Parotta', n:'Kothu Parotta', ta:'கொத்து பரோட்டா',     p:16000, v:0, t:'food5'},
+  {c:'Rice & Parotta', n:'Parotta (2 pcs)', ta:'பரோட்டா (2)',      p:5000,  v:1, t:'food5'},
+  {c:'Rice & Parotta', n:'Chicken Biryani', ta:'சிக்கன் பிரியாணி', p:22000, v:0, t:'food5'},
+  {c:'Rice & Parotta', n:'Mutton Biryani',  ta:'மட்டன் பிரியாணி',  p:30000, v:0, t:'food5'},
+  {c:'Rice & Parotta', n:'Curd Rice',       ta:'தயிர் சாதம்',      p:7000,  v:1, t:'food5'},
+  {c:'Rice & Parotta', n:'Sambar Rice',     ta:'சாம்பார் சாதம்',   p:8000,  v:1, t:'food5'},
+
+  {c:'Drinks', n:'Filter Coffee',  ta:'பில்டர் காபி',   p:3000,  v:1, t:'food5'},
+  {c:'Drinks', n:'Tea',            ta:'டீ',              p:2500,  v:1, t:'food5'},
+  {c:'Drinks', n:'Jigarthanda',    ta:'ஜிகர்தண்டா',     p:9000,  v:1, t:'food5'},
+  {c:'Drinks', n:'Buttermilk',     ta:'மோர்',            p:3000,  v:1, t:'food5'},
+  {c:'Drinks', n:'Lime Juice',     ta:'எலுமிச்சை ஜூஸ்', p:4000,  v:1, t:'food5'},
+  {c:'Drinks', n:'Bottled Water',  ta:'தண்ணீர் பாட்டில்', p:2000, v:1, t:'bev12'},
+
+  {c:'Sweets', n:'Paal Paniyaram', ta:'பால் பணியாரம்',  p:7000,  v:1, t:'food5'},
+  {c:'Sweets', n:'Kavuni Arisi',   ta:'கவுணி அரிசி',    p:9000,  v:1, t:'food5'},
+  {c:'Sweets', n:'Gulab Jamun',    ta:'குலாப் ஜாமூன்',  p:5000,  v:1, t:'food5'}
+];
+MENU.forEach(function(m,i){ m.id = 'p'+i; });
+
+var CATS = ['All']; MENU.forEach(function(m){ if(CATS.indexOf(m.c)<0) CATS.push(m.c); });
+
+var T = {
+  en:{cart:'Current order', dine:'Dine-in', take:'Takeaway', pay:'Take payment',
+      disc:'Discount', sub:'Subtotal', total:'Total', search:'Search the menu…',
+      emptyBig:'No items yet', emptySm:'Tap a dish to start the bill.',
+      online:'Online', offline:'Offline',
+      offlineMsg:'Working offline — billing continues and everything syncs when the internet returns.',
+      day:'Day close', ask:'Ask', branch:'Karaikudi · Main Branch'},
+  ta:{cart:'நடப்பு ஆர்டர்', dine:'உள்ளே', take:'பார்சல்', pay:'பணம் பெறு',
+      disc:'தள்ளுபடி', sub:'கூட்டுத்தொகை', total:'மொத்தம்', search:'மெனுவில் தேடு…',
+      emptyBig:'இன்னும் எதுவும் இல்லை', emptySm:'பில் தொடங்க ஒரு உணவைத் தட்டவும்.',
+      online:'இணைப்பில்', offline:'இணைப்பு இல்லை',
+      offlineMsg:'இணைப்பு இல்லாமல் வேலை — பில் தொடரும், இணைப்பு வந்ததும் தானாக சேமிக்கும்.',
+      day:'நாள் முடிவு', ask:'கேள்', branch:'காரைக்குடி · முதன்மைக் கிளை'}
+};
+
+var S = {
+  cart:[], cat:'All', q:'', lang:'en', online:true, pending:0,
+  orderType:'dine_in', table:'T-01', discount:0, bills:[], seq:1
+};
+
+/* ---------- money ---------- */
+function rupees(paise){
+  var neg = paise < 0; var p = Math.abs(Math.round(paise));
+  var whole = Math.floor(p/100), frac = String(p%100).padStart(2,'0');
+  // Indian digit grouping: 1,18,000 style
+  var s = String(whole), last3 = s.slice(-3), rest = s.slice(0,-3);
+  if(rest) last3 = ',' + last3;
+  rest = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+  return (neg?'-':'') + '₹' + rest + last3 + '.' + frac;
+}
+
+/* Tax is computed per line from the item's tax group, then the component
+   breakdown is accumulated — the same shape the database freezes into
+   order_item_taxes at the moment of sale. */
+function compute(){
+  var subtotal = 0;
+  S.cart.forEach(function(l){ subtotal += l.p * l.q; });
+
+  var discount = Math.min(S.discount, subtotal);
+  var comps = {}, compRates = {}, taxTotal = 0, taxable = 0;
+
+  S.cart.forEach(function(l){
+    var lineGross = l.p * l.q;
+    var share = subtotal > 0 ? lineGross / subtotal : 0;
+    var lineNet = lineGross - discount * share;
+    var g = TAX_GROUPS[l.t];
+    taxable += lineNet;
+    g.components.forEach(function(c){
+      var amt = Math.round(lineNet * c.rate / 100);
+      comps[c.name] = (comps[c.name]||0) + amt;
+      // Track which rates fed each component. A cart mixing tax groups
+      // (food at 5%, bottled water at 12%) has no single CGST rate, so
+      // the label drops the percentage rather than printing a wrong one.
+      compRates[c.name] = compRates[c.name] || [];
+      if(compRates[c.name].indexOf(c.rate) < 0) compRates[c.name].push(c.rate);
+    });
+  });
+  Object.keys(comps).forEach(function(k){ taxTotal += comps[k]; });
+
+  var beforeRound = subtotal - discount + taxTotal;
+  var grand = Math.round(beforeRound/100)*100;      // branch setting: nearest rupee
+  return {subtotal:subtotal, discount:discount, taxable:Math.round(taxable),
+          comps:comps, compRates:compRates, taxTotal:taxTotal,
+          rounding:grand-beforeRound, grand:grand};
+}
+
+/* ---------- render ---------- */
+var $ = function(id){ return document.getElementById(id); };
+function el(tag, cls, txt){ var e=document.createElement(tag); if(cls)e.className=cls; if(txt!=null)e.textContent=txt; return e; }
+
+function renderCats(){
+  var box = $('cats'); box.textContent='';
+  CATS.forEach(function(c){
+    var b = el('button', null, c);
+    b.setAttribute('aria-pressed', String(c===S.cat));
+    b.onclick = function(){ S.cat=c; renderCats(); renderGrid(); };
+    box.appendChild(b);
+  });
+}
+
+function renderGrid(){
+  var g = $('grid'); g.textContent='';
+  var q = S.q.trim().toLowerCase();
+  var list = MENU.filter(function(m){
+    if(S.cat!=='All' && m.c!==S.cat) return false;
+    if(!q) return true;
+    return m.n.toLowerCase().indexOf(q)>=0 || m.ta.indexOf(S.q.trim())>=0;
+  });
+  if(!list.length){ g.appendChild(el('div','empty','Nothing matches “'+S.q+'”.')); return; }
+
+  list.forEach(function(m){
+    var line = S.cart.filter(function(l){return l.id===m.id;})[0];
+    var b = el('button','tile');
+    b.appendChild(el('div','nm', m.n));
+    b.appendChild(el('div','nm-ta ta', m.ta));
+    b.appendChild(el('div','pr', rupees(m.p)));
+    var vd = el('span','vd'+(m.v?'':' n')); b.appendChild(vd);
+    if(line){ b.appendChild(el('span','qty', String(line.q))); }
+    b.onclick = function(){ addItem(m); };
+    g.appendChild(b);
+  });
+}
+
+function addItem(m){
+  var line = S.cart.filter(function(l){return l.id===m.id;})[0];
+  if(line){ line.q += 1; }
+  else { S.cart.push({id:m.id, n:m.n, ta:m.ta, p:m.p, t:m.t, q:1}); }
+  renderAll();
+}
+function setQty(id, d){
+  var i = -1; S.cart.forEach(function(l,k){ if(l.id===id) i=k; });
+  if(i<0) return;
+  S.cart[i].q += d;
+  if(S.cart[i].q <= 0) S.cart.splice(i,1);
+  if(!S.cart.length) S.discount = 0;
+  renderAll();
+}
+
+function renderLines(){
+  var box = $('lines'); box.textContent='';
+  var t = T[S.lang];
+  if(!S.cart.length){
+    var e = el('div','cart-empty');
+    e.appendChild(el('div','big'+(S.lang==='ta'?' ta':''), t.emptyBig));
+    e.appendChild(el('div','sm'+(S.lang==='ta'?' ta':''), t.emptySm));
+    box.appendChild(e); return;
+  }
+  S.cart.forEach(function(l){
+    var row = el('div','line');
+    row.appendChild(el('div','l-nm', S.lang==='ta' ? l.ta : l.n));
+    row.appendChild(el('div','l-amt num', rupees(l.p*l.q)));
+    row.appendChild(el('div','l-sub num', l.q+' × '+rupees(l.p)));
+    var st = el('div','stepper');
+    var minus = el('button',null,'−'); minus.onclick=function(){setQty(l.id,-1);};
+    minus.setAttribute('aria-label','Reduce '+l.n);
+    var q = el('span','q num', String(l.q));
+    var plus = el('button',null,'+'); plus.onclick=function(){setQty(l.id,1);};
+    plus.setAttribute('aria-label','Add another '+l.n);
+    st.appendChild(minus); st.appendChild(q); st.appendChild(plus);
+    row.appendChild(st);
+    box.appendChild(row);
+  });
+}
+
+function renderTotals(){
+  var box = $('totals'); box.textContent='';
+  var t = T[S.lang], c = compute();
+  function row(label, val, cls){
+    var r = el('div','trow'+(cls?' '+cls:''));
+    r.appendChild(el('span',null,label));
+    r.appendChild(el('b','num',val));
+    box.appendChild(r);
+  }
+  row(t.sub, rupees(c.subtotal));
+  if(c.discount>0) row('Discount', '−'+rupees(c.discount), 'disc');
+  Object.keys(c.comps).forEach(function(k){
+    var rates = c.compRates[k] || [];
+    var label = rates.length === 1 ? k+' ('+rates[0]+'%)' : k;
+    row(label, rupees(c.comps[k]), 'tax');
+  });
+  if(c.rounding!==0) row('Rounding', (c.rounding>0?'+':'')+rupees(Math.abs(c.rounding)), 'tax');
+  var g = el('div','grand');
+  g.appendChild(el('span'+(S.lang==='ta'?'':''),null,t.total));
+  g.appendChild(el('b','num', rupees(c.grand)));
+  box.appendChild(g);
+}
+
+function renderAll(){
+  var t = T[S.lang];
+  renderCats(); renderGrid(); renderLines(); renderTotals();
+  $('cartTitle').textContent = t.cart;
+  $('cartTitle').className = S.lang==='ta' ? 'ta' : '';
+  $('otDine').textContent = t.dine; $('otTake').textContent = t.take;
+  $('payBtn').textContent = t.pay; $('discBtn').textContent = t.disc;
+  $('search').placeholder = t.search;
+  $('netTxt').textContent = S.online ? t.online : t.offline;
+  $('branchLabel').textContent = t.branch;
+  $('dayBtn').textContent = t.day;
+  $('agentBtn').textContent = '✦ ' + t.ask;
+  $('offlineTxt').textContent = t.offlineMsg;
+  $('netBtn').className = 'pill ' + (S.online ? 'on' : 'off');
+  $('offlineBanner').hidden = S.online;
+  $('pendingPill').hidden = S.pending === 0;
+  $('pendingTxt').textContent = S.pending + ' pending sync';
+  $('payBtn').disabled = !S.cart.length;
+  $('discBtn').disabled = !S.cart.length;
+  $('tableSel').style.display = S.orderType==='dine_in' ? '' : 'none';
+}
+
+/* ---------- toast ---------- */
+function toast(msg){
+  var root = $('toastRoot'); root.textContent='';
+  var d = el('div','toast', msg); root.appendChild(d);
+  setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); }, 2600);
+}
+
+/* ---------- modal ---------- */
+function closeModal(){ $('modalRoot').textContent=''; }
+function modal(title, sub, bodyNode, footNode, wide){
+  var root = $('modalRoot'); root.textContent='';
+  var scrim = el('div','scrim');
+  scrim.onclick = function(e){ if(e.target===scrim) closeModal(); };
+  var sheet = el('div','sheet'+(wide?' wide':''));
+  var head = el('div','sheethead');
+  var h = el('div');
+  h.appendChild(el('h3',null,title));
+  if(sub) h.appendChild(el('p',null,sub));
+  head.appendChild(h);
+  var x = el('button','x','×'); x.setAttribute('aria-label','Close'); x.onclick=closeModal;
+  head.appendChild(x);
+  sheet.appendChild(head);
+  var body = el('div','sheetbody'); body.appendChild(bodyNode); sheet.appendChild(body);
+  if(footNode){ var f = el('div','sheetfoot'); f.appendChild(footNode); sheet.appendChild(f); }
+  scrim.appendChild(sheet); root.appendChild(scrim);
+  return sheet;
+}
+
+/* ---------- discount ---------- */
+function openDiscount(){
+  var c = compute();
+  var body = el('div');
+  var f = el('div','field');
+  f.appendChild(el('label',null,'Discount amount (₹)'));
+  var inp = el('input'); inp.type='text'; inp.inputMode='decimal'; inp.value='0'; inp.id='discInput';
+  f.appendChild(inp); body.appendChild(f);
+  var q = el('div','quick');
+  [1000,2000,5000,10000].forEach(function(v){
+    var b = el('button',null, rupees(v));
+    b.onclick = function(){ inp.value = String(v/100); };
+    q.appendChild(b);
+  });
+  body.appendChild(q);
+  body.appendChild(el('div','note',
+    'A discount always records who approved it. In the real product a cashier without the '+
+    '“order.discount” permission is asked for a manager PIN here, and the approving user is '+
+    'stored against the bill — this is the most common route for till fraud.'));
+
+  var foot = el('div'); foot.style.display='flex'; foot.style.gap='9px'; foot.style.width='100%';
+  var cancel = el('button','btn ghost','Cancel'); cancel.onclick=closeModal;
+  var apply = el('button','btn pri','Apply discount');
+  apply.onclick = function(){
+    var v = Math.round(parseFloat(inp.value||'0')*100);
+    if(isNaN(v) || v<0) v=0;
+    S.discount = Math.min(v, c.subtotal);
+    closeModal(); renderAll();
+    toast(S.discount>0 ? 'Discount applied — approved by Manikumar' : 'Discount cleared');
+  };
+  foot.appendChild(cancel); foot.appendChild(apply);
+  modal('Apply discount', 'Approved by Manikumar · Cashier', body, foot);
+  setTimeout(function(){ inp.focus(); inp.select(); }, 60);
+}
+
+/* ---------- payment ---------- */
+var ICONS = {
+  note:'<rect x="2" y="6" width="20" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/>',
+  phone:'<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 18.3h3"/>',
+  card:'<rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/><path d="M6 15h4"/>'
+};
+function payIcon(kind){
+  var w = document.createElement('div'); w.className = 'ic';
+  w.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" ' +
+    'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+    ICONS[kind] + '</svg>';
+  return w;
+}
+
+function openPayment(){
+  var c = compute();
+  var method = 'cash', tendered = c.grand;
+
+  var body = el('div');
+  var grid = el('div','paygrid');
+  var methods = [['cash','Cash','note'],['upi','UPI','phone'],['card','Card','card']];
+  var payBtns = {};
+  methods.forEach(function(m){
+    var b = el('button','pay');
+    b.appendChild(payIcon(m[2]));
+    b.appendChild(el('div',null,m[1]));
+    b.setAttribute('aria-pressed', String(m[0]===method));
+    b.onclick = function(){ method=m[0]; Object.keys(payBtns).forEach(function(k){
+      payBtns[k].setAttribute('aria-pressed', String(k===method)); }); drawCash(); };
+    payBtns[m[0]] = b; grid.appendChild(b);
+  });
+  body.appendChild(grid);
+
+  var cashWrap = el('div'); body.appendChild(cashWrap);
+
+  function drawCash(){
+    cashWrap.textContent='';
+    if(method!=='cash'){
+      var d = el('div','note');
+      d.textContent = method==='upi'
+        ? 'In the real product this shows a UPI QR code and waits for the payment confirmation from the gateway. The bill is only marked paid once the gateway confirms — never before.'
+        : 'In the real product this hands off to the card machine. SNA POS never stores a card number; that stays with the payment provider.';
+      cashWrap.appendChild(d);
+      return;
+    }
+    var f = el('div','field');
+    f.appendChild(el('label',null,'Amount received'));
+    var inp = el('input'); inp.type='text'; inp.inputMode='decimal';
+    inp.value = String(Math.round(c.grand)/100);
+    f.appendChild(inp); cashWrap.appendChild(f);
+
+    var q = el('div','quick'); q.style.marginBottom='14px';
+    var opts = []; var exact = c.grand;
+    opts.push(exact);
+    [50000,100000,200000,500000].forEach(function(v){ if(v>exact && opts.indexOf(v)<0) opts.push(v); });
+    opts = opts.slice(0,5);
+    var qbtns = [];
+    opts.forEach(function(v){
+      var b = el('button',null, v===exact ? 'Exact · '+rupees(v) : rupees(v));
+      b.setAttribute('aria-pressed', String(v===tendered));
+      b.onclick = function(){ tendered=v; inp.value=String(v/100);
+        qbtns.forEach(function(x){ x.b.setAttribute('aria-pressed', String(x.v===tendered)); }); upd(); };
+      qbtns.push({b:b,v:v}); q.appendChild(b);
+    });
+    cashWrap.appendChild(q);
+
+    var ch = el('div','change');
+    ch.appendChild(el('span',null,'Change to return'));
+    var chAmt = el('b','num'); ch.appendChild(chAmt);
+    cashWrap.appendChild(ch);
+
+    function upd(){
+      var v = Math.round(parseFloat(inp.value||'0')*100);
+      if(isNaN(v)) v=0; tendered=v;
+      var diff = v - c.grand;
+      chAmt.textContent = rupees(Math.abs(diff));
+      if(diff < 0){ ch.className='change short'; ch.firstChild.textContent='Still to collect'; }
+      else { ch.className='change'; ch.firstChild.textContent='Change to return'; }
+      confirmBtn.disabled = diff < 0;
+    }
+    inp.oninput = function(){
+      qbtns.forEach(function(x){ x.b.setAttribute('aria-pressed','false'); });
+      upd();
+    };
+    setTimeout(upd,0);
+  }
+
+  var foot = el('div'); foot.style.display='flex'; foot.style.gap='9px'; foot.style.width='100%';
+  var back = el('button','btn ghost','Back'); back.onclick=closeModal;
+  var confirmBtn = el('button','btn pri','Confirm payment');
+  confirmBtn.onclick = function(){ completeBill(c, method, tendered); };
+  foot.appendChild(back); foot.appendChild(confirmBtn);
+
+  modal('Checkout · '+rupees(c.grand),
+        (S.orderType==='dine_in' ? 'Table '+S.table : 'Takeaway') + ' · ' + S.cart.length + ' items',
+        body, foot);
+  drawCash();
+}
+
+/* ---------- complete the bill ---------- */
+function completeBill(c, method, tendered){
+  /* Bill numbers are built from a per-device prefix and a per-device
+     counter, so two tablets billing offline can never collide. */
+  var billNo = 'MN-C1-' + String(S.seq).padStart(4,'0');
+  S.seq += 1;
+  var bill = {
+    no: billNo, at: new Date(), items: S.cart.slice(),
+    c: c, method: method, tendered: tendered,
+    orderType: S.orderType, table: S.table,
+    synced: S.online
+  };
+  S.bills.push(bill);
+  if(!S.online){ S.pending += 1; }
+  S.cart = []; S.discount = 0;
+  renderAll();
+  showReceipt(bill);
+}
+
+function showReceipt(bill){
+  var c = bill.c;
+  var r = el('div','receipt');
+  r.appendChild(el('h4',null,'ANNA MESS'));
+  r.appendChild(el('div','ctr muted','Chettinad Cuisine · Karaikudi'));
+  r.appendChild(el('div','ctr muted','GSTIN 33AAACA0000A1Z5'));
+  r.appendChild(el('div','rule'));
+  function pair(a,b,cls){ var d=el('div','r'+(cls?' '+cls:'')); d.appendChild(el('span',null,a)); d.appendChild(el('span',null,b)); r.appendChild(d); }
+  pair('Bill', bill.no);
+  pair('Date', bill.at.toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'}));
+  pair(bill.orderType==='dine_in'?'Table':'Order', bill.orderType==='dine_in'?bill.table:'Takeaway');
+  pair('Cashier','Manikumar');
+  r.appendChild(el('div','rule'));
+  bill.items.forEach(function(l){
+    pair(l.n, rupees(l.p*l.q));
+    var s = el('div','muted'); s.textContent = '   '+l.q+' × '+rupees(l.p); r.appendChild(s);
+  });
+  r.appendChild(el('div','rule'));
+  pair('Subtotal', rupees(c.subtotal));
+  if(c.discount>0) pair('Discount', '−'+rupees(c.discount));
+  pair('Taxable value', rupees(c.taxable));
+  Object.keys(c.comps).forEach(function(k){ pair(k, rupees(c.comps[k])); });
+  if(c.rounding!==0) pair('Rounding', (c.rounding>0?'+':'−')+rupees(Math.abs(c.rounding)));
+  r.appendChild(el('div','rule'));
+  pair('TOTAL', rupees(c.grand), 'tot');
+  pair(bill.method.toUpperCase(), rupees(bill.method==='cash'?bill.tendered:c.grand));
+  if(bill.method==='cash' && bill.tendered>c.grand) pair('Change', rupees(bill.tendered-c.grand));
+  r.appendChild(el('div','rule'));
+  r.appendChild(el('div','ctr muted','Thank you — வருகைக்கு நன்றி'));
+  if(!bill.synced){
+    var w = el('div','ctr muted'); w.style.marginTop='6px';
+    w.textContent = 'Saved on this device · will sync when online';
+    r.appendChild(w);
+  }
+
+  var body = el('div'); body.appendChild(r);
+  body.appendChild(el('div','note',
+    'This is how the bill prints on 80mm thermal paper. The tax breakdown shown here is '+
+    'frozen onto the bill at the moment of sale, so a later change to a rate can never alter '+
+    'an old bill. Demo GST rates — to be confirmed with a chartered accountant.'));
+
+  var foot = el('div'); foot.style.display='flex'; foot.style.gap='9px'; foot.style.width='100%';
+  var kot = el('button','btn ghost','Kitchen ticket');
+  kot.onclick = function(){ toast('KOT sent to the hot kitchen printer'); };
+  var done = el('button','btn pri','New order');
+  done.onclick = function(){ closeModal(); toast('Bill '+bill.no+(bill.synced?' saved':' saved on device')); };
+  foot.appendChild(kot); foot.appendChild(done);
+
+  modal('Payment complete', bill.no + ' · ' + rupees(bill.c.grand), body, foot);
+}
+
+/* ---------- day close ---------- */
+function openDayClose(){
+  var sales=0, taxes=0, cash=0, digital=0, items=0, discounts=0;
+  var byItem = {};
+  S.bills.forEach(function(b){
+    sales += b.c.grand; taxes += b.c.taxTotal; discounts += b.c.discount;
+    if(b.method==='cash') cash += b.c.grand; else digital += b.c.grand;
+    b.items.forEach(function(l){
+      items += l.q;
+      byItem[l.n] = byItem[l.n] || {q:0, amt:0};
+      byItem[l.n].q += l.q; byItem[l.n].amt += l.p*l.q;
+    });
+  });
+  var top = Object.keys(byItem).map(function(k){ return {n:k, q:byItem[k].q, amt:byItem[k].amt}; })
+              .sort(function(a,b){ return b.q-a.q; }).slice(0,6);
+
+  var body = el('div');
+  if(!S.bills.length){
+    body.appendChild(el('div','note','No bills yet in this session. Take a payment and the day close fills in.'));
+  } else {
+    var st = el('div','stats');
+    [['Bills', String(S.bills.length)], ['Items sold', String(items)],
+     ['Net sales', rupees(sales)], ['Tax collected', rupees(taxes)],
+     ['Cash in drawer', rupees(cash + 200000)], ['Digital', rupees(digital)]
+    ].forEach(function(p){
+      var d = el('div','stat'); d.appendChild(el('span',null,p[0]));
+      d.appendChild(el('b','num',p[1])); st.appendChild(d);
+    });
+    body.appendChild(st);
+
+    var tb = el('table','tbl');
+    var thead = el('thead'); var tr = el('tr');
+    ['Top items','Qty','Value'].forEach(function(h){ tr.appendChild(el('th',null,h)); });
+    thead.appendChild(tr); tb.appendChild(thead);
+    var tbody = el('tbody');
+    top.forEach(function(r){
+      var row = el('tr');
+      row.appendChild(el('td',null,r.n));
+      row.appendChild(el('td','num',String(r.q)));
+      row.appendChild(el('td','num',rupees(r.amt)));
+      tbody.appendChild(row);
+    });
+    tb.appendChild(tbody); body.appendChild(tb);
+    body.appendChild(el('div','note',
+      'Cash in drawer includes a ₹2,000 opening float. At a real day close the cashier counts '+
+      'the drawer and SNA POS stores the difference — that stored figure is what makes a '+
+      'shortage traceable instead of arguable.'));
+  }
+
+  var foot = el('div'); foot.style.width='100%';
+  var b = el('button','btn wide pri','Close');
+  b.onclick = closeModal; foot.appendChild(b);
+  modal('Day close', new Date().toLocaleDateString('en-IN',{dateStyle:'full'}), body, foot, true);
+}
+
+/* ---------- agent preview ---------- */
+function agentAnswer(q){
+  q = (q||'').toLowerCase();
+  var sales=0, taxes=0, cash=0, digital=0, byItem={}, discounts=0;
+  S.bills.forEach(function(b){
+    sales+=b.c.grand; taxes+=b.c.taxTotal; discounts+=b.c.discount;
+    if(b.method==='cash') cash+=b.c.grand; else digital+=b.c.grand;
+    b.items.forEach(function(l){
+      byItem[l.n]=byItem[l.n]||{q:0,amt:0};
+      byItem[l.n].q+=l.q; byItem[l.n].amt+=l.p*l.q;
+    });
+  });
+  var names = Object.keys(byItem);
+  if(!S.bills.length) return 'No bills have been taken in this session yet, so there is nothing to report. Take a payment and ask again.';
+
+  if(/best|top|most|sell|அதிக/.test(q)){
+    if(!names.length) return 'No items sold yet.';
+    var top = names.sort(function(a,b){return byItem[b].q-byItem[a].q;})[0];
+    return 'Your best seller so far is '+top+' — '+byItem[top].q+' sold, '+rupees(byItem[top].amt)+
+           ' of sales. That is '+Math.round(byItem[top].amt/sales*100)+'% of today’s takings.';
+  }
+  if(/tax|gst|வரி/.test(q)){
+    return 'You have collected '+rupees(taxes)+' in GST across '+S.bills.length+
+           ' bills, split equally between CGST and SGST. Taxable value is '+
+           rupees(sales-taxes)+'.';
+  }
+  if(/cash|drawer|பண/.test(q)){
+    return 'Cash takings are '+rupees(cash)+' and digital is '+rupees(digital)+
+           '. With the ₹2,000 opening float, the drawer should hold '+rupees(cash+200000)+' right now.';
+  }
+  if(/discount|தள்ளுபடி/.test(q)){
+    return discounts>0
+      ? 'You have given '+rupees(discounts)+' in discounts today, all approved by Manikumar. That is '+
+        Math.round(discounts/(sales+discounts)*100)+'% of gross sales.'
+      : 'No discounts have been given in this session.';
+  }
+  if(/average|per bill|சராசரி/.test(q)){
+    return 'Average bill is '+rupees(Math.round(sales/S.bills.length))+' across '+S.bills.length+' bills.';
+  }
+  if(/sale|total|how much|எவ்வளவு|விற்பனை/.test(q)){
+    return 'Sales so far are '+rupees(sales)+' across '+S.bills.length+' bills, averaging '+
+           rupees(Math.round(sales/S.bills.length))+' per bill.';
+  }
+  return 'In the finished product the agent turns any question into a read-only query against '+
+         'your own sales. This preview answers a fixed set: best seller, sales, tax, cash, '+
+         'discounts and average bill.';
+}
+
+function openAgent(){
+  var body = el('div');
+  var ask = el('div','ask');
+  var inp = el('input'); inp.type='text'; inp.placeholder='Ask about today’s business…';
+  var go = el('button','btn pri'); go.style.flex='none'; go.style.padding='0 18px'; go.textContent='Ask';
+  ask.appendChild(inp); ask.appendChild(go); body.appendChild(ask);
+
+  var chips = el('div','chips');
+  ['What sold best today?','How much GST have I collected?','How much cash is in the drawer?',
+   'What is my average bill?','How much did I give in discounts?'].forEach(function(t){
+    var b = el('button',null,t);
+    b.onclick = function(){ inp.value=t; run(); };
+    chips.appendChild(b);
+  });
+  body.appendChild(chips);
+
+  var ansBox = el('div','answer');
+  ansBox.appendChild(el('div','q','Ask a question, or tap one above.'));
+  var ansTxt = el('div',null,'The answer is computed from the bills you have actually taken in this demo — nothing is scripted or invented.');
+  ansBox.appendChild(ansTxt);
+  body.appendChild(ansBox);
+
+  function run(){
+    var q = inp.value.trim();
+    if(!q) return;
+    ansBox.textContent='';
+    ansBox.appendChild(el('div','q', q));
+    ansBox.appendChild(el('div',null, agentAnswer(q)));
+  }
+  go.onclick = run;
+  inp.onkeydown = function(e){ if(e.key==='Enter') run(); };
+
+  body.appendChild(el('div','note',
+    'Preview of the SNA POS Agent. In the finished product it reads through the signed-in '+
+    'user’s own permissions, so it can never see another restaurant’s data, and it is '+
+    'read-only — it cannot change a bill, approve a discount or calculate a total. Money stays '+
+    'in tested code, not in the model. Tamil answers are planned.'));
+
+  modal('Ask SNA POS', 'Owner’s analyst · read-only', body, null, true);
+  setTimeout(function(){ inp.focus(); }, 60);
+}
+
+/* ---------- wiring ---------- */
+$('search').oninput = function(e){ S.q = e.target.value; renderGrid(); };
+$('otDine').onclick = function(){ S.orderType='dine_in';
+  $('otDine').setAttribute('aria-pressed','true'); $('otTake').setAttribute('aria-pressed','false'); renderAll(); };
+$('otTake').onclick = function(){ S.orderType='takeaway';
+  $('otTake').setAttribute('aria-pressed','true'); $('otDine').setAttribute('aria-pressed','false'); renderAll(); };
+$('tableSel').onchange = function(e){ S.table = e.target.value; };
+$('payBtn').onclick = openPayment;
+$('discBtn').onclick = openDiscount;
+$('dayBtn').onclick = openDayClose;
+$('agentBtn').onclick = openAgent;
+
+$('netBtn').onclick = function(){
+  S.online = !S.online;
+  if(S.online && S.pending>0){
+    var n = S.pending;
+    S.bills.forEach(function(b){ b.synced = true; });
+    S.pending = 0;
+    toast(n + ' offline bill' + (n>1?'s':'') + ' synced — no duplicates');
+  } else if(!S.online){
+    toast('Offline. Billing continues as normal.');
+  }
+  renderAll();
+};
+
+$('langEn').onclick = function(){ S.lang='en';
+  $('langEn').setAttribute('aria-pressed','true'); $('langTa').setAttribute('aria-pressed','false'); renderAll(); };
+$('langTa').onclick = function(){ S.lang='ta';
+  $('langTa').setAttribute('aria-pressed','true'); $('langEn').setAttribute('aria-pressed','false'); renderAll(); };
+
+$('themeBtn').onclick = function(){
+  var r = document.documentElement;
+  var cur = r.getAttribute('data-theme');
+  if(!cur){ cur = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+  r.setAttribute('data-theme', cur==='dark' ? 'light' : 'dark');
+};
+
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeModal(); });
+
+/* Open in a realistic working state: a table mid-order, as a cashier
+   would actually find the screen during service. */
+addItem(MENU.filter(function(m){return m.n==='Chettinad Chicken';})[0]);
+addItem(MENU.filter(function(m){return m.n==='Parotta (2 pcs)';})[0]);
+addItem(MENU.filter(function(m){return m.n==='Parotta (2 pcs)';})[0]);
+addItem(MENU.filter(function(m){return m.n==='Filter Coffee';})[0]);
+renderAll();
+})();
+</script>
