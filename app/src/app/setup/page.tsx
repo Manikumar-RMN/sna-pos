@@ -1,0 +1,95 @@
+"use client";
+
+import { useActionState } from "react";
+import { createRestaurant, type SetupState } from "./actions";
+
+const initial: SetupState = { error: null };
+
+export default function SetupPage() {
+  const [state, action, pending] = useActionState(createRestaurant, initial);
+
+  return (
+    <main className="min-h-screen px-4 py-10">
+      <div className="mx-auto w-full max-w-lg">
+        <h1 className="text-xl font-bold tracking-tight">Set up your restaurant</h1>
+        <p className="mt-1 mb-6 text-sm" style={{ color: "var(--color-ink-3)" }}>
+          This happens once. It creates your branch, staff roles, tax setup and
+          receipt settings.
+        </p>
+
+        <form action={action} className="card p-5">
+          <label className="mb-1.5 block text-sm font-semibold" htmlFor="legal_name">
+            Registered business name
+          </label>
+          <input id="legal_name" name="legal_name" required className="field mb-4"
+                 placeholder="Anna Mess Pvt Ltd" />
+
+          <label className="mb-1.5 block text-sm font-semibold" htmlFor="trading_name">
+            Name customers see
+          </label>
+          <input id="trading_name" name="trading_name" required className="field mb-1"
+                 placeholder="Anna Mess" />
+          <p className="mb-4 text-xs" style={{ color: "var(--color-ink-3)" }}>
+            This prints at the top of every bill.
+          </p>
+
+          <label className="mb-1.5 block text-sm font-semibold" htmlFor="owner_name">
+            Your name
+          </label>
+          <input id="owner_name" name="owner_name" required className="field mb-4"
+                 placeholder="Manikumar RM N" />
+
+          <label className="mb-1.5 block text-sm font-semibold" htmlFor="country_code">
+            Country
+          </label>
+          <select id="country_code" name="country_code" className="field mb-1" defaultValue="IN">
+            <option value="IN">India</option>
+          </select>
+          <p className="mb-4 text-xs" style={{ color: "var(--color-ink-3)" }}>
+            Only India is available today. Other countries need their tax rules
+            confirmed locally first.
+          </p>
+
+          <div className="mb-4 grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="mb-1.5 block text-sm font-semibold" htmlFor="branch_name">
+                Branch name
+              </label>
+              <input id="branch_name" name="branch_name" className="field"
+                     defaultValue="Main Branch" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold" htmlFor="branch_code">
+                Code
+              </label>
+              <input id="branch_code" name="branch_code" className="field"
+                     defaultValue="MN" maxLength={4} />
+            </div>
+          </div>
+
+          <label className="mb-1.5 block text-sm font-semibold" htmlFor="tax_registration_no">
+            GSTIN <span className="font-normal" style={{ color: "var(--color-ink-3)" }}>(optional)</span>
+          </label>
+          <input id="tax_registration_no" name="tax_registration_no" className="field mb-5"
+                 placeholder="33AAACA0000A1Z5" />
+
+          {state.error && (
+            <p className="mb-4 rounded-lg px-3 py-2 text-sm" role="alert"
+               style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
+              {state.error}
+            </p>
+          )}
+
+          <button type="submit" className="btn btn-primary w-full" disabled={pending}>
+            {pending ? "Setting up…" : "Create my restaurant"}
+          </button>
+        </form>
+
+        <p className="mt-4 text-xs" style={{ color: "var(--color-ink-3)" }}>
+          Tax rates are set to India&rsquo;s standard restaurant GST as a starting
+          point. Confirm them with your accountant before issuing real bills.
+        </p>
+      </div>
+    </main>
+  );
+}
