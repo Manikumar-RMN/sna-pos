@@ -2570,7 +2570,19 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      create_restaurant_with_owner: {
+        Args: {
+          p_branch_code?: string
+          p_branch_name?: string
+          p_country_code: string
+          p_legal_name: string
+          p_owner_name: string
+          p_tax_registration_no?: string
+          p_timezone?: string
+          p_trading_name: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
