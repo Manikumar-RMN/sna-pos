@@ -29,6 +29,13 @@ export default async function AppLayout({
         </div>
 
         <nav className="flex items-center gap-1 text-sm">
+          <Link
+            href="/pos"
+            className="rounded-lg px-3 py-2 font-semibold hover:bg-[var(--color-ground)]"
+            style={{ color: "var(--color-brand)" }}
+          >
+            Bill
+          </Link>
           <Link href="/dashboard" className="rounded-lg px-3 py-2 font-medium hover:bg-[var(--color-ground)]">
             Dashboard
           </Link>

@@ -1,8 +1,3 @@
-// Generated from the live SNA POS Supabase schema. Do NOT edit by hand.
-// Regenerate after every migration:
-//   npx supabase gen types typescript --project-id lrtoktmfspnypkgrvnzg \
-//     > src/lib/supabase/database.types.ts
-
 export type Json =
   | string
   | number
@@ -1374,6 +1369,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_menu"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "order_items_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
@@ -1806,6 +1808,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_modifier_groups_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_menu"
             referencedColumns: ["id"]
           },
           {
@@ -2568,8 +2577,63 @@ export type Database = {
           },
         ]
       }
+      v_menu: {
+        Row: {
+          category_id: string | null
+          category_name: string | null
+          category_order: number | null
+          display_order: number | null
+          id: string | null
+          is_available: boolean | null
+          is_price_inclusive: boolean | null
+          is_veg: boolean | null
+          name: string | null
+          price: number | null
+          restaurant_id: string | null
+          short_name: string | null
+          tax_group_id: string | null
+          tax_group_name: string | null
+          tax_rate: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_tax_group_id_fkey"
+            columns: ["tax_group_id"]
+            isOneToOne: false
+            referencedRelation: "tax_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      create_order: {
+        Args: {
+          p_customer_id?: string
+          p_discount_amount?: number
+          p_discount_reason?: string
+          p_items: Json
+          p_order_type?: string
+          p_payment_method_id?: string
+          p_table_id?: string
+          p_tendered?: number
+        }
+        Returns: Json
+      }
       create_restaurant_with_owner: {
         Args: {
           p_branch_code?: string

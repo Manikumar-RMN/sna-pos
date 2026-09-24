@@ -27,9 +27,15 @@ export default async function DashboardPage() {
       <h1 className="text-xl font-bold tracking-tight">
         {user.trading_name}
       </h1>
-      <p className="mt-1 mb-6 text-sm" style={{ color: "var(--color-ink-3)" }}>
+      <p className="mt-1 mb-4 text-sm" style={{ color: "var(--color-ink-3)" }}>
         {user.country_code} · {user.currency_code} · {user.timezone}
       </p>
+
+      <div className="mb-6">
+        <a href="/pos" className="btn btn-primary inline-flex">
+          Open billing
+        </a>
+      </div>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
@@ -45,16 +51,17 @@ export default async function DashboardPage() {
       <div className="card p-5">
         <h2 className="text-base font-bold">What works so far</h2>
         <p className="mt-1 text-sm" style={{ color: "var(--color-ink-3)" }}>
-          Stage 2 of the build: accounts, restaurant setup, roles and
-          permissions. Billing comes next.
+          The online product: accounts, restaurant setup, menu, and billing with
+          live GST and printed receipts. Day close and reports come next.
         </p>
         <ul className="mt-4 space-y-2 text-sm">
           <li>✅ Sign in and sign out</li>
           <li>✅ Restaurant setup with India&rsquo;s GST structure</li>
           <li>✅ Five staff roles with separated permissions</li>
-          <li>⬜ Menu management — Stage 3</li>
-          <li>⬜ Billing, payment and receipt — Stage 4</li>
-          <li>⬜ Offline billing — Stage 5</li>
+          <li>✅ Menu management</li>
+          <li>✅ Billing, payment and 80mm receipt with live GST</li>
+          <li>⬜ Day close and reports — next</li>
+          <li>⬜ Offline billing — a later upgrade</li>
         </ul>
       </div>
 
