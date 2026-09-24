@@ -60,7 +60,7 @@ export default async function DashboardPage() {
           <Tile label="Sales today" value={money(s.total_billed, c)} strong />
           <Tile label="Bills today" value={String(s.bills)} />
           <Tile label="Average bill" value={money(s.average_bill, c)} />
-          <Tile label="Collected (after refunds)" value={money(s.net_collected, c)} />
+          <Tile label="Net sales (after refunds)" value={money(s.net_collected, c)} />
         </div>
       )}
 

@@ -364,7 +364,6 @@ export function PosTerminal({
                 disabled={pending || lines.length === 0}
                 className="btn border px-3 text-sm"
                 style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}
-                title="Save the bill now and take payment later"
               >
                 Save unpaid
               </button>

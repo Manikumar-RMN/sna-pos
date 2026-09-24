@@ -48,6 +48,13 @@ export default async function ShiftPage() {
           : "No shift is open. Bills can only be taken while a shift is open."}
       </p>
 
+      {figures && !canSeeMoney && (
+        <div className="card mb-4 p-4 text-sm" style={{ color: "var(--color-ink-2)" }}>
+          The shift is open — you can take bills. {figures.bills} bill{figures.bills === 1 ? "" : "s"} so far.
+          An owner or manager counts the drawer and closes the shift at the end of the day.
+        </div>
+      )}
+
       {figures ? (
         <ShiftPanel
           figures={figures}

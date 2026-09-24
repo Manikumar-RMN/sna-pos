@@ -118,7 +118,7 @@ export default async function ReportsPage({
             <Kpi label="Total billed" value={money(rep.summary.total_billed, c)} strong />
             <Kpi label="Bills" value={String(rep.summary.bills)} />
             <Kpi label="Average bill" value={money(rep.summary.average_bill, c)} />
-            <Kpi label="Net collected (after refunds)" value={money(rep.summary.net_collected, c)} />
+            <Kpi label="Net sales (after refunds)" value={money(rep.summary.net_collected, c)} />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
