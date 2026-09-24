@@ -1,14 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
-import { signIn, signUp, type AuthState } from "./actions";
+import { authenticate, type AuthState } from "./actions";
 
-const initial: AuthState = { error: null };
+const initial: AuthState = { error: null, notice: null };
 
 export default function LoginPage() {
-  const [signInState, signInAction, signingIn] = useActionState(signIn, initial);
-  const [signUpState, signUpAction, signingUp] = useActionState(signUp, initial);
-  const error = signInState.error ?? signUpState.error;
+  const [state, action, pending] = useActionState(authenticate, initial);
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-10">
@@ -26,7 +24,9 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form action={signInAction} className="card p-5">
+        {/* One form. Both buttons submit the same email + password; the button's
+            own name/value ("intent") tells the server which to do. */}
+        <form action={action} className="card p-5">
           <label className="mb-1.5 block text-sm font-semibold" htmlFor="email">
             Email
           </label>
@@ -53,43 +53,53 @@ export default function LoginPage() {
             placeholder="••••••••"
           />
 
-          {error && (
+          {state.error && (
             <p
               className="mb-4 rounded-lg px-3 py-2 text-sm"
-              style={{
-                background: "var(--color-bad-soft)",
-                color: "var(--color-bad)",
-              }}
+              style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}
               role="alert"
             >
-              {error}
+              {state.error}
+            </p>
+          )}
+          {state.notice && (
+            <p
+              className="mb-4 rounded-lg px-3 py-2 text-sm"
+              style={{ background: "var(--color-ok-soft)", color: "var(--color-ok)" }}
+              role="status"
+            >
+              {state.notice}
             </p>
           )}
 
           <button
             type="submit"
+            name="intent"
+            value="signin"
             className="btn btn-primary w-full"
-            disabled={signingIn || signingUp}
+            disabled={pending}
           >
-            {signingIn ? "Signing in…" : "Sign in"}
+            {pending ? "Please wait…" : "Sign in"}
           </button>
-        </form>
 
-        <form action={signUpAction} className="mt-4 text-center">
-          <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-            New restaurant?{" "}
-            <button
-              type="submit"
-              className="font-semibold underline"
-              style={{ color: "var(--color-brand)" }}
-              disabled={signingIn || signingUp}
-            >
-              {signingUp ? "Creating…" : "Create an account"}
-            </button>
-          </p>
-          <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-            Fill in the email and password above first.
-          </p>
+          <div className="my-4 flex items-center gap-3">
+            <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />
+            <span className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+              new restaurant?
+            </span>
+            <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />
+          </div>
+
+          <button
+            type="submit"
+            name="intent"
+            value="signup"
+            className="btn w-full"
+            style={{ border: "1px solid var(--color-line)", background: "var(--color-surface)" }}
+            disabled={pending}
+          >
+            Create an account
+          </button>
         </form>
 
         <p className="mt-8 text-center text-xs" style={{ color: "var(--color-ink-3)" }}>
