@@ -26,7 +26,7 @@ export default async function ReceiptPage({
     await Promise.all([
       supabase
         .from("order_items")
-        .select("product_name, quantity, unit_price, line_total, created_at")
+        .select("product_name, quantity, unit_price, line_subtotal, line_total, created_at")
         .eq("order_id", order.id)
         .order("created_at"),
       supabase.from("order_item_taxes").select("component_name, rate, tax_amount").eq("order_id", order.id),
@@ -78,7 +78,7 @@ export default async function ReceiptPage({
       name: it.product_name,
       qty: Number(it.quantity),
       unitPrice: Number(it.unit_price),
-      lineTotal: Number(it.line_total),
+      amount: Number(it.line_subtotal),
     })),
     taxLines,
     subtotal: Number(order.subtotal),

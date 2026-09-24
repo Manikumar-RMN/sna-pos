@@ -14,7 +14,7 @@ export type ReceiptData = {
   createdAt: string;
   currency: string;
   cashierName: string;
-  items: { name: string; qty: number; unitPrice: number; lineTotal: number }[];
+  items: { name: string; qty: number; unitPrice: number; amount: number }[];
   taxLines: { name: string; amount: number }[];
   subtotal: number;
   discount: number;
@@ -113,7 +113,7 @@ export function ReceiptView({ data }: { data: ReceiptData }) {
               <tr key={i}>
                 <td className="pr-1 align-top">{it.name}</td>
                 <td className="text-center align-top">{it.qty}</td>
-                <td className="text-right align-top">{money(it.lineTotal, c)}</td>
+                <td className="text-right align-top">{money(it.amount, c)}</td>
               </tr>
             ))}
           </tbody>
