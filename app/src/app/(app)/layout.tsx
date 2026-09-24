@@ -32,6 +32,9 @@ export default async function AppLayout({
           <Link href="/dashboard" className="rounded-lg px-3 py-2 font-medium hover:bg-[var(--color-ground)]">
             Dashboard
           </Link>
+          <Link href="/menu" className="rounded-lg px-3 py-2 font-medium hover:bg-[var(--color-ground)]">
+            Menu
+          </Link>
           <Link href="/settings/users" className="rounded-lg px-3 py-2 font-medium hover:bg-[var(--color-ground)]">
             Users
           </Link>
