@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { can, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { todayIn } from "@/lib/format";
 import { BusinessForm, ChargesForm, PaymentMethodsForm, TablesForm, TaxForm, type TaxGroupView } from "./settings-forms";
 import type { TaxComponent } from "./actions";
 
 export default async function SettingsPage() {
   const user = await requireUser();
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIn(user.timezone);
 
   const [
     { data: rest },
@@ -37,7 +38,7 @@ export default async function SettingsPage() {
       .order("valid_from", { ascending: false }),
     supabase.from("products").select("tax_group_id").is("deleted_at", null),
     supabase.from("payment_methods").select("id, name, is_active").order("display_order"),
-    supabase.from("orders").select("dining_table_id").eq("payment_status", "unpaid").neq("status", "voided").not("dining_table_id", "is", null),
+    supabase.from("orders").select("dining_table_id").in("payment_status", ["unpaid", "partial"]).neq("status", "voided").not("dining_table_id", "is", null),
     supabase.from("countries").select("code, tax_system_name, tax_id_label, compliance_note").eq("code", user.country_code).maybeSingle(),
   ]);
 

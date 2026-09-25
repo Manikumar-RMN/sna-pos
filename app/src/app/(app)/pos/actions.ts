@@ -7,8 +7,10 @@ import type { Json } from "@/lib/supabase/database.types";
 
 export type Senior = { kind: "senior" | "pwd"; count: number; diners: number; name: string; id_no: string };
 
+export type CartItem = { product_id: string; qty: number; note?: string; options?: string[] };
+
 export type CartInput = {
-  items: { product_id: string; qty: number; note?: string }[];
+  items: CartItem[];
   discount_amount: number;
   /** null = the restaurant's default; true/false = the customer's choice on this bill. */
   service_charge: boolean | null;
@@ -45,9 +47,13 @@ export type Quote = {
 
 export type PlaceOrderResult = { ok: true; orderId: string; billNumber: string } | { ok: false; error: string };
 
+function itemsJson(items: CartItem[]) {
+  return items.map((i) => ({ product_id: i.product_id, qty: i.qty, note: i.note ?? "", options: i.options ?? [] })) as unknown as Json;
+}
+
 function cartArgs(input: CartInput) {
   return {
-    p_items: input.items.map((i) => ({ product_id: i.product_id, qty: i.qty, note: i.note ?? "" })) as unknown as Json,
+    p_items: itemsJson(input.items),
     p_discount_amount: input.discount_amount,
     p_service_charge: input.service_charge ?? undefined,
     p_senior: (input.senior ?? undefined) as unknown as Json | undefined,
@@ -97,4 +103,17 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
   revalidatePath("/bills");
   revalidatePath("/kitchen");
   return { ok: true, orderId: res.order_id, billNumber: res.bill_number };
+}
+
+/** Adds items to an unpaid or part-paid bill. The database recalculates the whole bill. */
+export async function addToBill(orderId: string, items: CartItem[]): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!items.length) return { ok: false, error: "Add at least one item." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("add_order_items", { p_order_id: orderId, p_items: itemsJson(items) });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/bills");
+  revalidatePath(`/bills/${orderId}`);
+  revalidatePath("/kitchen");
+  revalidatePath("/pos");
+  return { ok: true };
 }

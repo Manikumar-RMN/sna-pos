@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   const [report, shift, unpaid, kitchen, rest, products, staff, shiftsEver, tables] = await Promise.all([
     canSales ? supabase.rpc("sales_report", { p_from: today, p_to: today }) : Promise.resolve({ data: null }),
     supabase.from("shifts").select("id, opened_at, opened_by").eq("status", "open").limit(1).maybeSingle(),
-    supabase.from("orders").select("id, grand_total").eq("payment_status", "unpaid").neq("status", "voided"),
+    supabase.from("orders").select("id, grand_total, paid_total").in("payment_status", ["unpaid", "partial"]).neq("status", "voided"),
     supabase.from("kitchen_tickets").select("id", { count: "exact", head: true }).in("status", ["new", "preparing"]),
     supabase.from("restaurants").select("tax_registration_no").limit(1).maybeSingle(),
     supabase.from("products").select("id", { count: "exact", head: true }).is("deleted_at", null),
@@ -91,7 +91,7 @@ export default async function DashboardPage() {
             <span className="font-bold" style={unpaidRows.length ? { color: "var(--color-warn)" } : undefined}>
               {unpaidRows.length}
             </span>{" "}
-            · {money(unpaidRows.reduce((a, o) => a + Number(o.grand_total), 0), c)}
+            · {money(unpaidRows.reduce((a, o) => a + Number(o.grand_total) - Number(o.paid_total ?? 0), 0), c)}
           </div>
         </Link>
         <Link href="/kitchen" className="card p-4">

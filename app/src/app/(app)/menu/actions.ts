@@ -114,21 +114,42 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
   if (price === null) return { error: "Enter a valid price." };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("products").insert({
-    restaurant_id: restaurantId!,
-    category_id: categoryId,
-    tax_group_id: taxGroupId,
-    name,
-    price,
-    is_veg: isVeg,
-  });
+  const { data: created, error } = await supabase
+    .from("products")
+    .insert({
+      restaurant_id: restaurantId!,
+      category_id: categoryId,
+      tax_group_id: taxGroupId,
+      name,
+      price,
+      is_veg: isVeg,
+    })
+    .select("id")
+    .single();
   if (error) return { error: error.message };
+  const linkError = await linkOptionGroups(created.id, restaurantId!, formData);
+  if (linkError) return { error: linkError };
   revalidatePath("/menu");
+  revalidatePath("/pos");
   return { error: null, ok: true };
 }
 
+/** Replaces the option groups attached to an item with the ticked ones in the form. */
+async function linkOptionGroups(productId: string, restaurantId: string, formData: FormData): Promise<string | null> {
+  if (formData.get("options_present") !== "1") return null;
+  const groupIds = formData.getAll("option_group").map(String).filter(Boolean);
+  const supabase = await createClient();
+  const { error: delError } = await supabase.from("product_modifier_groups").delete().eq("product_id", productId);
+  if (delError) return delError.message;
+  if (groupIds.length === 0) return null;
+  const { error } = await supabase
+    .from("product_modifier_groups")
+    .insert(groupIds.map((g) => ({ product_id: productId, modifier_group_id: g, restaurant_id: restaurantId })));
+  return error ? error.message : null;
+}
+
 export async function updateProduct(_prev: MenuState, formData: FormData): Promise<MenuState> {
-  const { denied } = await requireMenuManager();
+  const { restaurantId, denied } = await requireMenuManager();
   if (denied) return { error: denied };
 
   const id = String(formData.get("id") ?? "");
@@ -140,6 +161,8 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
 
   if (!id) return { error: "Missing item." };
   if (!name) return { error: "Enter an item name." };
+  if (!categoryId) return { error: "Choose a category." };
+  if (!taxGroupId) return { error: "Choose a tax group." };
   if (price === null) return { error: "Enter a valid price." };
 
   const supabase = await createClient();
@@ -148,7 +171,85 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
     .update({ name, category_id: categoryId, tax_group_id: taxGroupId, price, is_veg: isVeg })
     .eq("id", id);
   if (error) return { error: error.message };
+  const linkError = await linkOptionGroups(id, restaurantId!, formData);
+  if (linkError) return { error: linkError };
   revalidatePath("/menu");
+  revalidatePath("/pos");
+  return { error: null, ok: true };
+}
+
+/* ---------- options & add-ons ---------- */
+
+export type OptionInput = { id: string | null; name: string; price: number };
+
+/**
+ * Creates or changes an option group (e.g. "Size": Small / Large +20).
+ * Removed options are switched off, not deleted, so past bills keep their history.
+ */
+export async function saveOptionGroup(
+  groupId: string | null,
+  name: string,
+  required: boolean,
+  maxChoices: number,
+  options: OptionInput[],
+): Promise<MenuState> {
+  const { restaurantId, denied } = await requireMenuManager();
+  if (denied) return { error: denied };
+  const groupName = name.trim();
+  const clean = options.map((o) => ({ ...o, name: o.name.trim() })).filter((o) => o.name);
+  if (!groupName) return { error: "Enter a name for the group, e.g. Size or Add-ons." };
+  if (clean.length === 0) return { error: "Add at least one option." };
+  if (clean.length > 20) return { error: "A group can have at most 20 options." };
+  if (new Set(clean.map((o) => o.name.toLowerCase())).size !== clean.length) return { error: "Two options have the same name." };
+  if (clean.some((o) => !Number.isFinite(o.price) || Math.abs(o.price) > 100000)) return { error: "Enter a valid extra price for every option." };
+  const max = Math.round(maxChoices);
+  if (!(max >= 1 && max <= clean.length)) return { error: `Customers can choose between 1 and ${clean.length} options.` };
+
+  const supabase = await createClient();
+  const groupRow = { name: groupName, is_required: required, min_select: required ? 1 : 0, max_select: max, is_active: true };
+  let gid = groupId;
+  if (gid) {
+    const { error } = await supabase.from("modifier_groups").update(groupRow).eq("id", gid);
+    if (error) return { error: error.message };
+  } else {
+    const { data, error } = await supabase
+      .from("modifier_groups")
+      .insert({ ...groupRow, restaurant_id: restaurantId! })
+      .select("id")
+      .single();
+    if (error) return { error: error.message };
+    gid = data.id;
+  }
+
+  const { data: existing } = await supabase.from("modifier_items").select("id").eq("modifier_group_id", gid);
+  const keep = new Set(clean.map((o) => o.id).filter(Boolean));
+  const retire = (existing ?? []).map((e) => e.id).filter((id) => !keep.has(id));
+  if (retire.length) {
+    const { error } = await supabase.from("modifier_items").update({ is_active: false }).in("id", retire);
+    if (error) return { error: error.message };
+  }
+  for (const [i, o] of clean.entries()) {
+    const row = { name: o.name, price_delta: Math.round(o.price * 100) / 100, display_order: i + 1, is_active: true };
+    const { error } = o.id
+      ? await supabase.from("modifier_items").update(row).eq("id", o.id).eq("modifier_group_id", gid)
+      : await supabase.from("modifier_items").insert({ ...row, restaurant_id: restaurantId!, modifier_group_id: gid });
+    if (error) return { error: error.message };
+  }
+  revalidatePath("/menu");
+  revalidatePath("/pos");
+  return { error: null, ok: true };
+}
+
+export async function removeOptionGroup(groupId: string): Promise<MenuState> {
+  const { denied } = await requireMenuManager();
+  if (denied) return { error: denied };
+  const supabase = await createClient();
+  const { error: linkError } = await supabase.from("product_modifier_groups").delete().eq("modifier_group_id", groupId);
+  if (linkError) return { error: linkError.message };
+  const { error } = await supabase.from("modifier_groups").update({ is_active: false }).eq("id", groupId);
+  if (error) return { error: error.message };
+  revalidatePath("/menu");
+  revalidatePath("/pos");
   return { error: null, ok: true };
 }
 

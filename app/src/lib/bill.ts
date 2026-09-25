@@ -13,6 +13,14 @@ export type BillDetail = {
   voidedBy: string | null;
   voidedAt: string | null;
   cashRoundingMode: string;
+  /** Still to pay (unpaid / part-paid bills). */
+  balance: number;
+  /** Items still on the bill, for cancel / split. */
+  lines: { id: string; name: string; options: string | null; qty: number; amount: number }[];
+  cancelled: { name: string; qty: number; reason: string | null }[];
+  tableId: string | null;
+  hasDiscount: boolean;
+  mergedInto: string | null;
 };
 
 /**
@@ -28,7 +36,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details",
+      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -37,14 +45,16 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const [items, taxes, payments, refunds, restaurant, branch, settings, table, discounts] = await Promise.all([
     supabase
       .from("order_items")
-      .select("product_name, quantity, unit_price, line_subtotal, net_amount, created_at")
+      .select("id, product_name, options_text, quantity, unit_price, line_subtotal, net_amount, created_at, cancelled_at, cancelled_qty, cancel_reason")
       .eq("order_id", order.id)
-      .order("created_at"),
+      .order("created_at")
+      .order("id"),
     supabase.from("order_item_taxes").select("component_name, rate, tax_amount").eq("order_id", order.id),
     supabase
       .from("payments")
       .select("amount, tendered_amount, change_amount, rounding_adjustment, payment_method_id, created_at")
       .eq("order_id", order.id)
+      .in("status", ["captured", "refunded"])
       .order("created_at"),
     supabase.from("refunds").select("amount, reason, created_at, approved_by").eq("order_id", order.id).order("created_at"),
     supabase
@@ -56,7 +66,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     supabase
       .from("branch_settings")
       .select("receipt_header, receipt_footer, service_charge_label, cash_rounding_mode, rounding_cash_only")
-      .limit(1)
+      .eq("branch_id", order.branch_id)
       .maybeSingle(),
     order.dining_table_id
       ? supabase.from("dining_tables").select("table_number").eq("id", order.dining_table_id).maybeSingle()
@@ -80,12 +90,15 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     : { data: [] as { id: string; full_name: string }[] };
   const nameOf = (id: string | null) => (people ?? []).find((p) => p.id === id)?.full_name ?? "—";
 
-  const firstPayment = (payments.data ?? [])[0];
-  let methodName = "Paid";
-  if (firstPayment?.payment_method_id) {
-    const { data: m } = await supabase.from("payment_methods").select("name").eq("id", firstPayment.payment_method_id).maybeSingle();
-    methodName = m?.name ?? "Paid";
-  }
+  const paymentRows = payments.data ?? [];
+  const methodIds = [...new Set(paymentRows.map((p) => p.payment_method_id))];
+  const { data: methodRows } = methodIds.length
+    ? await supabase.from("payment_methods").select("id, name").in("id", methodIds)
+    : { data: [] as { id: string; name: string }[] };
+  const methodName = (id: string) => (methodRows ?? []).find((m) => m.id === id)?.name ?? "Paid";
+  const covered = paymentRows.reduce((s, p) => s + Number(p.amount) - Number(p.rounding_adjustment ?? 0), 0);
+  const balance = Math.max(0, Math.round((Number(order.grand_total) - covered) * 100) / 100);
+  const liveItems = (items.data ?? []).filter((it) => !it.cancelled_at);
 
   const taxMap = new Map<string, number>();
   for (const t of taxes.data ?? []) {
@@ -126,8 +139,9 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     timezone: tz,
     currency: order.currency_code ?? restaurant.data?.currency_code ?? "INR",
     cashierName: nameOf(order.cashier_id),
-    items: (items.data ?? []).map((it) => ({
+    items: liveItems.map((it) => ({
       name: it.product_name,
+      options: it.options_text,
       qty: Number(it.quantity),
       unitPrice: Number(it.unit_price),
       amount: Number(it.line_subtotal),
@@ -141,21 +155,20 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     taxIncluded: Number(order.tax_included),
     rounding: Number(order.rounding_adjustment),
     grandTotal: Number(order.grand_total),
-    netSales: (items.data ?? []).reduce((s, it) => s + Number(it.net_amount), 0),
+    netSales: liveItems.reduce((s, it) => s + Number(it.net_amount), 0),
     senior: sd?.name ? { kind: sd.kind ?? "senior", name: sd.name, idNo: sd.id_no ?? "" } : null,
     seniorDiscount,
     vatRemoved: Number(order.tax_exempt_amount),
     exemptSales: Number(order.exempt_sales),
     showVatBreakdown: !!country?.has_senior_discount,
-    payment: firstPayment
-      ? {
-          methodName,
-          amount: Number(firstPayment.amount),
-          tendered: firstPayment.tendered_amount != null ? Number(firstPayment.tendered_amount) : null,
-          change: Number(firstPayment.change_amount),
-          cashRounding: Number(firstPayment.rounding_adjustment),
-        }
-      : null,
+    payments: paymentRows.map((p) => ({
+      methodName: methodName(p.payment_method_id),
+      amount: Number(p.amount),
+      tendered: p.tendered_amount != null ? Number(p.tendered_amount) : null,
+      change: Number(p.change_amount ?? 0),
+      cashRounding: Number(p.rounding_adjustment ?? 0),
+    })),
+    balance,
     refunded,
     state: billState(order.status, order.payment_status),
     voidReason: order.void_reason,
@@ -173,5 +186,19 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     voidedBy: order.voided_by ? nameOf(order.voided_by) : null,
     voidedAt: order.voided_at,
     cashRoundingMode: settings.data?.rounding_cash_only ? (settings.data?.cash_rounding_mode ?? "none") : "none",
+    balance,
+    lines: liveItems.map((it) => ({
+      id: it.id,
+      name: it.product_name,
+      options: it.options_text,
+      qty: Number(it.quantity),
+      amount: Number(it.line_subtotal),
+    })),
+    cancelled: (items.data ?? [])
+      .filter((it) => Number(it.cancelled_qty ?? 0) > 0)
+      .map((it) => ({ name: it.product_name, qty: Number(it.cancelled_qty), reason: it.cancel_reason })),
+    tableId: order.dining_table_id,
+    hasDiscount: Number(order.discount_total) > 0 || !!sd?.name,
+    mergedInto: order.merged_into,
   };
 }

@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useActionState } from "react";
+import { useRouter } from "next/navigation";
 import {
+  saveOptionGroup,
+  removeOptionGroup,
+  type OptionInput,
   createCategory,
   renameCategory,
   deleteCategory,
@@ -24,6 +28,13 @@ type Product = {
   is_available: boolean;
 };
 type TaxGroup = { id: string; name: string };
+export type OptionGroupView = {
+  id: string;
+  name: string;
+  required: boolean;
+  max: number;
+  options: { id: string; name: string; price: number }[];
+};
 
 const initial: MenuState = { error: null };
 
@@ -45,18 +56,27 @@ export function MenuManager({
   categories,
   products,
   taxGroups,
+  optionGroups,
+  productGroups,
 }: {
   canManage: boolean;
   currency: string;
   categories: Category[];
   products: Product[];
   taxGroups: TaxGroup[];
+  optionGroups: OptionGroupView[];
+  productGroups: Record<string, string[]>;
 }) {
   const [editing, setEditing] = useState<Product | null>(null);
   const [addingIn, setAddingIn] = useState<string | null>(null); // category id
 
   const byCategory = (catId: string) => products.filter((p) => p.category_id === catId);
   const uncategorised = products.filter((p) => !categories.some((c) => c.id === p.category_id));
+  const groupNames = (productId: string) =>
+    (productGroups[productId] ?? [])
+      .map((g) => optionGroups.find((x) => x.id === g)?.name)
+      .filter(Boolean)
+      .join(", ");
 
   if (!canManage) {
     return (
@@ -119,6 +139,7 @@ export function MenuManager({
                   key={p.id}
                   product={p}
                   currency={currency}
+                  optionNames={groupNames(p.id)}
                   onEdit={() => setEditing(p)}
                 />
               ))
@@ -133,12 +154,14 @@ export function MenuManager({
             Other items
           </div>
           {uncategorised.map((p) => (
-            <ProductRow key={p.id} product={p} currency={currency} onEdit={() => setEditing(p)} />
+            <ProductRow key={p.id} product={p} currency={currency} optionNames={groupNames(p.id)} onEdit={() => setEditing(p)} />
           ))}
         </div>
       )}
 
       <AddCategoryCard />
+
+      <OptionGroupsCard groups={optionGroups} currency={currency} />
 
       {addingIn && (
         <ProductModal
@@ -146,6 +169,8 @@ export function MenuManager({
           categories={categories}
           taxGroups={taxGroups}
           defaultCategory={addingIn}
+          optionGroups={optionGroups}
+          selectedGroups={[]}
           action={createProduct}
           onClose={() => setAddingIn(null)}
         />
@@ -157,6 +182,8 @@ export function MenuManager({
           categories={categories}
           taxGroups={taxGroups}
           product={editing}
+          optionGroups={optionGroups}
+          selectedGroups={productGroups[editing.id] ?? []}
           action={updateProduct}
           onClose={() => setEditing(null)}
         />
@@ -214,10 +241,12 @@ function CategoryHeader({ cat, itemCount }: { cat: Category; itemCount: number }
 function ProductRow({
   product,
   currency,
+  optionNames,
   onEdit,
 }: {
   product: Product;
   currency: string;
+  optionNames: string;
   onEdit: () => void;
 }) {
   const [availState, availAction, toggling] = useActionState(toggleAvailability, initial);
@@ -260,6 +289,11 @@ function ProductRow({
             </span>
           )}
         </div>
+        {optionNames && (
+          <div className="truncate text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+            Options: {optionNames}
+          </div>
+        )}
       </div>
       <div className="tabular-nums text-sm font-semibold">{money(currency, product.price)}</div>
 
@@ -334,6 +368,8 @@ function ProductModal({
   taxGroups,
   product,
   defaultCategory,
+  optionGroups,
+  selectedGroups,
   action,
   onClose,
 }: {
@@ -342,16 +378,17 @@ function ProductModal({
   taxGroups: TaxGroup[];
   product?: Product;
   defaultCategory?: string;
+  optionGroups: OptionGroupView[];
+  selectedGroups: string[];
   action: (prev: MenuState, fd: FormData) => Promise<MenuState>;
   onClose: () => void;
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
 
   // Close on success.
-  if (state.ok) {
-    // Defer to avoid setState-in-render warnings.
-    setTimeout(onClose, 0);
-  }
+  useEffect(() => {
+    if (state.ok) onClose();
+  }, [state, onClose]);
 
   const vegDefault = product?.is_veg === true ? "on" : product?.is_veg === false ? "off" : "";
 
@@ -415,6 +452,21 @@ function ProductModal({
           </div>
         </div>
 
+        <input type="hidden" name="options_present" value="1" />
+        {optionGroups.length > 0 && (
+          <fieldset className="mb-4">
+            <legend className="mb-1.5 text-sm font-semibold">Options for this item</legend>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {optionGroups.map((g) => (
+                <label key={g.id} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="option_group" value={g.id} defaultChecked={selectedGroups.includes(g.id)} className="h-4 w-4" />
+                  {g.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
         {state.error && (
           <p className="mb-3 rounded-lg px-3 py-2 text-sm" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
             {state.error}
@@ -430,6 +482,171 @@ function ProductModal({
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+/* ---------- options & add-ons ---------- */
+
+function OptionGroupsCard({ groups, currency }: { groups: OptionGroupView[]; currency: string }) {
+  const [editing, setEditing] = useState<OptionGroupView | "new" | null>(null);
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: "1px solid var(--color-line)" }}>
+        <div>
+          <div className="text-sm font-bold">Options &amp; add-ons</div>
+          <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+            Sizes, half/full, spice level, extra toppings. Make a group once, then tick it on each item.
+          </div>
+        </div>
+        <button
+          className="btn shrink-0"
+          style={{ background: "var(--color-brand-soft)", color: "var(--color-brand)", minHeight: 40, padding: "0 12px" }}
+          onClick={() => setEditing("new")}
+        >
+          + New group
+        </button>
+      </div>
+      {groups.length === 0 ? (
+        <p className="px-4 py-4 text-sm" style={{ color: "var(--color-ink-3)" }}>
+          No option groups yet. Example: <b>Size</b> (required, choose 1): Half, Full +80.
+        </p>
+      ) : (
+        groups.map((g) => (
+          <div key={g.id} className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "1px solid var(--color-line)" }}>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">
+                {g.name}{" "}
+                <span className="text-xs font-normal" style={{ color: "var(--color-ink-3)" }}>
+                  {g.required ? (g.max === 1 ? "required · choose 1" : `required · up to ${g.max}`) : g.max === 1 ? "optional · choose 1" : `optional · up to ${g.max}`}
+                </span>
+              </div>
+              <div className="truncate text-xs" style={{ color: "var(--color-ink-2)" }}>
+                {g.options.map((o) => (o.price ? `${o.name} ${o.price > 0 ? "+" : "−"}${money(currency, Math.abs(o.price))}` : o.name)).join(" · ")}
+              </div>
+            </div>
+            <button className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--color-line)" }} onClick={() => setEditing(g)}>
+              Edit
+            </button>
+            <button
+              className="rounded-lg px-2 py-1.5 text-xs font-semibold"
+              style={{ color: "var(--color-bad)" }}
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  setError(null);
+                  const r = await removeOptionGroup(g.id);
+                  if (r.error) setError(r.error);
+                  else router.refresh();
+                })
+              }
+            >
+              Remove
+            </button>
+          </div>
+        ))
+      )}
+      {error && (
+        <p className="px-4 py-2 text-sm" style={{ color: "var(--color-bad)" }}>
+          {error}
+        </p>
+      )}
+      {editing && <OptionGroupModal group={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
+    </div>
+  );
+}
+
+function OptionGroupModal({ group, onClose }: { group: OptionGroupView | null; onClose: () => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [name, setName] = useState(group?.name ?? "");
+  const [required, setRequired] = useState(group?.required ?? true);
+  const [max, setMax] = useState(String(group?.max ?? 1));
+  const [rows, setRows] = useState<{ id: string | null; name: string; price: string }[]>(
+    group?.options.map((o) => ({ id: o.id, name: o.name, price: String(o.price) })) ?? [
+      { id: null, name: "", price: "0" },
+      { id: null, name: "", price: "0" },
+    ],
+  );
+  const [error, setError] = useState<string | null>(null);
+  const update = (i: number, patch: Partial<(typeof rows)[number]>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+
+  function save() {
+    setError(null);
+    const options: OptionInput[] = rows.map((r) => ({ id: r.id, name: r.name, price: Number(r.price.replace(/\u2212/g, "-").trim() || 0) }));
+    start(async () => {
+      const r = await saveOptionGroup(group?.id ?? null, name, required, Number(max), options);
+      if (r.error) return setError(r.error);
+      router.refresh();
+      onClose();
+    });
+  }
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(10,8,20,.55)", display: "grid", placeItems: "center", padding: 16, zIndex: 50 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="card" style={{ width: "100%", maxWidth: 480, padding: 18, background: "var(--color-surface)" }} role="dialog" aria-label="Option group">
+        <h3 className="mb-4 text-lg font-bold">{group ? "Edit option group" : "New option group"}</h3>
+        <label className="mb-1.5 block text-sm font-semibold">Group name</label>
+        <input className="field mb-3" value={name} onChange={(e) => setName(e.target.value)} placeholder="Size, Spice level, Add-ons" autoFocus />
+
+        <div className="mb-3 grid grid-cols-2 gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="h-4 w-4" checked={required} onChange={(e) => setRequired(e.target.checked)} />
+            Customer must choose
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            Up to
+            <input className="field h-9 w-16 text-center" inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value)} aria-label="Most choices allowed" />
+            choice{max === "1" ? "" : "s"}
+          </label>
+        </div>
+
+        <div className="mb-1 grid grid-cols-[1fr_110px_28px] gap-2 text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+          <span>Option</span>
+          <span>Extra price</span>
+          <span />
+        </div>
+        <div className="max-h-[40vh] space-y-2 overflow-y-auto">
+          {rows.map((r, i) => (
+            <div key={i} className="grid grid-cols-[1fr_110px_28px] items-center gap-2">
+              <input className="field h-10 text-sm" value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder={i === 0 ? "Half" : "Full"} aria-label="Option name" />
+              <input className="field h-10 text-right text-sm" inputMode="decimal" value={r.price} onChange={(e) => update(i, { price: e.target.value })} aria-label="Extra price" />
+              <button className="text-sm font-semibold" style={{ color: "var(--color-bad)" }} onClick={() => setRows(rows.filter((_, j) => j !== i))} aria-label="Remove option">
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+        <button className="mt-2 text-xs font-semibold" style={{ color: "var(--color-brand)" }} onClick={() => setRows([...rows, { id: null, name: "", price: "0" }])} disabled={rows.length >= 20}>
+          + Add option
+        </button>
+        <p className="mt-2 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+          Extra price is added to the item&rsquo;s price (use 0 for no change, or a minus for cheaper, e.g. Half -40).
+        </p>
+
+        {error && (
+          <p className="mt-3 rounded-lg px-3 py-2 text-sm" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
+            {error}
+          </p>
+        )}
+        <div className="mt-4 flex gap-2">
+          <button type="button" className="btn" style={{ flex: "none", padding: "0 16px" }} onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="btn btn-primary" style={{ flex: 1 }} disabled={pending} onClick={save}>
+            {pending ? "Saving…" : "Save group"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

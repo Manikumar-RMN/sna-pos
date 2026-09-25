@@ -70,7 +70,7 @@ export async function removeTable(id: string): Promise<Result> {
     .from("orders")
     .select("id", { count: "exact", head: true })
     .eq("dining_table_id", id)
-    .eq("payment_status", "unpaid")
+    .in("payment_status", ["unpaid", "partial"])
     .neq("status", "voided");
   if ((count ?? 0) > 0) return { ok: false, error: "This table has an unpaid bill. Settle it first." };
   const { error } = await supabase.from("dining_tables").update({ is_active: false }).eq("id", id);

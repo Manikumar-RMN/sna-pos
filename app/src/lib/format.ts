@@ -122,11 +122,13 @@ export const orderTypeLabel: Record<string, string> = {
 export function billState(status: string, paymentStatus: string):
   | "voided"
   | "unpaid"
+  | "part-paid"
   | "refunded"
   | "part-refunded"
   | "paid" {
   if (status === "voided") return "voided";
   if (paymentStatus === "unpaid") return "unpaid";
+  if (paymentStatus === "partial") return "part-paid";
   if (paymentStatus === "refunded") return "refunded";
   if (paymentStatus === "partially_refunded") return "part-refunded";
   return "paid";
@@ -135,6 +137,7 @@ export function billState(status: string, paymentStatus: string):
 export const stateStyle: Record<string, { label: string; bg: string; fg: string }> = {
   paid: { label: "Paid", bg: "var(--color-ok-soft)", fg: "var(--color-ok)" },
   unpaid: { label: "Unpaid", bg: "var(--color-warn-soft)", fg: "var(--color-warn)" },
+  "part-paid": { label: "Part paid", bg: "var(--color-warn-soft)", fg: "var(--color-warn)" },
   voided: { label: "Voided", bg: "var(--color-bad-soft)", fg: "var(--color-bad)" },
   refunded: { label: "Refunded", bg: "var(--color-ground)", fg: "var(--color-ink-2)" },
   "part-refunded": { label: "Part refunded", bg: "var(--color-ground)", fg: "var(--color-ink-2)" },

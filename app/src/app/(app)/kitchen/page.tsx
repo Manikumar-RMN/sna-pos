@@ -45,8 +45,8 @@ export default async function KitchenPage() {
       createdAt: t.created_at,
       where: table ? `Table ${table}` : orderTypeLabel[o?.order_type ?? ""] ?? "",
       items: (items ?? [])
-        .filter((i) => i.kitchen_ticket_id === t.id && i.status !== "cancelled")
-        .map((i) => ({ name: i.product_name, qty: Number(i.quantity), note: i.note })),
+        .filter((i) => i.kitchen_ticket_id === t.id)
+        .map((i) => ({ name: i.product_name, qty: Number(i.quantity), note: i.note, cancelled: i.status === "cancelled" })),
     };
   });
 

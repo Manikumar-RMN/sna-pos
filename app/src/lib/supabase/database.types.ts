@@ -1057,6 +1057,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_active: boolean
           is_required: boolean
           max_select: number
           min_select: number
@@ -1066,6 +1067,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_active?: boolean
           is_required?: boolean
           max_select?: number
           min_select?: number
@@ -1075,6 +1077,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_active?: boolean
           is_required?: boolean
           max_select?: number
           min_select?: number
@@ -1307,8 +1310,10 @@ export type Database = {
       }
       order_items: {
         Row: {
+          cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
+          cancelled_qty: number
           created_at: string
           id: string
           is_price_inclusive: boolean
@@ -1319,18 +1324,22 @@ export type Database = {
           line_total: number
           modifier_total: number
           net_amount: number
+          options_text: string | null
           order_id: string
           product_id: string
           product_name: string
           quantity: number
           restaurant_id: string
           service_charge: number
+          tax_comps: Json | null
           tax_included: number
           unit_price: number
         }
         Insert: {
+          cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          cancelled_qty?: number
           created_at?: string
           id: string
           is_price_inclusive?: boolean
@@ -1341,18 +1350,22 @@ export type Database = {
           line_total: number
           modifier_total?: number
           net_amount?: number
+          options_text?: string | null
           order_id: string
           product_id: string
           product_name: string
           quantity: number
           restaurant_id: string
           service_charge?: number
+          tax_comps?: Json | null
           tax_included?: number
           unit_price: number
         }
         Update: {
+          cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          cancelled_qty?: number
           created_at?: string
           id?: string
           is_price_inclusive?: boolean
@@ -1363,12 +1376,14 @@ export type Database = {
           line_total?: number
           modifier_total?: number
           net_amount?: number
+          options_text?: string | null
           order_id?: string
           product_id?: string
           product_name?: string
           quantity?: number
           restaurant_id?: string
           service_charge?: number
+          tax_comps?: Json | null
           tax_included?: number
           unit_price?: number
         }
@@ -1421,6 +1436,7 @@ export type Database = {
         Row: {
           bill_number: string
           branch_id: string
+          calc_params: Json | null
           cashier_id: string
           client_created_at: string
           created_at: string
@@ -1432,6 +1448,7 @@ export type Database = {
           exempt_sales: number
           grand_total: number
           id: string
+          merged_into: string | null
           order_type: string
           paid_total: number
           payment_status: string
@@ -1456,6 +1473,7 @@ export type Database = {
         Insert: {
           bill_number: string
           branch_id: string
+          calc_params?: Json | null
           cashier_id: string
           client_created_at: string
           created_at?: string
@@ -1467,6 +1485,7 @@ export type Database = {
           exempt_sales?: number
           grand_total?: number
           id: string
+          merged_into?: string | null
           order_type: string
           paid_total?: number
           payment_status?: string
@@ -1491,6 +1510,7 @@ export type Database = {
         Update: {
           bill_number?: string
           branch_id?: string
+          calc_params?: Json | null
           cashier_id?: string
           client_created_at?: string
           created_at?: string
@@ -1502,6 +1522,7 @@ export type Database = {
           exempt_sales?: number
           grand_total?: number
           id?: string
+          merged_into?: string | null
           order_type?: string
           paid_total?: number
           payment_status?: string
@@ -1571,6 +1592,13 @@ export type Database = {
             columns: ["dining_table_id"]
             isOneToOne: false
             referencedRelation: "dining_tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_merged_into_fkey"
+            columns: ["merged_into"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {
@@ -2735,7 +2763,15 @@ export type Database = {
       }
     }
     Functions: {
+      add_order_items: {
+        Args: { p_items: Json; p_order_id: string }
+        Returns: Json
+      }
       cancel_invite: { Args: { p_user_id: string }; Returns: undefined }
+      cancel_order_item: {
+        Args: { p_order_item_id: string; p_qty: number; p_reason: string }
+        Returns: Json
+      }
       claim_staff_invite: { Args: { p_code: string }; Returns: string }
       close_shift: {
         Args: { p_counted_cash: number; p_notes?: string }
@@ -2783,10 +2819,19 @@ export type Database = {
         }
         Returns: Json
       }
+      merge_orders: {
+        Args: { p_source_id: string; p_target_id: string }
+        Returns: Json
+      }
+      move_order_table: {
+        Args: { p_order_id: string; p_table_id: string }
+        Returns: Json
+      }
       my_account_state: { Args: never; Returns: string }
       open_shift: { Args: { p_opening_float?: number }; Returns: string }
       pay_order: {
         Args: {
+          p_amount?: number
           p_order_id: string
           p_payment_method_id: string
           p_tendered?: number
@@ -2829,6 +2874,10 @@ export type Database = {
         Returns: undefined
       }
       shift_report: { Args: { p_shift_id: string }; Returns: Json }
+      split_order: {
+        Args: { p_items: Json; p_order_id: string }
+        Returns: Json
+      }
       update_settings: { Args: { p_settings: Json }; Returns: undefined }
       update_staff: {
         Args: { p_is_active?: boolean; p_role_id?: string; p_user_id: string }

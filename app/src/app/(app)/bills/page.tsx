@@ -35,13 +35,13 @@ export default async function BillsPage({
   const supabase = await createClient();
   let q = supabase
     .from("orders")
-    .select("id, bill_number, created_at, order_type, grand_total, status, payment_status, dining_table_id, cashier_id")
+    .select("id, bill_number, created_at, order_type, grand_total, paid_total, status, payment_status, dining_table_id, cashier_id, merged_into")
     .gte("created_at", localDayStartIso(date, tz))
     .lt("created_at", localDayStartIso(addDays(date, 1), tz))
     .order("created_at", { ascending: false })
     .limit(500);
-  if (show === "unpaid") q = q.eq("payment_status", "unpaid").neq("status", "voided");
-  if (show === "voided") q = q.eq("status", "voided");
+  if (show === "unpaid") q = q.in("payment_status", ["unpaid", "partial"]).neq("status", "voided");
+  if (show === "voided") q = q.eq("status", "voided").is("merged_into", null);
   const { data: orders } = await q;
   const rows = orders ?? [];
 
@@ -57,12 +57,17 @@ export default async function BillsPage({
       : Promise.resolve({ data: [] as { id: string; table_number: string }[] }),
   ]);
   const methodName = new Map((methods ?? []).map((m) => [m.id, m.name]));
-  const paidWith = new Map((payments ?? []).map((p) => [p.order_id, methodName.get(p.payment_method_id) ?? ""]));
+  const paidWith = new Map<string, string>();
+  for (const p of payments ?? []) {
+    const name = methodName.get(p.payment_method_id) ?? "";
+    const prev = paidWith.get(p.order_id);
+    paidWith.set(p.order_id, prev && !prev.split(" + ").includes(name) ? `${prev} + ${name}` : prev ?? name);
+  }
   const tableNo = new Map((tables ?? []).map((t) => [t.id, t.table_number]));
 
   const live = rows.filter((o) => o.status !== "voided");
   const total = live.reduce((s, o) => s + Number(o.grand_total), 0);
-  const unpaid = live.filter((o) => o.payment_status === "unpaid");
+  const unpaid = live.filter((o) => o.payment_status === "unpaid" || o.payment_status === "partial");
 
   const link = (d: string, s = show) => `/bills?date=${d}${s !== "all" ? `&show=${s}` : ""}`;
 
@@ -98,7 +103,7 @@ export default async function BillsPage({
       <div className="mb-4 grid grid-cols-3 gap-3">
         <Stat label="Bills" value={String(live.length)} />
         <Stat label="Total billed" value={money(total, user.currency_code)} />
-        <Stat label="Unpaid" value={`${unpaid.length} · ${money(unpaid.reduce((s, o) => s + Number(o.grand_total), 0), user.currency_code)}`} warn={unpaid.length > 0} />
+        <Stat label="Unpaid" value={`${unpaid.length} · ${money(unpaid.reduce((s, o) => s + Number(o.grand_total) - Number(o.paid_total ?? 0), 0), user.currency_code)}`} warn={unpaid.length > 0} />
       </div>
 
       <div className="mb-3 flex gap-1.5">
@@ -137,7 +142,7 @@ export default async function BillsPage({
             </thead>
             <tbody>
               {rows.map((o) => {
-                const st = stateStyle[billState(o.status, o.payment_status)];
+                const st = o.merged_into ? { label: "Merged", bg: "var(--color-ground)", fg: "var(--color-ink-3)" } : stateStyle[billState(o.status, o.payment_status)];
                 return (
                   <tr key={o.id} style={{ borderTop: "1px solid var(--color-line)" }}>
                     <td className="px-4 py-3 font-semibold">

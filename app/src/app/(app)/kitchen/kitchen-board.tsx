@@ -10,7 +10,7 @@ export type Ticket = {
   status: "new" | "preparing" | "ready";
   createdAt: string;
   where: string;
-  items: { name: string; qty: number; note: string | null }[];
+  items: { name: string; qty: number; note: string | null; cancelled: boolean }[];
 };
 
 const COLUMNS: { key: Ticket["status"]; title: string; next: "preparing" | "ready" | "served"; action: string }[] = [
@@ -86,8 +86,9 @@ export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezon
                       </div>
                       <ul className="mb-3 space-y-1 text-sm">
                         {t.items.map((i, idx) => (
-                          <li key={idx}>
+                          <li key={idx} style={i.cancelled ? { textDecoration: "line-through", color: "var(--color-bad)" } : undefined}>
                             <span className="font-bold tabular-nums">{i.qty}×</span> {i.name}
+                            {i.cancelled && <span className="ml-1 text-[11px] font-bold no-underline">CANCELLED</span>}
                             {i.note && (
                               <div className="text-xs" style={{ color: "var(--color-warn)" }}>
                                 {i.note}

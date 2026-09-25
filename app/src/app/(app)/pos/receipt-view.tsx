@@ -19,7 +19,7 @@ export type ReceiptData = {
   timezone: string;
   currency: string;
   cashierName: string;
-  items: { name: string; qty: number; unitPrice: number; amount: number }[];
+  items: { name: string; options: string | null; qty: number; unitPrice: number; amount: number }[];
   /** Tax components summed over the bill. */
   taxLines: { name: string; amount: number }[];
   subtotal: number;
@@ -39,9 +39,11 @@ export type ReceiptData = {
   vatRemoved: number;
   exemptSales: number;
   showVatBreakdown: boolean;
-  payment: { methodName: string; amount: number; tendered: number | null; change: number; cashRounding: number } | null;
+  payments: { methodName: string; amount: number; tendered: number | null; change: number; cashRounding: number }[];
+  /** Still to pay on an unpaid or part-paid bill. */
+  balance: number;
   refunded: number;
-  state: "paid" | "unpaid" | "voided" | "refunded" | "part-refunded";
+  state: "paid" | "unpaid" | "part-paid" | "voided" | "refunded" | "part-refunded";
   voidReason: string | null;
   footer: string | null;
 };
@@ -104,14 +106,14 @@ export function ReceiptView({
             {data.voidReason && <div className="text-[11px] font-normal">Reason: {data.voidReason}</div>}
           </div>
         )}
-        {data.state === "unpaid" && (
+        {(data.state === "unpaid" || data.state === "part-paid") && (
           <div className="mb-2 border-2 border-dashed py-1 text-center text-[12px] font-bold" style={{ borderColor: "#111" }}>
-            UNPAID — NOT A TAX INVOICE
+            {data.state === "part-paid" ? `PART PAID — BALANCE ${m(data.balance)}` : "UNPAID — NOT A TAX INVOICE"}
           </div>
         )}
 
         <div className="text-center">
-          {data.invoiceTitle && data.state !== "unpaid" && (
+          {data.invoiceTitle && data.state !== "unpaid" && data.state !== "part-paid" && (
             <div className="mb-1 text-[11px] font-bold uppercase tracking-wide">{data.invoiceTitle}</div>
           )}
           <div className="text-base font-bold">{data.header}</div>
@@ -151,7 +153,10 @@ export function ReceiptView({
           <tbody>
             {data.items.map((it, i) => (
               <tr key={i}>
-                <td className="pr-1 align-top">{it.name}</td>
+                <td className="pr-1 align-top">
+                  {it.name}
+                  {it.options && <div className="text-[10px]">&nbsp;&nbsp;{it.options}</div>}
+                </td>
                 <td className="text-center align-top">{it.qty}</td>
                 <td className="text-right align-top">{m(it.amount)}</td>
               </tr>
@@ -192,19 +197,21 @@ export function ReceiptView({
           </div>
         )}
 
-        {data.payment && (
+        {data.payments.length > 0 && (
           <>
             <Rule />
             <div className="space-y-0.5 text-[11px]">
-              {Math.abs(data.payment.cashRounding) >= 0.005 && (
-                <Row
-                  label="Cash rounding"
-                  value={`${data.payment.cashRounding > 0 ? "+" : "-"}${m(Math.abs(data.payment.cashRounding))}`}
-                />
-              )}
-              <Row label={`Paid (${data.payment.methodName})`} value={m(data.payment.amount)} />
-              {data.payment.tendered != null && data.payment.tendered > 0 && <Row label="Tendered" value={m(data.payment.tendered)} />}
-              {data.payment.change > 0 && <Row label="Change" value={m(data.payment.change)} />}
+              {data.payments.map((p, i) => (
+                <div key={i} className="space-y-0.5">
+                  {Math.abs(p.cashRounding) >= 0.005 && (
+                    <Row label="Cash rounding" value={`${p.cashRounding > 0 ? "+" : "-"}${m(Math.abs(p.cashRounding))}`} />
+                  )}
+                  <Row label={`Paid (${p.methodName})`} value={m(p.amount)} />
+                  {p.tendered != null && p.tendered > 0 && <Row label="Tendered" value={m(p.tendered)} />}
+                  {p.change > 0 && <Row label="Change" value={m(p.change)} />}
+                </div>
+              ))}
+              {data.state === "part-paid" && <Row label="Balance to pay" value={m(data.balance)} />}
               {data.refunded > 0 && <Row label="Refunded" value={`-${m(data.refunded)}`} />}
             </div>
           </>
