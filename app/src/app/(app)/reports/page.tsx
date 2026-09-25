@@ -19,6 +19,10 @@ type Report = {
     refunds: number;
     refund_count: number;
     net_collected: number;
+    net_sales: number;
+    service_charge: number;
+    tax_included: number;
+    exempt_sales: number;
   };
   by_day: { day: string; bills: number; total: number }[];
   by_hour: { hour: number; bills: number; total: number }[];
@@ -118,21 +122,29 @@ export default async function ReportsPage({
             <Kpi label="Total billed" value={money(rep.summary.total_billed, c)} strong />
             <Kpi label="Bills" value={String(rep.summary.bills)} />
             <Kpi label="Average bill" value={money(rep.summary.average_bill, c)} />
-            <Kpi label="Net sales (after refunds)" value={money(rep.summary.net_collected, c)} />
+            <Kpi label="Billed minus refunds" value={money(rep.summary.net_collected, c)} />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card title="Summary">
               <Lines
-                rows={[
-                  ["Food & drink sales (before discount and tax)", money(rep.summary.gross_sales, c)],
-                  ["Discounts given", `−${money(rep.summary.discounts, c)}`],
-                  ["Tax collected", money(rep.summary.tax, c)],
-                  ["Rounding", money(rep.summary.rounding, c)],
-                  ["Total billed", money(rep.summary.total_billed, c)],
-                  [`Refunds (${rep.summary.refund_count})`, `−${money(rep.summary.refunds, c)}`],
-                  [`Voided bills (${rep.summary.voided_bills})`, money(rep.summary.voided_value, c)],
-                ]}
+                rows={
+                  [
+                    [rep.summary.tax_included > 0 ? "Menu sales (menu prices, before discount)" : "Food & drink sales (before discount and tax)", money(rep.summary.gross_sales, c)],
+                    ["Discounts given", `−${money(rep.summary.discounts, c)}`],
+                    rep.summary.service_charge > 0 ? ["Service charge", money(rep.summary.service_charge, c)] : null,
+                    [
+                      rep.summary.tax_included > 0 ? `Tax collected (${money(rep.summary.tax_included, c)} already inside menu prices)` : "Tax collected",
+                      money(rep.summary.tax, c),
+                    ],
+                    ["Rounding", money(rep.summary.rounding, c)],
+                    ["Total billed", money(rep.summary.total_billed, c)],
+                    ["Net sales (excluding tax)", money(rep.summary.net_sales, c)],
+                    rep.summary.exempt_sales > 0 ? ["Tax-exempt sales", money(rep.summary.exempt_sales, c)] : null,
+                    [`Refunds (${rep.summary.refund_count})`, `−${money(rep.summary.refunds, c)}`],
+                    [`Voided bills (${rep.summary.voided_bills})`, money(rep.summary.voided_value, c)],
+                  ].filter((r): r is [string, string] => r !== null)
+                }
               />
             </Card>
 

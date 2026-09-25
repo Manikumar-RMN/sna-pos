@@ -1,11 +1,45 @@
 /** Formatting helpers shared by server and client components. */
 
+/** Currencies with no minor unit in everyday use. */
+const ZERO_DECIMAL = new Set(["IDR", "JPY", "KRW", "VND"]);
+/** English formatting per currency; only India uses lakh grouping. */
+const LOCALE: Record<string, string> = {
+  INR: "en-IN",
+  AED: "en-AE",
+  SGD: "en-SG",
+  MYR: "en-MY",
+  THB: "en-US",
+  IDR: "en-US",
+  PHP: "en-PH",
+};
+
 export function money(n: number | string | null | undefined, currency = "INR"): string {
   const v = Number(n ?? 0);
+  const digits = ZERO_DECIMAL.has(currency) ? 0 : 2;
   try {
-    return new Intl.NumberFormat("en-IN", { style: "currency", currency }).format(v);
+    return new Intl.NumberFormat(LOCALE[currency] ?? "en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }).format(v);
   } catch {
-    return `${currency} ${v.toFixed(2)}`;
+    return `${currency} ${v.toFixed(digits)}`;
+  }
+}
+
+/** Cash rounding exactly as the database applies it (app.round_cash). */
+export function roundCash(amount: number, mode: string): number {
+  const cents = Math.round(amount * 100);
+  switch (mode) {
+    case "nearest_1":
+      return Math.round(cents / 100);
+    case "nearest_0_05":
+      return (Math.round(cents / 5) * 5) / 100;
+    case "nearest_0_10":
+      return (Math.round(cents / 10) * 10) / 100;
+    default:
+      return cents / 100;
   }
 }
 

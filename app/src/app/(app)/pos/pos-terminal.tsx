@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { money } from "@/lib/format";
-import { placeOrder, type PlaceOrderInput } from "./actions";
+import { money, roundCash } from "@/lib/format";
+import { placeOrder, quoteOrder, type PlaceOrderInput, type Quote, type Senior } from "./actions";
 
 type MenuItem = {
   id: string;
@@ -12,38 +12,28 @@ type MenuItem = {
   price: number;
   category_id: string;
   category_name: string;
-  category_order: number | null;
-  tax_rate: number | null;
   is_veg: boolean | null;
 };
 type PaymentMethod = { id: string; name: string; kind: string };
 type Table = { id: string; number: string; busy: boolean };
 type CartLine = { item: MenuItem; qty: number };
 
-function applyRounding(x: number, mode: string) {
-  switch (mode) {
-    case "nearest_1":
-      return Math.round(x);
-    case "nearest_0_05":
-      return Math.round(x / 0.05) * 0.05;
-    case "nearest_0_10":
-      return Math.round(x / 0.1) * 0.1;
-    default:
-      return Math.round(x * 100) / 100;
-  }
-}
-
 export function PosTerminal({
   currency,
-  roundingMode,
   canDiscount,
+  showSenior,
+  pricesIncludeTax,
+  taxName,
   menu,
   paymentMethods,
   tables,
 }: {
   currency: string;
-  roundingMode: string;
   canDiscount: boolean;
+  /** Philippines: senior citizen / PWD discount. */
+  showSenior: boolean;
+  pricesIncludeTax: boolean;
+  taxName: string;
   menu: MenuItem[];
   paymentMethods: PaymentMethod[];
   tables: Table[];
@@ -58,46 +48,73 @@ export function PosTerminal({
   const [tendered, setTendered] = useState("");
   const [discount, setDiscount] = useState("");
   const [discountReason, setDiscountReason] = useState("");
+  const [scChoice, setScChoice] = useState<boolean | null>(null);
+  const [senior, setSenior] = useState<Senior | null>(null);
+  const [seniorOpen, setSeniorOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoting, setQuoting] = useState(false);
+  const reqId = useRef(0);
+
+  const m = (n: number) => money(n, currency);
+  const lines = Object.values(cart);
+  const isCash = paymentMethods.find((p) => p.id === methodId)?.kind === "cash";
+  const discountAmt = Math.max(0, Number(discount) || 0);
 
   const categories = useMemo(() => {
     const q = search.trim().toLowerCase();
     const filtered = q
-      ? menu.filter((m) => m.name.toLowerCase().includes(q) || (m.short_name ?? "").toLowerCase().includes(q))
+      ? menu.filter((x) => x.name.toLowerCase().includes(q) || (x.short_name ?? "").toLowerCase().includes(q))
       : menu;
     const groups: { id: string; name: string; items: MenuItem[] }[] = [];
-    for (const m of filtered) {
-      let g = groups.find((x) => x.id === m.category_id);
+    for (const x of filtered) {
+      let g = groups.find((y) => y.id === x.category_id);
       if (!g) {
-        g = { id: m.category_id, name: m.category_name, items: [] };
+        g = { id: x.category_id, name: x.category_name, items: [] };
         groups.push(g);
       }
-      g.items.push(m);
+      g.items.push(x);
     }
     return groups;
   }, [menu, search]);
 
-  const lines = Object.values(cart);
-  const isCash = paymentMethods.find((m) => m.id === methodId)?.kind === "cash";
-
-  // A preview only. The database recomputes every figure when the bill is saved.
-  const totals = useMemo(() => {
-    let subtotal = 0;
-    for (const { item, qty } of lines) subtotal += Math.round(item.price * qty * 100) / 100;
-    const discountAmt = Math.min(Math.max(0, Number(discount) || 0), subtotal);
-    let taxTotal = 0;
-    for (const { item, qty } of lines) {
-      const lineSub = Math.round(item.price * qty * 100) / 100;
-      const lineDisc = subtotal > 0 ? Math.round(discountAmt * (lineSub / subtotal) * 100) / 100 : 0;
-      taxTotal += Math.round(((lineSub - lineDisc) * (item.tax_rate ?? 0)) / 100 * 100) / 100;
+  // Ask the database for the exact bill whenever the cart changes. Replies that
+  // arrive out of order are ignored.
+  const cartKey = JSON.stringify([lines.map((l) => [l.item.id, l.qty]), discountAmt, scChoice, senior]);
+  useEffect(() => {
+    if (lines.length === 0) {
+      setQuote(null);
+      setQuoting(false);
+      return;
     }
-    taxTotal = Math.round(taxTotal * 100) / 100;
-    const beforeRound = subtotal - discountAmt + taxTotal;
-    const grand = applyRounding(beforeRound, roundingMode);
-    return { subtotal, discountAmt, taxTotal, grand, rounding: Math.round((grand - beforeRound) * 100) / 100 };
-  }, [lines, discount, roundingMode]);
+    const id = ++reqId.current;
+    setQuoting(true);
+    const t = setTimeout(async () => {
+      const res = await quoteOrder({
+        items: lines.map((l) => ({ product_id: l.item.id, qty: l.qty })),
+        discount_amount: discountAmt,
+        service_charge: scChoice,
+        senior,
+      });
+      if (id !== reqId.current) return;
+      setQuoting(false);
+      if (res.ok) {
+        setQuote(res.quote);
+        setError(null);
+      } else {
+        setQuote(null);
+        setError(res.error);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartKey]);
 
-  const change = isCash && Number(tendered) > 0 ? Math.max(0, Number(tendered) - totals.grand) : 0;
+  const due = quote ? (isCash ? roundCash(quote.grand_total, quote.cash_rounding) : quote.grand_total) : 0;
+  const cashRound = quote && isCash ? Math.round((due - quote.grand_total) * 100) / 100 : 0;
+  const change = isCash && Number(tendered) > due ? Math.round((Number(tendered) - due) * 100) / 100 : 0;
+  const addedTax = quote ? Math.round((quote.tax_total - quote.tax_included) * 100) / 100 : 0;
 
   function add(item: MenuItem) {
     setError(null);
@@ -122,27 +139,29 @@ export function PosTerminal({
     setDiscountReason("");
     setTendered("");
     setTableId(null);
+    setScChoice(null);
+    setSenior(null);
     setError(null);
   }
 
   function submit(payNow: boolean) {
     setError(null);
     if (lines.length === 0) return setError("Add at least one item.");
+    if (!quote || quoting) return setError("Please wait a moment — the total is being checked.");
     if (payNow && !methodId) return setError("Choose how the customer paid.");
-    if (totals.discountAmt > 0 && !canDiscount) return setError("A manager must approve a discount.");
-    if (payNow && isCash && tendered !== "" && Number(tendered) < totals.grand)
-      return setError("Amount received is less than the total.");
+    if (payNow && isCash && tendered !== "" && Number(tendered) < due) return setError("Amount received is less than the total.");
 
     const input: PlaceOrderInput = {
       items: lines.map((l) => ({ product_id: l.item.id, qty: l.qty })),
+      discount_amount: senior ? 0 : discountAmt,
+      service_charge: scChoice,
+      senior,
       order_type: orderType,
       table_id: orderType === "dine_in" ? tableId : null,
       payment_method_id: payNow ? methodId : null,
       tendered: payNow && isCash && tendered !== "" ? Number(tendered) : null,
-      discount_amount: totals.discountAmt,
-      discount_reason: totals.discountAmt > 0 ? discountReason.trim() || null : null,
+      discount_reason: discountAmt > 0 ? discountReason.trim() || null : null,
     };
-
     startTransition(async () => {
       const res = await placeOrder(input);
       if (!res.ok) return setError(res.error);
@@ -153,19 +172,13 @@ export function PosTerminal({
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <div>
-        <div className="mb-3 flex items-center gap-3">
+        <div className="mb-3 flex flex-wrap items-center gap-x-3">
           <h1 className="text-xl font-bold tracking-tight">Billing</h1>
           <span className="text-xs" style={{ color: "var(--color-ink-3)" }}>
-            Tap an item to add it
+            Tap an item to add it · prices {pricesIncludeTax ? `include ${taxName}` : `before ${taxName}`}
           </span>
         </div>
-        <input
-          className="field mb-4"
-          placeholder="Search the menu…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          autoComplete="off"
-        />
+        <input className="field mb-4" placeholder="Search the menu…" value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
         {categories.length === 0 && (
           <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
             No items match “{search}”.
@@ -197,7 +210,7 @@ export function PosTerminal({
                         {item.name}
                       </span>
                       <span className="text-sm" style={{ color: "var(--color-ink-2)" }}>
-                        {money(item.price, currency)}
+                        {m(item.price)}
                       </span>
                       {inCart > 0 && (
                         <span
@@ -226,10 +239,7 @@ export function PosTerminal({
                   key={t}
                   onClick={() => setOrderType(t)}
                   className="px-2.5 py-1.5 text-[11px] font-semibold"
-                  style={{
-                    background: orderType === t ? "var(--color-brand)" : "transparent",
-                    color: orderType === t ? "#fff" : "var(--color-ink-2)",
-                  }}
+                  style={{ background: orderType === t ? "var(--color-brand)" : "transparent", color: orderType === t ? "#fff" : "var(--color-ink-2)" }}
                 >
                   {t === "dine_in" ? "Dine-in" : "Takeaway"}
                 </button>
@@ -243,15 +253,9 @@ export function PosTerminal({
                 Table
               </div>
               <div className="flex flex-wrap gap-1.5">
-                <TableChip label="None" active={tableId === null} onClick={() => setTableId(null)} />
+                <Chip label="None" active={tableId === null} onClick={() => setTableId(null)} />
                 {tables.map((t) => (
-                  <TableChip
-                    key={t.id}
-                    label={`T${t.number}`}
-                    busy={t.busy}
-                    active={tableId === t.id}
-                    onClick={() => setTableId(t.id)}
-                  />
+                  <Chip key={t.id} label={`T${t.number}`} busy={t.busy} active={tableId === t.id} onClick={() => setTableId(t.id)} />
                 ))}
               </div>
             </div>
@@ -269,21 +273,19 @@ export function PosTerminal({
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">{item.name}</div>
                       <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
-                        {money(item.price, currency)}
+                        {m(item.price)}
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => step(item.id, -1)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label="one less">
+                      <button onClick={() => step(item.id, -1)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`One less ${item.name}`}>
                         −
                       </button>
                       <span className="w-5 text-center text-sm font-semibold">{qty}</span>
-                      <button onClick={() => step(item.id, 1)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label="one more">
+                      <button onClick={() => step(item.id, 1)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`One more ${item.name}`}>
                         +
                       </button>
                     </div>
-                    <div className="w-16 text-right text-sm font-semibold">
-                      {money(Math.round(item.price * qty * 100) / 100, currency)}
-                    </div>
+                    <div className="w-20 text-right text-sm font-semibold">{m(Math.round(item.price * qty * 100) / 100)}</div>
                   </li>
                 ))}
               </ul>
@@ -291,31 +293,67 @@ export function PosTerminal({
           </div>
 
           <div className="border-t px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
-            {canDiscount && lines.length > 0 && (
+            {lines.length > 0 && (
               <div className="mb-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium" style={{ color: "var(--color-ink-2)" }}>
-                    Discount
+                {quote?.service_charge_available && (
+                  <label className="flex items-center justify-between text-sm">
+                    <span>
+                      {quote.service_charge_label} {Number(quote.service_charge_percent)}%
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5"
+                      checked={quote.service_charge_on}
+                      onChange={(e) => setScChoice(e.target.checked)}
+                      aria-label="Add service charge to this bill"
+                    />
                   </label>
-                  <input className="field h-9 flex-1 text-sm" inputMode="decimal" placeholder="0" value={discount} onChange={(e) => setDiscount(e.target.value)} />
-                </div>
-                {totals.discountAmt > 0 && (
-                  <input className="field h-9 text-sm" placeholder="Reason (optional)" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} />
+                )}
+                {canDiscount && !senior && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-medium" style={{ color: "var(--color-ink-2)" }} htmlFor="discount">
+                      Discount
+                    </label>
+                    <input id="discount" className="field h-9 flex-1 text-sm" inputMode="decimal" placeholder="0" value={discount} onChange={(e) => setDiscount(e.target.value)} />
+                  </div>
+                )}
+                {discountAmt > 0 && !senior && (
+                  <input className="field h-9 text-sm" placeholder="Discount reason (optional)" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} />
+                )}
+                {showSenior && (
+                  <SeniorBox
+                    senior={senior}
+                    open={seniorOpen}
+                    setOpen={setSeniorOpen}
+                    onApply={(s) => {
+                      setDiscount("");
+                      setSenior(s);
+                      setSeniorOpen(false);
+                    }}
+                    onRemove={() => setSenior(null)}
+                  />
                 )}
               </div>
             )}
 
-            <dl className="space-y-1 text-sm">
-              <Row label="Subtotal" value={money(totals.subtotal, currency)} />
-              {totals.discountAmt > 0 && <Row label="Discount" value={`−${money(totals.discountAmt, currency)}`} color="var(--color-ok)" />}
-              <Row label="Tax" value={money(totals.taxTotal, currency)} />
-              {Math.abs(totals.rounding) >= 0.005 && (
-                <Row label="Rounding" value={`${totals.rounding > 0 ? "+" : "−"}${money(Math.abs(totals.rounding), currency)}`} />
-              )}
+            <dl className="space-y-1 text-sm" aria-live="polite">
+              <Row label="Subtotal" value={quote ? m(quote.subtotal) : lines.length ? "…" : m(0)} />
+              {quote && quote.discount > 0 && <Row label="Discount" value={`−${m(quote.discount)}`} color="var(--color-ok)" />}
+              {quote && quote.tax_exempt_amount > 0 && <Row label="VAT exemption" value={`−${m(quote.tax_exempt_amount)}`} color="var(--color-ok)" />}
+              {quote && quote.senior_discount > 0 && <Row label="Senior/PWD 20%" value={`−${m(quote.senior_discount)}`} color="var(--color-ok)" />}
+              {quote && quote.service_charge > 0 && <Row label={quote.service_charge_label} value={m(quote.service_charge)} />}
+              {quote && addedTax > 0 && <Row label={taxName} value={m(addedTax)} />}
+              {quote && Math.abs(quote.rounding) >= 0.005 && <Row label="Rounding" value={`${quote.rounding > 0 ? "+" : "−"}${m(Math.abs(quote.rounding))}`} />}
+              {quote && Math.abs(cashRound) >= 0.005 && <Row label="Cash rounding" value={`${cashRound > 0 ? "+" : "−"}${m(Math.abs(cashRound))}`} />}
               <div className="flex justify-between border-t pt-1.5 text-base font-bold" style={{ borderColor: "var(--color-line)" }}>
                 <dt>Total</dt>
-                <dd>{money(totals.grand, currency)}</dd>
+                <dd>{quote ? m(due) : lines.length ? "…" : m(0)}</dd>
               </div>
+              {quote && quote.tax_included > 0 && (
+                <div className="text-right text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                  includes {taxName} {m(quote.tax_included)}
+                </div>
+              )}
             </dl>
 
             <div className="mt-3">
@@ -323,27 +361,27 @@ export function PosTerminal({
                 Payment
               </div>
               <div className="grid grid-cols-3 gap-1.5">
-                {paymentMethods.map((m) => (
+                {paymentMethods.map((p) => (
                   <button
-                    key={m.id}
-                    onClick={() => setMethodId(m.id)}
+                    key={p.id}
+                    onClick={() => setMethodId(p.id)}
                     className="rounded-lg border px-2 py-2 text-xs font-semibold"
                     style={{
-                      borderColor: methodId === m.id ? "var(--color-brand)" : "var(--color-line)",
-                      background: methodId === m.id ? "var(--color-brand-soft)" : "transparent",
-                      color: methodId === m.id ? "var(--color-brand-strong)" : "var(--color-ink-2)",
+                      borderColor: methodId === p.id ? "var(--color-brand)" : "var(--color-line)",
+                      background: methodId === p.id ? "var(--color-brand-soft)" : "transparent",
+                      color: methodId === p.id ? "var(--color-brand-strong)" : "var(--color-ink-2)",
                     }}
                   >
-                    {m.name}
+                    {p.name}
                   </button>
                 ))}
               </div>
               {isCash && (
                 <div className="mt-2 flex items-center gap-2">
                   <input className="field h-9 flex-1 text-sm" inputMode="decimal" placeholder="Cash received" value={tendered} onChange={(e) => setTendered(e.target.value)} />
-                  <div className="w-24 text-right text-sm">
+                  <div className="w-28 text-right text-sm">
                     <span style={{ color: "var(--color-ink-3)" }}>Change </span>
-                    <span className="font-semibold">{money(change, currency)}</span>
+                    <span className="font-semibold">{m(change)}</span>
                   </div>
                 </div>
               )}
@@ -359,20 +397,95 @@ export function PosTerminal({
               <button onClick={clearAll} disabled={pending || lines.length === 0} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                 Clear
               </button>
-              <button
-                onClick={() => submit(false)}
-                disabled={pending || lines.length === 0}
-                className="btn border px-3 text-sm"
-                style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}
-              >
+              <button onClick={() => submit(false)} disabled={pending || quoting || !quote} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                 Save unpaid
               </button>
-              <button onClick={() => submit(true)} disabled={pending || lines.length === 0} className="btn btn-primary flex-1">
-                {pending ? "Saving…" : `Charge ${money(totals.grand, currency)}`}
+              <button onClick={() => submit(true)} disabled={pending || quoting || !quote} className="btn btn-primary flex-1">
+                {pending ? "Saving…" : quote ? `Charge ${m(due)}` : "Charge"}
               </button>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SeniorBox({
+  senior,
+  open,
+  setOpen,
+  onApply,
+  onRemove,
+}: {
+  senior: Senior | null;
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  onApply: (s: Senior) => void;
+  onRemove: () => void;
+}) {
+  const [kind, setKind] = useState<"senior" | "pwd">("senior");
+  const [count, setCount] = useState("1");
+  const [diners, setDiners] = useState("1");
+  const [name, setName] = useState("");
+  const [idNo, setIdNo] = useState("");
+
+  if (senior) {
+    return (
+      <div className="flex items-center justify-between rounded-lg px-3 py-2 text-xs" style={{ background: "var(--color-ok-soft)" }}>
+        <span>
+          {senior.kind === "pwd" ? "PWD" : "Senior"} {senior.count} of {senior.diners}: {senior.name} ({senior.id_no})
+        </span>
+        <button className="font-semibold" style={{ color: "var(--color-bad)" }} onClick={onRemove}>
+          Remove
+        </button>
+      </div>
+    );
+  }
+  if (!open) {
+    return (
+      <button className="w-full rounded-lg border px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--color-line)" }} onClick={() => setOpen(true)}>
+        Senior citizen / PWD discount
+      </button>
+    );
+  }
+  return (
+    <div className="space-y-2 rounded-lg border p-3" style={{ borderColor: "var(--color-line)" }}>
+      <div className="flex gap-1.5">
+        {(["senior", "pwd"] as const).map((k) => (
+          <button
+            key={k}
+            onClick={() => setKind(k)}
+            className="flex-1 rounded-md border px-2 py-1.5 text-xs font-semibold"
+            style={{ borderColor: kind === k ? "var(--color-brand)" : "var(--color-line)", background: kind === k ? "var(--color-brand-soft)" : "transparent" }}
+          >
+            {k === "senior" ? "Senior citizen" : "PWD"}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-[11px]">
+          How many
+          <input className="field h-9 text-sm" inputMode="numeric" value={count} onChange={(e) => setCount(e.target.value)} />
+        </label>
+        <label className="text-[11px]">
+          People at the table
+          <input className="field h-9 text-sm" inputMode="numeric" value={diners} onChange={(e) => setDiners(e.target.value)} />
+        </label>
+      </div>
+      <input className="field h-9 text-sm" placeholder="Name on ID" value={name} onChange={(e) => setName(e.target.value)} />
+      <input className="field h-9 text-sm" placeholder={kind === "pwd" ? "PWD ID number" : "OSCA ID number"} value={idNo} onChange={(e) => setIdNo(e.target.value)} />
+      <div className="flex gap-2">
+        <button className="btn h-9 flex-1 border text-xs" style={{ borderColor: "var(--color-line)" }} onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+        <button
+          className="btn btn-primary h-9 flex-1 text-xs"
+          disabled={!name.trim() || !idNo.trim() || !(Number(count) >= 1) || !(Number(diners) >= Number(count))}
+          onClick={() => onApply({ kind, count: Number(count), diners: Number(diners), name: name.trim(), id_no: idNo.trim() })}
+        >
+          Apply
+        </button>
       </div>
     </div>
   );
@@ -387,12 +500,12 @@ function Row({ label, value, color }: { label: string; value: string; color?: st
   );
 }
 
-function TableChip({ label, active, busy, onClick }: { label: string; active: boolean; busy?: boolean; onClick: () => void }) {
+function Chip({ label, active, busy, onClick }: { label: string; active: boolean; busy?: boolean; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       className="rounded-md border px-2.5 py-1 text-xs font-semibold"
-      title={busy ? "This table has an unpaid bill" : undefined}
+      aria-label={busy ? `${label}, has an unpaid bill` : label}
       style={{
         borderColor: active ? "var(--color-brand)" : busy ? "var(--color-warn)" : "var(--color-line)",
         background: active ? "var(--color-brand)" : busy ? "var(--color-warn-soft)" : "transparent",

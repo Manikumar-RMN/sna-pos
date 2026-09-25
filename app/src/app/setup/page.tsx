@@ -13,6 +13,12 @@ export default async function SetupPage() {
   const { data: state } = await supabase.rpc("my_account_state");
   if (state === "active") redirect("/dashboard");
 
+  const { data: countries } = await supabase
+    .from("countries")
+    .select("code, name, tax_system_name, tax_id_label, compliance_note")
+    .eq("is_supported", true)
+    .order("name");
+
   return (
     <main className="min-h-screen px-4 py-10">
       <div className="mx-auto w-full max-w-lg">
@@ -27,7 +33,16 @@ export default async function SetupPage() {
           </div>
         ) : (
           <div className="mt-4">
-            <SetupForms email={user.email ?? ""} />
+            <SetupForms
+              email={user.email ?? ""}
+              countries={(countries ?? []).map((c) => ({
+                code: c.code,
+                name: c.name,
+                taxName: c.tax_system_name ?? "Tax",
+                taxIdLabel: c.tax_id_label ?? "Tax number",
+                note: c.compliance_note ?? "",
+              }))}
+            />
           </div>
         )}
 

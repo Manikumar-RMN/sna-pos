@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { money } from "@/lib/format";
+import { money, roundCash } from "@/lib/format";
 import { payBill, refundBill, voidBill } from "./actions";
 
 type Method = { id: string; name: string; kind: string };
@@ -19,6 +19,7 @@ export function BillActions({
   canVoid,
   canRefund,
   shiftOpen,
+  cashRounding = "none",
 }: {
   orderId: string;
   state: "paid" | "unpaid" | "voided" | "refunded" | "part-refunded";
@@ -31,6 +32,8 @@ export function BillActions({
   canVoid: boolean;
   canRefund: boolean;
   shiftOpen: boolean;
+  /** Cash-only rounding mode (e.g. Malaysia's 5 sen); "none" elsewhere. */
+  cashRounding?: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -46,7 +49,8 @@ export function BillActions({
 
   const remaining = Math.max(0, Math.round((paidTotal - refunded) * 100) / 100);
   const isCash = methods.find((m) => m.id === methodId)?.kind === "cash";
-  const change = isCash && Number(tendered) > grandTotal ? Number(tendered) - grandTotal : 0;
+  const due = isCash ? roundCash(grandTotal, cashRounding) : grandTotal;
+  const change = isCash && Number(tendered) > due ? Math.round((Number(tendered) - due) * 100) / 100 : 0;
 
   const showPay = state === "unpaid" && canPay;
   const showRefund = canRefund && (state === "paid" || state === "part-refunded") && remaining > 0;
@@ -138,7 +142,7 @@ export function BillActions({
                   )
                 }
               >
-                {pending ? "Saving…" : `Take ${money(grandTotal, currency)}`}
+                {pending ? "Saving…" : `Take ${money(due, currency)}`}
               </button>
             </>
           )}

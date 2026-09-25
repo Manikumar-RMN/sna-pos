@@ -4,9 +4,11 @@ import Link from "next/link";
 import { money, orderTypeLabel } from "@/lib/format";
 
 export type ReceiptData = {
+  invoiceTitle: string | null;
   header: string;
   legalName: string;
-  gstin: string | null;
+  taxIdLabel: string;
+  taxId: string | null;
   branchName: string;
   address: string | null;
   phone: string | null;
@@ -18,13 +20,26 @@ export type ReceiptData = {
   currency: string;
   cashierName: string;
   items: { name: string; qty: number; unitPrice: number; amount: number }[];
+  /** Tax components summed over the bill. */
   taxLines: { name: string; amount: number }[];
   subtotal: number;
+  /** Ordinary discount (not the senior/PWD one). */
   discount: number;
+  serviceCharge: number;
+  serviceChargeLabel: string;
   taxTotal: number;
+  /** Part of taxTotal already contained in menu prices. */
+  taxIncluded: number;
   rounding: number;
   grandTotal: number;
-  payment: { methodName: string; tendered: number | null; change: number } | null;
+  netSales: number;
+  /** Philippines senior citizen / PWD. */
+  senior: { kind: string; name: string; idNo: string } | null;
+  seniorDiscount: number;
+  vatRemoved: number;
+  exemptSales: number;
+  showVatBreakdown: boolean;
+  payment: { methodName: string; amount: number; tendered: number | null; change: number; cashRounding: number } | null;
   refunded: number;
   state: "paid" | "unpaid" | "voided" | "refunded" | "part-refunded";
   voidReason: string | null;
@@ -43,6 +58,7 @@ export function ReceiptView({
   showNextBill?: boolean;
 }) {
   const c = data.currency;
+  const m = (n: number) => money(n, c);
   const whenStr = new Date(data.createdAt).toLocaleString("en-IN", {
     timeZone: data.timezone,
     day: "2-digit",
@@ -51,6 +67,11 @@ export function ReceiptView({
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  const taxAdded = Math.round((data.taxTotal - data.taxIncluded) * 100) / 100;
+  const allIncluded = data.taxIncluded > 0 && taxAdded === 0;
+  const allAdded = data.taxIncluded === 0;
+  const vatable = Math.round((data.netSales - data.exemptSales + data.seniorDiscount) * 100) / 100;
 
   return (
     <div className="mx-auto max-w-sm">
@@ -90,12 +111,19 @@ export function ReceiptView({
         )}
 
         <div className="text-center">
+          {data.invoiceTitle && data.state !== "unpaid" && (
+            <div className="mb-1 text-[11px] font-bold uppercase tracking-wide">{data.invoiceTitle}</div>
+          )}
           <div className="text-base font-bold">{data.header}</div>
           {data.legalName && data.legalName !== data.header && <div className="text-[11px]">{data.legalName}</div>}
           <div className="text-[11px]">{data.branchName}</div>
           {data.address && <div className="text-[11px]">{data.address}</div>}
           {data.phone && <div className="text-[11px]">Ph: {data.phone}</div>}
-          {data.gstin && <div className="text-[11px]">GSTIN: {data.gstin}</div>}
+          {data.taxId && (
+            <div className="text-[11px]">
+              {data.taxIdLabel}: {data.taxId}
+            </div>
+          )}
         </div>
 
         <Rule />
@@ -125,7 +153,7 @@ export function ReceiptView({
               <tr key={i}>
                 <td className="pr-1 align-top">{it.name}</td>
                 <td className="text-center align-top">{it.qty}</td>
-                <td className="text-right align-top">{money(it.amount, c)}</td>
+                <td className="text-right align-top">{m(it.amount)}</td>
               </tr>
             ))}
           </tbody>
@@ -134,36 +162,73 @@ export function ReceiptView({
         <Rule />
 
         <div className="space-y-0.5 text-[11px]">
-          <Row label="Subtotal" value={money(data.subtotal, c)} />
-          {data.discount > 0 && <Row label="Discount" value={`-${money(data.discount, c)}`} />}
-          {data.taxLines.map((t, i) => (
-            <Row key={i} label={t.name} value={money(t.amount, c)} />
-          ))}
+          <Row label="Subtotal" value={m(data.subtotal)} />
+          {data.discount > 0 && <Row label="Discount" value={`-${m(data.discount)}`} />}
+          {data.vatRemoved > 0 && <Row label="Less: VAT (exempt)" value={`-${m(data.vatRemoved)}`} />}
+          {data.seniorDiscount > 0 && (
+            <Row label={`Less: ${data.senior?.kind === "pwd" ? "PWD" : "Senior"} 20%`} value={`-${m(data.seniorDiscount)}`} />
+          )}
+          {data.serviceCharge > 0 && <Row label={data.serviceChargeLabel} value={m(data.serviceCharge)} />}
+          {allAdded && data.taxLines.map((t, i) => <Row key={i} label={t.name} value={m(t.amount)} />)}
+          {!allAdded && !allIncluded && taxAdded > 0 && <Row label="Tax on service charge" value={m(taxAdded)} />}
           {Math.abs(data.rounding) >= 0.005 && (
-            <Row
-              label="Rounding"
-              value={`${data.rounding > 0 ? "+" : "-"}${money(Math.abs(data.rounding), c)}`}
-            />
+            <Row label="Rounding" value={`${data.rounding > 0 ? "+" : "-"}${m(Math.abs(data.rounding))}`} />
           )}
         </div>
 
         <div className="my-1 border-t" style={{ borderColor: "#111" }} />
         <div className="flex justify-between text-sm font-bold">
           <span>TOTAL</span>
-          <span>{money(data.grandTotal, c)}</span>
+          <span>{m(data.grandTotal)}</span>
         </div>
+
+        {data.taxIncluded > 0 && !data.showVatBreakdown && (
+          <div className="mt-1 space-y-0.5 text-[10px]" style={{ color: "#444" }}>
+            {allIncluded ? (
+              data.taxLines.map((t, i) => <Row key={i} label={`Includes ${t.name}`} value={m(t.amount)} />)
+            ) : (
+              <Row label="Includes tax" value={m(data.taxIncluded)} />
+            )}
+          </div>
+        )}
 
         {data.payment && (
           <>
             <Rule />
             <div className="space-y-0.5 text-[11px]">
-              <Row label={`Paid (${data.payment.methodName})`} value={money(data.grandTotal, c)} />
-              {data.payment.tendered != null && data.payment.tendered > 0 && (
-                <Row label="Tendered" value={money(data.payment.tendered, c)} />
+              {Math.abs(data.payment.cashRounding) >= 0.005 && (
+                <Row
+                  label="Cash rounding"
+                  value={`${data.payment.cashRounding > 0 ? "+" : "-"}${m(Math.abs(data.payment.cashRounding))}`}
+                />
               )}
-              {data.payment.change > 0 && <Row label="Change" value={money(data.payment.change, c)} />}
-              {data.refunded > 0 && <Row label="Refunded" value={`-${money(data.refunded, c)}`} />}
+              <Row label={`Paid (${data.payment.methodName})`} value={m(data.payment.amount)} />
+              {data.payment.tendered != null && data.payment.tendered > 0 && <Row label="Tendered" value={m(data.payment.tendered)} />}
+              {data.payment.change > 0 && <Row label="Change" value={m(data.payment.change)} />}
+              {data.refunded > 0 && <Row label="Refunded" value={`-${m(data.refunded)}`} />}
             </div>
+          </>
+        )}
+
+        {data.showVatBreakdown && (
+          <>
+            <Rule />
+            <div className="space-y-0.5 text-[11px]">
+              <Row label="VATable sales" value={m(vatable)} />
+              <Row label="VAT" value={m(data.taxTotal)} />
+              <Row label="VAT-exempt sales" value={m(data.exemptSales)} />
+              <Row label="Zero-rated sales" value={m(0)} />
+            </div>
+            {data.senior && (
+              <div className="mt-2 text-[11px]">
+                {data.senior.kind === "pwd" ? "PWD" : "Senior citizen"}: {data.senior.name}
+                <br />
+                ID no.: {data.senior.idNo}
+                <div className="mt-3 border-t pt-0.5 text-center text-[10px]" style={{ borderColor: "#111" }}>
+                  Signature
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -191,9 +256,9 @@ function Rule() {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between">
+    <div className="flex justify-between gap-2">
       <span>{label}</span>
-      <span>{value}</span>
+      <span className="whitespace-nowrap">{value}</span>
     </div>
   );
 }

@@ -2,25 +2,16 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addTable, addTaxGroup, removeTable, saveSettings, setPaymentMethod, setTaxRate, type Result } from "./actions";
-
-type Business = {
-  legal_name: string;
-  trading_name: string;
-  tax_registration_no: string;
-  contact_phone: string;
-  branch_name: string;
-  address_line1: string;
-  address_line2: string;
-  city: string;
-  state_or_region: string;
-  postal_code: string;
-  phone: string;
-  receipt_header: string;
-  receipt_footer: string;
-  cash_rounding_mode: string;
-  auto_print_kot: boolean;
-};
+import {
+  addTable,
+  removeTable,
+  saveSettings,
+  saveTaxGroup,
+  setPaymentMethod,
+  setPricesIncludeTax,
+  type Result,
+  type TaxComponent,
+} from "./actions";
 
 function useRunner() {
   const router = useRouter();
@@ -45,7 +36,7 @@ function Msg({ msg }: { msg: { ok: boolean; text: string } | null }) {
   return (
     <p
       className="mt-3 rounded-lg px-3 py-2 text-sm"
-      role={msg.ok ? undefined : "alert"}
+      role={msg.ok ? "status" : "alert"}
       style={{ background: msg.ok ? "var(--color-ok-soft)" : "var(--color-bad-soft)", color: msg.ok ? "var(--color-ok)" : "var(--color-bad)" }}
     >
       {msg.text}
@@ -67,11 +58,45 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-export function BusinessForm({ initial, canEdit }: { initial: Business; canEdit: boolean }) {
+function Toggle({ checked, onChange, label, hint, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string; disabled?: boolean }) {
+  return (
+    <label className="flex items-start gap-3 text-sm">
+      <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <span>
+        {label}
+        {hint && (
+          <span className="block text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+            {hint}
+          </span>
+        )}
+      </span>
+    </label>
+  );
+}
+
+/* ------------------------------------------------------------------ business */
+
+type Business = {
+  legal_name: string;
+  trading_name: string;
+  tax_registration_no: string;
+  contact_phone: string;
+  branch_name: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  state_or_region: string;
+  postal_code: string;
+  phone: string;
+  receipt_header: string;
+  receipt_footer: string;
+  auto_print_kot: boolean;
+};
+
+export function BusinessForm({ initial, canEdit, taxIdLabel, taxIdHint }: { initial: Business; canEdit: boolean; taxIdLabel: string; taxIdHint: string }) {
   const [v, setV] = useState(initial);
   const { pending, msg, run } = useRunner();
-  const set = (k: keyof Business) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setV({ ...v, [k]: e.target.type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value });
+  const set = (k: keyof Business) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.value });
 
   return (
     <section className="card p-5">
@@ -83,8 +108,8 @@ export function BusinessForm({ initial, canEdit }: { initial: Business; canEdit:
         <Field label="Name customers see">
           <input className="field" value={v.trading_name} onChange={set("trading_name")} />
         </Field>
-        <Field label="GSTIN" hint="15 characters, e.g. 33AAACA0000A1Z5. Printed on every bill.">
-          <input className="field uppercase" value={v.tax_registration_no} onChange={set("tax_registration_no")} maxLength={15} />
+        <Field label={taxIdLabel} hint={taxIdHint}>
+          <input className="field uppercase" value={v.tax_registration_no} onChange={set("tax_registration_no")} maxLength={30} />
         </Field>
         <Field label="Business phone">
           <input className="field" value={v.contact_phone} onChange={set("contact_phone")} />
@@ -105,10 +130,10 @@ export function BusinessForm({ initial, canEdit }: { initial: Business; canEdit:
           <input className="field" value={v.city} onChange={set("city")} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="State">
+          <Field label="State / region">
             <input className="field" value={v.state_or_region} onChange={set("state_or_region")} />
           </Field>
-          <Field label="PIN code">
+          <Field label="Postcode">
             <input className="field" value={v.postal_code} onChange={set("postal_code")} />
           </Field>
         </div>
@@ -118,18 +143,9 @@ export function BusinessForm({ initial, canEdit }: { initial: Business; canEdit:
         <Field label="Receipt footer" hint="e.g. Thank you — visit again!">
           <input className="field" value={v.receipt_footer} onChange={set("receipt_footer")} />
         </Field>
-        <Field label="Round the bill total" hint="Applied once, to the grand total.">
-          <select className="field" value={v.cash_rounding_mode} onChange={set("cash_rounding_mode")}>
-            <option value="nearest_1">To the nearest rupee</option>
-            <option value="nearest_0_10">To the nearest 10 paise</option>
-            <option value="nearest_0_05">To the nearest 5 paise</option>
-            <option value="none">No rounding</option>
-          </select>
-        </Field>
-        <label className="flex items-center gap-2 self-center text-sm">
-          <input type="checkbox" className="h-5 w-5" checked={v.auto_print_kot} onChange={set("auto_print_kot")} />
-          Send every bill to the Kitchen screen
-        </label>
+        <div className="sm:col-span-2">
+          <Toggle checked={v.auto_print_kot} onChange={(x) => setV({ ...v, auto_print_kot: x })} label="Send every bill to the Kitchen screen" />
+        </div>
       </fieldset>
       {canEdit ? (
         <button className="btn btn-primary mt-5" disabled={pending} onClick={() => run(() => saveSettings(v))}>
@@ -144,6 +160,272 @@ export function BusinessForm({ initial, canEdit }: { initial: Business; canEdit:
     </section>
   );
 }
+
+/* ------------------------------------------------ service charge + rounding */
+
+type Charges = {
+  service_charge_percent: number;
+  service_charge_label: string;
+  service_charge_taxable: boolean;
+  service_charge_default_on: boolean;
+  cash_rounding_mode: string;
+  rounding_cash_only: boolean;
+};
+
+export function ChargesForm({ initial, canEdit, taxName, serviceChargeHint }: { initial: Charges; canEdit: boolean; taxName: string; serviceChargeHint: string }) {
+  const [v, setV] = useState(initial);
+  const [pct, setPct] = useState(String(initial.service_charge_percent));
+  const { pending, msg, run } = useRunner();
+
+  return (
+    <section className="card p-5">
+      <h2 className="text-base font-bold">Service charge and rounding</h2>
+      <fieldset disabled={!canEdit} className="mt-4 space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Service charge %" hint="0 = no service charge.">
+            <input className="field" inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} />
+          </Field>
+          <Field label="Name on the bill">
+            <input className="field" value={v.service_charge_label} onChange={(e) => setV({ ...v, service_charge_label: e.target.value })} />
+          </Field>
+        </div>
+        <Toggle
+          checked={v.service_charge_default_on}
+          onChange={(x) => setV({ ...v, service_charge_default_on: x })}
+          label="Add the service charge to every bill by default"
+          hint={`The cashier can still switch it off on any bill. ${serviceChargeHint}`}
+        />
+        <Toggle
+          checked={v.service_charge_taxable}
+          onChange={(x) => setV({ ...v, service_charge_taxable: x })}
+          label={`Charge ${taxName} on the service charge`}
+          hint="Normal in Singapore, Malaysia, Thailand, Indonesia, the Philippines and the UAE. Not in India."
+        />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Round the bill" hint="Applied once, to the total.">
+            <select className="field" value={v.cash_rounding_mode} onChange={(e) => setV({ ...v, cash_rounding_mode: e.target.value })}>
+              <option value="none">No rounding</option>
+              <option value="nearest_1">To the nearest whole unit (₹1, Rp1)</option>
+              <option value="nearest_0_10">To the nearest 0.10</option>
+              <option value="nearest_0_05">To the nearest 0.05 (e.g. 5 sen)</option>
+            </select>
+          </Field>
+          <div className="self-end pb-2">
+            <Toggle
+              checked={v.rounding_cash_only}
+              onChange={(x) => setV({ ...v, rounding_cash_only: x })}
+              label="Only when paying by cash"
+              hint="Malaysia's rule: cards and QR pay the exact amount."
+            />
+          </div>
+        </div>
+      </fieldset>
+      {canEdit && (
+        <button
+          className="btn btn-primary mt-5"
+          disabled={pending}
+          onClick={() => run(() => saveSettings({ ...v, service_charge_percent: Number(pct) || 0 }))}
+        >
+          {pending ? "Saving…" : "Save changes"}
+        </button>
+      )}
+      <Msg msg={msg} />
+    </section>
+  );
+}
+
+/* ---------------------------------------------------------------------- tax */
+
+export type TaxGroupView = { id: string; name: string; items: number; comps: TaxComponent[] };
+
+function describe(comps: TaxComponent[], isIndia: boolean) {
+  const main = comps.filter((c) => c.applies_when !== "inter_region");
+  if (main.length === 0) return "No tax";
+  const text = main.map((c, i) => `${i > 0 && c.compound ? "then " : ""}${c.name} ${c.rate}%`).join(" + ");
+  const other = comps.filter((c) => c.applies_when === "inter_region");
+  return isIndia && other.length ? `${text} · other state: ${other.map((c) => `${c.name} ${c.rate}%`).join(" + ")}` : text;
+}
+
+export function TaxForm({
+  groups,
+  canEdit,
+  isIndia,
+  taxName,
+  pricesInclude,
+}: {
+  groups: TaxGroupView[];
+  canEdit: boolean;
+  isIndia: boolean;
+  taxName: string;
+  pricesInclude: boolean;
+}) {
+  const [editing, setEditing] = useState<string | "new" | null>(null);
+  const { pending, msg, run } = useRunner();
+
+  return (
+    <section className="card p-5">
+      <h2 className="text-base font-bold">{taxName} and other taxes</h2>
+      <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+        Every menu item belongs to one tax group. Changes apply to new bills from today; bills already issued keep the tax they were charged.
+        Confirm rates with your accountant.
+      </p>
+
+      <div className="mt-4 rounded-lg border p-3" style={{ borderColor: "var(--color-line)" }}>
+        <Toggle
+          checked={pricesInclude}
+          disabled={!canEdit || pending}
+          onChange={(x) => run(() => setPricesIncludeTax(x))}
+          label={`My menu prices already include ${taxName}`}
+          hint={pricesInclude ? `${taxName} is taken out of the menu price and shown on the bill.` : `${taxName} is added on top of the menu price.`}
+        />
+      </div>
+
+      <ul className="mt-4 space-y-2">
+        {groups.map((g) =>
+          editing === g.id ? (
+            <li key={g.id}>
+              <GroupEditor
+                initialName={g.name}
+                initialComps={g.comps}
+                isIndia={isIndia}
+                pending={pending}
+                onCancel={() => setEditing(null)}
+                onSave={(name, comps) => run(() => saveTaxGroup(g.id, name, comps), () => setEditing(null))}
+              />
+            </li>
+          ) : (
+            <li key={g.id} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: "var(--color-line)" }}>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold">{g.name}</div>
+                <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+                  {describe(g.comps, isIndia)} · {g.items} item{g.items === 1 ? "" : "s"}
+                </div>
+              </div>
+              {canEdit && (
+                <button className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--color-line)" }} onClick={() => setEditing(g.id)}>
+                  Edit
+                </button>
+              )}
+            </li>
+          ),
+        )}
+      </ul>
+
+      {canEdit &&
+        (editing === "new" ? (
+          <div className="mt-2">
+            <GroupEditor
+              initialName=""
+              initialComps={[{ name: taxName, rate: 0, compound: false, applies_when: "always" }]}
+              isIndia={isIndia}
+              pending={pending}
+              onCancel={() => setEditing(null)}
+              onSave={(name, comps) => run(() => saveTaxGroup(null, name, comps), () => setEditing(null))}
+            />
+          </div>
+        ) : (
+          <button className="btn mt-3 border text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setEditing("new")}>
+            + Add a tax group
+          </button>
+        ))}
+      <Msg msg={msg} />
+    </section>
+  );
+}
+
+function GroupEditor({
+  initialName,
+  initialComps,
+  isIndia,
+  pending,
+  onCancel,
+  onSave,
+}: {
+  initialName: string;
+  initialComps: TaxComponent[];
+  isIndia: boolean;
+  pending: boolean;
+  onCancel: () => void;
+  onSave: (name: string, comps: TaxComponent[]) => void;
+}) {
+  const [name, setName] = useState(initialName);
+  const [rows, setRows] = useState(initialComps.map((c) => ({ ...c, rate: String(c.rate) })));
+  const update = (i: number, patch: Partial<(typeof rows)[number]>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const valid = name.trim() && rows.every((r) => r.name.trim() && r.rate !== "" && Number(r.rate) >= 0 && Number(r.rate) <= 40);
+
+  return (
+    <div className="space-y-3 rounded-lg border p-3" style={{ borderColor: "var(--color-brand)" }}>
+      <Field label="Group name">
+        <input className="field h-10 text-sm" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Beverages 18%" />
+      </Field>
+      <div className="space-y-2">
+        {rows.map((r, i) => (
+          <div key={i} className="rounded-md p-2" style={{ background: "var(--color-ground)" }}>
+            <div className="flex gap-2">
+              <input className="field h-10 flex-1 text-sm" aria-label="Tax name" placeholder="Tax name" value={r.name} onChange={(e) => update(i, { name: e.target.value })} />
+              <div className="flex items-center gap-1">
+                <input className="field h-10 w-20 text-right text-sm" aria-label="Rate percent" inputMode="decimal" value={r.rate} onChange={(e) => update(i, { rate: e.target.value })} />
+                <span className="text-sm">%</span>
+              </div>
+              <button className="px-2 text-sm font-semibold" style={{ color: "var(--color-bad)" }} aria-label="Remove this tax" onClick={() => setRows(rows.filter((_, j) => j !== i))}>
+                ✕
+              </button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+              {i > 0 && (
+                <label className="flex items-center gap-1.5">
+                  <input type="checkbox" checked={r.compound} onChange={(e) => update(i, { compound: e.target.checked })} />
+                  Charged on top of the taxes above (tax on tax)
+                </label>
+              )}
+              {isIndia && (
+                <label className="flex items-center gap-1.5">
+                  Applies
+                  <select
+                    className="rounded border px-1 py-0.5"
+                    value={r.applies_when}
+                    onChange={(e) => update(i, { applies_when: e.target.value as TaxComponent["applies_when"] })}
+                  >
+                    <option value="always">always</option>
+                    <option value="intra_region">same state (CGST/SGST)</option>
+                    <option value="inter_region">other state (IGST)</option>
+                  </select>
+                </label>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <button
+        className="text-xs font-semibold"
+        style={{ color: "var(--color-brand)" }}
+        disabled={rows.length >= 6}
+        onClick={() => setRows([...rows, { name: "", rate: "0", compound: false, applies_when: "always" }])}
+      >
+        + Add another tax to this group
+      </button>
+      <div className="flex gap-2">
+        <button className="btn flex-1 border text-sm" style={{ borderColor: "var(--color-line)" }} onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          className="btn btn-primary flex-1 text-sm"
+          disabled={pending || !valid}
+          onClick={() =>
+            onSave(
+              name.trim(),
+              rows.map((r, i) => ({ name: r.name.trim(), rate: Number(r.rate), compound: i > 0 && r.compound, applies_when: r.applies_when })),
+            )
+          }
+        >
+          {pending ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------ tables + payments */
 
 export function TablesForm({ tables, canEdit }: { tables: { id: string; number: string; seats: number; busy: boolean }[]; canEdit: boolean }) {
   const [num, setNum] = useState("");
@@ -176,7 +458,7 @@ export function TablesForm({ tables, canEdit }: { tables: { id: string; number: 
       {canEdit && (
         <div className="mt-4 flex flex-wrap gap-2">
           <input className="field h-11 w-32 text-sm" placeholder="Table no." value={num} onChange={(e) => setNum(e.target.value)} />
-          <input className="field h-11 w-24 text-sm" inputMode="numeric" placeholder="Seats" value={seats} onChange={(e) => setSeats(e.target.value)} />
+          <input className="field h-11 w-24 text-sm" inputMode="numeric" placeholder="Seats" aria-label="Seats" value={seats} onChange={(e) => setSeats(e.target.value)} />
           <button className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} disabled={pending || !num.trim()} onClick={() => run(() => addTable(num, Number(seats)), () => setNum(""))}>
             Add table
           </button>
@@ -193,95 +475,24 @@ export function PaymentMethodsForm({ methods, canEdit }: { methods: { id: string
     <section className="card p-5">
       <h2 className="text-base font-bold">Payment methods</h2>
       <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-        Switch off any method you do not accept. Card and UPI here only record how the customer paid; no gateway is connected yet.
+        Switch off any method you do not accept. These record how the customer paid; no payment gateway is connected yet.
       </p>
       <ul className="mt-3 space-y-2">
-        {methods.map((m) => (
-          <li key={m.id} className="flex items-center justify-between text-sm">
-            <span className="font-medium">{m.name}</span>
+        {methods.map((pm) => (
+          <li key={pm.id} className="flex items-center justify-between text-sm">
+            <span className="font-medium">{pm.name}</span>
             <button
               className="rounded-full px-3 py-1 text-xs font-semibold"
               disabled={!canEdit || pending}
-              onClick={() => run(() => setPaymentMethod(m.id, !m.is_active))}
-              style={m.is_active ? { background: "var(--color-ok-soft)", color: "var(--color-ok)" } : { background: "var(--color-ground)", color: "var(--color-ink-3)" }}
+              aria-pressed={pm.is_active}
+              onClick={() => run(() => setPaymentMethod(pm.id, !pm.is_active))}
+              style={pm.is_active ? { background: "var(--color-ok-soft)", color: "var(--color-ok)" } : { background: "var(--color-ground)", color: "var(--color-ink-3)" }}
             >
-              {m.is_active ? "On" : "Off"}
+              {pm.is_active ? "On" : "Off"}
             </button>
           </li>
         ))}
       </ul>
-      <Msg msg={msg} />
-    </section>
-  );
-}
-
-export function TaxForm({ groups, canEdit }: { groups: { id: string; name: string; rate: number | null; items: number }[]; canEdit: boolean }) {
-  const [edit, setEdit] = useState<Record<string, string>>({});
-  const [newName, setNewName] = useState("");
-  const [newRate, setNewRate] = useState("");
-  const { pending, msg, run } = useRunner();
-  return (
-    <section className="card p-5">
-      <h2 className="text-base font-bold">GST rates</h2>
-      <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-        Each menu item belongs to one tax group. A changed rate applies to new bills from today; bills already issued keep the tax they were charged. Confirm rates with your accountant.
-      </p>
-      <table className="mt-3 w-full text-sm">
-        <thead>
-          <tr style={{ color: "var(--color-ink-3)" }}>
-            <th className="pb-2 text-left text-xs font-semibold">Group</th>
-            <th className="pb-2 text-right text-xs font-semibold">Items</th>
-            <th className="pb-2 text-right text-xs font-semibold">Rate</th>
-            {canEdit && <th />}
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((g) => (
-            <tr key={g.id} style={{ borderTop: "1px solid var(--color-line)" }}>
-              <td className="py-2">{g.name}</td>
-              <td className="py-2 text-right tabular-nums">{g.items}</td>
-              <td className="py-2 text-right tabular-nums">
-                {canEdit ? (
-                  <input
-                    className="field h-9 w-20 text-right text-sm"
-                    inputMode="decimal"
-                    value={edit[g.id] ?? String(g.rate ?? "")}
-                    onChange={(e) => setEdit({ ...edit, [g.id]: e.target.value })}
-                  />
-                ) : (
-                  `${g.rate ?? "—"}%`
-                )}
-              </td>
-              {canEdit && (
-                <td className="py-2 pl-2 text-right">
-                  <button
-                    className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
-                    style={{ borderColor: "var(--color-line)" }}
-                    disabled={pending || edit[g.id] === undefined || Number(edit[g.id]) === g.rate}
-                    onClick={() => run(() => setTaxRate(g.id, Number(edit[g.id])), () => setEdit({}))}
-                  >
-                    Save
-                  </button>
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {canEdit && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          <input className="field h-11 w-48 text-sm" placeholder="New group, e.g. Beverages 18%" value={newName} onChange={(e) => setNewName(e.target.value)} />
-          <input className="field h-11 w-24 text-sm" inputMode="decimal" placeholder="Rate %" value={newRate} onChange={(e) => setNewRate(e.target.value)} />
-          <button
-            className="btn border text-sm"
-            style={{ borderColor: "var(--color-line)" }}
-            disabled={pending || !newName.trim() || newRate === ""}
-            onClick={() => run(() => addTaxGroup(newName, Number(newRate)), () => { setNewName(""); setNewRate(""); })}
-          >
-            Add group
-          </button>
-        </div>
-      )}
       <Msg msg={msg} />
     </section>
   );

@@ -14,8 +14,12 @@ function ErrorBox({ text }: { text: string | null }) {
   );
 }
 
-export function SetupForms({ email }: { email: string }) {
+export type CountryOption = { code: string; name: string; taxName: string; taxIdLabel: string; note: string };
+
+export function SetupForms({ email, countries }: { email: string; countries: CountryOption[] }) {
   const [mode, setMode] = useState<"choose" | "join" | "create">("choose");
+  const [countryCode, setCountryCode] = useState(countries.find((c) => c.code === "IN")?.code ?? countries[0]?.code ?? "IN");
+  const country = countries.find((c) => c.code === countryCode);
   const [createState, createAction, creating] = useActionState(createRestaurant, initial);
   const [joinState, joinAction, joining] = useActionState(joinWithCode, initial);
 
@@ -34,7 +38,7 @@ export function SetupForms({ email }: { email: string }) {
         <button onClick={() => setMode("create")} className="card block w-full p-5 text-left">
           <div className="font-bold">I own a restaurant and want to set it up</div>
           <div className="mt-1 text-sm" style={{ color: "var(--color-ink-3)" }}>
-            Creates your restaurant, staff roles, GST setup and receipt settings.
+            Creates your restaurant, staff roles, tax setup and receipt settings.
           </div>
         </button>
       </div>
@@ -90,11 +94,16 @@ export function SetupForms({ email }: { email: string }) {
       <label className="mb-1.5 block text-sm font-semibold" htmlFor="country_code">
         Country
       </label>
-      <select id="country_code" name="country_code" className="field mb-1" defaultValue="IN">
-        <option value="IN">India</option>
+      <select id="country_code" name="country_code" className="field mb-1" value={countryCode} onChange={(e) => setCountryCode(e.target.value)}>
+        {countries.map((c) => (
+          <option key={c.code} value={c.code}>
+            {c.name}
+          </option>
+        ))}
       </select>
       <p className="mb-4 text-xs" style={{ color: "var(--color-ink-3)" }}>
-        Only India is available today. Other countries need their tax rules confirmed locally first.
+        Sets your currency, {country?.taxName ?? "tax"} rates, receipt layout and payment methods. You can change rates later in Settings.
+        {country?.note ? ` ${country.note}` : ""}
       </p>
 
       <div className="mb-4 grid grid-cols-3 gap-3">
@@ -113,9 +122,15 @@ export function SetupForms({ email }: { email: string }) {
       </div>
 
       <label className="mb-1.5 block text-sm font-semibold" htmlFor="tax_registration_no">
-        GSTIN <span className="font-normal" style={{ color: "var(--color-ink-3)" }}>(optional)</span>
+        {country?.taxIdLabel ?? "Tax number"} <span className="font-normal" style={{ color: "var(--color-ink-3)" }}>(optional)</span>
       </label>
-      <input id="tax_registration_no" name="tax_registration_no" className="field mb-5 uppercase" placeholder="33AAACA0000A1Z5" maxLength={15} />
+      <input
+        id="tax_registration_no"
+        name="tax_registration_no"
+        className="field mb-5 uppercase"
+        placeholder={countryCode === "IN" ? "33AAACA0000A1Z5" : ""}
+        maxLength={countryCode === "IN" ? 15 : 30}
+      />
 
       <ErrorBox text={createState.error} />
 
@@ -126,7 +141,7 @@ export function SetupForms({ email }: { email: string }) {
         ← Back
       </button>
       <p className="mt-4 text-xs" style={{ color: "var(--color-ink-3)" }}>
-        Tax rates are set to India&rsquo;s standard restaurant GST as a starting point. Confirm them with your accountant before issuing real bills.
+        Tax rates are set to {country?.name ?? "your country"}&rsquo;s standard restaurant {country?.taxName ?? "tax"} as a starting point. Confirm them with your accountant before issuing real bills.
       </p>
     </form>
   );

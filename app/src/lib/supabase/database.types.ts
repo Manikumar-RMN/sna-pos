@@ -423,7 +423,11 @@ export type Database = {
           receipt_footer: string | null
           receipt_header: string | null
           restaurant_id: string
+          rounding_cash_only: boolean
+          service_charge_default_on: boolean
+          service_charge_label: string
           service_charge_percent: number
+          service_charge_taxable: boolean
           updated_at: string
         }
         Insert: {
@@ -434,7 +438,11 @@ export type Database = {
           receipt_footer?: string | null
           receipt_header?: string | null
           restaurant_id: string
+          rounding_cash_only?: boolean
+          service_charge_default_on?: boolean
+          service_charge_label?: string
           service_charge_percent?: number
+          service_charge_taxable?: boolean
           updated_at?: string
         }
         Update: {
@@ -445,7 +453,11 @@ export type Database = {
           receipt_footer?: string | null
           receipt_header?: string | null
           restaurant_id?: string
+          rounding_cash_only?: boolean
+          service_charge_default_on?: boolean
+          service_charge_label?: string
           service_charge_percent?: number
+          service_charge_taxable?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -646,32 +658,44 @@ export type Database = {
       countries: {
         Row: {
           code: string
+          compliance_note: string | null
           created_at: string
           default_currency: string
           default_timezone: string
+          has_senior_discount: boolean
+          invoice_title: string | null
           is_supported: boolean
           name: string
           requires_fiscal_certification: boolean
+          tax_id_label: string | null
           tax_system_name: string
         }
         Insert: {
           code: string
+          compliance_note?: string | null
           created_at?: string
           default_currency: string
           default_timezone: string
+          has_senior_discount?: boolean
+          invoice_title?: string | null
           is_supported?: boolean
           name: string
           requires_fiscal_certification?: boolean
+          tax_id_label?: string | null
           tax_system_name: string
         }
         Update: {
           code?: string
+          compliance_note?: string | null
           created_at?: string
           default_currency?: string
           default_timezone?: string
+          has_senior_discount?: boolean
+          invoice_title?: string | null
           is_supported?: boolean
           name?: string
           requires_fiscal_certification?: boolean
+          tax_id_label?: string | null
           tax_system_name?: string
         }
         Relationships: []
@@ -1294,11 +1318,14 @@ export type Database = {
           line_tax: number
           line_total: number
           modifier_total: number
+          net_amount: number
           order_id: string
           product_id: string
           product_name: string
           quantity: number
           restaurant_id: string
+          service_charge: number
+          tax_included: number
           unit_price: number
         }
         Insert: {
@@ -1313,11 +1340,14 @@ export type Database = {
           line_tax?: number
           line_total: number
           modifier_total?: number
+          net_amount?: number
           order_id: string
           product_id: string
           product_name: string
           quantity: number
           restaurant_id: string
+          service_charge?: number
+          tax_included?: number
           unit_price: number
         }
         Update: {
@@ -1332,11 +1362,14 @@ export type Database = {
           line_tax?: number
           line_total?: number
           modifier_total?: number
+          net_amount?: number
           order_id?: string
           product_id?: string
           product_name?: string
           quantity?: number
           restaurant_id?: string
+          service_charge?: number
+          tax_included?: number
           unit_price?: number
         }
         Relationships: [
@@ -1396,6 +1429,7 @@ export type Database = {
           device_id: string | null
           dining_table_id: string | null
           discount_total: number
+          exempt_sales: number
           grand_total: number
           id: string
           order_type: string
@@ -1404,11 +1438,14 @@ export type Database = {
           place_of_supply: string | null
           restaurant_id: string
           rounding_adjustment: number
+          senior_details: Json | null
           service_charge: number
           shift_id: string | null
           status: string
           subtotal: number
           synced_at: string | null
+          tax_exempt_amount: number
+          tax_included: number
           tax_total: number
           updated_at: string
           void_reason: string | null
@@ -1427,6 +1464,7 @@ export type Database = {
           device_id?: string | null
           dining_table_id?: string | null
           discount_total?: number
+          exempt_sales?: number
           grand_total?: number
           id: string
           order_type: string
@@ -1435,11 +1473,14 @@ export type Database = {
           place_of_supply?: string | null
           restaurant_id: string
           rounding_adjustment?: number
+          senior_details?: Json | null
           service_charge?: number
           shift_id?: string | null
           status?: string
           subtotal?: number
           synced_at?: string | null
+          tax_exempt_amount?: number
+          tax_included?: number
           tax_total?: number
           updated_at?: string
           void_reason?: string | null
@@ -1458,6 +1499,7 @@ export type Database = {
           device_id?: string | null
           dining_table_id?: string | null
           discount_total?: number
+          exempt_sales?: number
           grand_total?: number
           id?: string
           order_type?: string
@@ -1466,11 +1508,14 @@ export type Database = {
           place_of_supply?: string | null
           restaurant_id?: string
           rounding_adjustment?: number
+          senior_details?: Json | null
           service_charge?: number
           shift_id?: string | null
           status?: string
           subtotal?: number
           synced_at?: string | null
+          tax_exempt_amount?: number
+          tax_included?: number
           tax_total?: number
           updated_at?: string
           void_reason?: string | null
@@ -1624,6 +1669,7 @@ export type Database = {
           received_by: string
           reference_no: string | null
           restaurant_id: string
+          rounding_adjustment: number
           status: string
           synced_at: string | null
           tendered_amount: number | null
@@ -1641,6 +1687,7 @@ export type Database = {
           received_by: string
           reference_no?: string | null
           restaurant_id: string
+          rounding_adjustment?: number
           status?: string
           synced_at?: string | null
           tendered_amount?: number | null
@@ -1658,6 +1705,7 @@ export type Database = {
           received_by?: string
           reference_no?: string | null
           restaurant_id?: string
+          rounding_adjustment?: number
           status?: string
           synced_at?: string | null
           tendered_amount?: number | null
@@ -2391,6 +2439,7 @@ export type Database = {
           applies_when: string
           display_order: number
           id: string
+          is_compound: boolean
           name: string
           rate: number
           restaurant_id: string
@@ -2400,6 +2449,7 @@ export type Database = {
           applies_when?: string
           display_order?: number
           id?: string
+          is_compound?: boolean
           name: string
           rate: number
           restaurant_id: string
@@ -2409,6 +2459,7 @@ export type Database = {
           applies_when?: string
           display_order?: number
           id?: string
+          is_compound?: boolean
           name?: string
           rate?: number
           restaurant_id?: string
@@ -2698,6 +2749,8 @@ export type Database = {
           p_items: Json
           p_order_type?: string
           p_payment_method_id?: string
+          p_senior?: Json
+          p_service_charge?: boolean
           p_table_id?: string
           p_tendered?: number
         }
@@ -2740,6 +2793,15 @@ export type Database = {
         }
         Returns: Json
       }
+      quote_order: {
+        Args: {
+          p_discount_amount?: number
+          p_items: Json
+          p_senior?: Json
+          p_service_charge?: boolean
+        }
+        Returns: Json
+      }
       record_cash_movement: {
         Args: { p_amount: number; p_direction: string; p_reason: string }
         Returns: string
@@ -2750,8 +2812,16 @@ export type Database = {
       }
       regenerate_invite: { Args: { p_user_id: string }; Returns: Json }
       sales_report: { Args: { p_from: string; p_to: string }; Returns: Json }
+      save_tax_group: {
+        Args: { p_components: Json; p_group_id: string; p_name: string }
+        Returns: string
+      }
       set_kitchen_status: {
         Args: { p_status: string; p_ticket_id: string }
+        Returns: undefined
+      }
+      set_prices_include_tax: {
+        Args: { p_inclusive: boolean }
         Returns: undefined
       }
       set_tax_rate: {

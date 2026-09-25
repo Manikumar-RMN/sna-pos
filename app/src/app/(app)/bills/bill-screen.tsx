@@ -64,6 +64,7 @@ export async function BillScreen({ orderId, from }: { orderId: string; from: "po
         canVoid={can(user, "order.void")}
         canRefund={can(user, "order.refund")}
         shiftOpen={!!shift}
+        cashRounding={bill.cashRoundingMode}
       />
     </div>
   );
