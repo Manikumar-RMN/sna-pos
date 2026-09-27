@@ -2,7 +2,7 @@ import Link from "next/link";
 import { can, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayIn } from "@/lib/format";
-import { BusinessForm, ChargesForm, PaymentMethodsForm, TablesForm, TaxForm, type TaxGroupView } from "./settings-forms";
+import { BusinessForm, ChargesForm, CountersForm, PaymentMethodsForm, TablesForm, TaxForm, type TaxGroupView } from "./settings-forms";
 import type { TaxComponent } from "./actions";
 
 export default async function SettingsPage() {
@@ -21,6 +21,7 @@ export default async function SettingsPage() {
     { data: methods },
     { data: openTabs },
     { data: country },
+    { data: counters },
   ] = await Promise.all([
     supabase.from("restaurants").select("legal_name, trading_name, tax_registration_no, contact_phone").limit(1).maybeSingle(),
     supabase.from("branches").select("name, address_line1, address_line2, city, state_or_region, postal_code, phone").is("deleted_at", null).order("created_at").limit(1).maybeSingle(),
@@ -37,9 +38,10 @@ export default async function SettingsPage() {
       .lte("valid_from", today)
       .order("valid_from", { ascending: false }),
     supabase.from("products").select("tax_group_id").is("deleted_at", null),
-    supabase.from("payment_methods").select("id, name, is_active").order("display_order"),
+    supabase.from("payment_methods").select("id, name, kind, is_active, ask_reference, upi_id, collection_mode").order("display_order"),
     supabase.from("orders").select("dining_table_id").in("payment_status", ["unpaid", "partial"]).neq("status", "voided").not("dining_table_id", "is", null),
     supabase.from("countries").select("code, tax_system_name, tax_id_label, compliance_note").eq("code", user.country_code).maybeSingle(),
+    supabase.from("devices").select("id, name, last_seen_at").eq("device_type", "counter").eq("is_active", true).order("created_at"),
   ]);
 
   const isIndia = user.country_code === "IN";
@@ -133,6 +135,11 @@ export default async function SettingsPage() {
         <div className="space-y-5">
           <TablesForm canEdit={isOwner} tables={(tables ?? []).map((t) => ({ id: t.id, number: t.table_number, seats: t.seats, busy: busy.has(t.id) }))} />
           <PaymentMethodsForm canEdit={isOwner} methods={methods ?? []} />
+          <CountersForm
+            canEdit={isOwner}
+            isThisACounter={!!user.device_name}
+            devices={(counters ?? []).map((d) => ({ id: d.id, name: d.name, lastSeen: d.last_seen_at }))}
+          />
         </div>
       </div>
     </div>

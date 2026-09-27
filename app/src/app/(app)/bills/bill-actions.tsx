@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { money, roundCash } from "@/lib/format";
 import { cancelItem, mergeBills, moveTable, payBill, refundBill, splitBill, voidBill } from "./actions";
 
-type Method = { id: string; name: string; kind: string };
+type Method = { id: string; name: string; kind: string; ask_reference: boolean };
 type Line = { id: string; name: string; options: string | null; qty: number; amount: number };
 type TableOpt = { id: string; number: string; busy: boolean };
 type OtherBill = { id: string; billNumber: string; total: number; table: string | null; mergeable: boolean };
@@ -67,6 +67,7 @@ export function BillActions({
 
   const [methodId, setMethodId] = useState(methods[0]?.id ?? "");
   const [tendered, setTendered] = useState("");
+  const [reference, setReference] = useState("");
   const [partAmt, setPartAmt] = useState("");
   const [refundAmt, setRefundAmt] = useState("");
   const [refundReason, setRefundReason] = useState("");
@@ -83,6 +84,7 @@ export function BillActions({
   const open = state === "unpaid" || state === "part-paid";
   const remaining = Math.max(0, Math.round((paidTotal - refunded) * 100) / 100);
   const isCash = methods.find((x) => x.id === methodId)?.kind === "cash";
+  const askRef = !!methods.find((x) => x.id === methodId)?.ask_reference;
   const part = partAmt.trim() === "" ? null : Math.round(Number(partAmt) * 100) / 100;
   const isFull = part === null || part >= balance;
   const due = isFull ? (isCash ? roundCash(balance, cashRounding) : balance) : part;
@@ -120,6 +122,7 @@ export function BillActions({
       setRefundReason("");
       setRefundAmt("");
       setTendered("");
+      setReference("");
       setPartAmt("");
       setCancelReason("");
       setSplitQty({});
@@ -211,6 +214,15 @@ export function BillActions({
                 )}
               </div>
 
+              {askRef && !isCash && (
+                <input
+                  className="field mt-2 h-10 text-sm"
+                  placeholder="Reference, e.g. UPI txn ID or card last 4 (optional)"
+                  value={reference}
+                  maxLength={60}
+                  onChange={(e) => setReference(e.target.value)}
+                />
+              )}
               {isCash && (
                 <div className="mt-2 flex items-center gap-2">
                   <input className="field h-10 flex-1 text-sm" inputMode="decimal" placeholder="Cash received" value={tendered} onChange={(e) => setTendered(e.target.value)} />
@@ -229,6 +241,7 @@ export function BillActions({
                       paymentMethodId: methodId,
                       tendered: isCash && tendered !== "" ? Number(tendered) : null,
                       amount: isFull ? null : part,
+                      reference: askRef && !isCash ? reference : null,
                     }),
                   )
                 }

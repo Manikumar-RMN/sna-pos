@@ -32,7 +32,7 @@ export default async function StaffPage() {
   const [{ data: users }, { data: roles }] = await Promise.all([
     supabase
       .from("users")
-      .select("id, full_name, employee_code, email, is_active, role_id, auth_user_id")
+      .select("id, full_name, employee_code, email, is_active, role_id, auth_user_id, pin_set_at")
       .is("deleted_at", null)
       .order("employee_code"),
     supabase.from("roles").select("id, name, role_permissions(permission_key)").order("name"),
@@ -49,6 +49,7 @@ export default async function StaffPage() {
 
       <StaffManager
         canManage={can(current, "user.manage")}
+        isOwner={current.role_name === "Owner"}
         appUrl="sna-pos.vercel.app"
         roles={(roles ?? []).map((r) => ({ id: r.id, name: r.name }))}
         staff={(users ?? []).map((u) => ({
@@ -60,6 +61,8 @@ export default async function StaffPage() {
           roleName: roleName.get(u.role_id) ?? "—",
           active: u.is_active,
           joined: !!u.auth_user_id,
+          pinOnly: !u.auth_user_id && !u.email,
+          hasPin: !!u.pin_set_at,
           isMe: u.id === current.user_id,
         }))}
       />

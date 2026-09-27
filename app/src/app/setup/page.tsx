@@ -12,6 +12,8 @@ export default async function SetupPage() {
 
   const { data: state } = await supabase.rpc("my_account_state");
   if (state === "active") redirect("/dashboard");
+  if (state === "device_locked" || state === "device_removed") redirect("/counter");
+  if (state === "must_change_password") redirect("/account/password");
 
   const { data: countries } = await supabase
     .from("countries")

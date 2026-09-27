@@ -26,6 +26,7 @@ export async function payBill(input: {
   paymentMethodId: string;
   tendered: number | null;
   amount: number | null;
+  reference?: string | null;
 }): Promise<ActionResult> {
   if (!input.paymentMethodId) return { ok: false, error: "Choose how the customer paid." };
   const supabase = await createClient();
@@ -34,6 +35,7 @@ export async function payBill(input: {
     p_payment_method_id: input.paymentMethodId,
     p_tendered: input.tendered ?? undefined,
     p_amount: input.amount ?? undefined,
+    p_reference: input.reference?.trim() ? input.reference.trim().slice(0, 60) : undefined,
   });
   if (error) return { ok: false, error: error.message };
   refresh(input.orderId);

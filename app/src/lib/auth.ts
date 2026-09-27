@@ -14,6 +14,9 @@ export type CurrentUser = {
   currency_code: string;
   timezone: string;
   permissions: string[];
+  must_change_password: boolean | null;
+  /** Set when this is a shared counter tablet unlocked with a PIN. */
+  device_name: string | null;
 };
 
 /**
@@ -33,10 +36,23 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   return data as CurrentUser;
 }
 
-/** Use in any page that requires a set-up restaurant. */
+/**
+ * Use in any page that requires a set-up restaurant. A locked counter tablet
+ * goes to the PIN screen; a new account goes to setup.
+ */
 export async function requireUser(): Promise<CurrentUser> {
   const current = await getCurrentUser();
-  if (!current) redirect("/setup");
+  if (!current) {
+    const supabase = await createClient();
+    const { data: state } = await supabase.rpc("my_account_state");
+    if (state === "device_locked" || state === "device_removed") redirect("/counter");
+    if (state === "must_change_password") redirect("/account/password");
+    if (state === "signed_out") redirect("/login");
+    if (state === "new" || state === "deactivated") redirect("/setup");
+    // Signed in and active, yet the account could not be read: show the error
+    // screen rather than bouncing between pages.
+    throw new Error("Your account could not be loaded. Please refresh the page.");
+  }
   return current;
 }
 

@@ -779,6 +779,7 @@ export type Database = {
       }
       devices: {
         Row: {
+          auth_user_id: string | null
           bill_prefix: string | null
           branch_id: string
           created_at: string
@@ -791,6 +792,7 @@ export type Database = {
           restaurant_id: string
         }
         Insert: {
+          auth_user_id?: string | null
           bill_prefix?: string | null
           branch_id: string
           created_at?: string
@@ -803,6 +805,7 @@ export type Database = {
           restaurant_id: string
         }
         Update: {
+          auth_user_id?: string | null
           bill_prefix?: string | null
           branch_id?: string
           created_at?: string
@@ -1648,30 +1651,42 @@ export type Database = {
       payment_methods: {
         Row: {
           affects_cash_drawer: boolean
+          ask_reference: boolean
+          collection_mode: string
           display_order: number
+          gateway_provider: string | null
           id: string
           is_active: boolean
           kind: string
           name: string
           restaurant_id: string
+          upi_id: string | null
         }
         Insert: {
           affects_cash_drawer?: boolean
+          ask_reference?: boolean
+          collection_mode?: string
           display_order?: number
+          gateway_provider?: string | null
           id?: string
           is_active?: boolean
           kind: string
           name: string
           restaurant_id: string
+          upi_id?: string | null
         }
         Update: {
           affects_cash_drawer?: boolean
+          ask_reference?: boolean
+          collection_mode?: string
           display_order?: number
+          gateway_provider?: string | null
           id?: string
           is_active?: boolean
           kind?: string
           name?: string
           restaurant_id?: string
+          upi_id?: string | null
         }
         Relationships: [
           {
@@ -1800,6 +1815,91 @@ export type Database = {
           key?: string
         }
         Relationships: []
+      }
+      pin_attempts: {
+        Row: {
+          at: string
+          device_id: string
+          id: number
+          ok: boolean
+        }
+        Insert: {
+          at?: string
+          device_id: string
+          id?: never
+          ok: boolean
+        }
+        Update: {
+          at?: string
+          device_id?: string
+          id?: never
+          ok?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pin_attempts_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pin_sessions: {
+        Row: {
+          device_id: string
+          expires_at: string
+          last_activity_at: string
+          restaurant_id: string
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          device_id: string
+          expires_at: string
+          last_activity_at?: string
+          restaurant_id: string
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          device_id?: string
+          expires_at?: string
+          last_activity_at?: string
+          restaurant_id?: string
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pin_sessions_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: true
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pin_sessions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pin_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pin_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       printers: {
         Row: {
@@ -2613,6 +2713,8 @@ export type Database = {
           id: string
           is_active: boolean
           last_login_at: string | null
+          must_change_password: boolean
+          password_reset_hash: string | null
           phone: string | null
           pin_hash: string | null
           pin_set_at: string | null
@@ -2630,6 +2732,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_login_at?: string | null
+          must_change_password?: boolean
+          password_reset_hash?: string | null
           phone?: string | null
           pin_hash?: string | null
           pin_set_at?: string | null
@@ -2647,6 +2751,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_login_at?: string | null
+          must_change_password?: boolean
+          password_reset_hash?: string | null
           phone?: string | null
           pin_hash?: string | null
           pin_set_at?: string | null
@@ -2684,9 +2790,11 @@ export type Database = {
         Row: {
           country_code: string | null
           currency_code: string | null
+          device_name: string | null
           email: string | null
           employee_code: string | null
           full_name: string | null
+          must_change_password: boolean | null
           permissions: string[] | null
           restaurant_id: string | null
           role_id: string | null
@@ -2767,12 +2875,18 @@ export type Database = {
         Args: { p_items: Json; p_order_id: string }
         Returns: Json
       }
+      admin_reset_password: {
+        Args: { p_new_password: string; p_user_id: string }
+        Returns: undefined
+      }
       cancel_invite: { Args: { p_user_id: string }; Returns: undefined }
       cancel_order_item: {
         Args: { p_order_item_id: string; p_qty: number; p_reason: string }
         Returns: Json
       }
       claim_staff_invite: { Args: { p_code: string }; Returns: string }
+      clear_pin_lockout: { Args: { p_device_id: string }; Returns: undefined }
+      clear_staff_pin: { Args: { p_user_id: string }; Returns: undefined }
       close_shift: {
         Args: { p_counted_cash: number; p_notes?: string }
         Returns: Json
@@ -2785,11 +2899,16 @@ export type Database = {
           p_items: Json
           p_order_type?: string
           p_payment_method_id?: string
+          p_reference?: string
           p_senior?: Json
           p_service_charge?: boolean
           p_table_id?: string
           p_tendered?: number
         }
+        Returns: Json
+      }
+      create_pin_staff: {
+        Args: { p_full_name: string; p_phone?: string; p_role_id: string }
         Returns: Json
       }
       create_restaurant_with_owner: {
@@ -2828,16 +2947,22 @@ export type Database = {
         Returns: Json
       }
       my_account_state: { Args: never; Returns: string }
+      my_device_state: { Args: never; Returns: Json }
       open_shift: { Args: { p_opening_float?: number }; Returns: string }
+      password_changed: { Args: never; Returns: undefined }
       pay_order: {
         Args: {
           p_amount?: number
           p_order_id: string
           p_payment_method_id: string
+          p_reference?: string
           p_tendered?: number
         }
         Returns: Json
       }
+      pin_lock: { Args: never; Returns: undefined }
+      pin_touch: { Args: never; Returns: boolean }
+      pin_unlock: { Args: { p_pin: string }; Returns: Json }
       quote_order: {
         Args: {
           p_discount_amount?: number
@@ -2856,6 +2981,14 @@ export type Database = {
         Returns: Json
       }
       regenerate_invite: { Args: { p_user_id: string }; Returns: Json }
+      register_counter_device: {
+        Args: { p_auth_user_id: string; p_name: string }
+        Returns: string
+      }
+      remove_counter_device: {
+        Args: { p_device_id: string }
+        Returns: undefined
+      }
       sales_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       save_tax_group: {
         Args: { p_components: Json; p_group_id: string; p_name: string }
@@ -2869,9 +3002,17 @@ export type Database = {
         Args: { p_inclusive: boolean }
         Returns: undefined
       }
+      set_staff_pin: {
+        Args: { p_pin?: string; p_user_id: string }
+        Returns: Json
+      }
       set_tax_rate: {
         Args: { p_tax_group_id: string; p_total_rate: number }
         Returns: undefined
+      }
+      settlement_report: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
       }
       shift_report: { Args: { p_shift_id: string }; Returns: Json }
       split_order: {

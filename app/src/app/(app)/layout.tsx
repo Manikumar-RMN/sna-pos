@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { can, requireUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
+import { lockCounter } from "@/app/counter/actions";
 import { NavLinks } from "./nav-links";
+import { IdleLock } from "./idle-lock";
 
 export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const user = await requireUser();
+  const isCounter = !!user.device_name;
+  // On a counter, opening a screen counts as activity (the database ends a PIN
+  // session after 10 minutes without any).
+  if (isCounter) await (await createClient()).rpc("pin_touch");
 
   // Show only the screens this role can use. The database enforces the real
   // rules; this just keeps the menu honest.
@@ -43,13 +50,30 @@ export default async function AppLayout({ children }: Readonly<{ children: React
               <div className="text-xs font-semibold">{user.full_name}</div>
               <div className="text-[11px]" style={{ color: "var(--color-ink-3)" }}>
                 {user.role_name}
+                {isCounter ? ` · ${user.device_name}` : ""}
               </div>
             </div>
-            <form action={signOut}>
-              <button type="submit" className="rounded-lg border px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--color-line)" }}>
-                Sign out
-              </button>
-            </form>
+            {isCounter ? (
+              <>
+                <IdleLock minutes={10} />
+                <form action={lockCounter}>
+                  <button type="submit" className="btn btn-primary h-9 px-4 text-xs">
+                    Lock
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <Link href="/account/password" className="hidden text-xs font-semibold sm:inline" style={{ color: "var(--color-ink-3)" }}>
+                  Change password
+                </Link>
+                <form action={signOut}>
+                  <button type="submit" className="rounded-lg border px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--color-line)" }}>
+                    Sign out
+                  </button>
+                </form>
+              </>
+            )}
           </div>
         </div>
         <div className="pb-2">

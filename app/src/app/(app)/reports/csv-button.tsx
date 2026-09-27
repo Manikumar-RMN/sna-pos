@@ -14,10 +14,14 @@ export function CsvButton({
 }) {
   function download() {
     const esc = (v: string | number) => {
-      const s = String(v ?? "");
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      let s = String(v ?? "");
+      // Text typed by staff (e.g. a payment reference) must never run as a
+      // spreadsheet formula when the file is opened in Excel.
+      if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const csv = [header, ...rows].map((r) => r.map(esc).join(",")).join("\n");
+    // The byte-order mark makes Excel read ₹ and non-English names correctly.
+    const csv = "\uFEFF" + [header, ...rows].map((r) => r.map(esc).join(",")).join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

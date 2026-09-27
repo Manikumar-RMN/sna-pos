@@ -24,6 +24,8 @@ export type PlaceOrderInput = CartInput & {
   payment_method_id: string | null;
   tendered: number | null;
   discount_reason: string | null;
+  /** UPI transaction ID, card last 4… for the settlement report. */
+  reference?: string | null;
 };
 
 export type Quote = {
@@ -95,6 +97,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     p_payment_method_id: input.payment_method_id ?? undefined,
     p_tendered: input.payment_method_id ? (input.tendered ?? undefined) : undefined,
     p_discount_reason: input.discount_reason ?? undefined,
+    p_reference: input.payment_method_id && input.reference?.trim() ? input.reference.trim().slice(0, 60) : undefined,
   });
   if (error) return { ok: false, error: error.message };
 

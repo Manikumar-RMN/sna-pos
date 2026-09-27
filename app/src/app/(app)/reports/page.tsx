@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { can, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, isYmd, longDate, money, orderTypeLabel, todayIn } from "@/lib/format";
+import { addDays, dateTime, isYmd, longDate, money, orderTypeLabel, todayIn } from "@/lib/format";
 import { CsvButton } from "./csv-button";
+
+type Settlement = {
+  methods: { method: string; kind: string; mode: string; payments: number; collected: number; refunded: number; voided: number; net: number }[];
+  payments: { at: string; bill: string; method: string; amount: number; reference: string | null; status: string; by: string | null }[];
+};
 
 type Report = {
   financial: boolean;
@@ -69,8 +74,12 @@ export default async function ReportsPage({
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("sales_report", { p_from: from, p_to: to });
+  const [{ data, error }, { data: settleData }] = await Promise.all([
+    supabase.rpc("sales_report", { p_from: from, p_to: to }),
+    supabase.rpc("settlement_report", { p_from: from, p_to: to }),
+  ]);
   const rep = data as unknown as Report | null;
+  const settle = settleData as unknown as Settlement | null;
   const c = user.currency_code;
 
   const presets = [
@@ -148,12 +157,37 @@ export default async function ReportsPage({
               />
             </Card>
 
-            <Card title="By payment method">
-              {rep.by_method.length === 0 ? <Empty /> : (
-                <Table
-                  head={["Method", "Bills", "Amount"]}
-                  rows={rep.by_method.map((m) => [m.method, String(m.bills), money(m.amount, c)])}
-                />
+            <Card
+              title="Settlement by payment mode"
+              action={
+                settle && settle.payments.length > 0 ? (
+                  <CsvButton
+                    filename={`settlement_${from}_${to}.csv`}
+                    header={["Time", "Bill", "Payment mode", "Amount", "Reference", "Status", "Taken by"]}
+                    rows={settle.payments.map((p) => [dateTime(p.at, user.timezone), p.bill, p.method, p.amount, p.reference ?? "", p.status === "refunded" ? "Voided" : "Paid", p.by ?? ""])}
+                  />
+                ) : null
+              }
+            >
+              {!settle || settle.methods.length === 0 ? (
+                <Empty />
+              ) : (
+                <>
+                  <Table
+                    head={["Mode", "Payments", "Collected", "Refunds / voids", "To settle"]}
+                    rows={settle.methods.map((m) => [
+                      m.mode === "gateway" ? m.method : `${m.method}`,
+                      String(m.payments),
+                      money(m.collected, c),
+                      m.refunded + m.voided > 0 ? `−${money(m.refunded + m.voided, c)}` : "—",
+                      money(m.net, c),
+                    ])}
+                  />
+                  <p className="mt-2 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                    Match each line with your cash drawer, card machine settlement and UPI / wallet statements. The CSV lists every
+                    payment with its reference.
+                  </p>
+                </>
               )}
             </Card>
 

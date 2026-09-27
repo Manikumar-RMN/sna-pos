@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addTable,
@@ -11,6 +11,10 @@ import {
   setPricesIncludeTax,
   type Result,
   type TaxComponent,
+  savePaymentOptions,
+  setUpThisTabletAsCounter,
+  removeCounter,
+  clearCounterLock,
 } from "./actions";
 
 function useRunner() {
@@ -469,18 +473,30 @@ export function TablesForm({ tables, canEdit }: { tables: { id: string; number: 
   );
 }
 
-export function PaymentMethodsForm({ methods, canEdit }: { methods: { id: string; name: string; is_active: boolean }[]; canEdit: boolean }) {
+type MethodView = { id: string; name: string; kind: string; is_active: boolean; ask_reference: boolean; upi_id: string | null; collection_mode: string };
+
+export function PaymentMethodsForm({ methods, canEdit }: { methods: MethodView[]; canEdit: boolean }) {
   const { pending, msg, run } = useRunner();
+  const [open, setOpen] = useState<string | null>(null);
   return (
     <section className="card p-5">
       <h2 className="text-base font-bold">Payment methods</h2>
       <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-        Switch off any method you do not accept. These record how the customer paid; no payment gateway is connected yet.
+        <b>Settlement mode:</b> the customer pays on your own card machine, UPI or wallet, and SNA POS records how each bill was
+        paid. Reports → Settlement shows what to expect from each. A payment gateway can be connected later.
       </p>
-      <ul className="mt-3 space-y-2">
+      <ul className="mt-3 divide-y" style={{ borderColor: "var(--color-line)" }}>
         {methods.map((pm) => (
-          <li key={pm.id} className="flex items-center justify-between text-sm">
-            <span className="font-medium">{pm.name}</span>
+          <li key={pm.id} className="py-2 text-sm">
+            <div className="flex items-center justify-between gap-2">
+            <button className="min-w-0 flex-1 text-left" onClick={() => setOpen(open === pm.id ? null : pm.id)} aria-expanded={open === pm.id}>
+              <span className="font-medium">{pm.name}</span>
+              <span className="ml-2 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                {pm.collection_mode === "gateway" ? "Gateway" : "Record only"}
+                {pm.ask_reference ? " · asks for reference" : ""}
+                {pm.upi_id ? ` · ${pm.upi_id}` : ""}
+              </span>
+            </button>
             <button
               className="rounded-full px-3 py-1 text-xs font-semibold"
               disabled={!canEdit || pending}
@@ -490,9 +506,131 @@ export function PaymentMethodsForm({ methods, canEdit }: { methods: { id: string
             >
               {pm.is_active ? "On" : "Off"}
             </button>
+            </div>
+            {open === pm.id && (
+              <MethodOptions method={pm} canEdit={canEdit} pending={pending} onSave={(ask, upi) => run(() => savePaymentOptions(pm.id, ask, upi))} />
+            )}
           </li>
         ))}
       </ul>
+      <p className="mt-3 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+        Connect a payment gateway (card machine or UPI collect): available later. It needs a merchant account with the provider.
+      </p>
+      <Msg msg={msg} />
+    </section>
+  );
+}
+
+function MethodOptions({ method, canEdit, pending, onSave }: { method: MethodView; canEdit: boolean; pending: boolean; onSave: (ask: boolean, upi: string) => void }) {
+  const [ask, setAsk] = useState(method.ask_reference);
+  const [upi, setUpi] = useState(method.upi_id ?? "");
+  const isCash = method.kind === "cash";
+  return (
+    <div className="mt-2 space-y-2 rounded-lg p-3" style={{ background: "var(--color-ground)" }}>
+      {isCash ? (
+        <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+          Cash goes into the drawer and is counted at day close.
+        </p>
+      ) : (
+        <Toggle
+          checked={ask}
+          disabled={!canEdit}
+          onChange={setAsk}
+          label="Ask the cashier for a reference"
+          hint="e.g. the UPI transaction ID or the card's last 4 digits. Optional for the cashier; it appears in the settlement report."
+        />
+      )}
+      {method.kind === "upi" && (
+        <Field label="Your UPI ID (optional)" hint="Kept for when a UPI QR on the bill is added.">
+          <input className="field h-10 text-sm" value={upi} disabled={!canEdit} onChange={(e) => setUpi(e.target.value)} placeholder="yourshop@okbank" />
+        </Field>
+      )}
+      {canEdit && !isCash && (
+        <button className="btn btn-primary h-9 px-4 text-xs" disabled={pending} onClick={() => onSave(ask, upi)}>
+          Save
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------ counter tablets */
+
+export function CountersForm({
+  devices,
+  canEdit,
+  isThisACounter,
+}: {
+  devices: { id: string; name: string; lastSeen: string | null }[];
+  canEdit: boolean;
+  isThisACounter: boolean;
+}) {
+  const { pending, msg, run } = useRunner();
+  const [name, setName] = useState(`Counter ${devices.length + 1}`);
+  const [confirm, setConfirm] = useState(false);
+  const setting = useRef(false);
+  return (
+    <section className="card p-5">
+      <h2 className="text-base font-bold">Counter tablets (PIN sign-in)</h2>
+      <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+        A shared tablet at the counter stays signed in. Each person unlocks it with their own PIN, and every bill records who
+        took it. It locks by itself after 10 minutes without use. Set PINs on the Staff screen.
+      </p>
+      <ul className="mt-3 space-y-1.5 text-sm">
+        {devices.length === 0 && (
+          <li className="text-sm" style={{ color: "var(--color-ink-3)" }}>
+            No counter tablets yet.
+          </li>
+        )}
+        {devices.map((d) => (
+          <li key={d.id} className="flex items-center justify-between gap-2">
+            <span>
+              <b>{d.name}</b>
+              <span className="ml-2 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                {d.lastSeen ? `last unlocked ${new Date(d.lastSeen).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}` : "not used yet"}
+              </span>
+            </span>
+            {canEdit && (
+              <span className="flex shrink-0 gap-3">
+                <button className="text-xs font-semibold" style={{ color: "var(--color-ink-2)" }} disabled={pending} onClick={() => run(() => clearCounterLock(d.id))}>
+                  Clear PIN lock
+                </button>
+                <button className="text-xs font-semibold" style={{ color: "var(--color-bad)" }} disabled={pending} onClick={() => run(() => removeCounter(d.id))}>
+                  Remove
+                </button>
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+      {canEdit && !isThisACounter && (
+        <div className="mt-4 rounded-lg border p-3" style={{ borderColor: "var(--color-line)" }}>
+          <div className="text-sm font-semibold">Make this tablet a counter</div>
+          <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+            Do this on the tablet itself. You will be signed out of it, and it will show the PIN screen.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <input className="field h-10 flex-1 text-sm" value={name} onChange={(e) => setName(e.target.value)} aria-label="Tablet name" />
+            {confirm ? (
+              <button
+                className="btn btn-primary h-10 px-3 text-xs"
+                disabled={pending || !name.trim()}
+                onClick={() => {
+                  if (setting.current) return;
+                  setting.current = true;
+                  run(() => setUpThisTabletAsCounter(name).finally(() => (setting.current = false)));
+                }}
+              >
+                {pending ? "Setting up…" : "Yes, set up"}
+              </button>
+            ) : (
+              <button className="btn h-10 border px-3 text-xs" style={{ borderColor: "var(--color-line)" }} disabled={!name.trim()} onClick={() => setConfirm(true)}>
+                Set up…
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <Msg msg={msg} />
     </section>
   );

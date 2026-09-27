@@ -43,17 +43,19 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isPublic = path.startsWith("/login") || path.startsWith("/auth");
 
-  if (!user && !isPublic) {
+  // A redirect must carry any cookies Supabase just refreshed, or the new
+  // session is lost and the person is signed out later for no visible reason.
+  const redirectTo = (pathname: string) => {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
+    url.pathname = pathname;
+    url.search = "";
+    const res = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((c) => res.cookies.set(c));
+    return res;
+  };
 
-  if (user && path.startsWith("/login")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
-  }
+  if (!user && !isPublic) return redirectTo("/login");
+  if (user && path.startsWith("/login")) return redirectTo("/dashboard");
 
   return supabaseResponse;
 }

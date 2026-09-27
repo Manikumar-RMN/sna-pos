@@ -1,12 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
+import Link from "next/link";
+import { useActionState, useEffect, useState } from "react";
 import { authenticate, type AuthState } from "./actions";
 
 const initial: AuthState = { error: null, notice: null };
 
 export default function LoginPage() {
   const [state, action, pending] = useActionState(authenticate, initial);
+  const [linkExpired, setLinkExpired] = useState(false);
+  useEffect(() => {
+    setLinkExpired(new URLSearchParams(window.location.search).get("link") === "expired");
+  }, []);
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-10">
@@ -62,6 +67,11 @@ export default function LoginPage() {
               {state.error}
             </p>
           )}
+          {linkExpired && !state.error && (
+            <p className="mb-4 rounded-lg px-3 py-2 text-sm" role="alert" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink-2)" }}>
+              That link did not work. It may have expired or been used already, or it was opened on a different device from the one where you asked for it. Ask for a new one with &ldquo;Forgot password?&rdquo; and open it on the same device.
+            </p>
+          )}
           {state.notice && (
             <p
               className="mb-4 rounded-lg px-3 py-2 text-sm"
@@ -81,6 +91,9 @@ export default function LoginPage() {
           >
             {pending ? "Please wait…" : "Sign in"}
           </button>
+          <Link href="/login/forgot" className="mt-3 block text-center text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
+            Forgot password?
+          </Link>
 
           <div className="my-4 flex items-center gap-3">
             <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />

@@ -22,7 +22,7 @@ type MenuItem = {
   is_veg: boolean | null;
   groups: OptionGroup[];
 };
-type PaymentMethod = { id: string; name: string; kind: string };
+type PaymentMethod = { id: string; name: string; kind: string; ask_reference: boolean };
 type Table = { id: string; number: string; busy: boolean; openBillId: string | null; openBillNumber: string | null };
 type ChosenOption = { id: string; name: string; price: number };
 type CartLine = { key: string; item: MenuItem; qty: number; options: ChosenOption[] };
@@ -66,6 +66,7 @@ export function PosTerminal({
   const [tableId, setTableId] = useState<string | null>(null);
   const [methodId, setMethodId] = useState<string>(paymentMethods[0]?.id ?? "");
   const [tendered, setTendered] = useState("");
+  const [reference, setReference] = useState("");
   const [discount, setDiscount] = useState("");
   const [discountReason, setDiscountReason] = useState("");
   const [scChoice, setScChoice] = useState<boolean | null>(null);
@@ -81,6 +82,7 @@ export function PosTerminal({
   const m = (n: number) => money(n, currency);
   const lines = Object.values(cart);
   const isCash = paymentMethods.find((p) => p.id === methodId)?.kind === "cash";
+  const askRef = !!paymentMethods.find((p) => p.id === methodId)?.ask_reference;
   const discountAmt = Math.max(0, Number(discount) || 0);
   const chosenTable = tables.find((t) => t.id === tableId) ?? null;
 
@@ -170,6 +172,7 @@ export function PosTerminal({
     setDiscount("");
     setDiscountReason("");
     setTendered("");
+    setReference("");
     setTableId(null);
     setScChoice(null);
     setSenior(null);
@@ -194,6 +197,7 @@ export function PosTerminal({
       payment_method_id: payNow ? methodId : null,
       tendered: payNow && isCash && tendered !== "" ? Number(tendered) : null,
       discount_reason: discountAmt > 0 ? discountReason.trim() || null : null,
+      reference: payNow && askRef ? reference : null,
     };
     startTransition(async () => {
       const res = await placeOrder(input);
@@ -471,6 +475,15 @@ export function PosTerminal({
                     </button>
                   ))}
                 </div>
+                {askRef && !isCash && (
+                  <input
+                    className="field mt-2 h-9 text-sm"
+                    placeholder="Reference, e.g. UPI txn ID or card last 4 (optional)"
+                    value={reference}
+                    maxLength={60}
+                    onChange={(e) => setReference(e.target.value)}
+                  />
+                )}
                 {isCash && (
                   <div className="mt-2 flex items-center gap-2">
                     <input className="field h-9 flex-1 text-sm" inputMode="decimal" placeholder="Cash received" value={tendered} onChange={(e) => setTendered(e.target.value)} />

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { cancelInvite, changeRole, inviteStaff, newInviteCode, setActive, type StaffResult } from "./actions";
+import { addPinStaff, cancelInvite, changeRole, inviteStaff, newInviteCode, removePin, resetPassword, setActive, setPin, type StaffResult } from "./actions";
 
 type Staff = {
   id: string;
@@ -13,16 +13,34 @@ type Staff = {
   roleName: string;
   active: boolean;
   joined: boolean;
+  pinOnly: boolean;
+  hasPin: boolean;
   isMe: boolean;
 };
 type Role = { id: string; name: string };
 
-export function StaffManager({ staff, roles, canManage, appUrl }: { staff: Staff[]; roles: Role[]; canManage: boolean; appUrl: string }) {
+export function StaffManager({
+  staff,
+  roles,
+  canManage,
+  isOwner,
+  appUrl,
+}: {
+  staff: Staff[];
+  roles: Role[];
+  canManage: boolean;
+  isOwner: boolean;
+  appUrl: string;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [invite, setInvite] = useState<{ code: string; name: string; email: string } | null>(null);
+  const [secret, setSecret] = useState<{ kind: "pin" | "password"; value: string; name: string } | null>(null);
+  const [confirmReset, setConfirmReset] = useState<string | null>(null);
+  const [pinName, setPinName] = useState("");
+  const [pinRole, setPinRole] = useState("");
 
   const assignable = roles.filter((r) => r.name !== "Owner");
   const [name, setName] = useState("");
@@ -37,6 +55,8 @@ export function StaffManager({ staff, roles, canManage, appUrl }: { staff: Staff
       const r = await fn();
       if (!r.ok) return setError(r.error);
       if (r.code) setInvite({ code: r.code, name: r.name ?? "", email: r.email ?? "" });
+      else if (r.pin) setSecret({ kind: "pin", value: r.pin, name: r.name ?? "" });
+      else if (r.tempPassword) setSecret({ kind: "password", value: r.tempPassword, name: r.name ?? "" });
       else setNotice(r.message ?? "Saved.");
       after?.();
       router.refresh();
@@ -68,6 +88,28 @@ export function StaffManager({ staff, roles, canManage, appUrl }: { staff: Staff
             This code is shown only now. If it is lost, use “New code” below.
           </p>
           <button className="mt-3 text-xs font-semibold" style={{ color: "var(--color-brand-strong)" }} onClick={() => setInvite(null)}>
+            Done
+          </button>
+        </div>
+      )}
+
+      {secret && (
+        <div className="card p-5" style={{ borderColor: "var(--color-brand)", background: "var(--color-brand-soft)" }}>
+          <div className="text-sm font-bold">
+            {secret.kind === "pin" ? `Counter PIN for ${secret.name}` : `Temporary password for ${secret.name}`}
+          </div>
+          <div className="my-3 font-mono text-3xl font-bold tracking-[0.15em]" style={{ color: "var(--color-brand-strong)" }}>
+            {secret.value}
+          </div>
+          <p className="text-sm" style={{ color: "var(--color-ink-2)" }}>
+            {secret.kind === "pin"
+              ? "Give this PIN to them privately. They type it on the counter tablet to unlock it. No one else in the restaurant has the same PIN."
+              : "Give this to them privately. They sign in with their email and this password, and must then choose their own. They have been signed out everywhere."}
+          </p>
+          <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
+            Shown only now. It cannot be looked up again.
+          </p>
+          <button className="mt-3 text-xs font-semibold" style={{ color: "var(--color-brand-strong)" }} onClick={() => setSecret(null)}>
             Done
           </button>
         </div>
@@ -127,11 +169,16 @@ export function StaffManager({ staff, roles, canManage, appUrl }: { staff: Staff
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge joined={s.joined} active={s.active} />
+                    <Badge joined={s.joined} pinOnly={s.pinOnly} active={s.active} />
+                    {s.hasPin && (
+                      <div className="mt-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                        Has a counter PIN
+                      </div>
+                    )}
                   </td>
                   {canManage && (
                     <td className="px-4 py-3 text-right">
-                      {!locked && !s.joined && (
+                      {!locked && !s.joined && !s.pinOnly && (
                         <div className="flex justify-end gap-1.5">
                           <SmallBtn disabled={pending} onClick={() => run(() => newInviteCode(s.id, s.name, s.email ?? ""))}>
                             New code
@@ -141,10 +188,33 @@ export function StaffManager({ staff, roles, canManage, appUrl }: { staff: Staff
                           </SmallBtn>
                         </div>
                       )}
-                      {!locked && s.joined && (
+                      {!locked && (s.joined || s.pinOnly) && (
                         <SmallBtn danger={s.active} disabled={pending} onClick={() => run(() => setActive(s.id, !s.active))}>
                           {s.active ? "Switch off access" : "Switch on access"}
                         </SmallBtn>
+                      )}
+                      {s.active && (s.isMe || s.roleName !== "Owner" || isOwner) && (
+                        <div className="mt-1.5 flex flex-wrap justify-end gap-1.5">
+                          <SmallBtn disabled={pending} onClick={() => run(() => setPin(s.id, s.name))}>
+                            {s.hasPin ? "New PIN" : "Pick a PIN"}
+                          </SmallBtn>
+                          {s.hasPin && (
+                            <SmallBtn danger disabled={pending} onClick={() => run(() => removePin(s.id))}>
+                              Remove PIN
+                            </SmallBtn>
+                          )}
+                          {s.joined && !s.isMe && (
+                            confirmReset === s.id ? (
+                              <SmallBtn danger disabled={pending} onClick={() => run(() => resetPassword(s.id, s.name), () => setConfirmReset(null))}>
+                                Yes, reset
+                              </SmallBtn>
+                            ) : (
+                              <SmallBtn disabled={pending} onClick={() => setConfirmReset(s.id)}>
+                                Reset password
+                              </SmallBtn>
+                            )
+                          )}
+                        </div>
                       )}
                     </td>
                   )}
@@ -188,12 +258,42 @@ export function StaffManager({ staff, roles, canManage, appUrl }: { staff: Staff
           </button>
         </section>
       )}
+
+      {canManage && (
+        <section className="card p-5">
+          <h2 className="text-base font-bold">Add counter-only staff (PIN, no email)</h2>
+          <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+            For cashiers and waiters who only use the counter tablet. They get a unique PIN and no email sign-in.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <input className="field" placeholder="Full name" value={pinName} onChange={(e) => setPinName(e.target.value)} />
+            <select className="field" value={pinRole || roleId} onChange={(e) => setPinRole(e.target.value)}>
+              {assignable.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            className="btn btn-primary mt-4"
+            disabled={pending || pinName.trim().length < 2}
+            onClick={() => run(() => addPinStaff({ name: pinName, roleId: pinRole || roleId, phone: "" }), () => setPinName(""))}
+          >
+            {pending ? "Creating…" : "Add and create PIN"}
+          </button>
+        </section>
+      )}
     </div>
   );
 }
 
-function Badge({ joined, active }: { joined: boolean; active: boolean }) {
-  const s = !joined
+function Badge({ joined, pinOnly, active }: { joined: boolean; pinOnly: boolean; active: boolean }) {
+  const s = pinOnly
+    ? active
+      ? { t: "Active · PIN only", bg: "var(--color-ok-soft)", fg: "var(--color-ok)" }
+      : { t: "Access off", bg: "var(--color-bad-soft)", fg: "var(--color-bad)" }
+    : !joined
     ? { t: "Invited — not joined", bg: "var(--color-warn-soft)", fg: "var(--color-warn)" }
     : active
       ? { t: "Active", bg: "var(--color-ok-soft)", fg: "var(--color-ok)" }
