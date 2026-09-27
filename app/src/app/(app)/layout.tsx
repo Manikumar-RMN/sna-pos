@@ -3,8 +3,23 @@ import { can, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { lockCounter } from "@/app/counter/actions";
-import { NavLinks } from "./nav-links";
+import { NavLinks, NavRail } from "./nav-links";
 import { IdleLock } from "./idle-lock";
+
+/** SNA POS mark: a steaming bowl on a saffron plate. */
+function Mark({ size = 48 }: { size?: number }) {
+  return (
+    <span
+      className="grid shrink-0 place-items-center rounded-full"
+      style={{ width: size, height: size, background: "var(--color-accent)", boxShadow: "0 0 0 4px rgba(255,176,32,0.25)" }}
+    >
+      <svg width={size * 0.58} height={size * 0.58} viewBox="0 0 24 24" fill="none" stroke="#1B1208" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 12h18a9 6 0 0 1-18 0z" />
+        <path d="M8 8c0-2 1.5-3 1.5-4.5M12 8c0-2 1.5-3 1.5-4.5M16 8c0-2 1.5-3 1.5-4.5" />
+      </svg>
+    </span>
+  );
+}
 
 export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const user = await requireUser();
@@ -29,59 +44,96 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     .filter((l) => l.show)
     .map(({ href, label }) => ({ href, label }));
 
+  const initial = (user.full_name || "?").trim().charAt(0).toUpperCase();
+
+  const actions = (onGreen: boolean) =>
+    isCounter ? (
+      <>
+        <IdleLock minutes={10} />
+        <form action={lockCounter}>
+          <button type="submit" className="btn btn-pay h-11 min-h-0 px-5 text-sm">
+            Lock
+          </button>
+        </form>
+      </>
+    ) : (
+      <>
+        <Link
+          href="/account/password"
+          className="hidden text-xs font-semibold sm:inline"
+          style={{ color: onGreen ? "rgba(255,255,255,0.8)" : "var(--color-ink-3)" }}
+        >
+          Change password
+        </Link>
+        <form action={signOut}>
+          <button
+            type="submit"
+            className="min-h-11 rounded-xl border px-3.5 text-xs font-bold"
+            style={
+              onGreen
+                ? { borderColor: "rgba(255,255,255,0.3)", color: "#fff" }
+                : { borderColor: "var(--color-line)", background: "var(--color-surface)", color: "var(--color-ink)" }
+            }
+          >
+            Sign out
+          </button>
+        </form>
+      </>
+    );
+
   return (
-    <div className="min-h-screen">
-      <header className="border-b px-4 pt-3" style={{ background: "var(--color-surface)", borderColor: "var(--color-line)" }}>
-        <div className="flex items-center gap-3 pb-2">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="grid h-8 w-8 place-items-center rounded-lg text-[11px] font-bold text-white" style={{ background: "var(--color-brand)" }}>
-              SNA
-            </div>
-            <div className="leading-tight">
-              <div className="text-sm font-bold">SNA POS</div>
-              <div className="text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-                {user.trading_name}
-              </div>
-            </div>
-          </Link>
+    <div className="min-h-screen md:flex md:gap-3 md:p-3">
+      {/* Tablet and desktop: green icon rail */}
+      <aside
+        className="kolam sticky top-3 hidden h-[calc(100vh-24px)] w-[76px] shrink-0 flex-col items-center gap-3 overflow-y-auto rounded-[22px] py-3.5 md:flex"
+        style={{ background: "var(--color-brand)" }}
+      >
+        <Link href="/dashboard" aria-label="SNA POS home" className="mb-1">
+          <Mark />
+        </Link>
+        <NavRail links={links} />
+        <div className="flex-1" />
+        <div
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full font-display font-bold text-white"
+          style={{ background: "rgba(255,255,255,0.14)" }}
+          title={`${user.full_name} · ${user.role_name}`}
+        >
+          {initial}
+        </div>
+      </aside>
 
-          <div className="ml-auto flex items-center gap-3">
-            <div className="text-right leading-tight">
-              <div className="text-xs font-semibold">{user.full_name}</div>
-              <div className="text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-                {user.role_name}
-                {isCounter ? ` · ${user.device_name}` : ""}
+      <div className="min-w-0 flex-1">
+        {/* Phone: green top bar with the menu */}
+        <header className="kolam rounded-b-[22px] px-4 pb-2 pt-3 text-white md:hidden" style={{ background: "var(--color-brand)" }}>
+          <div className="flex items-center gap-3 pb-2">
+            <Link href="/dashboard" className="flex items-center gap-2.5">
+              <Mark size={36} />
+              <div className="leading-tight">
+                <div className="font-display text-sm font-bold">SNA POS</div>
+                <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.75)" }}>
+                  {user.trading_name}
+                </div>
               </div>
-            </div>
-            {isCounter ? (
-              <>
-                <IdleLock minutes={10} />
-                <form action={lockCounter}>
-                  <button type="submit" className="btn btn-primary h-9 px-4 text-xs">
-                    Lock
-                  </button>
-                </form>
-              </>
-            ) : (
-              <>
-                <Link href="/account/password" className="hidden text-xs font-semibold sm:inline" style={{ color: "var(--color-ink-3)" }}>
-                  Change password
-                </Link>
-                <form action={signOut}>
-                  <button type="submit" className="rounded-lg border px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--color-line)" }}>
-                    Sign out
-                  </button>
-                </form>
-              </>
-            )}
+            </Link>
+            <div className="ml-auto flex items-center gap-2">{actions(true)}</div>
           </div>
-        </div>
-        <div className="pb-2">
           <NavLinks links={links} />
-        </div>
-      </header>
+        </header>
 
-      <main className="px-4 py-6">{children}</main>
+        {/* Tablet and desktop: restaurant name and who is signed in */}
+        <header className="hidden items-center gap-3 px-1 pb-1 pt-1 md:flex">
+          <div className="leading-tight">
+            <div className="font-display text-xl font-bold">{user.trading_name}</div>
+            <div className="text-[13px] font-semibold" style={{ color: "var(--color-ink-3)" }}>
+              {user.full_name} · {user.role_name}
+              {isCounter ? ` · ${user.device_name}` : ""}
+            </div>
+          </div>
+          <div className="ml-auto flex items-center gap-3">{actions(false)}</div>
+        </header>
+
+        <main className="px-4 py-5 md:px-1 md:py-3">{children}</main>
+      </div>
     </div>
   );
 }

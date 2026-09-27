@@ -232,7 +232,7 @@ export function BillActions({
                 </div>
               )}
               <button
-                className="btn btn-primary mt-3 w-full"
+                className="btn btn-pay mt-3 w-full text-base"
                 disabled={pending || !methodId || (part !== null && !(part > 0)) || (part !== null && part > balance) || (isCash && tendered !== "" && Number(tendered) < due)}
                 onClick={() =>
                   run(() =>

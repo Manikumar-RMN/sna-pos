@@ -1,32 +1,38 @@
 @import "tailwindcss";
 
 /*
- * SNA POS design tokens — from docs/design-system-decision.md.
+ * SNA POS design tokens — "Spice Market" theme (approved by the Founder, 27 Sep 2026).
+ * Curry-leaf green, saffron, chilli, on a warm coconut-cream ground.
  * Colours are defined here once so screens never hardcode a hex value.
+ * Fonts: Figtree for everything, Sora for headings and big money figures
+ * (both loaded in app/layout.tsx).
  */
 @theme {
-  --color-brand: #6D4AFF;
-  --color-brand-strong: #5A38E8;
-  --color-brand-soft: #EDE9FF;
-  --color-accent: #3B6EF5;
+  --color-brand: #1E4D2B;
+  --color-brand-strong: #133520;
+  --color-brand-soft: #E3F2E1;
+  --color-accent: #FFB020;
+  --color-accent-strong: #F29D00;
+  --color-accent-ink: #1B1208;
+  --color-chilli: #C8361D;
 
-  --color-ink: #16132A;
-  --color-ink-2: #4A4560;
-  --color-ink-3: #7C7694;
+  --color-ink: #221A12;
+  --color-ink-2: #4A3F33;
+  --color-ink-3: #6B5E4E;
 
   --color-surface: #FFFFFF;
-  --color-surface-2: #FBFAFE;
-  --color-ground: #F6F5FB;
-  --color-line: #E3E0F0;
+  --color-surface-2: #FDF9F1;
+  --color-ground: #FBF6EC;
+  --color-line: #EADFCB;
 
-  --color-ok: #107A46;
-  --color-ok-soft: #E4F5EC;
-  --color-warn: #9A5B02;
-  --color-warn-soft: #FCF0DC;
-  --color-bad: #C22D2D;
-  --color-bad-soft: #FBE7E7;
+  --color-ok: #1F6B3A;
+  --color-ok-soft: #E2F2E6;
+  --color-warn: #7A4E06;
+  --color-warn-soft: #FDF1D6;
+  --color-bad: #A3321F;
+  --color-bad-soft: #FBE4DE;
 
-  --radius-card: 14px;
+  --radius-card: 22px;
 }
 
 :root {
@@ -36,8 +42,16 @@
 body {
   background: var(--color-ground);
   color: var(--color-ink);
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-figtree), Figtree, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+.font-display {
+  font-family: var(--font-sora), Sora, var(--font-figtree), system-ui, sans-serif;
+  letter-spacing: -0.02em;
 }
 
 /* Minimum 48px touch targets — a cashier works fast, sometimes with wet hands. */
@@ -47,10 +61,10 @@ body {
 
 .field {
   width: 100%;
-  min-height: 48px;
-  padding: 0 14px;
+  min-height: 50px;
+  padding: 0 16px;
   border: 1px solid var(--color-line);
-  border-radius: 10px;
+  border-radius: 14px;
   background: var(--color-surface);
   font-size: 15px;
   outline: none;
@@ -63,9 +77,9 @@ body {
 .btn {
   min-height: 48px;
   padding: 0 18px;
-  border-radius: 10px;
+  border-radius: 14px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -79,6 +93,15 @@ body {
 .btn-primary:hover:not(:disabled) {
   background: var(--color-brand-strong);
 }
+/* The money button: saffron with dark text (white on saffron fails contrast). */
+.btn-pay {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  font-weight: 800;
+}
+.btn-pay:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+}
 .btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -88,4 +111,10 @@ body {
   background: var(--color-surface);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
+}
+
+/* Kolam-dot texture used on green panels. */
+.kolam {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1.3px, transparent 1.4px);
+  background-size: 14px 14px;
 }

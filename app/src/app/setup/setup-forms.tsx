@@ -89,7 +89,7 @@ export function SetupForms({ email, countries }: { email: string; countries: Cou
       <label className="mb-1.5 block text-sm font-semibold" htmlFor="owner_name">
         Your name
       </label>
-      <input id="owner_name" name="owner_name" required className="field mb-4" placeholder="Manikumar RM N" />
+      <input id="owner_name" name="owner_name" required className="field mb-4" placeholder="e.g. Priya Raman" />
 
       <label className="mb-1.5 block text-sm font-semibold" htmlFor="country_code">
         Country

@@ -504,7 +504,7 @@ export function PosTerminal({
                 <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                   Save unpaid
                 </button>
-                <button onClick={() => submit("pay")} disabled={pending || quoting || !quote} className="btn btn-primary flex-1">
+                <button onClick={() => submit("pay")} disabled={pending || quoting || !quote} className="btn btn-pay flex-1 text-base">
                   {pending ? "Saving…" : quote ? `Charge ${m(due)}` : "Charge"}
                 </button>
               </div>

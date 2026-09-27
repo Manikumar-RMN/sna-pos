@@ -125,7 +125,7 @@ export default async function DashboardPage() {
       )}
 
       <p className="mt-6 text-xs" style={{ color: "var(--color-ink-3)" }}>
-        In development. Not yet reviewed by a human developer. Card and UPI are recorded only — no payment gateway is connected.
+        Card and UPI payments are recorded only. No payment gateway is connected.
       </p>
     </div>
   );

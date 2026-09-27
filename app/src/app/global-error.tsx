@@ -23,8 +23,8 @@ export default function GlobalError({
           display: "grid",
           placeItems: "center",
           fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif",
-          background: "#F6F5FB",
-          color: "#16132A",
+          background: "#FBF6EC",
+          color: "#221A12",
           padding: 16,
         }}
       >
@@ -34,7 +34,7 @@ export default function GlobalError({
               width: 44,
               height: 44,
               borderRadius: 10,
-              background: "#6D4AFF",
+              background: "#1E4D2B",
               color: "#fff",
               fontWeight: 700,
               fontSize: 13,
@@ -46,7 +46,7 @@ export default function GlobalError({
             SNA
           </div>
           <h1 style={{ fontSize: 18, margin: "0 0 8px" }}>SNA POS is temporarily unavailable</h1>
-          <p style={{ fontSize: 14, color: "#7C7694", margin: "0 0 18px" }}>
+          <p style={{ fontSize: 14, color: "#6B5E4E", margin: "0 0 18px" }}>
             Something went wrong loading the app. Please try again in a moment.
           </p>
           <button
@@ -56,7 +56,7 @@ export default function GlobalError({
               padding: "0 20px",
               borderRadius: 10,
               border: 0,
-              background: "#6D4AFF",
+              background: "#1E4D2B",
               color: "#fff",
               fontWeight: 600,
               fontSize: 15,
