@@ -27,7 +27,7 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
     open
       ? supabase
           .from("orders")
-          .select("id, bill_number, grand_total, dining_table_id, payment_status, discount_total, dining_tables(table_number)")
+          .select("id, bill_number, grand_total, dining_table_id, payment_status, discount_total, dining_tables!orders_dining_table_id_fkey(table_number)")
           .in("payment_status", ["unpaid", "partial"])
           .neq("status", "voided")
           .neq("id", bill.id)
@@ -93,7 +93,7 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
         refunded={bill.refunded}
         currency={r.currency}
         methods={methods ?? []}
-        canPay={can(user, "order.create")}
+        canPay={can(user, "payment.take")}
         canVoid={can(user, "order.void")}
         canRefund={can(user, "order.refund")}
         shiftOpen={!!shift}

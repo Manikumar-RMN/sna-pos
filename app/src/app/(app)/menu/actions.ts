@@ -42,7 +42,7 @@ export async function createCategory(_prev: MenuState, formData: FormData): Prom
   if (error) {
     return { error: error.code === "23505" ? "A category with that name already exists." : error.message };
   }
-  revalidatePath("/menu");
+  revalidatePath("/settings/menu");
   return { error: null, ok: true };
 }
 
@@ -57,7 +57,7 @@ export async function renameCategory(_prev: MenuState, formData: FormData): Prom
   const supabase = await createClient();
   const { error } = await supabase.from("categories").update({ name }).eq("id", id);
   if (error) return { error: error.message };
-  revalidatePath("/menu");
+  revalidatePath("/settings/menu");
   return { error: null, ok: true };
 }
 
@@ -86,7 +86,7 @@ export async function deleteCategory(_prev: MenuState, formData: FormData): Prom
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id);
   if (error) return { error: error.message };
-  revalidatePath("/menu");
+  revalidatePath("/settings/menu");
   return { error: null, ok: true };
 }
 
@@ -129,7 +129,7 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
   if (error) return { error: error.message };
   const linkError = await linkOptionGroups(created.id, restaurantId!, formData);
   if (linkError) return { error: linkError };
-  revalidatePath("/menu");
+  revalidatePath("/settings/menu");
   revalidatePath("/pos");
   return { error: null, ok: true };
 }
@@ -173,7 +173,7 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
   if (error) return { error: error.message };
   const linkError = await linkOptionGroups(id, restaurantId!, formData);
   if (linkError) return { error: linkError };
-  revalidatePath("/menu");
+  revalidatePath("/settings/menu");
   revalidatePath("/pos");
   return { error: null, ok: true };
 }
@@ -235,7 +235,7 @@ export async function saveOptionGroup(
       : await supabase.from("modifier_items").insert({ ...row, restaurant_id: restaurantId!, modifier_group_id: gid });
     if (error) return { error: error.message };
   }
-  revalidatePath("/menu");
+  revalidatePath("/settings/menu");
   revalidatePath("/pos");
   return { error: null, ok: true };
 }
@@ -248,7 +248,7 @@ export async function removeOptionGroup(groupId: string): Promise<MenuState> {
   if (linkError) return { error: linkError.message };
   const { error } = await supabase.from("modifier_groups").update({ is_active: false }).eq("id", groupId);
   if (error) return { error: error.message };
-  revalidatePath("/menu");
+  revalidatePath("/settings/menu");
   revalidatePath("/pos");
   return { error: null, ok: true };
 }
@@ -263,7 +263,7 @@ export async function toggleAvailability(_prev: MenuState, formData: FormData): 
   const supabase = await createClient();
   const { error } = await supabase.from("products").update({ is_available: makeAvailable }).eq("id", id);
   if (error) return { error: error.message };
-  revalidatePath("/menu");
+  revalidatePath("/settings/menu");
   return { error: null, ok: true };
 }
 
@@ -280,6 +280,6 @@ export async function deleteProduct(_prev: MenuState, formData: FormData): Promi
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id);
   if (error) return { error: error.message };
-  revalidatePath("/menu");
+  revalidatePath("/settings/menu");
   return { error: null, ok: true };
 }

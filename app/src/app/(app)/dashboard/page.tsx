@@ -31,11 +31,11 @@ export default async function DashboardPage() {
     : { data: null };
 
   const checklist = [
-    { done: (products.count ?? 0) > 0, text: "Add your menu", href: "/menu" },
-    { done: !!rest.data?.tax_registration_no, text: "Add your GSTIN so it prints on bills", href: "/settings" },
+    { done: (products.count ?? 0) > 0, text: "Add your menu", href: "/settings/menu" },
+    { done: !!rest.data?.tax_registration_no, text: "Add your GSTIN so it prints on bills", href: "/settings/company" },
     { done: (shiftsEver.count ?? 0) > 0, text: "Open your first shift", href: "/shift" },
     { done: (staff.count ?? 0) > 1, text: "Add your staff (each gets their own sign-in)", href: "/settings/users" },
-    { done: (tables.count ?? 0) > 0, text: "Add your tables (optional)", href: "/settings" },
+    { done: (tables.count ?? 0) > 0, text: "Add your tables (optional)", href: "/settings/tables" },
   ];
   const remaining = checklist.filter((x) => !x.done);
 

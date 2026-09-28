@@ -70,7 +70,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   if (add) {
     const { data: o } = await supabase
       .from("orders")
-      .select("id, bill_number, status, payment_status, dining_tables(table_number)")
+      .select("id, bill_number, status, payment_status, dining_tables!orders_dining_table_id_fkey(table_number)")
       .eq("id", add)
       .maybeSingle();
     if (!o || o.status === "voided" || !["unpaid", "partial"].includes(o.payment_status ?? "")) {
@@ -132,7 +132,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
         <h1 className="text-xl font-bold tracking-tight">Billing</h1>
         <div className="card mt-4 p-5 text-sm" style={{ color: "var(--color-ink-2)" }}>
           There is nothing to sell yet. Add categories and items on the{" "}
-          <Link href="/menu" className="font-semibold" style={{ color: "var(--color-brand)" }}>
+          <Link href="/settings/menu" className="font-semibold" style={{ color: "var(--color-brand)" }}>
             Menu
           </Link>{" "}
           screen, then come back here to bill.
@@ -151,6 +151,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       key={addTo?.id ?? "new"}
       currency={user.currency_code}
       canDiscount={can(user, "order.discount")}
+      canPay={can(user, "payment.take")}
       showSenior={!!country?.has_senior_discount}
       pricesIncludeTax={(groups ?? []).some((g) => g.is_price_inclusive)}
       taxName={country?.tax_system_name ?? "tax"}

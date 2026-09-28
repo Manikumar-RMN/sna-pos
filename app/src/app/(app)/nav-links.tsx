@@ -18,8 +18,7 @@ const ICONS: Record<string, string> = {
 };
 
 function isOn(path: string, href: string) {
-  // "/settings" should not light up while on its child "/settings/users" (Staff).
-  return path === href || (path.startsWith(href + "/") && !(href === "/settings" && path.startsWith("/settings/users")));
+  return path === href || path.startsWith(href + "/");
 }
 
 function Icon({ href }: { href: string }) {

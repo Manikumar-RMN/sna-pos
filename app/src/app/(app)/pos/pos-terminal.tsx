@@ -38,6 +38,7 @@ function unitPrice(l: { item: MenuItem; options: ChosenOption[] }) {
 export function PosTerminal({
   currency,
   canDiscount,
+  canPay,
   showSenior,
   pricesIncludeTax,
   taxName,
@@ -48,6 +49,8 @@ export function PosTerminal({
 }: {
   currency: string;
   canDiscount: boolean;
+  /** Has the "Take payment" right. Without it the bill is only sent to the kitchen. */
+  canPay: boolean;
   /** Philippines: senior citizen / PWD discount. */
   showSenior: boolean;
   pricesIncludeTax: boolean;
@@ -501,21 +504,35 @@ export function PosTerminal({
                 <button onClick={clearAll} disabled={pending || lines.length === 0} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                   Clear
                 </button>
-                <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
-                  Save unpaid
-                </button>
-                <button onClick={() => submit("pay")} disabled={pending || quoting || !quote} className="btn btn-pay flex-1 text-base">
-                  {pending ? "Saving…" : quote ? `Charge ${m(due)}` : "Charge"}
-                </button>
+                {canPay ? (
+                  <>
+                    <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
+                      Save unpaid
+                    </button>
+                    <button onClick={() => submit("pay")} disabled={pending || quoting || !quote} className="btn btn-pay flex-1 text-base">
+                      {pending ? "Saving…" : quote ? `Charge ${m(due)}` : "Charge"}
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote} className="btn btn-primary flex-1 text-base">
+                    {pending ? "Saving…" : "Send to kitchen"}
+                  </button>
+                )}
               </div>
-              <button
-                onClick={() => submit("split")}
-                disabled={pending || quoting || !quote}
-                className="mt-2 w-full text-center text-xs font-semibold"
-                style={{ color: "var(--color-brand-strong)" }}
-              >
-                Split payment (part cash, part card/UPI, or share between people)
-              </button>
+              {canPay ? (
+                <button
+                  onClick={() => submit("split")}
+                  disabled={pending || quoting || !quote}
+                  className="mt-2 w-full text-center text-xs font-semibold"
+                  style={{ color: "var(--color-brand-strong)" }}
+                >
+                  Split payment (part cash, part card/UPI, or share between people)
+                </button>
+              ) : (
+                <p className="mt-2 text-center text-xs" style={{ color: "var(--color-ink-3)" }}>
+                  The cashier takes the payment.
+                </p>
+              )}
             </div>
           )}
         </div>
