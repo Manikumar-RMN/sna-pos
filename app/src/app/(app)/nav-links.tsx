@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Dual } from "./lang";
 
 /** Line icons for the side menu (24×24, drawn with a single path each). */
 const ICONS: Record<string, string> = {
@@ -46,7 +47,7 @@ export function NavRail({ links }: { links: { href: string; label: string }[] })
             style={on ? { background: "rgba(255,255,255,0.16)", color: "#fff" } : { color: "rgba(255,255,255,0.74)" }}
           >
             <Icon href={l.href} />
-            {l.label}
+            <Dual text={l.label} />
           </Link>
         );
       })}
@@ -70,7 +71,7 @@ export function NavLinks({ links }: { links: { href: string; label: string }[] }
             style={on ? { background: "rgba(255,255,255,0.16)", color: "#fff" } : { color: "rgba(255,255,255,0.8)" }}
           >
             <Icon href={l.href} />
-            {l.label}
+            <Dual text={l.label} />
           </Link>
         );
       })}

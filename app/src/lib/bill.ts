@@ -55,7 +55,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const [items, taxes, payments, refunds, restaurant, branch, settings, table, discounts, upiMethod, day, creditNotes] = await Promise.all([
     supabase
       .from("order_items")
-      .select("id, product_name, options_text, quantity, unit_price, line_subtotal, net_amount, created_at, cancelled_at, cancelled_qty, cancel_reason, held")
+      .select("id, product_name, product_name_local, options_text, quantity, unit_price, line_subtotal, net_amount, created_at, cancelled_at, cancelled_qty, cancel_reason, held")
       .eq("order_id", order.id)
       .order("created_at")
       .order("id"),
@@ -156,6 +156,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     cashierName: nameOf(order.cashier_id),
     items: liveItems.map((it) => ({
       name: it.product_name,
+      local: it.product_name_local,
       options: it.options_text,
       qty: Number(it.quantity),
       unitPrice: Number(it.unit_price),

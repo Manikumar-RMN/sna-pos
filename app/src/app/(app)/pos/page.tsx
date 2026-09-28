@@ -35,7 +35,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   ] = await Promise.all([
     supabase
       .from("v_menu")
-      .select("id, name, short_name, price, category_id, category_name, category_order, is_veg, display_order, is_available")
+      .select("id, name, short_name, price, category_id, category_name, category_order, is_veg, display_order, is_available, name_local")
       .eq("is_available", true)
       .order("category_order")
       .order("display_order")
@@ -124,6 +124,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       category_name: x.category_name ?? "",
       is_veg: x.is_veg,
       groups: groupsFor(x.id as string),
+      name_local: x.name_local,
     }));
 
   if (items.length === 0) {

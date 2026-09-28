@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { printedTickets, readDevicePrint, rememberPrinted } from "@/lib/device-print";
 import { markPrinted, setTicketStatus } from "./actions";
+import { DishName, Dual } from "../lang";
 
 export type Ticket = {
   id: string;
@@ -14,7 +15,7 @@ export type Ticket = {
   station: string;
   printedAt: string | null;
   bill: string;
-  items: { name: string; qty: number; note: string | null; cancelled: boolean }[];
+  items: { name: string; local?: string | null; qty: number; note: string | null; cancelled: boolean }[];
 };
 
 const COLUMNS: { key: Ticket["status"]; title: string; next: "preparing" | "ready" | "served"; action: string }[] = [
@@ -121,6 +122,7 @@ export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezon
             {t.items.map((i, idx) => (
               <div key={idx} className="text-[16px] leading-tight" style={i.cancelled ? { textDecoration: "line-through" } : undefined}>
                 <b>{i.qty} ×</b> {i.name}
+                {i.local && <span className="block pl-5 text-[14px]">{i.local}</span>}
                 {i.cancelled && " — CANCELLED"}
                 {i.note && <div className="pl-5 text-[14px] font-bold">** {i.note}</div>}
               </div>
@@ -164,7 +166,7 @@ export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezon
           return (
             <section key={col.key}>
               <h2 className="mb-2 text-sm font-bold">
-                {col.title} <span style={{ color: "var(--color-ink-3)" }}>({list.length})</span>
+                <Dual text={col.title} /> <span style={{ color: "var(--color-ink-3)" }}>({list.length})</span>
               </h2>
               <div className="space-y-3">
                 {list.length === 0 && (
@@ -194,7 +196,7 @@ export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezon
                       <ul className="mb-3 space-y-1 text-sm">
                         {t.items.map((i, idx) => (
                           <li key={idx} style={i.cancelled ? { textDecoration: "line-through", color: "var(--color-bad)" } : undefined}>
-                            <span className="font-bold tabular-nums">{i.qty}×</span> {i.name}
+                            <span className="font-bold tabular-nums">{i.qty}×</span> <DishName name={i.name} local={i.local} />
                             {i.cancelled && <span className="ml-1 text-[11px] font-bold no-underline">CANCELLED</span>}
                             {i.note && (
                               <div className="text-xs" style={{ color: "var(--color-warn)" }}>
@@ -209,7 +211,7 @@ export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezon
                         disabled={pending && busyId === t.id}
                         onClick={() => move(t.id, col.next)}
                       >
-                        {pending && busyId === t.id ? "…" : col.action}
+                        {pending && busyId === t.id ? "…" : <Dual text={col.action} />}
                       </button>
                     </div>
                   );

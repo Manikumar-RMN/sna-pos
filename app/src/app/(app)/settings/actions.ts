@@ -3,6 +3,8 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { isLang } from "@/lib/i18n";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { can, getCurrentUser } from "@/lib/auth";
@@ -198,4 +200,26 @@ export async function clearCounterLock(deviceId: string): Promise<Result> {
   const { error } = await supabase.rpc("clear_pin_lockout", { p_device_id: deviceId });
   if (error) return { ok: false, error: error.message };
   return done("PIN lock cleared. Staff can unlock that tablet again.");
+}
+
+/** The restaurant's second language, shown under the English words on every device ("" = none). */
+export async function setSecondLanguage(lang: string): Promise<Result> {
+  if (lang !== "" && !isLang(lang)) return { ok: false, error: "Unknown language." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_second_language", { p_lang: lang });
+  if (error) return { ok: false, error: error.message };
+  return done(lang ? "Second language saved." : "Second language switched off.");
+}
+
+/**
+ * This device only: "" follows the restaurant, "none" shows English only, or a language code.
+ * Kept in a cookie on the device, so a kitchen tablet can show Hindi while the counter shows Tamil.
+ */
+export async function setDeviceLanguage(lang: string): Promise<Result> {
+  if (lang !== "" && lang !== "none" && !isLang(lang)) return { ok: false, error: "Unknown language." };
+  const jar = await cookies();
+  if (lang === "") jar.delete("sna_lang2");
+  else jar.set("sna_lang2", lang, { path: "/", maxAge: 60 * 60 * 24 * 400, sameSite: "lax", secure: true, httpOnly: true });
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Saved for this device." };
 }

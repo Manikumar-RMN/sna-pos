@@ -8,6 +8,9 @@ import { IdleLock } from "./idle-lock";
 import { OfflineSync } from "./offline-sync";
 import { SwRegister } from "./sw-register";
 import { OutletSwitcher, type OutletInfo } from "./outlet/outlet-switcher";
+import { cookies } from "next/headers";
+import { isLang, type LangCode } from "@/lib/i18n";
+import { Dual, LangProvider } from "./lang";
 
 /** SNA POS mark: a steaming bowl on a saffron plate. */
 function Mark({ size = 48 }: { size?: number }) {
@@ -48,6 +51,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     .map(({ href, label }) => ({ href, label }));
 
   const initial = (user.full_name || "?").trim().charAt(0).toUpperCase();
+  // Second language under the English words: this device's choice, else the restaurant's.
+  const deviceLang = (await cookies()).get("sna_lang2")?.value;
+  const lang: LangCode | null = deviceLang === "none" ? null : isLang(deviceLang) ? deviceLang : isLang(user.second_language) ? user.second_language : null;
   // Several outlets: a picker in the header decides which outlet you are working in.
   const outlets =
     user.outlet_count > 1 ? ((await (await createClient()).rpc("my_outlets")).data as unknown as OutletInfo | null) : null;
@@ -59,7 +65,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         <IdleLock minutes={10} />
         <form action={lockCounter}>
           <button type="submit" className="btn btn-pay h-11 min-h-0 px-5 text-sm">
-            Lock
+            <Dual text="Lock" />
           </button>
         </form>
       </>
@@ -88,13 +94,14 @@ export default async function AppLayout({ children }: Readonly<{ children: React
                 : { borderColor: "var(--color-line)", background: "var(--color-surface)", color: "var(--color-ink)" }
             }
           >
-            Sign out
+            <Dual text="Sign out" />
           </button>
         </form>
       </>
     );
 
   return (
+    <LangProvider lang={lang}>
     <div className="min-h-screen md:flex md:gap-3 md:p-3">
       {/* Tablet and desktop: green icon rail */}
       <aside
@@ -152,5 +159,6 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         </main>
       </div>
     </div>
+    </LangProvider>
   );
 }

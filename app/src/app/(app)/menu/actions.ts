@@ -108,6 +108,7 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
   const price = parseRupees(String(formData.get("price") ?? ""));
   const isVeg = formData.get("is_veg") === "on" ? true : formData.get("is_veg") === "off" ? false : null;
   const station = String(formData.get("kitchen_station") ?? "").trim().slice(0, 30) || null;
+  const nameLocal = String(formData.get("name_local") ?? "").trim().slice(0, 120) || null;
 
   if (!name) return { error: "Enter an item name." };
   if (!categoryId) return { error: "Choose a category." };
@@ -125,6 +126,7 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
       price,
       is_veg: isVeg,
       kitchen_station: station,
+      name_local: nameLocal,
     })
     .select("id")
     .single();
@@ -161,6 +163,7 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
   const price = parseRupees(String(formData.get("price") ?? ""));
   const isVeg = formData.get("is_veg") === "on" ? true : formData.get("is_veg") === "off" ? false : null;
   const station = String(formData.get("kitchen_station") ?? "").trim().slice(0, 30) || null;
+  const nameLocal = String(formData.get("name_local") ?? "").trim().slice(0, 120) || null;
 
   if (!id) return { error: "Missing item." };
   if (!name) return { error: "Enter an item name." };
@@ -171,7 +174,7 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
   const supabase = await createClient();
   const { error } = await supabase
     .from("products")
-    .update({ name, category_id: categoryId, tax_group_id: taxGroupId, price, is_veg: isVeg, kitchen_station: station })
+    .update({ name, name_local: nameLocal, category_id: categoryId, tax_group_id: taxGroupId, price, is_veg: isVeg, kitchen_station: station })
     .eq("id", id);
   if (error) return { error: error.message };
   const linkError = await linkOptionGroups(id, restaurantId!, formData);

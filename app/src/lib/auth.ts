@@ -28,6 +28,8 @@ export type CurrentUser = {
   branch_id: string;
   branch_name: string;
   outlet_count: number;
+  /** Restaurant's second language (shown under English), or null. */
+  second_language: string | null;
 };
 
 /**

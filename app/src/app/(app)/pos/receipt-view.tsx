@@ -22,7 +22,7 @@ export type ReceiptData = {
   timezone: string;
   currency: string;
   cashierName: string;
-  items: { name: string; options: string | null; qty: number; unitPrice: number; amount: number }[];
+  items: { name: string; local?: string | null; options: string | null; qty: number; unitPrice: number; amount: number }[];
   /** Tax components summed over the bill. */
   taxLines: { name: string; amount: number }[];
   subtotal: number;
@@ -186,6 +186,7 @@ export function ReceiptView({
               <tr key={i}>
                 <td className="pr-1 align-top">
                   {it.name}
+                  {it.local && <div className="text-[10px]">{it.local}</div>}
                   {it.options && <div className="text-[10px]">&nbsp;&nbsp;{it.options}</div>}
                 </td>
                 <td className="text-center align-top">{it.qty}</td>

@@ -2,6 +2,8 @@ import { can, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { BusinessForm } from "../settings-forms";
 import { NoAccess, SectionHead } from "../section-head";
+import { cookies } from "next/headers";
+import { LanguageForm } from "./language-form";
 
 export default async function CompanySettings() {
   const user = await requireUser();
@@ -44,6 +46,11 @@ export default async function CompanySettings() {
           auto_print_kot: bs?.auto_print_kot ?? true,
           ...(isIndia ? { fssai_no: rest?.fssai_no ?? "", sac_code: rest?.sac_code ?? "996331" } : {}),
         }}
+      />
+      <LanguageForm
+        restaurant={user.second_language ?? ""}
+        device={(await cookies()).get("sna_lang2")?.value ?? ""}
+        canEdit={can(user, "settings.manage")}
       />
     </div>
   );

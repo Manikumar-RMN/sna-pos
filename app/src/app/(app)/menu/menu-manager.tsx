@@ -27,6 +27,7 @@ type Product = {
   is_veg: boolean | null;
   is_available: boolean;
   kitchen_station?: string | null;
+  name_local?: string | null;
 };
 type TaxGroup = { id: string; name: string };
 export type OptionGroupView = {
@@ -421,6 +422,11 @@ function ProductModal({
 
         <label className="mb-1.5 block text-sm font-semibold">Item name</label>
         <input name="name" defaultValue={product?.name ?? ""} className="field mb-4" placeholder="Masala Dosa" autoFocus required />
+
+        <label className="mb-1.5 block text-sm font-semibold">
+          Name in second language <span className="font-normal" style={{ color: "var(--color-ink-3)" }}>(optional — shown under the English name)</span>
+        </label>
+        <input name="name_local" defaultValue={product?.name_local ?? ""} className="field mb-4" maxLength={120} placeholder="மசாலா தோசை" />
 
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>

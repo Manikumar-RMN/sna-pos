@@ -1344,6 +1344,7 @@ export type Database = {
           note: string | null
           order_item_id: string
           product_name: string
+          product_name_local: string | null
           quantity: number
           restaurant_id: string
           status: string
@@ -1354,6 +1355,7 @@ export type Database = {
           note?: string | null
           order_item_id: string
           product_name: string
+          product_name_local?: string | null
           quantity: number
           restaurant_id: string
           status?: string
@@ -1364,6 +1366,7 @@ export type Database = {
           note?: string | null
           order_item_id?: string
           product_name?: string
+          product_name_local?: string | null
           quantity?: number
           restaurant_id?: string
           status?: string
@@ -1827,6 +1830,7 @@ export type Database = {
           order_id: string
           product_id: string
           product_name: string
+          product_name_local: string | null
           quantity: number
           restaurant_id: string
           service_charge: number
@@ -1854,6 +1858,7 @@ export type Database = {
           order_id: string
           product_id: string
           product_name: string
+          product_name_local?: string | null
           quantity: number
           restaurant_id: string
           service_charge?: number
@@ -1881,6 +1886,7 @@ export type Database = {
           order_id?: string
           product_id?: string
           product_name?: string
+          product_name_local?: string | null
           quantity?: number
           restaurant_id?: string
           service_charge?: number
@@ -2777,6 +2783,7 @@ export type Database = {
           is_veg: boolean | null
           kitchen_station: string | null
           name: string
+          name_local: string | null
           price: number
           restaurant_id: string
           short_name: string | null
@@ -2799,6 +2806,7 @@ export type Database = {
           is_veg?: boolean | null
           kitchen_station?: string | null
           name: string
+          name_local?: string | null
           price: number
           restaurant_id: string
           short_name?: string | null
@@ -2821,6 +2829,7 @@ export type Database = {
           is_veg?: boolean | null
           kitchen_station?: string | null
           name?: string
+          name_local?: string | null
           price?: number
           restaurant_id?: string
           short_name?: string | null
@@ -3043,6 +3052,7 @@ export type Database = {
           legal_name: string
           logo_url: string | null
           sac_code: string | null
+          second_language: string | null
           subscription_status: string
           tax_registration_no: string | null
           timezone: string
@@ -3062,6 +3072,7 @@ export type Database = {
           legal_name: string
           logo_url?: string | null
           sac_code?: string | null
+          second_language?: string | null
           subscription_status?: string
           tax_registration_no?: string | null
           timezone: string
@@ -3081,6 +3092,7 @@ export type Database = {
           legal_name?: string
           logo_url?: string | null
           sac_code?: string | null
+          second_language?: string | null
           subscription_status?: string
           tax_registration_no?: string | null
           timezone?: string
@@ -3871,6 +3883,7 @@ export type Database = {
           restaurant_id: string | null
           role_id: string | null
           role_name: string | null
+          second_language: string | null
           timezone: string | null
           trading_name: string | null
           user_id: string | null
@@ -3911,6 +3924,7 @@ export type Database = {
           is_veg: boolean | null
           menu_price: number | null
           name: string | null
+          name_local: string | null
           price: number | null
           restaurant_id: string | null
           short_name: string | null
@@ -4206,6 +4220,7 @@ export type Database = {
         Args: { p_inclusive: boolean }
         Returns: undefined
       }
+      set_second_language: { Args: { p_lang: string }; Returns: undefined }
       set_staff_pin: {
         Args: { p_pin?: string; p_user_id: string }
         Returns: Json

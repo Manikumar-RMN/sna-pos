@@ -21,9 +21,9 @@ export default async function KitchenPage() {
     ids.length
       ? supabase
           .from("kitchen_ticket_items")
-          .select("kitchen_ticket_id, product_name, quantity, note, status")
+          .select("kitchen_ticket_id, product_name, product_name_local, quantity, note, status")
           .in("kitchen_ticket_id", ids)
-      : Promise.resolve({ data: [] as { kitchen_ticket_id: string; product_name: string; quantity: number; note: string | null; status: string }[] }),
+      : Promise.resolve({ data: [] as { kitchen_ticket_id: string; product_name: string; product_name_local: string | null; quantity: number; note: string | null; status: string }[] }),
     orderIds.length
       ? supabase.from("orders").select("id, order_type, dining_table_id, bill_number").in("id", orderIds)
       : Promise.resolve({ data: [] as { id: string; order_type: string; dining_table_id: string | null; bill_number: string }[] }),
@@ -49,7 +49,7 @@ export default async function KitchenPage() {
       bill: o?.bill_number ?? "",
       items: (items ?? [])
         .filter((i) => i.kitchen_ticket_id === t.id)
-        .map((i) => ({ name: i.product_name, qty: Number(i.quantity), note: i.note, cancelled: i.status === "cancelled" })),
+        .map((i) => ({ name: i.product_name, local: i.product_name_local, qty: Number(i.quantity), note: i.note, cancelled: i.status === "cancelled" })),
     };
   });
 

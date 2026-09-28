@@ -8,6 +8,7 @@ import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, type PlaceOrderInput, type Quote, type Senior } from "./actions";
 import { cashDue, deviceKey, offlineQuote, readQueue, readSnapshot, saveSnapshot, takeNumber, writeQueue, type OfflineBill, type Snapshot } from "@/lib/offline";
 import { OfflineReceipt } from "./offline-receipt";
+import { DishName, Dual } from "../lang";
 
 export type OptionGroup = {
   id: string;
@@ -25,6 +26,8 @@ type MenuItem = {
   category_name: string;
   is_veg: boolean | null;
   groups: OptionGroup[];
+  /** Dish name in the restaurant's second language. */
+  name_local?: string | null;
 };
 type PaymentMethod = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type Table = { id: string; number: string; busy: boolean; openBillId: string | null; openBillNumber: string | null };
@@ -434,7 +437,7 @@ export function PosTerminal({
                             style={{ background: item.is_veg ? "var(--color-ok)" : "var(--color-bad)" }}
                           />
                         )}
-                        {item.name}
+                        <DishName name={item.name} local={item.name_local} />
                       </span>
                       <span className="text-sm" style={{ color: "var(--color-ink-2)" }}>
                         {m(item.price)}
@@ -492,7 +495,7 @@ export function PosTerminal({
                     className="px-2.5 py-1.5 text-[11px] font-semibold"
                     style={{ background: orderType === t ? "var(--color-brand)" : "transparent", color: orderType === t ? "#fff" : "var(--color-ink-2)" }}
                   >
-                    {t === "dine_in" ? "Dine-in" : "Takeaway"}
+                    <Dual text={t === "dine_in" ? "Dine-in" : "Takeaway"} />
                   </button>
                 ))}
               </div>
@@ -598,7 +601,7 @@ export function PosTerminal({
                         style={{ color: l.note ? "var(--color-warn)" : "var(--color-ink-3)" }}
                         onClick={() => setNoteOpen(l.key)}
                       >
-                        {l.note ? `Note: ${l.note}` : "+ Kitchen note"}
+                        {l.note ? `Note: ${l.note}` : <Dual text="+ Kitchen note" />}
                       </button>
                       {!offline && allowHold && (
                         <button
@@ -609,7 +612,7 @@ export function PosTerminal({
                           onClick={() => toggleHold(l.key)}
                           title="Hold for the next course; send it to the kitchen from the bill later"
                         >
-                          {l.hold ? "Held — next course" : "Hold"}
+                          {l.hold ? "Held — next course" : <Dual text="Hold" />}
                         </button>
                       )}
                     </div>
@@ -764,12 +767,13 @@ export function PosTerminal({
                       Save unpaid
                     </button>
                     <button onClick={() => submit("pay")} disabled={pending || quoting || !quote} className="btn btn-pay flex-1 text-base">
-                      {pending ? "Saving…" : quote ? `Charge ${m(due)}` : "Charge"}
+                      {pending ? "Saving…" : <Dual text="Charge" />}
+                      {!pending && quote ? ` ${m(due)}` : ""}
                     </button>
                   </>
                 ) : (
                   <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote} className="btn btn-primary flex-1 text-base">
-                    {pending ? "Saving…" : "Send to kitchen"}
+                    {pending ? "Saving…" : <Dual text="Send to kitchen" />}
                   </button>
                 )}
               </div>

@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money, roundCash } from "@/lib/format";
 import { UpiQr } from "../upi-qr";
+import { Dual } from "../lang";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { adjustBill, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
 
@@ -552,7 +553,7 @@ export function BillActions({
 
       {open && (canVoid || canAsk) && lines.length > 0 && !dayClosed && (
         <section className="card p-4">
-          <h2 className="text-sm font-bold">Cancel an item</h2>
+          <h2 className="text-sm font-bold"><Dual text="Cancel an item" /></h2>
           <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
             Takes an item off this bill and tells the kitchen. Recorded with your name and reason.
           </p>
@@ -781,7 +782,7 @@ function PanelButton({ label, active, onClick }: { label: string; active: boolea
         background: active ? "var(--color-brand-soft)" : "var(--color-surface)",
       }}
     >
-      {label}
+      <Dual text={label} />
     </button>
   );
 }
