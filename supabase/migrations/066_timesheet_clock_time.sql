@@ -1,0 +1,2 @@
+-- 066: clock in/out use the real clock time (to the second); clock-out is always after clock-in.
+-- (function bodies as applied: public.clock_in(), public.clock_out() with clock_timestamp())

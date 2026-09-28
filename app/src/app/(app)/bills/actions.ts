@@ -215,3 +215,31 @@ export async function shareBillLink(orderId: string) {
   const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
   return { ok: true as const, url: `${origin}/r/${d.token}`, phone: d.phone };
 }
+
+/** Loyalty: find or add the guest by phone and put them on this bill. */
+export async function attachCustomer(orderId: string, phone: string, name: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("attach_customer", { p_order: orderId, p_phone: phone, p_name: name });
+  if (error) return { ok: false as const, error: error.message };
+  revalidatePath(`/bills/${orderId}`);
+  const d = data as { name: string; phone: string; points: number };
+  return { ok: true as const, name: d.name, phone: d.phone, points: Number(d.points) };
+}
+
+export async function redeemPoints(orderId: string, points: number) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("redeem_points", { p_order: orderId, p_points: points });
+  if (error) return { ok: false as const, error: error.message };
+  revalidatePath(`/bills/${orderId}`);
+  const d = data as { points_used: number; amount: number };
+  return { ok: true as const, message: `${d.points_used} points used (${d.amount}).` };
+}
+
+export async function redeemGiftCard(orderId: string, code: string, amount: number | null) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("redeem_gift_card", { p_order: orderId, p_code: code, p_amount: amount ?? undefined });
+  if (error) return { ok: false as const, error: error.message };
+  revalidatePath(`/bills/${orderId}`);
+  const d = data as { card: string; used: number; card_balance: number };
+  return { ok: true as const, message: `${d.used} taken from gift card ${d.card}. Left on the card: ${d.card_balance}.` };
+}

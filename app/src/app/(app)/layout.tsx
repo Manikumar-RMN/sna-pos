@@ -45,6 +45,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     { href: "/shift", label: "Shift", show: can(user, "shift.open") || can(user, "shift.close") || can(user, "cash.movement") },
     { href: "/reports", label: "Reports", show: can(user, "report.view_sales") },
     { href: "/stock", label: "Stock", show: can(user, "stock.manage") && has(user, "stock") },
+    { href: "/reservations", label: "Bookings", show: can(user, "order.create") && has(user, "reservations") },
+    { href: "/loyalty", label: "Loyalty", show: has(user, "loyalty") && (can(user, "payment.take") || can(user, "settings.manage")) },
+    { href: "/timesheets", label: "Timesheets", show: has(user, "timesheets") },
     // Menu, users and security profiles live inside Settings.
     { href: "/settings", label: "Settings", show: true },
   ]

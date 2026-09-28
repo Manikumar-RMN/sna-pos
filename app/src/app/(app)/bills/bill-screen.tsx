@@ -7,6 +7,7 @@ import { dateTime, money } from "@/lib/format";
 import { ReceiptView } from "../pos/receipt-view";
 import { BillActions } from "./bill-actions";
 import { WhatsAppShare } from "./whatsapp-share";
+import { LoyaltyPanel } from "./loyalty-panel";
 
 /** One bill: printable receipt, its history, and the actions the user may take. */
 export async function BillScreen({ orderId, from, splitPay = false }: { orderId: string; from: "pos" | "bills"; splitPay?: boolean }) {
@@ -19,8 +20,18 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
   const open = r.state === "unpaid" || r.state === "part-paid";
 
   const supabase = await createClient();
+  // Loyalty: the guest on this bill and their points.
+  let guest: { name: string; phone: string; points: number } | null = null;
+  if (has(user, "loyalty")) {
+    const { data: o } = await supabase.from("orders").select("customer_id, customers!orders_customer_id_fkey(name, phone)").eq("id", bill.id).maybeSingle();
+    const c = o?.customers as unknown as { name: string; phone: string } | null;
+    if (o?.customer_id && c) {
+      const { data: led } = await supabase.from("loyalty_ledger").select("points").eq("customer_id", o.customer_id);
+      guest = { name: c.name, phone: c.phone, points: (led ?? []).reduce((t, x) => t + Number(x.points), 0) };
+    }
+  }
   const [{ data: methods }, { data: shift }, { data: tables }, { data: openBills }, { data: mergedTo }] = await Promise.all([
-    supabase.from("payment_methods").select("id, name, kind, ask_reference, upi_id").eq("is_active", true).order("display_order"),
+    supabase.from("payment_methods").select("id, name, kind, ask_reference, upi_id").eq("is_active", true).not("kind", "in", "(gift_card,loyalty)").order("display_order"),
     supabase.from("shifts").select("id").eq("status", "open").limit(1).maybeSingle(),
     open
       ? supabase.from("dining_tables").select("id, table_number").eq("is_active", true).order("table_number")
@@ -92,6 +103,10 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
             )}
           </ul>
         </div>
+      )}
+
+      {has(user, "loyalty") && r.state !== "voided" && (
+        <LoyaltyPanel orderId={bill.id} open={open} canPay={can(user, "payment.take")} currency={r.currency} guest={guest} />
       )}
 
       {has(user, "whatsapp") && r.state !== "voided" && (

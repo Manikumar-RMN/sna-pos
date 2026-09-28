@@ -923,6 +923,7 @@ export type Database = {
           created_at: string
           default_currency: string
           default_timezone: string
+          dial_code: string | null
           has_senior_discount: boolean
           invoice_title: string | null
           is_supported: boolean
@@ -937,6 +938,7 @@ export type Database = {
           created_at?: string
           default_currency: string
           default_timezone: string
+          dial_code?: string | null
           has_senior_discount?: boolean
           invoice_title?: string | null
           is_supported?: boolean
@@ -951,6 +953,7 @@ export type Database = {
           created_at?: string
           default_currency?: string
           default_timezone?: string
+          dial_code?: string | null
           has_senior_discount?: boolean
           invoice_title?: string | null
           is_supported?: boolean
@@ -1299,6 +1302,167 @@ export type Database = {
           },
         ]
       }
+      gift_card_ledger: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          gift_card_id: string
+          id: string
+          kind: string
+          order_id: string | null
+          restaurant_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          gift_card_id: string
+          id?: string
+          kind: string
+          order_id?: string | null
+          restaurant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          gift_card_id?: string
+          id?: string
+          kind?: string
+          order_id?: string | null
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_card_ledger_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_card_ledger_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "gift_card_ledger_gift_card_id_fkey"
+            columns: ["gift_card_id"]
+            isOneToOne: false
+            referencedRelation: "gift_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_card_ledger_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_card_ledger_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gift_cards: {
+        Row: {
+          code: string
+          created_at: string
+          customer_id: string | null
+          expires_on: string | null
+          id: string
+          issued_by: string | null
+          restaurant_id: string
+          sold_branch_id: string | null
+          sold_method_id: string | null
+          sold_shift_id: string | null
+          value: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          customer_id?: string | null
+          expires_on?: string | null
+          id?: string
+          issued_by?: string | null
+          restaurant_id: string
+          sold_branch_id?: string | null
+          sold_method_id?: string | null
+          sold_shift_id?: string | null
+          value: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          customer_id?: string | null
+          expires_on?: string | null
+          id?: string
+          issued_by?: string | null
+          restaurant_id?: string
+          sold_branch_id?: string | null
+          sold_method_id?: string | null
+          sold_shift_id?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_cards_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_cards_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_cards_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "gift_cards_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_cards_sold_branch_id_fkey"
+            columns: ["sold_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_cards_sold_method_id_fkey"
+            columns: ["sold_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_cards_sold_shift_id_fkey"
+            columns: ["sold_shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingredients: {
         Row: {
           cost_per_unit: number
@@ -1463,6 +1627,110 @@ export type Database = {
             foreignKeyName: "kitchen_tickets_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_ledger: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          id: string
+          kind: string
+          note: string | null
+          order_id: string | null
+          points: number
+          restaurant_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          id?: string
+          kind: string
+          note?: string | null
+          order_id?: string | null
+          points: number
+          restaurant_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          order_id?: string | null
+          points?: number
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_ledger_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_ledger_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "loyalty_ledger_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_ledger_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_ledger_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_settings: {
+        Row: {
+          min_redeem: number
+          point_value: number
+          restaurant_id: string
+          spend_per_point: number
+          updated_at: string
+        }
+        Insert: {
+          min_redeem?: number
+          point_value?: number
+          restaurant_id: string
+          spend_per_point?: number
+          updated_at?: string
+        }
+        Update: {
+          min_redeem?: number
+          point_value?: number
+          restaurant_id?: string
+          spend_per_point?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_settings_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -3105,6 +3373,93 @@ export type Database = {
           },
         ]
       }
+      reservations: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          dining_table_id: string | null
+          guest_name: string
+          id: string
+          note: string | null
+          party_size: number
+          phone: string | null
+          reserved_for: string | null
+          restaurant_id: string
+          seated_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          dining_table_id?: string | null
+          guest_name: string
+          id?: string
+          note?: string | null
+          party_size: number
+          phone?: string | null
+          reserved_for?: string | null
+          restaurant_id: string
+          seated_at?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          dining_table_id?: string | null
+          guest_name?: string
+          id?: string
+          note?: string | null
+          party_size?: number
+          phone?: string | null
+          reserved_for?: string | null
+          restaurant_id?: string
+          seated_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservations_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "reservations_dining_table_id_fkey"
+            columns: ["dining_table_id"]
+            isOneToOne: false
+            referencedRelation: "dining_tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_modules: {
         Row: {
           enabled_at: string
@@ -3816,6 +4171,85 @@ export type Database = {
           },
         ]
       }
+      time_entries: {
+        Row: {
+          branch_id: string
+          clock_in: string
+          clock_out: string | null
+          created_at: string
+          edit_reason: string | null
+          edited_by: string | null
+          id: string
+          restaurant_id: string
+          user_id: string
+        }
+        Insert: {
+          branch_id: string
+          clock_in: string
+          clock_out?: string | null
+          created_at?: string
+          edit_reason?: string | null
+          edited_by?: string | null
+          id?: string
+          restaurant_id: string
+          user_id: string
+        }
+        Update: {
+          branch_id?: string
+          clock_in?: string
+          clock_out?: string | null
+          created_at?: string
+          edit_reason?: string | null
+          edited_by?: string | null
+          id?: string
+          restaurant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "time_entries_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       user_branches: {
         Row: {
           branch_id: string
@@ -4101,6 +4535,10 @@ export type Database = {
         Args: { p_permission: string; p_pin: string }
         Returns: Json
       }
+      attach_customer: {
+        Args: { p_name?: string; p_order: string; p_phone: string }
+        Returns: Json
+      }
       cancel_invite: { Args: { p_user_id: string }; Returns: undefined }
       cancel_order_item: {
         Args: { p_order_item_id: string; p_qty: number; p_reason: string }
@@ -4114,6 +4552,8 @@ export type Database = {
       claim_staff_invite: { Args: { p_code: string }; Returns: string }
       clear_pin_lockout: { Args: { p_device_id: string }; Returns: undefined }
       clear_staff_pin: { Args: { p_user_id: string }; Returns: undefined }
+      clock_in: { Args: never; Returns: Json }
+      clock_out: { Args: never; Returns: Json }
       close_day: { Args: { p_notes?: string }; Returns: Json }
       close_shift: {
         Args: { p_counted_cash: number; p_notes?: string }
@@ -4162,6 +4602,11 @@ export type Database = {
       day_status: { Args: never; Returns: Json }
       delete_role: { Args: { p_role_id: string }; Returns: undefined }
       fire_held_items: { Args: { p_order_id: string }; Returns: Json }
+      fix_time_entry: {
+        Args: { p_id: string; p_in: string; p_out: string; p_reason: string }
+        Returns: undefined
+      }
+      gift_card_lookup: { Args: { p_code: string }; Returns: Json }
       gst_register: { Args: { p_from: string; p_to: string }; Returns: Json }
       invite_staff: {
         Args: {
@@ -4178,6 +4623,16 @@ export type Database = {
           p_method_id: string
           p_order_id: string
           p_reason: string
+        }
+        Returns: Json
+      }
+      issue_gift_card: {
+        Args: {
+          p_method_id: string
+          p_name?: string
+          p_phone?: string
+          p_valid_days?: number
+          p_value: number
         }
         Returns: Json
       }
@@ -4253,6 +4708,14 @@ export type Database = {
         }
         Returns: Json
       }
+      redeem_gift_card: {
+        Args: { p_amount?: number; p_code: string; p_order: string }
+        Returns: Json
+      }
+      redeem_points: {
+        Args: { p_order: string; p_points: number }
+        Returns: Json
+      }
       refund_order: {
         Args: { p_amount: number; p_order_id: string; p_reason: string }
         Returns: Json
@@ -4293,6 +4756,14 @@ export type Database = {
         }
         Returns: string
       }
+      save_loyalty_settings: {
+        Args: {
+          p_min_redeem: number
+          p_point_value: number
+          p_spend_per_point: number
+        }
+        Returns: undefined
+      }
       save_payment_method: {
         Args: {
           p_ask_reference?: boolean
@@ -4306,6 +4777,18 @@ export type Database = {
       save_recipe: {
         Args: { p_lines: Json; p_product_id: string }
         Returns: number
+      }
+      save_reservation: {
+        Args: {
+          p_id: string
+          p_name: string
+          p_note: string
+          p_party: number
+          p_phone: string
+          p_table: string
+          p_when: string
+        }
+        Returns: string
       }
       save_role: {
         Args: { p_name: string; p_permissions: string[]; p_role_id: string }
@@ -4342,6 +4825,10 @@ export type Database = {
       }
       set_prices_include_tax: {
         Args: { p_inclusive: boolean }
+        Returns: undefined
+      }
+      set_reservation_status: {
+        Args: { p_id: string; p_status: string; p_table?: string }
         Returns: undefined
       }
       set_second_language: { Args: { p_lang: string }; Returns: undefined }

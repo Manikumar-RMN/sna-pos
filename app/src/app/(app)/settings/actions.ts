@@ -88,7 +88,7 @@ export async function setPaymentMethod(id: string, active: boolean): Promise<Res
   if (!user || !can(user, "settings.manage")) return { ok: false, error: "Only an owner or manager can change payment methods." };
   const supabase = await createClient();
   if (!active) {
-    const { count } = await supabase.from("payment_methods").select("id", { count: "exact", head: true }).eq("is_active", true);
+    const { count } = await supabase.from("payment_methods").select("id", { count: "exact", head: true }).eq("is_active", true).not("kind", "in", "(gift_card,loyalty)");
     if ((count ?? 0) <= 1) return { ok: false, error: "Keep at least one payment method switched on." };
   }
   const { error } = await supabase.from("payment_methods").update({ is_active: active }).eq("id", id);
