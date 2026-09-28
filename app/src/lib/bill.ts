@@ -24,6 +24,8 @@ export type BillDetail = {
   /** Payments on the bill, for "change payment mode". */
   /** The bill's business day is closed: no void or change, only a credit note. */
   dayClosed: boolean;
+  /** Items held for a later course, not yet sent to the kitchen. */
+  heldCount: number;
   businessDate: string | null;
   creditNotes: { id: string; number: string; amount: number; at: string; reason: string }[];
   paymentList: { id: string; methodId: string; methodName: string; amount: number; rounded: boolean }[];
@@ -53,7 +55,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const [items, taxes, payments, refunds, restaurant, branch, settings, table, discounts, upiMethod, day, creditNotes] = await Promise.all([
     supabase
       .from("order_items")
-      .select("id, product_name, options_text, quantity, unit_price, line_subtotal, net_amount, created_at, cancelled_at, cancelled_qty, cancel_reason")
+      .select("id, product_name, options_text, quantity, unit_price, line_subtotal, net_amount, created_at, cancelled_at, cancelled_qty, cancel_reason, held")
       .eq("order_id", order.id)
       .order("created_at")
       .order("id"),
@@ -221,6 +223,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     hasDiscount: Number(order.discount_total) > 0 || !!sd?.name,
     mergedInto: order.merged_into,
     dayClosed: (day.data as { status?: string } | null)?.status === "closed",
+    heldCount: liveItems.filter((it) => it.held).length,
     businessDate: order.business_date,
     creditNotes: (creditNotes.data ?? []).map((c) => ({ id: c.id, number: c.number, amount: Number(c.amount), at: c.created_at, reason: c.reason })),
     paymentList: paymentRows.map((p) => ({

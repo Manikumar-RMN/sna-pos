@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { money, roundCash } from "@/lib/format";
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
-import { adjustBill, cancelItem, changePaymentMode, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
+import { adjustBill, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
 
 type Method = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type PaymentRow = { id: string; methodId: string; methodName: string; amount: number; rounded: boolean };
@@ -32,6 +32,7 @@ export function BillActions({
   adjust,
   canChangeMode = false,
   dayClosed = false,
+  heldCount = 0,
   buyer = null,
   taxIdLabel = "GSTIN",
   paymentList = [],
@@ -63,6 +64,7 @@ export function BillActions({
   canChangeMode?: boolean;
   /** The bill's day is closed: no void; money back only by credit note. */
   dayClosed?: boolean;
+  heldCount?: number;
   /** B2B customer on the bill (India: GSTIN). Undefined hides the panel. */
   buyer?: { taxId: string; name: string | null } | null;
   taxIdLabel?: string;
@@ -182,7 +184,8 @@ export function BillActions({
   }
 
   const showBuyer = buyer !== undefined && state !== "voided" && !dayClosed && (canPay || canVoid);
-  if (!showPay && !showRefund && !showVoid && !showFix && !showBuyer && !notice) return null;
+  const showFire = open && heldCount > 0 && !dayClosed;
+  if (!showPay && !showRefund && !showVoid && !showFix && !showBuyer && !showFire && !notice) return null;
 
   return (
     <div className="no-print mx-auto mt-4 max-w-sm space-y-3">
@@ -212,6 +215,12 @@ export function BillActions({
         <p className="rounded-lg px-3 py-2 text-sm" role="alert" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
           {error}
         </p>
+      )}
+
+      {showFire && (
+        <button className="btn btn-pay w-full text-sm" disabled={pending} onClick={() => run(() => fireHeld(orderId))}>
+          {pending ? "Sending…" : `Send ${heldCount} held item${heldCount === 1 ? "" : "s"} to the kitchen (next course)`}
+        </button>
       )}
 
       {showPay && (
@@ -331,6 +340,7 @@ export function BillActions({
       {showPay && (
         <section className="card p-4">
           <h2 className="text-sm font-bold">Table &amp; items</h2>
+
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Link href={`/pos?add=${orderId}`} className="btn btn-primary text-sm">
               + Add items

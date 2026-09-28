@@ -9,6 +9,8 @@ type Settlement = {
   payments: { at: string; bill: string; method: string; amount: number; reference: string | null; status: string; by: string | null }[];
 };
 
+type JournalRow = { date: string; account: string; debit: number; credit: number; narration: string };
+
 type RegisterRow = {
   type: string;
   date: string;
@@ -91,10 +93,12 @@ export default async function ReportsPage({
 
   const supabase = await createClient();
   const showRegister = user.country_code === "IN" && can(user, "report.view_financial");
-  const [{ data, error }, { data: settleData }, { data: registerData }] = await Promise.all([
+  const showJournal = can(user, "report.view_financial");
+  const [{ data, error }, { data: settleData }, { data: registerData }, { data: journalData }] = await Promise.all([
     supabase.rpc("sales_report", { p_from: from, p_to: to }),
     supabase.rpc("settlement_report", { p_from: from, p_to: to }),
     showRegister ? supabase.rpc("gst_register", { p_from: from, p_to: to }) : Promise.resolve({ data: null }),
+    showJournal ? supabase.rpc("accounting_journal", { p_from: from, p_to: to }) : Promise.resolve({ data: null }),
   ]);
   const rep = data as unknown as Report | null;
   const settle = settleData as unknown as Settlement | null;
@@ -230,6 +234,42 @@ export default async function ReportsPage({
                 )}
                 <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
                   For your GST filing. Confirm with your accountant.
+                </p>
+              </Card>
+            )}
+
+            {showJournal && (
+              <Card
+                title="Accounting export"
+                action={
+                  ((journalData ?? []) as unknown as JournalRow[]).length > 0 ? (
+                    <CsvButton
+                      filename={`journal_${from}_${to}.csv`}
+                      header={["Date", "Account", "Debit", "Credit", "Narration"]}
+                      rows={((journalData ?? []) as unknown as JournalRow[]).map((r) => [r.date, r.account, r.debit, r.credit, r.narration])}
+                    />
+                  ) : null
+                }
+              >
+                {((journalData ?? []) as unknown as JournalRow[]).length === 0 ? (
+                  <Empty />
+                ) : (
+                  <Table
+                    head={["Account", "Debit", "Credit"]}
+                    rows={Object.values(
+                      ((journalData ?? []) as unknown as JournalRow[]).reduce<Record<string, { a: string; d: number; c: number }>>((acc, r) => {
+                        const k = r.account;
+                        acc[k] = acc[k] ?? { a: k, d: 0, c: 0 };
+                        acc[k].d += Number(r.debit);
+                        acc[k].c += Number(r.credit);
+                        return acc;
+                      }, {}),
+                    ).map((x) => [x.a, x.d ? money(x.d, c) : "", x.c ? money(x.c, c) : ""])}
+                  />
+                )}
+                <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                  One balanced sales journal per day (money received, sales, each tax, service charge, round-off, credit notes). Import the
+                  CSV into Tally, Zoho Books, Xero or QuickBooks; your accountant maps the account names once.
                 </p>
               </Card>
             )}

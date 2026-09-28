@@ -39,6 +39,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     { href: "/kitchen", label: "Kitchen", show: true },
     { href: "/shift", label: "Shift", show: can(user, "shift.open") || can(user, "shift.close") || can(user, "cash.movement") },
     { href: "/reports", label: "Reports", show: can(user, "report.view_sales") },
+    { href: "/stock", label: "Stock", show: can(user, "stock.manage") },
     // Menu, users and security profiles live inside Settings.
     { href: "/settings", label: "Settings", show: true },
   ]

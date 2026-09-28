@@ -1220,6 +1220,47 @@ export type Database = {
           },
         ]
       }
+      ingredients: {
+        Row: {
+          cost_per_unit: number
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          reorder_level: number
+          restaurant_id: string
+          unit: string
+        }
+        Insert: {
+          cost_per_unit?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          reorder_level?: number
+          restaurant_id: string
+          unit: string
+        }
+        Update: {
+          cost_per_unit?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          reorder_level?: number
+          restaurant_id?: string
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingredients_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kitchen_ticket_items: {
         Row: {
           id: string
@@ -1672,6 +1713,7 @@ export type Database = {
           cancelled_by: string | null
           cancelled_qty: number
           created_at: string
+          held: boolean
           id: string
           is_price_inclusive: boolean
           kitchen_note: string | null
@@ -1698,6 +1740,7 @@ export type Database = {
           cancelled_by?: string | null
           cancelled_qty?: number
           created_at?: string
+          held?: boolean
           id: string
           is_price_inclusive?: boolean
           kitchen_note?: string | null
@@ -1724,6 +1767,7 @@ export type Database = {
           cancelled_by?: string | null
           cancelled_qty?: number
           created_at?: string
+          held?: boolean
           id?: string
           is_price_inclusive?: boolean
           kitchen_note?: string | null
@@ -2587,6 +2631,49 @@ export type Database = {
           },
         ]
       }
+      recipe_lines: {
+        Row: {
+          ingredient_id: string
+          product_id: string
+          qty: number
+          restaurant_id: string
+        }
+        Insert: {
+          ingredient_id: string
+          product_id: string
+          qty: number
+          restaurant_id: string
+        }
+        Update: {
+          ingredient_id?: string
+          product_id?: string
+          qty?: number
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_lines_restaurant_id_ingredient_id_fkey"
+            columns: ["restaurant_id", "ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "recipe_lines_restaurant_id_product_id_fkey"
+            columns: ["restaurant_id", "product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "recipe_lines_restaurant_id_product_id_fkey"
+            columns: ["restaurant_id", "product_id"]
+            isOneToOne: false
+            referencedRelation: "v_menu"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+        ]
+      }
       refunds: {
         Row: {
           amount: number
@@ -2979,6 +3066,66 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_current_user"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          ingredient_id: string
+          kind: string
+          note: string | null
+          order_id: string | null
+          order_item_id: string | null
+          qty: number
+          restaurant_id: string
+          unit_cost: number | null
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ingredient_id: string
+          kind: string
+          note?: string | null
+          order_id?: string | null
+          order_item_id?: string | null
+          qty: number
+          restaurant_id: string
+          unit_cost?: number | null
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ingredient_id?: string
+          kind?: string
+          note?: string | null
+          order_id?: string | null
+          order_item_id?: string | null
+          qty?: number
+          restaurant_id?: string
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_restaurant_id_branch_id_fkey"
+            columns: ["restaurant_id", "branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "stock_movements_restaurant_id_ingredient_id_fkey"
+            columns: ["restaurant_id", "ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["restaurant_id", "id"]
           },
         ]
       }
@@ -3425,6 +3572,10 @@ export type Database = {
       }
     }
     Functions: {
+      accounting_journal: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       add_order_items: {
         Args: { p_items: Json; p_order_id: string }
         Returns: Json
@@ -3505,6 +3656,7 @@ export type Database = {
       day_report: { Args: { p_day_id: string }; Returns: Json }
       day_status: { Args: never; Returns: Json }
       delete_role: { Args: { p_role_id: string }; Returns: undefined }
+      fire_held_items: { Args: { p_order_id: string }; Returns: Json }
       gst_register: { Args: { p_from: string; p_to: string }; Returns: Json }
       invite_staff: {
         Args: {
@@ -3565,6 +3717,16 @@ export type Database = {
         Args: { p_amount: number; p_direction: string; p_reason: string }
         Returns: string
       }
+      record_stock: {
+        Args: {
+          p_ingredient_id: string
+          p_kind: string
+          p_note?: string
+          p_qty: number
+          p_unit_cost?: number
+        }
+        Returns: Json
+      }
       refund_order: {
         Args: { p_amount: number; p_order_id: string; p_reason: string }
         Returns: Json
@@ -3580,6 +3742,16 @@ export type Database = {
       }
       reopen_day: { Args: { p_reason: string }; Returns: Json }
       sales_report: { Args: { p_from: string; p_to: string }; Returns: Json }
+      save_ingredient: {
+        Args: {
+          p_cost: number
+          p_id: string
+          p_name: string
+          p_reorder: number
+          p_unit: string
+        }
+        Returns: string
+      }
       save_payment_method: {
         Args: {
           p_ask_reference?: boolean
@@ -3589,6 +3761,10 @@ export type Database = {
           p_upi_id?: string
         }
         Returns: string
+      }
+      save_recipe: {
+        Args: { p_lines: Json; p_product_id: string }
+        Returns: number
       }
       save_role: {
         Args: { p_name: string; p_permissions: string[]; p_role_id: string }
@@ -3627,6 +3803,7 @@ export type Database = {
         Args: { p_items: Json; p_order_id: string }
         Returns: Json
       }
+      stock_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       sync_offline_bill: { Args: { p_bill: Json }; Returns: Json }
       update_settings: { Args: { p_settings: Json }; Returns: undefined }
       update_staff: {

@@ -121,6 +121,15 @@ export async function setBillCustomer(input: { orderId: string; taxId: string; n
   return { ok: true, message: input.taxId.trim() ? "Customer tax details added to the bill." : "Customer tax details removed." };
 }
 
+/** Sends items held for a later course to the kitchen. */
+export async function fireHeld(orderId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fire_held_items", { p_order_id: orderId });
+  if (error) return { ok: false, error: error.message };
+  refresh(orderId);
+  return { ok: true, message: `${(data as { sent?: number } | null)?.sent ?? 0} held item(s) sent to the kitchen.` };
+}
+
 export async function cancelItem(input: { orderId: string; itemId: string; qty: number; reason: string }): Promise<ActionResult> {
   const reason = input.reason.trim();
   if (reason.length < 3) return { ok: false, error: "Write a short reason for cancelling the item." };

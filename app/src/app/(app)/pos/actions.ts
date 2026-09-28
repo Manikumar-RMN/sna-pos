@@ -7,7 +7,7 @@ import type { Json } from "@/lib/supabase/database.types";
 
 export type Senior = { kind: "senior" | "pwd"; count: number; diners: number; name: string; id_no: string };
 
-export type CartItem = { product_id: string; qty: number; note?: string; options?: string[] };
+export type CartItem = { product_id: string; qty: number; note?: string; options?: string[]; hold?: boolean };
 
 export type CartInput = {
   items: CartItem[];
@@ -52,7 +52,7 @@ export type Quote = {
 export type PlaceOrderResult = { ok: true; orderId: string; billNumber: string } | { ok: false; error: string };
 
 function itemsJson(items: CartItem[]) {
-  return items.map((i) => ({ product_id: i.product_id, qty: i.qty, note: i.note ?? "", options: i.options ?? [] })) as unknown as Json;
+  return items.map((i) => ({ product_id: i.product_id, qty: i.qty, note: i.note ?? "", options: i.options ?? [], hold: !!i.hold })) as unknown as Json;
 }
 
 function cartArgs(input: CartInput) {

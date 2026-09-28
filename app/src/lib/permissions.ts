@@ -41,6 +41,7 @@ export function rightGroups(taxName = "tax"): RightGroup[] {
       rights: [
         { key: "menu.manage", label: "Add and edit dishes" },
         { key: "menu.price_change", label: "Change prices" },
+        { key: "stock.manage", label: "Stock, purchases and recipes" },
       ],
     },
     {

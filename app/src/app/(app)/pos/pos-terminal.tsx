@@ -29,7 +29,7 @@ type MenuItem = {
 type PaymentMethod = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type Table = { id: string; number: string; busy: boolean; openBillId: string | null; openBillNumber: string | null };
 type ChosenOption = { id: string; name: string; price: number };
-type CartLine = { key: string; item: MenuItem; qty: number; options: ChosenOption[]; note: string };
+type CartLine = { key: string; item: MenuItem; qty: number; options: ChosenOption[]; note: string; hold?: boolean };
 
 /** One-tap kitchen notes; staff can also type their own. */
 const QUICK_NOTES = ["No onion", "No garlic", "Less spicy", "Extra spicy", "Less oil", "Parcel"];
@@ -118,7 +118,7 @@ export function PosTerminal({
 
   const qtyInCart = (productId: string) => lines.filter((l) => l.item.id === productId).reduce((s, l) => s + l.qty, 0);
   const itemsPayload = () =>
-    lines.map((l) => ({ product_id: l.item.id, qty: l.qty, options: l.options.map((o) => o.id), note: l.note.trim() || undefined }));
+    lines.map((l) => ({ product_id: l.item.id, qty: l.qty, options: l.options.map((o) => o.id), note: l.note.trim() || undefined, hold: !!l.hold }));
 
   // Ask the database for the exact bill whenever the cart changes (new bills only).
   // Replies that arrive out of order are ignored.
@@ -242,11 +242,14 @@ export function PosTerminal({
     setCart((c) => {
       // Same item again goes onto the line without a note; a line with a kitchen
       // note ("no onion") stays separate so the kitchen sees exactly which one.
-      const plain = Object.values(c).find((l) => l.key.split("#")[0] === base && l.note.trim() === "");
+      const plain = Object.values(c).find((l) => l.key.split("#")[0] === base && l.note.trim() === "" && !l.hold);
       if (plain) return { ...c, [plain.key]: { ...plain, qty: plain.qty + 1 } };
       const key = c[base] ? `${base}#${Date.now()}` : base;
       return { ...c, [key]: { key, item, options, qty: 1, note: "" } };
     });
+  }
+  function toggleHold(key: string) {
+    setCart((c) => (c[key] ? { ...c, [key]: { ...c[key], hold: !c[key].hold } } : c));
   }
   function setNote(key: string, note: string) {
     setCart((c) => (c[key] ? { ...c, [key]: { ...c[key], note: note.slice(0, 200) } } : c));
@@ -455,7 +458,21 @@ export function PosTerminal({
         </div>
       </div>
 
-      <div className="lg:sticky lg:top-4 lg:self-start">
+      {lines.length > 0 && (
+        <button
+          type="button"
+          className="fixed inset-x-3 bottom-3 z-40 flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold shadow-lg lg:hidden"
+          style={{ background: "var(--color-brand)", color: "#fff" }}
+          onClick={() => document.getElementById("cart")?.scrollIntoView({ behavior: "smooth" })}
+        >
+          <span>
+            View order · {lines.reduce((s, l) => s + l.qty, 0)} item{lines.reduce((s, l) => s + l.qty, 0) === 1 ? "" : "s"}
+          </span>
+          <span>{quote ? m(due) : m(addSubtotal)}</span>
+        </button>
+      )}
+
+      <div id="cart" className="scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0">
         <div className="card flex max-h-[calc(100vh-2rem)] flex-col">
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
             <div className="text-sm font-bold">{addTo ? "Items to add" : "Current bill"}</div>
@@ -571,14 +588,28 @@ export function PosTerminal({
                       </div>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      className="mt-1 text-left text-[11px] font-semibold"
-                      style={{ color: l.note ? "var(--color-warn)" : "var(--color-ink-3)" }}
-                      onClick={() => setNoteOpen(l.key)}
-                    >
-                      {l.note ? `Note: ${l.note}` : "+ Kitchen note"}
-                    </button>
+                    <div className="mt-1 flex items-center gap-3">
+                      <button
+                        type="button"
+                        className="text-left text-[11px] font-semibold"
+                        style={{ color: l.note ? "var(--color-warn)" : "var(--color-ink-3)" }}
+                        onClick={() => setNoteOpen(l.key)}
+                      >
+                        {l.note ? `Note: ${l.note}` : "+ Kitchen note"}
+                      </button>
+                      {!offline && (
+                        <button
+                          type="button"
+                          className="rounded-md px-1.5 text-[11px] font-semibold"
+                          aria-pressed={!!l.hold}
+                          style={l.hold ? { background: "var(--color-warn-soft)", color: "var(--color-warn)" } : { color: "var(--color-ink-3)" }}
+                          onClick={() => toggleHold(l.key)}
+                          title="Hold for the next course; send it to the kitchen from the bill later"
+                        >
+                          {l.hold ? "Held — next course" : "Hold"}
+                        </button>
+                      )}
+                    </div>
                   )}
                   </li>
                 ))}
