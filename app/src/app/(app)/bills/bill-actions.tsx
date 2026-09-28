@@ -47,6 +47,7 @@ export function BillActions({
   tableId,
   tables,
   otherBills,
+  canMerge = true,
 }: {
   orderId: string;
   billNumber: string;
@@ -83,6 +84,8 @@ export function BillActions({
   tableId: string | null;
   tables: TableOpt[];
   otherBills: OtherBill[];
+  /** Professional: join two tables into one bill. */
+  canMerge?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -347,7 +350,7 @@ export function BillActions({
             </Link>
             <PanelButton label="Split bill" active={panel === "split"} onClick={() => setPanel(panel === "split" ? null : "split")} />
             <PanelButton label="Move table" active={panel === "move"} onClick={() => setPanel(panel === "move" ? null : "move")} />
-            <PanelButton label="Merge bills" active={panel === "merge"} onClick={() => setPanel(panel === "merge" ? null : "merge")} />
+            {canMerge && <PanelButton label="Merge bills" active={panel === "merge"} onClick={() => setPanel(panel === "merge" ? null : "merge")} />}
             {showAdjust && (
               <PanelButton
                 label={adjust?.scAvailable ? "Discount / service" : "Discount"}

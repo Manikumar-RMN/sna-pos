@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { can, requireUser } from "@/lib/auth";
+import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { OpenShiftForm } from "../shift/shift-panel";
 import { PosTerminal, type AddTo, type OptionGroup } from "./pos-terminal";
@@ -166,6 +166,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
         openBillNumber: openByTable.get(t.id)?.bill ?? null,
       }))}
       addTo={addTo}
+      allowHold={has(user, "courses")}
     />
   );
 }

@@ -1,4 +1,5 @@
-import { can, requireUser } from "@/lib/auth";
+import { can, has, requireUser } from "@/lib/auth";
+import { UpgradeNote } from "../upgrade-note";
 import { createClient } from "@/lib/supabase/server";
 import { todayIn, addDays } from "@/lib/format";
 import { StockManager, type Level, type FoodCost } from "./stock-manager";
@@ -9,6 +10,13 @@ export default async function StockPage() {
     return (
       <div className="card mx-auto max-w-md p-5 text-sm" style={{ color: "var(--color-ink-2)" }}>
         Your role does not include stock. An owner can give the &ldquo;Manage stock&rdquo; right in Settings → Security profiles.
+      </div>
+    );
+  }
+  if (!has(user, "stock")) {
+    return (
+      <div className="mx-auto max-w-md">
+        <UpgradeNote feature="Stock and recipes" />
       </div>
     );
   }

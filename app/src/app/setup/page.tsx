@@ -14,6 +14,11 @@ export default async function SetupPage() {
   if (state === "active") redirect("/dashboard");
   if (state === "device_locked" || state === "device_removed") redirect("/counter");
   if (state === "must_change_password") redirect("/account/password");
+  // SNA staff without a restaurant of their own work in the SNA console.
+  if (state === "new") {
+    const { data: sna } = await supabase.rpc("sna_me");
+    if (sna) redirect("/sna");
+  }
 
   const { data: countries } = await supabase
     .from("countries")

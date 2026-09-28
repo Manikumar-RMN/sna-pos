@@ -18,6 +18,12 @@ export type CurrentUser = {
   must_change_password: boolean | null;
   /** Set when this is a shared counter tablet unlocked with a PIN. */
   device_name: string | null;
+  /** "basic" or "professional". */
+  edition: string;
+  /** Professional features and add-on modules switched on for this restaurant. */
+  features: string[];
+  /** This person also works for SNA (sales, implementer, support, admin). */
+  is_sna_staff: boolean;
 };
 
 /**
@@ -67,4 +73,12 @@ export async function requireUser(): Promise<CurrentUser> {
  */
 export function can(user: CurrentUser, permission: string): boolean {
   return user.permissions?.includes(permission) ?? false;
+}
+
+/**
+ * Is a Professional feature or paid add-on switched on for this restaurant?
+ * The database refuses the action anyway; this keeps the screens tidy.
+ */
+export function has(user: CurrentUser, feature: string): boolean {
+  return user.features?.includes(feature) ?? false;
 }

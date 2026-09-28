@@ -1479,6 +1479,30 @@ export type Database = {
           },
         ]
       }
+      modules: {
+        Row: {
+          description: string
+          display_order: number
+          key: string
+          kind: string
+          name: string
+        }
+        Insert: {
+          description: string
+          display_order?: number
+          key: string
+          kind: string
+          name: string
+        }
+        Update: {
+          description?: string
+          display_order?: number
+          key?: string
+          kind?: string
+          name?: string
+        }
+        Relationships: []
+      }
       offline_series: {
         Row: {
           branch_id: string
@@ -2362,6 +2386,141 @@ export type Database = {
           },
         ]
       }
+      plan_prices: {
+        Row: {
+          currency_code: string
+          item: string
+          monthly_price: number | null
+        }
+        Insert: {
+          currency_code: string
+          item: string
+          monthly_price?: number | null
+        }
+        Update: {
+          currency_code?: string
+          item?: string
+          monthly_price?: number | null
+        }
+        Relationships: []
+      }
+      plan_requests: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          done_at: string | null
+          done_by: string | null
+          id: string
+          kind: string
+          module_key: string | null
+          note: string | null
+          outlet_city: string | null
+          outlet_name: string | null
+          requested_by_staff: string | null
+          requested_by_user: string | null
+          restaurant_id: string
+          status: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          kind: string
+          module_key?: string | null
+          note?: string | null
+          outlet_city?: string | null
+          outlet_name?: string | null
+          requested_by_staff?: string | null
+          requested_by_user?: string | null
+          restaurant_id: string
+          status?: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          kind?: string
+          module_key?: string | null
+          note?: string | null
+          outlet_city?: string | null
+          outlet_name?: string | null
+          requested_by_staff?: string | null
+          requested_by_user?: string | null
+          restaurant_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_requests_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_requests_done_by_fkey"
+            columns: ["done_by"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_requests_module_key_fkey"
+            columns: ["module_key"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "plan_requests_requested_by_staff_fkey"
+            columns: ["requested_by_staff"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_requests_requested_by_user_fkey"
+            columns: ["requested_by_user"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_requests_requested_by_user_fkey"
+            columns: ["requested_by_user"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "plan_requests_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       printers: {
         Row: {
           address: string | null
@@ -2758,6 +2917,42 @@ export type Database = {
           },
         ]
       }
+      restaurant_modules: {
+        Row: {
+          enabled_at: string
+          enabled_by: string | null
+          module_key: string
+          restaurant_id: string
+        }
+        Insert: {
+          enabled_at?: string
+          enabled_by?: string | null
+          module_key: string
+          restaurant_id: string
+        }
+        Update: {
+          enabled_at?: string
+          enabled_by?: string | null
+          module_key?: string
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_modules_module_key_fkey"
+            columns: ["module_key"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "restaurant_modules_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurants: {
         Row: {
           contact_email: string | null
@@ -2766,6 +2961,7 @@ export type Database = {
           created_at: string
           currency_code: string
           deleted_at: string | null
+          edition: string
           fssai_no: string | null
           id: string
           legal_name: string
@@ -2784,6 +2980,7 @@ export type Database = {
           created_at?: string
           currency_code: string
           deleted_at?: string | null
+          edition?: string
           fssai_no?: string | null
           id?: string
           legal_name: string
@@ -2802,6 +2999,7 @@ export type Database = {
           created_at?: string
           currency_code?: string
           deleted_at?: string | null
+          edition?: string
           fssai_no?: string | null
           id?: string
           legal_name?: string
@@ -3006,6 +3204,36 @@ export type Database = {
           },
         ]
       }
+      sna_staff: {
+        Row: {
+          auth_user_id: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean
+          role: string
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          is_active?: boolean
+          role: string
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          role?: string
+        }
+        Relationships: []
+      }
       staff_invites: {
         Row: {
           code_hash: string
@@ -3126,6 +3354,65 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ingredients"
             referencedColumns: ["restaurant_id", "id"]
+          },
+        ]
+      }
+      subscription_events: {
+        Row: {
+          created_at: string
+          details: Json
+          event: string
+          id: string
+          restaurant_id: string | null
+          staff_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          event: string
+          id?: string
+          restaurant_id?: string | null
+          staff_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          event?: string
+          id?: string
+          restaurant_id?: string | null
+          staff_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_events_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -3478,9 +3765,12 @@ export type Database = {
           country_code: string | null
           currency_code: string | null
           device_name: string | null
+          edition: string | null
           email: string | null
           employee_code: string | null
+          features: string[] | null
           full_name: string | null
+          is_sna_staff: boolean | null
           must_change_password: boolean | null
           permissions: string[] | null
           restaurant_id: string | null
@@ -3602,6 +3892,7 @@ export type Database = {
         Args: { p_order_item_id: string; p_qty: number; p_reason: string }
         Returns: Json
       }
+      cancel_plan_request: { Args: { p_id: string }; Returns: undefined }
       change_payment_method: {
         Args: { p_method_id: string; p_payment_id: string; p_reason: string }
         Returns: Json
@@ -3687,6 +3978,7 @@ export type Database = {
       }
       my_account_state: { Args: never; Returns: string }
       my_device_state: { Args: never; Returns: Json }
+      my_plan: { Args: never; Returns: Json }
       offline_snapshot: { Args: { p_device_key: string }; Returns: Json }
       open_shift: { Args: { p_opening_float?: number }; Returns: string }
       password_changed: { Args: never; Returns: undefined }
@@ -3741,6 +4033,16 @@ export type Database = {
         Returns: undefined
       }
       reopen_day: { Args: { p_reason: string }; Returns: Json }
+      request_plan_change: {
+        Args: {
+          p_kind: string
+          p_module?: string
+          p_note?: string
+          p_outlet_city?: string
+          p_outlet_name?: string
+        }
+        Returns: string
+      }
       sales_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       save_ingredient: {
         Args: {
@@ -3799,6 +4101,64 @@ export type Database = {
         Returns: Json
       }
       shift_report: { Args: { p_shift_id: string }; Returns: Json }
+      sna_add_request: {
+        Args: {
+          p_kind: string
+          p_module?: string
+          p_note?: string
+          p_outlet_city?: string
+          p_outlet_name?: string
+          p_restaurant: string
+        }
+        Returns: string
+      }
+      sna_create_outlet: {
+        Args: {
+          p_address?: string
+          p_city: string
+          p_code: string
+          p_name: string
+          p_phone?: string
+          p_request: string
+          p_timezone?: string
+        }
+        Returns: string
+      }
+      sna_decide_request: {
+        Args: { p_approve: boolean; p_id: string; p_note?: string }
+        Returns: undefined
+      }
+      sna_me: { Args: never; Returns: Json }
+      sna_requests: { Args: { p_status?: string }; Returns: Json }
+      sna_restaurant: { Args: { p_id: string }; Returns: Json }
+      sna_restaurants: { Args: { p_search?: string }; Returns: Json }
+      sna_save_staff: {
+        Args: {
+          p_active?: boolean
+          p_email: string
+          p_full_name: string
+          p_role: string
+        }
+        Returns: string
+      }
+      sna_set_edition: {
+        Args: { p_edition: string; p_note?: string; p_restaurant: string }
+        Returns: undefined
+      }
+      sna_set_module: {
+        Args: {
+          p_module: string
+          p_note?: string
+          p_on: boolean
+          p_restaurant: string
+        }
+        Returns: undefined
+      }
+      sna_set_price: {
+        Args: { p_currency: string; p_item: string; p_price: number }
+        Returns: undefined
+      }
+      sna_staff_list: { Args: never; Returns: Json }
       split_order: {
         Args: { p_items: Json; p_order_id: string }
         Returns: Json

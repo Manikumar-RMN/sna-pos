@@ -59,6 +59,7 @@ export function MenuManager({
   taxGroups,
   optionGroups,
   productGroups,
+  showStations = true,
 }: {
   canManage: boolean;
   currency: string;
@@ -67,6 +68,8 @@ export function MenuManager({
   taxGroups: TaxGroup[];
   optionGroups: OptionGroupView[];
   productGroups: Record<string, string[]>;
+  /** Professional: kitchen station per item. */
+  showStations?: boolean;
 }) {
   const [editing, setEditing] = useState<Product | null>(null);
   const [addingIn, setAddingIn] = useState<string | null>(null); // category id
@@ -103,7 +106,7 @@ export function MenuManager({
   }
 
   return (
-    <div className="space-y-5">
+    <div className={showStations ? "space-y-5" : "space-y-5 hide-stations"}>
       {categories.length === 0 && (
         <div className="card p-5">
           <p className="text-sm" style={{ color: "var(--color-ink-2)" }}>
@@ -453,7 +456,7 @@ function ProductModal({
           </div>
         </div>
 
-        <div className="mb-4">
+        <div className="station-field mb-4">
           <label className="mb-1.5 block text-sm font-semibold">Kitchen station</label>
           <input
             name="kitchen_station"

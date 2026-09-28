@@ -54,6 +54,7 @@ export function PosTerminal({
   paymentMethods,
   tables,
   addTo,
+  allowHold = false,
 }: {
   currency: string;
   canDiscount: boolean;
@@ -70,6 +71,8 @@ export function PosTerminal({
   tables: Table[];
   /** When set, the screen adds items to this open bill instead of making a new one. */
   addTo: AddTo | null;
+  /** Professional: hold items for the next course. */
+  allowHold?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -597,7 +600,7 @@ export function PosTerminal({
                       >
                         {l.note ? `Note: ${l.note}` : "+ Kitchen note"}
                       </button>
-                      {!offline && (
+                      {!offline && allowHold && (
                         <button
                           type="button"
                           className="rounded-md px-1.5 text-[11px] font-semibold"

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { can, requireUser } from "@/lib/auth";
+import { can, has, requireUser } from "@/lib/auth";
 import { getBill } from "@/lib/bill";
 import { createClient } from "@/lib/supabase/server";
 import { dateTime, money } from "@/lib/format";
@@ -105,6 +105,7 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
         methods={methods ?? []}
         canPay={can(user, "payment.take")}
         canVoid={can(user, "order.void")}
+        canMerge={has(user, "merge")}
         canDiscount={can(user, "order.discount")}
         adjust={bill.adjust}
         canChangeMode={can(user, "payment.change_mode")}

@@ -1,4 +1,5 @@
-import { can, requireUser } from "@/lib/auth";
+import { can, has, requireUser } from "@/lib/auth";
+import { UpgradeNote } from "../../upgrade-note";
 import { createClient } from "@/lib/supabase/server";
 import { rightGroups, sortRoles } from "@/lib/permissions";
 import { NoAccess, SectionHead } from "../section-head";
@@ -7,6 +8,16 @@ import { SecurityEditor } from "./security-editor";
 export default async function SecuritySettings() {
   const user = await requireUser();
   if (!can(user, "user.manage")) return <NoAccess />;
+  if (!has(user, "custom_roles")) {
+    return (
+      <div>
+        <SectionHead title="Security profiles">
+          Basic comes with ready-made roles: Owner, Manager, Cashier, Steward and Chef. Give each person a role on the Users page.
+        </SectionHead>
+        <UpgradeNote feature="Custom security profiles" />
+      </div>
+    );
+  }
   const supabase = await createClient();
   const [{ data: roles }, { data: users }, { data: country }] = await Promise.all([
     supabase.from("roles").select("id, name, is_system, role_permissions(permission_key)"),

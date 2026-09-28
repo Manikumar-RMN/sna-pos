@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { can, requireUser } from "@/lib/auth";
+import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, dateTime, isYmd, longDate, money, orderTypeLabel, todayIn } from "@/lib/format";
 import { CsvButton } from "./csv-button";
@@ -93,7 +93,7 @@ export default async function ReportsPage({
 
   const supabase = await createClient();
   const showRegister = user.country_code === "IN" && can(user, "report.view_financial");
-  const showJournal = can(user, "report.view_financial");
+  const showJournal = can(user, "report.view_financial") && has(user, "accounting");
   const [{ data, error }, { data: settleData }, { data: registerData }, { data: journalData }] = await Promise.all([
     supabase.rpc("sales_report", { p_from: from, p_to: to }),
     supabase.rpc("settlement_report", { p_from: from, p_to: to }),

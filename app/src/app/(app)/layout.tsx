@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { can, requireUser } from "@/lib/auth";
+import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { lockCounter } from "@/app/counter/actions";
@@ -39,7 +39,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     { href: "/kitchen", label: "Kitchen", show: true },
     { href: "/shift", label: "Shift", show: can(user, "shift.open") || can(user, "shift.close") || can(user, "cash.movement") },
     { href: "/reports", label: "Reports", show: can(user, "report.view_sales") },
-    { href: "/stock", label: "Stock", show: can(user, "stock.manage") },
+    { href: "/stock", label: "Stock", show: can(user, "stock.manage") && has(user, "stock") },
     // Menu, users and security profiles live inside Settings.
     { href: "/settings", label: "Settings", show: true },
   ]
@@ -60,6 +60,11 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       </>
     ) : (
       <>
+        {user.is_sna_staff && (
+          <Link href="/sna" className="text-xs font-bold" style={{ color: onGreen ? "#fff" : "var(--color-brand)" }}>
+            SNA console
+          </Link>
+        )}
         <Link
           href="/account/password"
           className="hidden text-xs font-semibold sm:inline"

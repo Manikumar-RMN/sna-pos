@@ -1,4 +1,4 @@
-import { can, requireUser } from "@/lib/auth";
+import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { MenuManager, type OptionGroupView } from "../../menu/menu-manager";
 
@@ -48,6 +48,7 @@ export default async function MenuPage() {
         taxGroups={taxGroups ?? []}
         optionGroups={optionGroups}
         productGroups={productGroups}
+        showStations={has(user, "kitchen_stations")}
       />
     </div>
   );
