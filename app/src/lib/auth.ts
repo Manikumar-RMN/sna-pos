@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,7 +26,9 @@ export type CurrentUser = {
  * Returns null when the account exists in Auth but has no restaurant yet —
  * a brand-new signup that has not been through /setup.
  */
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+// cache(): the layout and the page both ask "who is signed in?" on every screen;
+// this makes it one database trip per request instead of two.
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<CurrentUser | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("v_current_user")
@@ -34,7 +37,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   if (error || !data) return null;
   return data as CurrentUser;
-}
+});
 
 /**
  * Use in any page that requires a set-up restaurant. A locked counter tablet
