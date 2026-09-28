@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { money, orderTypeLabel } from "@/lib/format";
+import { UpiQr } from "../upi-qr";
 
 export type ReceiptData = {
   invoiceTitle: string | null;
@@ -46,6 +47,8 @@ export type ReceiptData = {
   state: "paid" | "unpaid" | "part-paid" | "voided" | "refunded" | "part-refunded";
   voidReason: string | null;
   footer: string | null;
+  /** India: the restaurant's UPI ID, for a scan-to-pay QR on unpaid bills. */
+  upi?: { id: string; payee: string } | null;
 };
 
 export function ReceiptView({
@@ -236,6 +239,15 @@ export function ReceiptView({
                 </div>
               </div>
             )}
+          </>
+        )}
+
+        {data.upi && (data.state === "unpaid" || data.state === "part-paid") && data.balance > 0 && (
+          <>
+            <Rule />
+            <div className="flex justify-center py-1">
+              <UpiQr upiId={data.upi.id} payee={data.upi.payee} amount={data.balance} note={`Bill ${data.billNumber}`} size={140} />
+            </div>
           </>
         )}
 

@@ -20,6 +20,7 @@ export function rightGroups(taxName = "tax"): RightGroup[] {
       name: "Payments",
       rights: [
         { key: "payment.take", label: "Take payment" },
+        { key: "payment.change_mode", label: "Change payment mode on a paid bill", hint: "While the shift is open" },
         { key: "cash.movement", label: "Cash in / out of the drawer" },
         { key: "order.refund", label: "Refund bills", hint: "Refunds are switched off for now" },
       ],

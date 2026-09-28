@@ -94,8 +94,17 @@ export async function setPaymentMethod(id: string, active: boolean): Promise<Res
   return done(active ? "Payment method switched on." : "Payment method switched off.");
 }
 
-/** "Ask for a reference" (UPI transaction ID, card last 4) and the UPI ID shown to customers. */
-export async function savePaymentOptions(id: string, askReference: boolean, upiId: string): Promise<Result> {
+/**
+ * Add (id null) or change a payment method: its name, kind, "ask for a reference"
+ * (UPI transaction ID, card last 4) and the UPI ID used for the scan-to-pay QR.
+ */
+export async function savePaymentOptions(
+  id: string | null,
+  askReference: boolean,
+  upiId: string,
+  name?: string,
+  kind?: string,
+): Promise<Result> {
   const user = await getCurrentUser();
   if (!user || !can(user, "settings.manage")) return { ok: false, error: "Only an owner or manager can change payment methods." };
   const upi = upiId.trim();
@@ -103,9 +112,23 @@ export async function savePaymentOptions(id: string, askReference: boolean, upiI
     return { ok: false, error: "A UPI ID looks like yourshop@okbank." };
   }
   const supabase = await createClient();
-  const { error } = await supabase.from("payment_methods").update({ ask_reference: askReference, upi_id: upi || null }).eq("id", id);
+  let finalName = name?.trim() ?? "";
+  let finalKind = kind ?? "";
+  if (id && (!finalName || !finalKind)) {
+    const { data: cur } = await supabase.from("payment_methods").select("name, kind").eq("id", id).maybeSingle();
+    if (!cur) return { ok: false, error: "Payment method not found." };
+    finalName = finalName || cur.name;
+    finalKind = finalKind || cur.kind;
+  }
+  const { error } = await supabase.rpc("save_payment_method", {
+    p_id: id as string,
+    p_name: finalName,
+    p_kind: finalKind,
+    p_ask_reference: askReference,
+    p_upi_id: upi || undefined,
+  });
   if (error) return { ok: false, error: error.message };
-  return done("Payment method saved.");
+  return done(id ? "Payment method saved." : `${finalName} added.`);
 }
 
 /* ---------- shared counter tablets ---------- */

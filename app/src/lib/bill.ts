@@ -21,6 +21,10 @@ export type BillDetail = {
   tableId: string | null;
   hasDiscount: boolean;
   mergedInto: string | null;
+  /** Payments on the bill, for "change payment mode". */
+  paymentList: { id: string; methodId: string; methodName: string; amount: number; rounded: boolean }[];
+  /** Discount and service charge as they stand on an open bill. */
+  adjust: { discount: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
 };
 
 /**
@@ -36,13 +40,13 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into",
+      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into, calc_params",
     )
     .eq("id", orderId)
     .maybeSingle();
   if (!order) return null;
 
-  const [items, taxes, payments, refunds, restaurant, branch, settings, table, discounts] = await Promise.all([
+  const [items, taxes, payments, refunds, restaurant, branch, settings, table, discounts, upiMethod] = await Promise.all([
     supabase
       .from("order_items")
       .select("id, product_name, options_text, quantity, unit_price, line_subtotal, net_amount, created_at, cancelled_at, cancelled_qty, cancel_reason")
@@ -52,7 +56,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     supabase.from("order_item_taxes").select("component_name, rate, tax_amount").eq("order_id", order.id),
     supabase
       .from("payments")
-      .select("amount, tendered_amount, change_amount, rounding_adjustment, payment_method_id, created_at")
+      .select("id, amount, tendered_amount, change_amount, rounding_adjustment, payment_method_id, created_at")
       .eq("order_id", order.id)
       .in("status", ["captured", "refunded"])
       .order("created_at"),
@@ -65,13 +69,14 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     supabase.from("branches").select("name, address_line1, address_line2, city, phone").eq("id", order.branch_id).maybeSingle(),
     supabase
       .from("branch_settings")
-      .select("receipt_header, receipt_footer, service_charge_label, cash_rounding_mode, rounding_cash_only")
+      .select("receipt_header, receipt_footer, service_charge_label, service_charge_percent, cash_rounding_mode, rounding_cash_only")
       .eq("branch_id", order.branch_id)
       .maybeSingle(),
     order.dining_table_id
       ? supabase.from("dining_tables").select("table_number").eq("id", order.dining_table_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from("order_discounts").select("discount_type, amount").eq("order_id", order.id),
+    supabase.from("payment_methods").select("upi_id").eq("kind", "upi").eq("is_active", true).not("upi_id", "is", null).limit(1).maybeSingle(),
   ]);
 
   const { data: country } = restaurant.data?.country_code
@@ -173,6 +178,10 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     state: billState(order.status, order.payment_status),
     voidReason: order.void_reason,
     footer: settings.data?.receipt_footer ?? null,
+    upi:
+      restaurant.data?.country_code === "IN" && upiMethod.data?.upi_id
+        ? { id: upiMethod.data.upi_id, payee: restaurant.data?.trading_name ?? "Restaurant" }
+        : null,
   };
 
   return {
@@ -200,5 +209,24 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     tableId: order.dining_table_id,
     hasDiscount: Number(order.discount_total) > 0 || !!sd?.name,
     mergedInto: order.merged_into,
+    paymentList: paymentRows.map((p) => ({
+      id: p.id,
+      methodId: p.payment_method_id,
+      methodName: methodName(p.payment_method_id),
+      amount: Number(p.amount),
+      rounded: Math.abs(Number(p.rounding_adjustment ?? 0)) >= 0.005,
+    })),
+    adjust: (() => {
+      const cp = (order.calc_params ?? {}) as { discount?: number | string; sc_percent?: number | string };
+      const scPercent = Number(settings.data?.service_charge_percent ?? 0);
+      return {
+        discount: Number(cp.discount ?? 0),
+        scAvailable: scPercent > 0,
+        scOn: Number(cp.sc_percent ?? 0) > 0,
+        scPercent,
+        scLabel: settings.data?.service_charge_label ?? "Service charge",
+        senior: !!sd?.name,
+      };
+    })(),
   };
 }

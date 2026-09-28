@@ -478,6 +478,9 @@ type MethodView = { id: string; name: string; kind: string; is_active: boolean; 
 export function PaymentMethodsForm({ methods, canEdit }: { methods: MethodView[]; canEdit: boolean }) {
   const { pending, msg, run } = useRunner();
   const [open, setOpen] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newKind, setNewKind] = useState("wallet");
   return (
     <section className="card p-5">
       <h2 className="text-base font-bold">Payment methods</h2>
@@ -508,11 +511,52 @@ export function PaymentMethodsForm({ methods, canEdit }: { methods: MethodView[]
             </button>
             </div>
             {open === pm.id && (
-              <MethodOptions method={pm} canEdit={canEdit} pending={pending} onSave={(ask, upi) => run(() => savePaymentOptions(pm.id, ask, upi))} />
+              <MethodOptions method={pm} canEdit={canEdit} pending={pending} onSave={(ask, upi, name, kind) => run(() => savePaymentOptions(pm.id, ask, upi, name, kind))} />
             )}
           </li>
         ))}
       </ul>
+      {canEdit &&
+        (adding ? (
+          <div className="mt-3 space-y-2 rounded-lg p-3" style={{ background: "var(--color-ground)" }}>
+            <Field label="Name the customer sees on the bill" hint="e.g. Paytm, GCash, GrabPay, Swiggy Dineout, Company account">
+              <input className="field h-10 text-sm" value={newName} maxLength={30} onChange={(e) => setNewName(e.target.value)} placeholder="Paytm" />
+            </Field>
+            <Field label="Kind">
+              <select className="field h-10 text-sm" value={newKind} onChange={(e) => setNewKind(e.target.value)}>
+                {PAYMENT_KINDS.map(([k, label]) => (
+                  <option key={k} value={k}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div className="flex gap-2">
+              <button className="btn h-9 border px-4 text-xs" style={{ borderColor: "var(--color-line)" }} onClick={() => setAdding(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary h-9 px-4 text-xs"
+                disabled={pending || !newName.trim()}
+                onClick={() =>
+                  run(
+                    () => savePaymentOptions(null, newKind !== "cash", "", newName, newKind),
+                    () => {
+                      setAdding(false);
+                      setNewName("");
+                    },
+                  )
+                }
+              >
+                Add payment method
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="btn mt-3 h-9 border px-4 text-xs" style={{ borderColor: "var(--color-line)" }} onClick={() => setAdding(true)}>
+            + Add payment method
+          </button>
+        ))}
       <p className="mt-3 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
         Connect a payment gateway (card machine or UPI collect): available later. It needs a merchant account with the provider.
       </p>
@@ -521,12 +565,47 @@ export function PaymentMethodsForm({ methods, canEdit }: { methods: MethodView[]
   );
 }
 
-function MethodOptions({ method, canEdit, pending, onSave }: { method: MethodView; canEdit: boolean; pending: boolean; onSave: (ask: boolean, upi: string) => void }) {
+const PAYMENT_KINDS: [string, string][] = [
+  ["cash", "Cash (goes in the drawer)"],
+  ["upi", "UPI"],
+  ["card", "Card"],
+  ["wallet", "E-wallet (Paytm, GCash, GrabPay…)"],
+  ["bank_transfer", "Bank transfer"],
+  ["other", "Other (voucher, company account…)"],
+];
+
+function MethodOptions({
+  method,
+  canEdit,
+  pending,
+  onSave,
+}: {
+  method: MethodView;
+  canEdit: boolean;
+  pending: boolean;
+  onSave: (ask: boolean, upi: string, name: string, kind: string) => void;
+}) {
   const [ask, setAsk] = useState(method.ask_reference);
   const [upi, setUpi] = useState(method.upi_id ?? "");
-  const isCash = method.kind === "cash";
+  const [name, setName] = useState(method.name);
+  const [kind, setKind] = useState(method.kind);
+  const isCash = kind === "cash";
   return (
     <div className="mt-2 space-y-2 rounded-lg p-3" style={{ background: "var(--color-ground)" }}>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Field label="Name">
+          <input className="field h-10 text-sm" value={name} maxLength={30} disabled={!canEdit} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="Kind">
+          <select className="field h-10 text-sm" value={kind} disabled={!canEdit} onChange={(e) => setKind(e.target.value)}>
+            {PAYMENT_KINDS.map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
       {isCash ? (
         <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
           Cash goes into the drawer and is counted at day close.
@@ -540,13 +619,13 @@ function MethodOptions({ method, canEdit, pending, onSave }: { method: MethodVie
           hint="e.g. the UPI transaction ID or the card's last 4 digits. Optional for the cashier; it appears in the settlement report."
         />
       )}
-      {method.kind === "upi" && (
-        <Field label="Your UPI ID (optional)" hint="Kept for when a UPI QR on the bill is added.">
+      {kind === "upi" && (
+        <Field label="Your UPI ID" hint="Bills and the pay screen then show a scan-to-pay QR for the exact amount.">
           <input className="field h-10 text-sm" value={upi} disabled={!canEdit} onChange={(e) => setUpi(e.target.value)} placeholder="yourshop@okbank" />
         </Field>
       )}
-      {canEdit && !isCash && (
-        <button className="btn btn-primary h-9 px-4 text-xs" disabled={pending} onClick={() => onSave(ask, upi)}>
+      {canEdit && (
+        <button className="btn btn-primary h-9 px-4 text-xs" disabled={pending || !name.trim()} onClick={() => onSave(ask, upi, name, kind)}>
           Save
         </button>
       )}

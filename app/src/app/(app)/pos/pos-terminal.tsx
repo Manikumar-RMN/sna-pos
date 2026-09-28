@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money, roundCash } from "@/lib/format";
+import { UpiQr } from "../upi-qr";
 import { addToBill, placeOrder, quoteOrder, type PlaceOrderInput, type Quote, type Senior } from "./actions";
 
 export type OptionGroup = {
@@ -22,10 +23,13 @@ type MenuItem = {
   is_veg: boolean | null;
   groups: OptionGroup[];
 };
-type PaymentMethod = { id: string; name: string; kind: string; ask_reference: boolean };
+type PaymentMethod = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type Table = { id: string; number: string; busy: boolean; openBillId: string | null; openBillNumber: string | null };
 type ChosenOption = { id: string; name: string; price: number };
-type CartLine = { key: string; item: MenuItem; qty: number; options: ChosenOption[] };
+type CartLine = { key: string; item: MenuItem; qty: number; options: ChosenOption[]; note: string };
+
+/** One-tap kitchen notes; staff can also type their own. */
+const QUICK_NOTES = ["No onion", "No garlic", "Less spicy", "Extra spicy", "Less oil", "Parcel"];
 export type AddTo = { id: string; billNumber: string; table: string | null };
 
 function lineKey(productId: string, options: ChosenOption[]) {
@@ -40,6 +44,7 @@ export function PosTerminal({
   canDiscount,
   canPay,
   showSenior,
+  upiPayee = null,
   pricesIncludeTax,
   taxName,
   menu,
@@ -53,6 +58,8 @@ export function PosTerminal({
   canPay: boolean;
   /** Philippines: senior citizen / PWD discount. */
   showSenior: boolean;
+  /** India: name shown in the customer's UPI app. Null hides the UPI QR. */
+  upiPayee?: string | null;
   pricesIncludeTax: boolean;
   taxName: string;
   menu: MenuItem[];
@@ -108,11 +115,12 @@ export function PosTerminal({
 
   const qtyInCart = (productId: string) => lines.filter((l) => l.item.id === productId).reduce((s, l) => s + l.qty, 0);
   const itemsPayload = () =>
-    lines.map((l) => ({ product_id: l.item.id, qty: l.qty, options: l.options.map((o) => o.id) }));
+    lines.map((l) => ({ product_id: l.item.id, qty: l.qty, options: l.options.map((o) => o.id), note: l.note.trim() || undefined }));
 
   // Ask the database for the exact bill whenever the cart changes (new bills only).
   // Replies that arrive out of order are ignored.
   const cartKey = JSON.stringify([lines.map((l) => [l.key, l.qty]), discountAmt, scChoice, senior]);
+  const [noteOpen, setNoteOpen] = useState<string | null>(null);
   useEffect(() => {
     if (addTo || lines.length === 0) {
       setQuote(null);
@@ -154,8 +162,18 @@ export function PosTerminal({
     else addLine(item, []);
   }
   function addLine(item: MenuItem, options: ChosenOption[]) {
-    const key = lineKey(item.id, options);
-    setCart((c) => ({ ...c, [key]: { key, item, options, qty: (c[key]?.qty ?? 0) + 1 } }));
+    const base = lineKey(item.id, options);
+    setCart((c) => {
+      // Same item again goes onto the line without a note; a line with a kitchen
+      // note ("no onion") stays separate so the kitchen sees exactly which one.
+      const plain = Object.values(c).find((l) => l.key.split("#")[0] === base && l.note.trim() === "");
+      if (plain) return { ...c, [plain.key]: { ...plain, qty: plain.qty + 1 } };
+      const key = c[base] ? `${base}#${Date.now()}` : base;
+      return { ...c, [key]: { key, item, options, qty: 1, note: "" } };
+    });
+  }
+  function setNote(key: string, note: string) {
+    setCart((c) => (c[key] ? { ...c, [key]: { ...c[key], note: note.slice(0, 200) } } : c));
   }
   function step(key: string, delta: number) {
     setCart((c) => {
@@ -346,7 +364,8 @@ export function PosTerminal({
             ) : (
               <ul>
                 {lines.map((l) => (
-                  <li key={l.key} className="flex items-center gap-2 border-b py-2 last:border-0" style={{ borderColor: "var(--color-line)" }}>
+                  <li key={l.key} className="border-b py-2 last:border-0" style={{ borderColor: "var(--color-line)" }}>
+                  <div className="flex items-center gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">{l.item.name}</div>
                       {l.options.length > 0 && (
@@ -368,6 +387,48 @@ export function PosTerminal({
                       </button>
                     </div>
                     <div className="w-20 text-right text-sm font-semibold">{m(Math.round(unitPrice(l) * l.qty * 100) / 100)}</div>
+                  </div>
+                  {noteOpen === l.key ? (
+                    <div className="mt-2 space-y-1.5">
+                      <input
+                        className="field h-9 text-sm"
+                        placeholder="Note for the kitchen, e.g. no onion"
+                        value={l.note}
+                        maxLength={200}
+                        autoFocus
+                        onChange={(e) => setNote(l.key, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") setNoteOpen(null);
+                        }}
+                        aria-label={`Kitchen note for ${l.item.name}`}
+                      />
+                      <div className="flex flex-wrap gap-1">
+                        {QUICK_NOTES.map((q) => (
+                          <button
+                            key={q}
+                            type="button"
+                            className="rounded-md border px-2 py-1 text-[11px] font-semibold"
+                            style={{ borderColor: "var(--color-line)" }}
+                            onClick={() => setNote(l.key, l.note.trim() ? (l.note.includes(q) ? l.note : `${l.note.trim()}, ${q}`) : q)}
+                          >
+                            {q}
+                          </button>
+                        ))}
+                        <button type="button" className="ml-auto rounded-md px-2 py-1 text-[11px] font-bold" style={{ color: "var(--color-brand-strong)" }} onClick={() => setNoteOpen(null)}>
+                          Done
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="mt-1 text-left text-[11px] font-semibold"
+                      style={{ color: l.note ? "var(--color-warn)" : "var(--color-ink-3)" }}
+                      onClick={() => setNoteOpen(l.key)}
+                    >
+                      {l.note ? `Note: ${l.note}` : "+ Kitchen note"}
+                    </button>
+                  )}
                   </li>
                 ))}
               </ul>
@@ -478,6 +539,14 @@ export function PosTerminal({
                     </button>
                   ))}
                 </div>
+                {(() => {
+                  const upi = paymentMethods.find((p) => p.id === methodId && p.kind === "upi" && p.upi_id);
+                  return upi?.upi_id && upiPayee && quote && due > 0 ? (
+                    <div className="mt-2 rounded-lg border p-2" style={{ borderColor: "var(--color-line)", background: "#fff" }}>
+                      <UpiQr upiId={upi.upi_id} payee={upiPayee} amount={due} note="Bill" size={132} />
+                    </div>
+                  ) : null;
+                })()}
                 {askRef && !isCash && (
                   <input
                     className="field mt-2 h-9 text-sm"

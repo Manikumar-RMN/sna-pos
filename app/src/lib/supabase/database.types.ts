@@ -3085,6 +3085,15 @@ export type Database = {
         Args: { p_items: Json; p_order_id: string }
         Returns: Json
       }
+      adjust_order: {
+        Args: {
+          p_discount_amount: number
+          p_discount_reason?: string
+          p_order_id: string
+          p_service_charge?: boolean
+        }
+        Returns: Json
+      }
       admin_reset_password: {
         Args: { p_new_password: string; p_user_id: string }
         Returns: undefined
@@ -3092,6 +3101,10 @@ export type Database = {
       cancel_invite: { Args: { p_user_id: string }; Returns: undefined }
       cancel_order_item: {
         Args: { p_order_item_id: string; p_qty: number; p_reason: string }
+        Returns: Json
+      }
+      change_payment_method: {
+        Args: { p_method_id: string; p_payment_id: string; p_reason: string }
         Returns: Json
       }
       claim_staff_invite: { Args: { p_code: string }; Returns: string }
@@ -3201,6 +3214,16 @@ export type Database = {
         Returns: undefined
       }
       sales_report: { Args: { p_from: string; p_to: string }; Returns: Json }
+      save_payment_method: {
+        Args: {
+          p_ask_reference?: boolean
+          p_id: string
+          p_kind: string
+          p_name: string
+          p_upi_id?: string
+        }
+        Returns: string
+      }
       save_role: {
         Args: { p_name: string; p_permissions: string[]; p_role_id: string }
         Returns: string

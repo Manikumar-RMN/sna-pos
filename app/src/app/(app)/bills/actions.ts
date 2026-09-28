@@ -46,6 +46,44 @@ export async function payBill(input: {
   return { ok: true, message: `Paid in full.${changeText}` };
 }
 
+/** Discount and / or service charge on an unpaid bill. The database checks the rights and recalculates. */
+export async function adjustBill(input: {
+  orderId: string;
+  discount: number;
+  reason: string | null;
+  serviceCharge: boolean | null;
+}): Promise<ActionResult> {
+  if (!(input.discount >= 0)) return { ok: false, error: "Enter a discount of zero or more." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("adjust_order", {
+    p_order_id: input.orderId,
+    p_discount_amount: Math.round(input.discount * 100) / 100,
+    p_discount_reason: input.reason?.trim() || undefined,
+    p_service_charge: input.serviceCharge ?? undefined,
+  });
+  if (error) return { ok: false, error: error.message };
+  refresh(input.orderId);
+  const res = (data ?? {}) as { changed?: boolean; grand_total?: number };
+  if (res.changed === false) return { ok: true, message: "Nothing changed." };
+  return { ok: true, message: `Bill updated. New total ${Number(res.grand_total ?? 0).toFixed(2)}.` };
+}
+
+/** Wrong payment mode on a paid bill (e.g. cash pressed, customer paid by UPI). Only while the shift is open. */
+export async function changePaymentMode(input: { orderId: string; paymentId: string; methodId: string; reason: string }): Promise<ActionResult> {
+  const reason = input.reason.trim();
+  if (reason.length < 3) return { ok: false, error: "Write a short reason for the change." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("change_payment_method", {
+    p_payment_id: input.paymentId,
+    p_method_id: input.methodId,
+    p_reason: reason,
+  });
+  if (error) return { ok: false, error: error.message };
+  refresh(input.orderId);
+  const res = (data ?? {}) as { from?: string; to?: string };
+  return { ok: true, message: `Payment changed from ${res.from ?? "—"} to ${res.to ?? "—"}.` };
+}
+
 export async function cancelItem(input: { orderId: string; itemId: string; qty: number; reason: string }): Promise<ActionResult> {
   const reason = input.reason.trim();
   if (reason.length < 3) return { ok: false, error: "Write a short reason for cancelling the item." };

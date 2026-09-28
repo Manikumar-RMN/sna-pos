@@ -4,13 +4,16 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money, roundCash } from "@/lib/format";
-import { cancelItem, mergeBills, moveTable, payBill, refundBill, splitBill, voidBill } from "./actions";
+import { UpiQr } from "../upi-qr";
+import { adjustBill, cancelItem, changePaymentMode, mergeBills, moveTable, payBill, refundBill, splitBill, voidBill } from "./actions";
 
-type Method = { id: string; name: string; kind: string; ask_reference: boolean };
+type Method = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
+type PaymentRow = { id: string; methodId: string; methodName: string; amount: number; rounded: boolean };
 type Line = { id: string; name: string; options: string | null; qty: number; amount: number };
 type TableOpt = { id: string; number: string; busy: boolean };
 type OtherBill = { id: string; billNumber: string; total: number; table: string | null; mergeable: boolean };
-type Panel = null | "split" | "move" | "merge" | "cancel";
+type Panel = null | "split" | "move" | "merge" | "cancel" | "adjust";
+type Adjust = { discount: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
 
 export function BillActions({
   orderId,
@@ -24,6 +27,11 @@ export function BillActions({
   methods,
   canPay,
   canVoid,
+  canDiscount = false,
+  adjust,
+  canChangeMode = false,
+  paymentList = [],
+  upiPayee = null,
   canRefund,
   shiftOpen,
   cashRounding = "none",
@@ -46,6 +54,12 @@ export function BillActions({
   methods: Method[];
   canPay: boolean;
   canVoid: boolean;
+  canDiscount?: boolean;
+  adjust?: Adjust;
+  canChangeMode?: boolean;
+  paymentList?: PaymentRow[];
+  /** Name shown in the customer's UPI app (India). Null hides the QR. */
+  upiPayee?: string | null;
   canRefund: boolean;
   shiftOpen: boolean;
   /** Cash-only rounding mode (e.g. Malaysia's 5 sen); "none" elsewhere. */
@@ -80,6 +94,12 @@ export function BillActions({
   const [cancelId, setCancelId] = useState(lines[0]?.id ?? "");
   const [cancelQty, setCancelQty] = useState("1");
   const [cancelReason, setCancelReason] = useState("");
+  const [discAmt, setDiscAmt] = useState(adjust && adjust.discount > 0 ? String(adjust.discount) : "");
+  const [discReason, setDiscReason] = useState("");
+  const [scWanted, setScWanted] = useState<boolean>(adjust?.scOn ?? false);
+  const [fixPay, setFixPay] = useState(paymentList.find((p) => !p.rounded)?.id ?? "");
+  const [fixTo, setFixTo] = useState("");
+  const [fixReason, setFixReason] = useState("");
 
   const open = state === "unpaid" || state === "part-paid";
   const remaining = Math.max(0, Math.round((paidTotal - refunded) * 100) / 100);
@@ -93,6 +113,10 @@ export function BillActions({
   const equalShare = (n: number) => Math.min(balance, Math.ceil(Math.round(grandTotal * 100) / n) / 100);
 
   const showPay = open && canPay;
+  const upiMethod = methods.find((x) => x.id === methodId && x.kind === "upi" && x.upi_id);
+  const fixable = paymentList.filter((p) => !p.rounded);
+  const showFix = canChangeMode && state !== "voided" && fixable.length > 0;
+  const fixRow = fixable.find((p) => p.id === fixPay) ?? fixable[0];
   const showRefund = canRefund && (state === "paid" || state === "part-refunded") && remaining > 0;
   const showVoid = canVoid && state !== "voided" && refunded === 0;
   const cancelLine = lines.find((l) => l.id === cancelId) ?? lines[0];
@@ -105,6 +129,10 @@ export function BillActions({
         ? "There is only one item on this bill."
         : null;
   const mergeable = otherBills.filter((b) => b.mergeable);
+  const discNum = discAmt.trim() === "" ? 0 : Math.round(Number(discAmt) * 100) / 100;
+  const showAdjust =
+    !!adjust && state === "unpaid" && !hasPayments && (canDiscount || adjust.scAvailable) && (canPay || canDiscount);
+  const adjustChanged = !!adjust && (discNum !== adjust.discount || (adjust.scAvailable && scWanted !== adjust.scOn));
 
   function run(fn: () => Promise<{ ok: boolean; error?: string; message?: string }>, after?: () => void) {
     setError(null);
@@ -131,7 +159,7 @@ export function BillActions({
     });
   }
 
-  if (!showPay && !showRefund && !showVoid && !notice) return null;
+  if (!showPay && !showRefund && !showVoid && !showFix && !notice) return null;
 
   return (
     <div className="no-print mx-auto mt-4 max-w-sm space-y-3">
@@ -214,6 +242,11 @@ export function BillActions({
                 )}
               </div>
 
+              {upiMethod?.upi_id && upiPayee && due > 0 && (
+                <div className="mt-3 rounded-lg border p-3" style={{ borderColor: "var(--color-line)", background: "#fff" }}>
+                  <UpiQr upiId={upiMethod.upi_id} payee={upiPayee} amount={due} note={`Bill ${billNumber}`} />
+                </div>
+              )}
               {askRef && !isCash && (
                 <input
                   className="field mt-2 h-10 text-sm"
@@ -263,7 +296,62 @@ export function BillActions({
             <PanelButton label="Split bill" active={panel === "split"} onClick={() => setPanel(panel === "split" ? null : "split")} />
             <PanelButton label="Move table" active={panel === "move"} onClick={() => setPanel(panel === "move" ? null : "move")} />
             <PanelButton label="Merge bills" active={panel === "merge"} onClick={() => setPanel(panel === "merge" ? null : "merge")} />
+            {showAdjust && (
+              <PanelButton
+                label={adjust?.scAvailable ? "Discount / service" : "Discount"}
+                active={panel === "adjust"}
+                onClick={() => setPanel(panel === "adjust" ? null : "adjust")}
+              />
+            )}
           </div>
+
+          {panel === "adjust" && adjust && (
+            <div className="mt-3 space-y-2 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
+              {adjust.scAvailable && (
+                <label className="flex items-center justify-between text-sm">
+                  <span>
+                    {adjust.scLabel} {adjust.scPercent}%
+                  </span>
+                  <input type="checkbox" className="h-5 w-5" checked={scWanted} onChange={(e) => setScWanted(e.target.checked)} aria-label={`${adjust.scLabel} on this bill`} />
+                </label>
+              )}
+              {adjust.senior ? (
+                <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+                  This bill has a senior citizen / PWD discount, so no other discount can be added.
+                </p>
+              ) : canDiscount ? (
+                <>
+                  <label className="block text-xs font-medium" style={{ color: "var(--color-ink-2)" }} htmlFor="adj-disc">
+                    Discount amount
+                  </label>
+                  <input id="adj-disc" className="field h-10 text-sm" inputMode="decimal" placeholder="0" value={discAmt} onChange={(e) => setDiscAmt(e.target.value)} />
+                  {discNum > 0 && (
+                    <input className="field h-10 text-sm" placeholder="Reason (optional)" value={discReason} onChange={(e) => setDiscReason(e.target.value)} maxLength={200} />
+                  )}
+                </>
+              ) : (
+                <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+                  A manager gives discounts{adjust.scAvailable ? " and removes the service charge" : ""}.
+                </p>
+              )}
+              <button
+                className="btn btn-primary mt-1 w-full text-sm"
+                disabled={pending || !adjustChanged || !(discNum >= 0) || Number.isNaN(discNum)}
+                onClick={() =>
+                  run(() =>
+                    adjustBill({
+                      orderId,
+                      discount: discNum,
+                      reason: discReason || null,
+                      serviceCharge: adjust.scAvailable ? scWanted : null,
+                    }),
+                  )
+                }
+              >
+                {pending ? "Saving…" : "Update bill"}
+              </button>
+            </div>
+          )}
 
           {panel === "split" && (
             <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
@@ -444,6 +532,59 @@ export function BillActions({
               Cancel item…
             </button>
           )}
+        </section>
+      )}
+
+      {showFix && fixRow && (
+        <section className="card p-4">
+          <h2 className="text-sm font-bold">Change payment mode</h2>
+          <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+            For a wrong button press, e.g. Cash was pressed but the customer paid by UPI. Allowed while the shift is open;
+            recorded with your name and reason.
+          </p>
+          {fixable.length > 1 && (
+            <select className="field mt-3 h-10 text-sm" value={fixRow.id} onChange={(e) => setFixPay(e.target.value)} aria-label="Payment to change">
+              {fixable.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.methodName} {m(p.amount)}
+                </option>
+              ))}
+            </select>
+          )}
+          <div className="mt-3 grid grid-cols-3 gap-1.5">
+            {methods
+              .filter((x) => x.id !== fixRow.methodId)
+              .map((x) => (
+                <button
+                  key={x.id}
+                  onClick={() => setFixTo(x.id)}
+                  className="rounded-lg border px-2 py-2 text-xs font-semibold"
+                  style={{
+                    borderColor: fixTo === x.id ? "var(--color-brand)" : "var(--color-line)",
+                    background: fixTo === x.id ? "var(--color-brand-soft)" : "transparent",
+                  }}
+                >
+                  {x.name}
+                </button>
+              ))}
+          </div>
+          <input className="field mt-2 h-10 text-sm" placeholder="Reason (required)" value={fixReason} onChange={(e) => setFixReason(e.target.value)} />
+          <button
+            className="btn mt-3 w-full border text-sm"
+            style={{ borderColor: "var(--color-line)" }}
+            disabled={pending || !fixTo || fixReason.trim().length < 3}
+            onClick={() =>
+              run(
+                () => changePaymentMode({ orderId, paymentId: fixRow.id, methodId: fixTo, reason: fixReason }),
+                () => {
+                  setFixTo("");
+                  setFixReason("");
+                },
+              )
+            }
+          >
+            {pending ? "Saving…" : `Change ${fixRow.methodName} ${m(fixRow.amount)} to ${methods.find((x) => x.id === fixTo)?.name ?? "…"}`}
+          </button>
         </section>
       )}
 

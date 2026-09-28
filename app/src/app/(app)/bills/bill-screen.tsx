@@ -19,7 +19,7 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
 
   const supabase = await createClient();
   const [{ data: methods }, { data: shift }, { data: tables }, { data: openBills }, { data: mergedTo }] = await Promise.all([
-    supabase.from("payment_methods").select("id, name, kind, ask_reference").eq("is_active", true).order("display_order"),
+    supabase.from("payment_methods").select("id, name, kind, ask_reference, upi_id").eq("is_active", true).order("display_order"),
     supabase.from("shifts").select("id").eq("status", "open").limit(1).maybeSingle(),
     open
       ? supabase.from("dining_tables").select("id, table_number").eq("is_active", true).order("table_number")
@@ -95,6 +95,11 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
         methods={methods ?? []}
         canPay={can(user, "payment.take")}
         canVoid={can(user, "order.void")}
+        canDiscount={can(user, "order.discount")}
+        adjust={bill.adjust}
+        canChangeMode={can(user, "payment.change_mode")}
+        paymentList={bill.paymentList}
+        upiPayee={r.upi?.payee ?? null}
         canRefund={can(user, "order.refund")}
         shiftOpen={!!shift}
         cashRounding={bill.cashRoundingMode}

@@ -40,7 +40,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       .order("category_order")
       .order("display_order")
       .order("name"),
-    supabase.from("payment_methods").select("id, name, kind, ask_reference").eq("is_active", true).order("display_order"),
+    supabase.from("payment_methods").select("id, name, kind, ask_reference, upi_id").eq("is_active", true).order("display_order"),
     supabase.from("shifts").select("id").eq("status", "open").limit(1).maybeSingle(),
     supabase.from("dining_tables").select("id, table_number").eq("is_active", true).order("table_number"),
     supabase
@@ -153,6 +153,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       canDiscount={can(user, "order.discount")}
       canPay={can(user, "payment.take")}
       showSenior={!!country?.has_senior_discount}
+      upiPayee={user.country_code === "IN" ? user.trading_name : null}
       pricesIncludeTax={(groups ?? []).some((g) => g.is_price_inclusive)}
       taxName={country?.tax_system_name ?? "tax"}
       menu={items}
