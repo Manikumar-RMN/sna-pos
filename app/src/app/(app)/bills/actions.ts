@@ -104,6 +104,19 @@ export async function issueCreditNote(input: { orderId: string; amount: number; 
   return { ok: true, message: `Credit note ${res.number ?? ""} made for ${Number(res.amount ?? 0).toFixed(2)}.` };
 }
 
+/** B2B bill: the customer's GSTIN / tax number and business name, printed on the bill. */
+export async function setBillCustomer(input: { orderId: string; taxId: string; name: string }): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_bill_customer", {
+    p_order_id: input.orderId,
+    p_gstin: input.taxId.trim(),
+    p_name: input.name.trim(),
+  });
+  if (error) return { ok: false, error: error.message };
+  refresh(input.orderId);
+  return { ok: true, message: input.taxId.trim() ? "Customer tax details added to the bill." : "Customer tax details removed." };
+}
+
 export async function cancelItem(input: { orderId: string; itemId: string; qty: number; reason: string }): Promise<ActionResult> {
   const reason = input.reason.trim();
   if (reason.length < 3) return { ok: false, error: "Write a short reason for cancelling the item." };

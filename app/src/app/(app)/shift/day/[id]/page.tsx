@@ -56,7 +56,15 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="mx-auto max-w-md">
-      <div className="receipt card p-5 font-mono text-[12px] leading-snug" style={{ background: "#fff", color: "#111" }}>
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #receipt, #receipt * { visibility: visible !important; }
+          #receipt { position: absolute; left: 0; top: 0; width: 80mm; border: 0 !important; box-shadow: none !important; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+      <div id="receipt" className="receipt card p-5 font-mono text-[12px] leading-snug" style={{ background: "#fff", color: "#111" }}>
         <div className="text-center">
           <div className="text-sm font-bold">{user.trading_name}</div>
           <div>{z.branch}</div>

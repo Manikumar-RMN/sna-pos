@@ -44,7 +44,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into, calc_params, business_date",
+      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into, calc_params, business_date, buyer_gstin, buyer_name",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -67,7 +67,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     supabase.from("refunds").select("amount, reason, created_at, approved_by").eq("order_id", order.id).order("created_at"),
     supabase
       .from("restaurants")
-      .select("legal_name, trading_name, tax_registration_no, currency_code, timezone, country_code")
+      .select("legal_name, trading_name, tax_registration_no, currency_code, timezone, country_code, fssai_no, sac_code")
       .limit(1)
       .maybeSingle(),
     supabase.from("branches").select("name, address_line1, address_line2, city, phone").eq("id", order.branch_id).maybeSingle(),
@@ -186,6 +186,9 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     state: billState(order.status, order.payment_status),
     voidReason: order.void_reason,
     footer: settings.data?.receipt_footer ?? null,
+    fssaiNo: restaurant.data?.country_code === "IN" ? (restaurant.data?.fssai_no ?? null) : null,
+    sacCode: restaurant.data?.country_code === "IN" ? (restaurant.data?.sac_code ?? null) : null,
+    buyer: order.buyer_gstin ? { taxId: order.buyer_gstin, name: order.buyer_name } : null,
     upi:
       restaurant.data?.country_code === "IN" && upiMethod.data?.upi_id
         ? { id: upiMethod.data.upi_id, payee: restaurant.data?.trading_name ?? "Restaurant" }

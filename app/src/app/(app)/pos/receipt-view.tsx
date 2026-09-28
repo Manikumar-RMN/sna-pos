@@ -49,6 +49,11 @@ export type ReceiptData = {
   footer: string | null;
   /** India: the restaurant's UPI ID, for a scan-to-pay QR on unpaid bills. */
   upi?: { id: string; payee: string } | null;
+  /** India: FSSAI licence and SAC code printed on the bill. */
+  fssaiNo?: string | null;
+  sacCode?: string | null;
+  /** B2B bill: the customer's tax ID (GSTIN) and business name. */
+  buyer?: { taxId: string; name: string | null } | null;
 };
 
 export function ReceiptView({
@@ -129,6 +134,8 @@ export function ReceiptView({
               {data.taxIdLabel}: {data.taxId}
             </div>
           )}
+          {data.fssaiNo && <div className="text-[11px]">FSSAI Lic. No.: {data.fssaiNo}</div>}
+          {data.sacCode && data.taxId && <div className="text-[11px]">SAC: {data.sacCode}</div>}
         </div>
 
         <Rule />
@@ -142,6 +149,13 @@ export function ReceiptView({
         </div>
         <div className="text-[11px]">{whenStr}</div>
         <div className="text-[11px]">Cashier: {data.cashierName}</div>
+        {data.buyer && (
+          <div className="mt-1 text-[11px]">
+            Bill to: {data.buyer.name ?? ""}
+            <br />
+            {data.taxIdLabel}: {data.buyer.taxId}
+          </div>
+        )}
 
         <Rule />
 

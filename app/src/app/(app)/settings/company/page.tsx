@@ -8,7 +8,7 @@ export default async function CompanySettings() {
   if (!can(user, "settings.manage") && !can(user, "tax.manage")) return <NoAccess />;
   const supabase = await createClient();
   const [{ data: rest }, { data: branch }, { data: bs }, { data: country }] = await Promise.all([
-    supabase.from("restaurants").select("legal_name, trading_name, tax_registration_no, contact_phone").limit(1).maybeSingle(),
+    supabase.from("restaurants").select("legal_name, trading_name, tax_registration_no, contact_phone, fssai_no, sac_code").limit(1).maybeSingle(),
     supabase.from("branches").select("name, address_line1, address_line2, city, state_or_region, postal_code, phone").is("deleted_at", null).order("created_at").limit(1).maybeSingle(),
     supabase.from("branch_settings").select("receipt_header, receipt_footer, auto_print_kot").limit(1).maybeSingle(),
     supabase.from("countries").select("tax_id_label, compliance_note").eq("code", user.country_code).maybeSingle(),
@@ -42,6 +42,7 @@ export default async function CompanySettings() {
           receipt_header: bs?.receipt_header ?? "",
           receipt_footer: bs?.receipt_footer ?? "",
           auto_print_kot: bs?.auto_print_kot ?? true,
+          ...(isIndia ? { fssai_no: rest?.fssai_no ?? "", sac_code: rest?.sac_code ?? "996331" } : {}),
         }}
       />
     </div>

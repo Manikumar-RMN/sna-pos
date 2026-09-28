@@ -95,6 +95,9 @@ type Business = {
   receipt_header: string;
   receipt_footer: string;
   auto_print_kot: boolean;
+  /** India only. */
+  fssai_no?: string;
+  sac_code?: string;
 };
 
 export function BusinessForm({ initial, canEdit, taxIdLabel, taxIdHint }: { initial: Business; canEdit: boolean; taxIdLabel: string; taxIdHint: string }) {
@@ -118,6 +121,16 @@ export function BusinessForm({ initial, canEdit, taxIdLabel, taxIdHint }: { init
         <Field label="Business phone">
           <input className="field" value={v.contact_phone} onChange={set("contact_phone")} />
         </Field>
+        {v.fssai_no !== undefined && (
+          <Field label="FSSAI licence number" hint="14 digits. Printed on every bill, as FSSAI requires.">
+            <input className="field" inputMode="numeric" maxLength={14} value={v.fssai_no} onChange={set("fssai_no")} />
+          </Field>
+        )}
+        {v.sac_code !== undefined && (
+          <Field label="SAC code on bills" hint="996331 is restaurant service. Change only if your accountant says so.">
+            <input className="field" inputMode="numeric" maxLength={8} value={v.sac_code} onChange={set("sac_code")} />
+          </Field>
+        )}
         <Field label="Branch name">
           <input className="field" value={v.branch_name} onChange={set("branch_name")} />
         </Field>

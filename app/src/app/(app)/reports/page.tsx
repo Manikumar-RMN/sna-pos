@@ -9,6 +9,22 @@ type Settlement = {
   payments: { at: string; bill: string; method: string; amount: number; reference: string | null; status: string; by: string | null }[];
 };
 
+type RegisterRow = {
+  type: string;
+  date: string;
+  number: string;
+  against?: string;
+  status: string;
+  buyer_gstin: string | null;
+  buyer_name: string | null;
+  rate: number | null;
+  taxable: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  total: number;
+};
+
 type Report = {
   financial: boolean;
   summary: {
@@ -74,9 +90,11 @@ export default async function ReportsPage({
   }
 
   const supabase = await createClient();
-  const [{ data, error }, { data: settleData }] = await Promise.all([
+  const showRegister = user.country_code === "IN" && can(user, "report.view_financial");
+  const [{ data, error }, { data: settleData }, { data: registerData }] = await Promise.all([
     supabase.rpc("sales_report", { p_from: from, p_to: to }),
     supabase.rpc("settlement_report", { p_from: from, p_to: to }),
+    showRegister ? supabase.rpc("gst_register", { p_from: from, p_to: to }) : Promise.resolve({ data: null }),
   ]);
   const rep = data as unknown as Report | null;
   const settle = settleData as unknown as Settlement | null;
@@ -213,6 +231,50 @@ export default async function ReportsPage({
                 <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
                   For your GST filing. Confirm with your accountant.
                 </p>
+              </Card>
+            )}
+
+            {showRegister && (
+              <Card
+                title="GST bill register"
+                action={
+                  ((registerData ?? []) as unknown as RegisterRow[]).length > 0 ? (
+                    <CsvButton
+                      filename={`gst_register_${from}_${to}.csv`}
+                      header={["Type", "Date", "Number", "Against bill", "Status", "Customer GSTIN", "Customer name", "GST rate %", "Taxable value", "CGST", "SGST/UTGST", "IGST", "Total"]}
+                      rows={((registerData ?? []) as unknown as RegisterRow[]).map((r) => [
+                        r.type,
+                        r.date,
+                        r.number,
+                        r.against ?? "",
+                        r.status,
+                        r.buyer_gstin ?? "",
+                        r.buyer_name ?? "",
+                        r.rate ?? "",
+                        r.taxable,
+                        r.cgst,
+                        r.sgst,
+                        r.igst,
+                        r.total,
+                      ])}
+                    />
+                  ) : null
+                }
+              >
+                {((registerData ?? []) as unknown as RegisterRow[]).length === 0 ? (
+                  <Empty />
+                ) : (
+                  <>
+                    <p className="text-sm">
+                      {((registerData ?? []) as unknown as RegisterRow[]).filter((r) => r.type === "Bill").length} bills,{" "}
+                      {((registerData ?? []) as unknown as RegisterRow[]).filter((r) => r.type !== "Bill").length} credit notes,{" "}
+                      {((registerData ?? []) as unknown as RegisterRow[]).filter((r) => r.buyer_gstin).length} with a customer GSTIN (B2B).
+                    </p>
+                    <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                      Every bill and credit note with its GST split, for GSTR-1. Download the CSV for your accountant.
+                    </p>
+                  </>
+                )}
               </Card>
             )}
 

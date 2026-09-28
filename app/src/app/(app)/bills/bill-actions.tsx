@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { money, roundCash } from "@/lib/format";
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
-import { adjustBill, cancelItem, changePaymentMode, issueCreditNote, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
+import { adjustBill, cancelItem, changePaymentMode, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
 
 type Method = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type PaymentRow = { id: string; methodId: string; methodName: string; amount: number; rounded: boolean };
@@ -32,6 +32,8 @@ export function BillActions({
   adjust,
   canChangeMode = false,
   dayClosed = false,
+  buyer = null,
+  taxIdLabel = "GSTIN",
   paymentList = [],
   upiPayee = null,
   canRefund,
@@ -61,6 +63,9 @@ export function BillActions({
   canChangeMode?: boolean;
   /** The bill's day is closed: no void; money back only by credit note. */
   dayClosed?: boolean;
+  /** B2B customer on the bill (India: GSTIN). Undefined hides the panel. */
+  buyer?: { taxId: string; name: string | null } | null;
+  taxIdLabel?: string;
   paymentList?: PaymentRow[];
   /** Name shown in the customer's UPI app (India). Null hides the QR. */
   upiPayee?: string | null;
@@ -106,6 +111,8 @@ export function BillActions({
   const [fixReason, setFixReason] = useState("");
   const [cnMethod, setCnMethod] = useState(paymentList[0]?.methodId ?? methods[0]?.id ?? "");
   const [approval, setApproval] = useState<null | { permission: string; retry: () => void }>(null);
+  const [buyerId, setBuyerId] = useState(buyer?.taxId ?? "");
+  const [buyerName, setBuyerName] = useState(buyer?.name ?? "");
 
   const open = state === "unpaid" || state === "part-paid";
   const remaining = Math.max(0, Math.round((paidTotal - refunded) * 100) / 100);
@@ -168,7 +175,8 @@ export function BillActions({
     });
   }
 
-  if (!showPay && !showRefund && !showVoid && !showFix && !notice) return null;
+  const showBuyer = buyer !== undefined && state !== "voided" && !dayClosed && (canPay || canVoid);
+  if (!showPay && !showRefund && !showVoid && !showFix && !showBuyer && !notice) return null;
 
   return (
     <div className="no-print mx-auto mt-4 max-w-sm space-y-3">
@@ -564,6 +572,31 @@ export function BillActions({
             </button>
           )}
         </section>
+      )}
+
+      {showBuyer && (
+        <details className="card p-4" open={!!buyer}>
+          <summary className="cursor-pointer text-sm font-bold">Business customer ({taxIdLabel} on the bill)</summary>
+          <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+            For a company that wants to claim the tax back. Printed on the bill and listed in the GST register.
+          </p>
+          <input
+            className="field mt-3 h-10 text-sm uppercase"
+            placeholder={`${taxIdLabel}, e.g. 33AAACA0000A1Z5`}
+            maxLength={15}
+            value={buyerId}
+            onChange={(e) => setBuyerId(e.target.value.toUpperCase())}
+          />
+          <input className="field mt-2 h-10 text-sm" placeholder="Business name" maxLength={120} value={buyerName} onChange={(e) => setBuyerName(e.target.value)} />
+          <button
+            className="btn mt-3 w-full border text-sm"
+            style={{ borderColor: "var(--color-line)" }}
+            disabled={pending || (buyerId.trim() !== "" && buyerName.trim() === "")}
+            onClick={() => run(() => setBillCustomer({ orderId, taxId: buyerId, name: buyerName }))}
+          >
+            {pending ? "Saving…" : buyer && !buyerId.trim() ? "Remove from bill" : "Save on bill"}
+          </button>
+        </details>
       )}
 
       {showFix && fixRow && (

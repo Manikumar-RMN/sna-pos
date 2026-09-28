@@ -109,6 +109,8 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
         adjust={bill.adjust}
         canChangeMode={can(user, "payment.change_mode")}
         dayClosed={bill.dayClosed}
+        buyer={user.country_code === "IN" ? (r.buyer ?? null) : undefined}
+        taxIdLabel={r.taxIdLabel}
         paymentList={bill.paymentList}
         upiPayee={r.upi?.payee ?? null}
         canRefund={can(user, "order.refund")}

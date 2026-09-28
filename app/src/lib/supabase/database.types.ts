@@ -1045,6 +1045,7 @@ export type Database = {
       devices: {
         Row: {
           auth_user_id: string | null
+          bill_fy: string | null
           bill_prefix: string | null
           branch_id: string
           created_at: string
@@ -1058,6 +1059,7 @@ export type Database = {
         }
         Insert: {
           auth_user_id?: string | null
+          bill_fy?: string | null
           bill_prefix?: string | null
           branch_id: string
           created_at?: string
@@ -1071,6 +1073,7 @@ export type Database = {
         }
         Update: {
           auth_user_id?: string | null
+          bill_fy?: string | null
           bill_prefix?: string | null
           branch_id?: string
           created_at?: string
@@ -1754,6 +1757,8 @@ export type Database = {
           bill_number: string
           branch_id: string
           business_date: string | null
+          buyer_gstin: string | null
+          buyer_name: string | null
           calc_params: Json | null
           cashier_id: string
           client_created_at: string
@@ -1792,6 +1797,8 @@ export type Database = {
           bill_number: string
           branch_id: string
           business_date?: string | null
+          buyer_gstin?: string | null
+          buyer_name?: string | null
           calc_params?: Json | null
           cashier_id: string
           client_created_at: string
@@ -1830,6 +1837,8 @@ export type Database = {
           bill_number?: string
           branch_id?: string
           business_date?: string | null
+          buyer_gstin?: string | null
+          buyer_name?: string | null
           calc_params?: Json | null
           cashier_id?: string
           client_created_at?: string
@@ -2387,6 +2396,7 @@ export type Database = {
           deleted_at: string | null
           description: string | null
           display_order: number
+          hsn_code: string | null
           id: string
           image_url: string | null
           is_available: boolean
@@ -2408,6 +2418,7 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           display_order?: number
+          hsn_code?: string | null
           id?: string
           image_url?: string | null
           is_available?: boolean
@@ -2429,6 +2440,7 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           display_order?: number
+          hsn_code?: string | null
           id?: string
           image_url?: string | null
           is_available?: boolean
@@ -2572,9 +2584,11 @@ export type Database = {
           created_at: string
           currency_code: string
           deleted_at: string | null
+          fssai_no: string | null
           id: string
           legal_name: string
           logo_url: string | null
+          sac_code: string | null
           subscription_status: string
           tax_registration_no: string | null
           timezone: string
@@ -2588,9 +2602,11 @@ export type Database = {
           created_at?: string
           currency_code: string
           deleted_at?: string | null
+          fssai_no?: string | null
           id?: string
           legal_name: string
           logo_url?: string | null
+          sac_code?: string | null
           subscription_status?: string
           tax_registration_no?: string | null
           timezone: string
@@ -2604,9 +2620,11 @@ export type Database = {
           created_at?: string
           currency_code?: string
           deleted_at?: string | null
+          fssai_no?: string | null
           id?: string
           legal_name?: string
           logo_url?: string | null
+          sac_code?: string | null
           subscription_status?: string
           tax_registration_no?: string | null
           timezone?: string
@@ -3391,6 +3409,7 @@ export type Database = {
       day_report: { Args: { p_day_id: string }; Returns: Json }
       day_status: { Args: never; Returns: Json }
       delete_role: { Args: { p_role_id: string }; Returns: undefined }
+      gst_register: { Args: { p_from: string; p_to: string }; Returns: Json }
       invite_staff: {
         Args: {
           p_email: string
@@ -3479,6 +3498,10 @@ export type Database = {
       save_tax_group: {
         Args: { p_components: Json; p_group_id: string; p_name: string }
         Returns: string
+      }
+      set_bill_customer: {
+        Args: { p_gstin: string; p_name: string; p_order_id: string }
+        Returns: Json
       }
       set_kitchen_status: {
         Args: { p_status: string; p_ticket_id: string }
