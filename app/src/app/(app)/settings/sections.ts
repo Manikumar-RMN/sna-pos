@@ -1,4 +1,4 @@
-import { can, type CurrentUser } from "@/lib/auth";
+import { can, has, type CurrentUser } from "@/lib/auth";
 import type { SettingsLink } from "./settings-nav";
 
 /** Settings sections this person may open, in menu order. */
@@ -15,6 +15,7 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
     { href: "/settings/menu", label: "Menu", hint: "Dishes, prices, add-ons", show: true },
     { href: "/settings/users", label: "Users", hint: "People, PINs, passwords", show: true },
     { href: "/settings/security", label: "Security profiles", hint: "What each role can do", show: can(user, "user.manage") },
+    { href: "/settings/outlets", label: "Outlets", hint: "Prices per outlet, who works where", show: user.outlet_count > 1 || has(user, "multi_outlet") },
     { href: "/settings/plan", label: "Plan and modules", hint: "Edition, add-ons, outlets", show: true },
   ];
   return all.filter((s) => s.show).map(({ href, label, hint }) => ({ href, label, hint }));

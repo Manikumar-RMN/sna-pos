@@ -3,6 +3,7 @@ import { UpgradeNote } from "../upgrade-note";
 import { createClient } from "@/lib/supabase/server";
 import { todayIn, addDays } from "@/lib/format";
 import { StockManager, type Level, type FoodCost } from "./stock-manager";
+import { TransferForm } from "./transfer-form";
 
 export default async function StockPage() {
   const user = await requireUser();
@@ -23,10 +24,14 @@ export default async function StockPage() {
   const supabase = await createClient();
   const today = todayIn(user.timezone);
   const from = addDays(today, -6);
-  const [{ data: report }, { data: products }, { data: recipes }] = await Promise.all([
+  const transfers = has(user, "central_kitchen") && user.outlet_count > 1;
+  const [{ data: report }, { data: products }, { data: recipes }, { data: others }] = await Promise.all([
     supabase.rpc("stock_report", { p_from: from, p_to: today }),
     supabase.from("products").select("id, name, price").is("deleted_at", null).order("name"),
     supabase.from("recipe_lines").select("product_id, ingredient_id, qty"),
+    transfers
+      ? supabase.from("branches").select("id, name").is("deleted_at", null).neq("id", user.branch_id).order("created_at")
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
   ]);
   const rep = (report ?? { levels: [], food_cost: [] }) as unknown as { levels: Level[]; food_cost: FoodCost[] };
   return (
@@ -36,6 +41,18 @@ export default async function StockPage() {
         Ingredients are used up as dishes are billed and put back when an item or bill is cancelled. Record purchases, wastage and
         stock counts here. Usage figures are for the last 7 days.
       </p>
+      {transfers && (
+        <TransferForm
+          from={user.branch_name}
+          outlets={others ?? []}
+          ingredients={rep.levels.map((l) => ({
+            id: l.id,
+            name: l.name,
+            unit: l.unit,
+            stock: Number(l.stock),
+          }))}
+        />
+      )}
       <StockManager
         currency={user.currency_code}
         levels={rep.levels}

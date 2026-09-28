@@ -94,12 +94,17 @@ export default async function ReportsPage({
   const supabase = await createClient();
   const showRegister = user.country_code === "IN" && can(user, "report.view_financial");
   const showJournal = can(user, "report.view_financial") && has(user, "accounting");
-  const [{ data, error }, { data: settleData }, { data: registerData }, { data: journalData }] = await Promise.all([
+  const multi = has(user, "multi_outlet") && user.outlet_count > 1;
+  const [{ data, error }, { data: settleData }, { data: registerData }, { data: journalData }, { data: compareData }, { data: outletData }] = await Promise.all([
     supabase.rpc("sales_report", { p_from: from, p_to: to }),
     supabase.rpc("settlement_report", { p_from: from, p_to: to }),
     showRegister ? supabase.rpc("gst_register", { p_from: from, p_to: to }) : Promise.resolve({ data: null }),
     showJournal ? supabase.rpc("accounting_journal", { p_from: from, p_to: to }) : Promise.resolve({ data: null }),
+    multi ? supabase.rpc("outlet_comparison", { p_from: from, p_to: to }) : Promise.resolve({ data: null }),
+    multi ? supabase.rpc("my_outlets") : Promise.resolve({ data: null }),
   ]);
+  const compare = (compareData ?? []) as unknown as { outlet: string; code: string; bills: number; total: number; average: number; discounts: number; voids: number; void_value: number }[];
+  const allOutlets = !!(outletData as unknown as { all_outlets?: boolean } | null)?.all_outlets;
   const rep = data as unknown as Report | null;
   const settle = settleData as unknown as Settlement | null;
   const c = user.currency_code;
@@ -116,7 +121,40 @@ export default async function ReportsPage({
       <h1 className="text-xl font-bold tracking-tight">Reports</h1>
       <p className="mt-1 mb-4 text-sm" style={{ color: "var(--color-ink-3)" }}>
         {from === to ? longDate(from) : `${longDate(from)} – ${longDate(to)}`} · voided bills are left out of every total
+        {multi ? ` · ${allOutlets ? "All outlets" : `Outlet: ${user.branch_name}`} (change with the outlet picker at the top)` : ""}
       </p>
+
+      {multi && compare.length > 0 && (
+        <div className="card mb-5 overflow-x-auto p-4">
+          <h2 className="mb-2 font-display text-base font-bold">Outlets compared</h2>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left" style={{ color: "var(--color-ink-3)" }}>
+                <th className="py-1.5 pr-3">Outlet</th>
+                <th className="py-1.5 pr-3 text-right">Bills</th>
+                <th className="py-1.5 pr-3 text-right">Sales</th>
+                <th className="py-1.5 pr-3 text-right">Average bill</th>
+                <th className="py-1.5 pr-3 text-right">Discounts</th>
+                <th className="py-1.5 pr-3 text-right">Voids</th>
+              </tr>
+            </thead>
+            <tbody>
+              {compare.map((r) => (
+                <tr key={r.code} className="border-t" style={{ borderColor: "var(--color-line)" }}>
+                  <td className="py-1.5 pr-3 font-semibold">{r.outlet}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{r.bills}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{money(r.total, c)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{money(r.average, c)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{money(r.discounts, c)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">
+                    {r.voids} ({money(r.void_value, c)})
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         {presets.map((p) => (

@@ -532,6 +532,79 @@ export type Database = {
           },
         ]
       }
+      branch_prices: {
+        Row: {
+          branch_id: string
+          is_available: boolean | null
+          price: number | null
+          product_id: string
+          restaurant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branch_id: string
+          is_available?: boolean | null
+          price?: number | null
+          product_id: string
+          restaurant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          branch_id?: string
+          is_available?: boolean | null
+          price?: number | null
+          product_id?: string
+          restaurant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_prices_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_menu"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_prices_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_prices_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_prices_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       branch_settings: {
         Row: {
           auto_print_kot: boolean
@@ -613,6 +686,7 @@ export type Database = {
           deleted_at: string | null
           id: string
           is_active: boolean
+          is_central_kitchen: boolean
           name: string
           phone: string | null
           postal_code: string | null
@@ -631,6 +705,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           is_active?: boolean
+          is_central_kitchen?: boolean
           name: string
           phone?: string | null
           postal_code?: string | null
@@ -649,6 +724,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           is_active?: boolean
+          is_central_kitchen?: boolean
           name?: string
           phone?: string | null
           postal_code?: string | null
@@ -3310,6 +3386,7 @@ export type Database = {
           order_item_id: string | null
           qty: number
           restaurant_id: string
+          transfer_id: string | null
           unit_cost: number | null
         }
         Insert: {
@@ -3324,6 +3401,7 @@ export type Database = {
           order_item_id?: string | null
           qty: number
           restaurant_id: string
+          transfer_id?: string | null
           unit_cost?: number | null
         }
         Update: {
@@ -3338,6 +3416,7 @@ export type Database = {
           order_item_id?: string | null
           qty?: number
           restaurant_id?: string
+          transfer_id?: string | null
           unit_cost?: number | null
         }
         Relationships: [
@@ -3671,8 +3750,10 @@ export type Database = {
       }
       users: {
         Row: {
+          all_outlets: boolean
           auth_user_id: string | null
           created_at: string
+          current_branch_id: string | null
           deleted_at: string | null
           email: string | null
           employee_code: string
@@ -3690,8 +3771,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          all_outlets?: boolean
           auth_user_id?: string | null
           created_at?: string
+          current_branch_id?: string | null
           deleted_at?: string | null
           email?: string | null
           employee_code: string
@@ -3709,8 +3792,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          all_outlets?: boolean
           auth_user_id?: string | null
           created_at?: string
+          current_branch_id?: string | null
           deleted_at?: string | null
           email?: string | null
           employee_code?: string
@@ -3728,6 +3813,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "users_current_branch_id_fkey"
+            columns: ["current_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "users_restaurant_id_fkey"
             columns: ["restaurant_id"]
@@ -3762,6 +3854,8 @@ export type Database = {
     Views: {
       v_current_user: {
         Row: {
+          branch_id: string | null
+          branch_name: string | null
           country_code: string | null
           currency_code: string | null
           device_name: string | null
@@ -3772,6 +3866,7 @@ export type Database = {
           full_name: string | null
           is_sna_staff: boolean | null
           must_change_password: boolean | null
+          outlet_count: number | null
           permissions: string[] | null
           restaurant_id: string | null
           role_id: string | null
@@ -3814,6 +3909,7 @@ export type Database = {
           is_available: boolean | null
           is_price_inclusive: boolean | null
           is_veg: boolean | null
+          menu_price: number | null
           name: string | null
           price: number | null
           restaurant_id: string | null
@@ -3978,9 +4074,14 @@ export type Database = {
       }
       my_account_state: { Args: never; Returns: string }
       my_device_state: { Args: never; Returns: Json }
+      my_outlets: { Args: never; Returns: Json }
       my_plan: { Args: never; Returns: Json }
       offline_snapshot: { Args: { p_device_key: string }; Returns: Json }
       open_shift: { Args: { p_opening_float?: number }; Returns: string }
+      outlet_comparison: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       password_changed: { Args: never; Returns: undefined }
       pay_order: {
         Args: {
@@ -4080,8 +4181,25 @@ export type Database = {
         Args: { p_gstin: string; p_name: string; p_order_id: string }
         Returns: Json
       }
+      set_central_kitchen: {
+        Args: { p_branch: string; p_on: boolean }
+        Returns: undefined
+      }
+      set_current_outlet: {
+        Args: { p_all?: boolean; p_branch: string }
+        Returns: undefined
+      }
       set_kitchen_status: {
         Args: { p_status: string; p_ticket_id: string }
+        Returns: undefined
+      }
+      set_outlet_price: {
+        Args: {
+          p_available: boolean
+          p_branch_id: string
+          p_price: number
+          p_product_id: string
+        }
         Returns: undefined
       }
       set_prices_include_tax: {
@@ -4094,6 +4212,10 @@ export type Database = {
       }
       set_tax_rate: {
         Args: { p_tax_group_id: string; p_total_rate: number }
+        Returns: undefined
+      }
+      set_user_outlets: {
+        Args: { p_branches: string[]; p_user_id: string }
         Returns: undefined
       }
       settlement_report: {
@@ -4165,6 +4287,15 @@ export type Database = {
       }
       stock_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       sync_offline_bill: { Args: { p_bill: Json }; Returns: Json }
+      transfer_stock: {
+        Args: {
+          p_ingredient_id: string
+          p_note?: string
+          p_qty: number
+          p_to_branch: string
+        }
+        Returns: string
+      }
       update_settings: { Args: { p_settings: Json }; Returns: undefined }
       update_staff: {
         Args: { p_is_active?: boolean; p_role_id?: string; p_user_id: string }

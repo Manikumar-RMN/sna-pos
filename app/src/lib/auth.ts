@@ -24,6 +24,10 @@ export type CurrentUser = {
   features: string[];
   /** This person also works for SNA (sales, implementer, support, admin). */
   is_sna_staff: boolean;
+  /** The outlet this person is working in now (a counter tablet: its own outlet). */
+  branch_id: string;
+  branch_name: string;
+  outlet_count: number;
 };
 
 /**

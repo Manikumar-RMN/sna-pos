@@ -7,6 +7,7 @@ import { NavLinks, NavRail } from "./nav-links";
 import { IdleLock } from "./idle-lock";
 import { OfflineSync } from "./offline-sync";
 import { SwRegister } from "./sw-register";
+import { OutletSwitcher, type OutletInfo } from "./outlet/outlet-switcher";
 
 /** SNA POS mark: a steaming bowl on a saffron plate. */
 function Mark({ size = 48 }: { size?: number }) {
@@ -47,10 +48,14 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     .map(({ href, label }) => ({ href, label }));
 
   const initial = (user.full_name || "?").trim().charAt(0).toUpperCase();
+  // Several outlets: a picker in the header decides which outlet you are working in.
+  const outlets =
+    user.outlet_count > 1 ? ((await (await createClient()).rpc("my_outlets")).data as unknown as OutletInfo | null) : null;
 
   const actions = (onGreen: boolean) =>
     isCounter ? (
       <>
+        {outlets && <OutletSwitcher info={outlets} onGreen={onGreen} />}
         <IdleLock minutes={10} />
         <form action={lockCounter}>
           <button type="submit" className="btn btn-pay h-11 min-h-0 px-5 text-sm">
@@ -60,6 +65,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       </>
     ) : (
       <>
+        {outlets && <OutletSwitcher info={outlets} onGreen={onGreen} />}
         {user.is_sna_staff && (
           <Link href="/sna" className="text-xs font-bold" style={{ color: onGreen ? "#fff" : "var(--color-brand)" }}>
             SNA console

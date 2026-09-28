@@ -55,8 +55,8 @@ export async function addTable(tableNumber: string, seats: number): Promise<Resu
   if (!num) return { ok: false, error: "Enter a table number or name." };
   if (!(seats > 0 && seats < 100)) return { ok: false, error: "Enter the number of seats." };
   const supabase = await createClient();
-  const { data: branch } = await supabase.from("branches").select("id").is("deleted_at", null).order("created_at").limit(1).maybeSingle();
-  if (!branch) return { ok: false, error: "No branch found." };
+  // Tables belong to the outlet you are working in.
+  const branch = { id: user.branch_id };
 
   const { data: existing } = await supabase.from("dining_tables").select("id, is_active").eq("table_number", num).maybeSingle();
   if (existing?.is_active) return { ok: false, error: `Table ${num} already exists.` };
