@@ -58,6 +58,8 @@ export function PosTerminal({
   tables,
   addTo,
   allowHold = false,
+  customerDisplay = null,
+  tableOrdersWaiting = 0,
 }: {
   currency: string;
   canDiscount: boolean;
@@ -76,6 +78,10 @@ export function PosTerminal({
   addTo: AddTo | null;
   /** Professional: hold items for the next course. */
   allowHold?: boolean;
+  /** Add-on: a second screen facing the guest shows the order and total. Value = restaurant name. */
+  customerDisplay?: string | null;
+  /** Add-on: orders sent by guests from the table QR, waiting for staff. */
+  tableOrdersWaiting?: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -231,6 +237,25 @@ export function PosTerminal({
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cartKey, offline, snap]);
+
+  // Customer display (a second window on the guest-facing screen) follows the cart and the total.
+  useEffect(() => {
+    if (!customerDisplay || typeof BroadcastChannel === "undefined") return;
+    const ch = new BroadcastChannel("sna-customer-display");
+    ch.postMessage({
+      restaurant: customerDisplay,
+      currency,
+      lines: Object.values(cart).map((l) => ({
+        name: l.item.name,
+        local: l.item.name_local ?? null,
+        options: l.options.map((o) => o.name).join(", ") || null,
+        qty: l.qty,
+        amount: Math.round(unitPrice(l) * l.qty * 100) / 100,
+      })),
+      total: quote && Object.keys(cart).length ? quote.grand_total : null,
+    });
+    ch.close();
+  }, [cart, quote, customerDisplay, currency]);
 
   const due = quote ? (isCash ? roundCash(quote.grand_total, quote.cash_rounding) : quote.grand_total) : 0;
   const cashRound = quote && isCash ? Math.round((due - quote.grand_total) * 100) / 100 : 0;
@@ -407,7 +432,29 @@ export function PosTerminal({
           <span className="text-xs" style={{ color: "var(--color-ink-3)" }}>
             Tap an item to add it · prices {pricesIncludeTax ? `include ${taxName}` : `before ${taxName}`}
           </span>
+          {customerDisplay && (
+            <button
+              type="button"
+              className="ml-auto text-xs font-bold"
+              style={{ color: "var(--color-brand)" }}
+              onClick={() => window.open("/display", "sna-customer-display", "popup,width=900,height=640")}
+            >
+              Open customer screen
+            </button>
+          )}
         </div>
+        {tableOrdersWaiting > 0 && (
+          <a
+            href="/table-orders"
+            className="mb-3 flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold"
+            style={{ background: "var(--color-accent)", color: "var(--color-accent-ink)" }}
+          >
+            <span>
+              {tableOrdersWaiting} table order{tableOrdersWaiting === 1 ? "" : "s"} waiting from the QR menu
+            </span>
+            <span>Review →</span>
+          </a>
+        )}
         <input className="field mb-4" placeholder="Search the menu…" value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
         {categories.length === 0 && (
           <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>

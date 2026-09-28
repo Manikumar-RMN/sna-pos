@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 
@@ -202,4 +203,15 @@ export async function refundBill(input: {
   revalidatePath(`/bills/${input.orderId}`);
   revalidatePath("/bills");
   return { ok: true, message: "Refund recorded." };
+}
+
+/** Makes the private e-bill link (once) and returns it with the customer's phone if the bill has one. */
+export async function shareBillLink(orderId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("share_bill", { p_order: orderId });
+  if (error) return { ok: false as const, error: error.message };
+  const d = data as { token: string; phone: string | null };
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
+  return { ok: true as const, url: `${origin}/r/${d.token}`, phone: d.phone };
 }

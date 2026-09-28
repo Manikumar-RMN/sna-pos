@@ -41,6 +41,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     { href: "/pos", label: "Bill", show: can(user, "order.create") },
     { href: "/bills", label: "Bills", show: true },
     { href: "/kitchen", label: "Kitchen", show: true },
+    { href: "/table-orders", label: "Table orders", show: can(user, "order.create") && has(user, "qr_ordering") },
     { href: "/shift", label: "Shift", show: can(user, "shift.open") || can(user, "shift.close") || can(user, "cash.movement") },
     { href: "/reports", label: "Reports", show: can(user, "report.view_sales") },
     { href: "/stock", label: "Stock", show: can(user, "stock.manage") && has(user, "stock") },

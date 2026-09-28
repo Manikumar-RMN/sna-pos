@@ -142,6 +142,10 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     );
   }
 
+  const tableOrdersWaiting = has(user, "qr_ordering")
+    ? ((await supabase.from("qr_orders").select("id", { count: "exact", head: true }).eq("status", "pending")).count ?? 0)
+    : 0;
+
   const openByTable = new Map<string, { id: string; bill: string }>();
   for (const o of openTabs ?? []) {
     if (o.dining_table_id && !openByTable.has(o.dining_table_id)) openByTable.set(o.dining_table_id, { id: o.id, bill: o.bill_number });
@@ -168,6 +172,8 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       }))}
       addTo={addTo}
       allowHold={has(user, "courses")}
+      customerDisplay={has(user, "customer_display") ? user.trading_name : null}
+      tableOrdersWaiting={tableOrdersWaiting}
     />
   );
 }

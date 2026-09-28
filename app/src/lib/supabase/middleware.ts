@@ -41,7 +41,8 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublic = path.startsWith("/login") || path.startsWith("/auth");
+  // /t/… = guest QR ordering, /r/… = e-bill link: guests open these without signing in.
+  const isPublic = path.startsWith("/login") || path.startsWith("/auth") || path.startsWith("/t/") || path.startsWith("/r/");
 
   // A redirect must carry any cookies Supabase just refreshed, or the new
   // session is lost and the person is signed out later for no visible reason.

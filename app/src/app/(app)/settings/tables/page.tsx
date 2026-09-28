@@ -1,4 +1,5 @@
-import { can, requireUser } from "@/lib/auth";
+import Link from "next/link";
+import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { TablesForm } from "../settings-forms";
 import { NoAccess, SectionHead } from "../section-head";
@@ -16,6 +17,11 @@ export default async function TableSettings() {
   return (
     <div>
       <SectionHead title="Tables">The dine-in tables your staff can bill to.</SectionHead>
+      {has(user, "qr_ordering") && can(user, "settings.manage") && (
+        <Link href="/settings/tables/qr" className="btn btn-primary mb-4 inline-flex">
+          Print table QR codes
+        </Link>
+      )}
       <TablesForm
         canEdit={can(user, "settings.manage")}
         tables={(tables ?? []).map((t) => ({ id: t.id, number: t.table_number, seats: t.seats, busy: busy.has(t.id) }))}

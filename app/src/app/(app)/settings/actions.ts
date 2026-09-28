@@ -223,3 +223,12 @@ export async function setDeviceLanguage(lang: string): Promise<Result> {
   revalidatePath("/", "layout");
   return { ok: true, message: "Saved for this device." };
 }
+
+/** New QR code for one table; the old printed code stops working. */
+export async function resetTableQr(tableId: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reset_table_qr", { p_table: tableId });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/settings/tables/qr");
+  return { ok: true, message: "New QR code made." };
+}

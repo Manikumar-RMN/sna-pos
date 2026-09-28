@@ -1184,6 +1184,7 @@ export type Database = {
           floor_id: string | null
           id: string
           is_active: boolean
+          qr_token: string | null
           restaurant_id: string
           seats: number
           status: string
@@ -1195,6 +1196,7 @@ export type Database = {
           floor_id?: string | null
           id?: string
           is_active?: boolean
+          qr_token?: string | null
           restaurant_id: string
           seats?: number
           status?: string
@@ -1206,6 +1208,7 @@ export type Database = {
           floor_id?: string | null
           id?: string
           is_active?: boolean
+          qr_token?: string | null
           restaurant_id?: string
           seats?: number
           status?: string
@@ -1979,6 +1982,7 @@ export type Database = {
           paid_total: number
           payment_status: string
           place_of_supply: string | null
+          receipt_token: string | null
           restaurant_id: string
           rounding_adjustment: number
           senior_details: Json | null
@@ -2021,6 +2025,7 @@ export type Database = {
           paid_total?: number
           payment_status?: string
           place_of_supply?: string | null
+          receipt_token?: string | null
           restaurant_id: string
           rounding_adjustment?: number
           senior_details?: Json | null
@@ -2063,6 +2068,7 @@ export type Database = {
           paid_total?: number
           payment_status?: string
           place_of_supply?: string | null
+          receipt_token?: string | null
           restaurant_id?: string
           rounding_adjustment?: number
           senior_details?: Json | null
@@ -2872,6 +2878,103 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tax_groups"
             referencedColumns: ["restaurant_id", "id"]
+          },
+        ]
+      }
+      qr_orders: {
+        Row: {
+          branch_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          dining_table_id: string
+          estimated_total: number | null
+          guest_key: string
+          guest_name: string | null
+          guest_note: string | null
+          id: string
+          items: Json
+          order_id: string | null
+          reject_reason: string | null
+          restaurant_id: string
+          status: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          dining_table_id: string
+          estimated_total?: number | null
+          guest_key: string
+          guest_name?: string | null
+          guest_note?: string | null
+          id?: string
+          items: Json
+          order_id?: string | null
+          reject_reason?: string | null
+          restaurant_id: string
+          status?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          dining_table_id?: string
+          estimated_total?: number | null
+          guest_key?: string
+          guest_name?: string | null
+          guest_note?: string | null
+          id?: string
+          items?: Json
+          order_id?: string | null
+          reject_reason?: string | null
+          restaurant_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qr_orders_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qr_orders_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qr_orders_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "qr_orders_dining_table_id_fkey"
+            columns: ["dining_table_id"]
+            isOneToOne: false
+            referencedRelation: "dining_tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qr_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qr_orders_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3972,6 +4075,7 @@ export type Database = {
       }
     }
     Functions: {
+      accept_qr_order: { Args: { p_id: string }; Returns: Json }
       accounting_journal: {
         Args: { p_from: string; p_to: string }
         Returns: Json
@@ -4111,6 +4215,21 @@ export type Database = {
       pin_lock: { Args: never; Returns: undefined }
       pin_touch: { Args: never; Returns: boolean }
       pin_unlock: { Args: { p_pin: string }; Returns: Json }
+      public_receipt: { Args: { p_token: string }; Returns: Json }
+      qr_menu: { Args: { p_token: string }; Returns: Json }
+      qr_order_status: {
+        Args: { p_key: string; p_request: string }
+        Returns: Json
+      }
+      qr_place_order: {
+        Args: {
+          p_guest_name?: string
+          p_items: Json
+          p_note?: string
+          p_token: string
+        }
+        Returns: Json
+      }
       quote_order: {
         Args: {
           p_discount_amount?: number
@@ -4143,6 +4262,10 @@ export type Database = {
         Args: { p_auth_user_id: string; p_name: string }
         Returns: string
       }
+      reject_qr_order: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
       remove_counter_device: {
         Args: { p_device_id: string }
         Returns: undefined
@@ -4158,6 +4281,7 @@ export type Database = {
         }
         Returns: string
       }
+      reset_table_qr: { Args: { p_table: string }; Returns: undefined }
       sales_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       save_ingredient: {
         Args: {
@@ -4237,6 +4361,7 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: Json
       }
+      share_bill: { Args: { p_order: string }; Returns: Json }
       shift_report: { Args: { p_shift_id: string }; Returns: Json }
       sna_add_request: {
         Args: {
@@ -4302,6 +4427,7 @@ export type Database = {
       }
       stock_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       sync_offline_bill: { Args: { p_bill: Json }; Returns: Json }
+      table_qr_codes: { Args: never; Returns: Json }
       transfer_stock: {
         Args: {
           p_ingredient_id: string

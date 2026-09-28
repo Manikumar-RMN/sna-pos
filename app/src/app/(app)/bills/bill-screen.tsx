@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dateTime, money } from "@/lib/format";
 import { ReceiptView } from "../pos/receipt-view";
 import { BillActions } from "./bill-actions";
+import { WhatsAppShare } from "./whatsapp-share";
 
 /** One bill: printable receipt, its history, and the actions the user may take. */
 export async function BillScreen({ orderId, from, splitPay = false }: { orderId: string; from: "pos" | "bills"; splitPay?: boolean }) {
@@ -91,6 +92,14 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
             )}
           </ul>
         </div>
+      )}
+
+      {has(user, "whatsapp") && r.state !== "voided" && (
+        <WhatsAppShare
+          orderId={bill.id}
+          country={user.country_code}
+          text={`${user.trading_name} — bill ${r.billNumber}, total ${money(r.grandTotal, r.currency)}.`}
+        />
       )}
 
       <BillActions

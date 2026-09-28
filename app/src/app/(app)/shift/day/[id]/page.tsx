@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import { has, requireUser } from "@/lib/auth";
+import { WhatsAppSummary } from "./whatsapp-summary";
 import { createClient } from "@/lib/supabase/server";
 import { dateTime, money } from "@/lib/format";
 import { PrintButton } from "../../../print-button";
@@ -148,6 +149,22 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
       </div>
       <div className="no-print mt-3 space-y-2">
         <PrintButton label="Print report" />
+        {has(user, "whatsapp") && (
+          <WhatsAppSummary
+            country={user.country_code}
+            text={[
+              `${user.trading_name} — ${z.branch}, day ${z.business_date}${z.status === "closed" ? " (closed)" : " (so far)"}`,
+              `Bills: ${z.bills} · Total billed: ${m(z.total_billed)}`,
+              `Tax: ${m(z.tax + z.tax_included)} · Discounts: ${m(z.discounts)}`,
+              ...z.payments.map((p) => `${p.method}: ${m(p.amount)} (${p.count})`),
+              z.voided_bills ? `Voided: ${z.voided_bills} bills, ${m(z.voided_value)}` : "",
+              z.credit_notes?.count ? `Credit notes: ${z.credit_notes.count}, ${m(z.credit_notes.amount)}` : "",
+              `Net after credit notes: ${m(z.net_sales_after_credit_notes)}`,
+            ]
+              .filter(Boolean)
+              .join("\n")}
+          />
+        )}
         <Link href="/shift" className="btn w-full border text-sm" style={{ borderColor: "var(--color-line)" }}>
           Back to Shift and day close
         </Link>
