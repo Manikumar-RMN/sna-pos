@@ -53,3 +53,34 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
+
+/* Owner alerts: show the push message and open the owner screen when tapped. */
+self.addEventListener("push", (event) => {
+  let d = {};
+  try {
+    d = event.data ? event.data.json() : {};
+  } catch (e) {
+    d = { title: "SNA POS", body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(d.title || "SNA POS", {
+      body: d.body || "",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: d.url || "/owner" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/owner";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if (new URL(c.url).pathname === url && "focus" in c) return c.focus();
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});

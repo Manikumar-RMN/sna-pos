@@ -42,7 +42,9 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   // /t/… = guest QR ordering, /r/… = e-bill link: guests open these without signing in.
-  const isPublic = path.startsWith("/login") || path.startsWith("/auth") || path.startsWith("/t/") || path.startsWith("/r/");
+  const isPublic = path.startsWith("/login") || path.startsWith("/auth") || path.startsWith("/t/") || path.startsWith("/r/") ||
+    // Machine calls: the push sender (shared secret) and the open API (API key).
+    path === "/api/push" || path.startsWith("/api/v1/");
 
   // A redirect must carry any cookies Supabase just refreshed, or the new
   // session is lost and the person is signed out later for no visible reason.

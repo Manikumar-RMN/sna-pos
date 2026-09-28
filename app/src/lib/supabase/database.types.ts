@@ -369,6 +369,93 @@ export type Database = {
           },
         ]
       }
+      api_calls: {
+        Row: {
+          action: string
+          at: string
+          id: number
+          key_id: string
+        }
+        Insert: {
+          action: string
+          at?: string
+          id?: number
+          key_id: string
+        }
+        Update: {
+          action?: string
+          at?: string
+          id?: number
+          key_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_calls_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_keys: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          key_hash: string
+          last_used_at: string | null
+          name: string
+          prefix: string
+          restaurant_id: string
+          revoked_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash: string
+          last_used_at?: string | null
+          name: string
+          prefix: string
+          restaurant_id: string
+          revoked_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash?: string
+          last_used_at?: string | null
+          name?: string
+          prefix?: string
+          restaurant_id?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_keys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "api_keys_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_failures: {
         Row: {
           at: string
@@ -2476,6 +2563,51 @@ export type Database = {
           },
         ]
       }
+      owner_alerts: {
+        Row: {
+          body: string
+          branch_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          restaurant_id: string
+          title: string
+        }
+        Insert: {
+          body: string
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          restaurant_id: string
+          title: string
+        }
+        Update: {
+          body?: string
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          restaurant_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_alerts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_alerts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_methods: {
         Row: {
           affects_cash_drawer: boolean
@@ -3146,6 +3278,58 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tax_groups"
             referencedColumns: ["restaurant_id", "id"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          restaurant_id: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          restaurant_id: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          restaurant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -4531,6 +4715,10 @@ export type Database = {
         Args: { p_new_password: string; p_user_id: string }
         Returns: undefined
       }
+      api_v1: {
+        Args: { p_action: string; p_key: string; p_params?: Json }
+        Returns: Json
+      }
       approve_with_pin: {
         Args: { p_permission: string; p_pin: string }
         Returns: Json
@@ -4559,6 +4747,7 @@ export type Database = {
         Args: { p_counted_cash: number; p_notes?: string }
         Returns: Json
       }
+      create_api_key: { Args: { p_name: string }; Returns: Json }
       create_order: {
         Args: {
           p_client_ref?: string
@@ -4671,6 +4860,10 @@ export type Database = {
       pin_touch: { Args: never; Returns: boolean }
       pin_unlock: { Args: { p_pin: string }; Returns: Json }
       public_receipt: { Args: { p_token: string }; Returns: Json }
+      push_gone: {
+        Args: { p_endpoints: string[]; p_secret: string }
+        Returns: undefined
+      }
       qr_menu: { Args: { p_token: string }; Returns: Json }
       qr_order_status: {
         Args: { p_key: string; p_request: string }
@@ -4733,6 +4926,10 @@ export type Database = {
         Args: { p_device_id: string }
         Returns: undefined
       }
+      remove_push_subscription: {
+        Args: { p_endpoint: string }
+        Returns: undefined
+      }
       reopen_day: { Args: { p_reason: string }; Returns: Json }
       request_plan_change: {
         Args: {
@@ -4745,6 +4942,7 @@ export type Database = {
         Returns: string
       }
       reset_table_qr: { Args: { p_table: string }; Returns: undefined }
+      revoke_api_key: { Args: { p_id: string }; Returns: undefined }
       sales_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       save_ingredient: {
         Args: {
@@ -4773,6 +4971,10 @@ export type Database = {
           p_upi_id?: string
         }
         Returns: string
+      }
+      save_push_subscription: {
+        Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
+        Returns: undefined
       }
       save_recipe: {
         Args: { p_lines: Json; p_product_id: string }

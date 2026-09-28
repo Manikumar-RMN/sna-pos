@@ -232,3 +232,20 @@ export async function resetTableQr(tableId: string): Promise<Result> {
   revalidatePath("/settings/tables/qr");
   return { ok: true, message: "New QR code made." };
 }
+
+/** Open API: a new key (shown once). */
+export async function createApiKey(name: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_api_key", { p_name: name });
+  if (error) return { ok: false as const, error: error.message };
+  revalidatePath("/settings/api");
+  return { ok: true as const, key: (data as { key: string }).key };
+}
+
+export async function revokeApiKey(id: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("revoke_api_key", { p_id: id });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/settings/api");
+  return { ok: true, message: "Key removed." };
+}
