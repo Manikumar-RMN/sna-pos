@@ -22,7 +22,7 @@ export function rightGroups(taxName = "tax"): RightGroup[] {
         { key: "payment.take", label: "Take payment" },
         { key: "payment.change_mode", label: "Change payment mode on a paid bill", hint: "While the shift is open" },
         { key: "cash.movement", label: "Cash in / out of the drawer" },
-        { key: "order.refund", label: "Refund bills", hint: "Refunds are switched off for now" },
+        { key: "order.refund", label: "Refund with a credit note" },
       ],
     },
     {
@@ -30,6 +30,8 @@ export function rightGroups(taxName = "tax"): RightGroup[] {
       rights: [
         { key: "shift.open", label: "Open a shift" },
         { key: "shift.close", label: "Close a shift and count cash" },
+        { key: "day.close", label: "Close the day (end-of-day report)" },
+        { key: "day.reopen", label: "Reopen the last closed day" },
         { key: "report.view_sales", label: "See sales reports" },
         { key: "report.view_financial", label: `See ${taxName} and cash figures` },
       ],

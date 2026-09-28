@@ -2,13 +2,14 @@ import { can, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { dateTime, money } from "@/lib/format";
 import { OpenShiftForm, ShiftPanel, type ShiftFigures } from "./shift-panel";
+import { DayPanel, type DayStatus } from "./day-panel";
 
 export default async function ShiftPage() {
   const user = await requireUser();
   const supabase = await createClient();
   const canSeeMoney = can(user, "shift.close") || can(user, "report.view_financial");
 
-  const [{ data: current }, { data: history }] = await Promise.all([
+  const [{ data: current }, { data: history }, { data: day }] = await Promise.all([
     supabase.rpc("current_shift"),
     supabase
       .from("shifts")
@@ -16,6 +17,7 @@ export default async function ShiftPage() {
       .eq("status", "closed")
       .order("closed_at", { ascending: false })
       .limit(10),
+    supabase.rpc("day_status"),
   ]);
   const figures = current as unknown as ShiftFigures | null;
 
@@ -65,6 +67,10 @@ export default async function ShiftPage() {
         />
       ) : (
         <OpenShiftForm canOpen={can(user, "shift.open")} />
+      )}
+
+      {day && (can(user, "day.close") || can(user, "day.reopen") || can(user, "report.view_sales") || can(user, "payment.take")) && (
+        <DayPanel status={day as unknown as DayStatus} currency={c} canAsk={can(user, "payment.take")} />
       )}
 
       {figures && (movements ?? []).length > 0 && canSeeMoney && (

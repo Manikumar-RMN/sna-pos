@@ -85,9 +85,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
   if (!user) return { ok: false, error: "Not signed in." };
   if (!can(user, "order.create")) return { ok: false, error: "You do not have permission to take orders." };
   if (!input.items?.length) return { ok: false, error: "The bill is empty." };
-  if (input.discount_amount > 0 && !can(user, "order.discount")) {
-    return { ok: false, error: "A manager must approve a discount." };
-  }
+  // Discounts: the database checks the right, or a manager's PIN approval.
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_order", {

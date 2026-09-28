@@ -5,7 +5,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money, roundCash } from "@/lib/format";
 import { UpiQr } from "../upi-qr";
-import { adjustBill, cancelItem, changePaymentMode, mergeBills, moveTable, payBill, refundBill, splitBill, voidBill } from "./actions";
+import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
+import { adjustBill, cancelItem, changePaymentMode, issueCreditNote, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
 
 type Method = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type PaymentRow = { id: string; methodId: string; methodName: string; amount: number; rounded: boolean };
@@ -30,6 +31,7 @@ export function BillActions({
   canDiscount = false,
   adjust,
   canChangeMode = false,
+  dayClosed = false,
   paymentList = [],
   upiPayee = null,
   canRefund,
@@ -57,6 +59,8 @@ export function BillActions({
   canDiscount?: boolean;
   adjust?: Adjust;
   canChangeMode?: boolean;
+  /** The bill's day is closed: no void; money back only by credit note. */
+  dayClosed?: boolean;
   paymentList?: PaymentRow[];
   /** Name shown in the customer's UPI app (India). Null hides the QR. */
   upiPayee?: string | null;
@@ -100,6 +104,8 @@ export function BillActions({
   const [fixPay, setFixPay] = useState(paymentList.find((p) => !p.rounded)?.id ?? "");
   const [fixTo, setFixTo] = useState("");
   const [fixReason, setFixReason] = useState("");
+  const [cnMethod, setCnMethod] = useState(paymentList[0]?.methodId ?? methods[0]?.id ?? "");
+  const [approval, setApproval] = useState<null | { permission: string; retry: () => void }>(null);
 
   const open = state === "unpaid" || state === "part-paid";
   const remaining = Math.max(0, Math.round((paidTotal - refunded) * 100) / 100);
@@ -117,8 +123,9 @@ export function BillActions({
   const fixable = paymentList.filter((p) => !p.rounded);
   const showFix = canChangeMode && state !== "voided" && fixable.length > 0;
   const fixRow = fixable.find((p) => p.id === fixPay) ?? fixable[0];
-  const showRefund = canRefund && (state === "paid" || state === "part-refunded") && remaining > 0;
-  const showVoid = canVoid && state !== "voided" && refunded === 0;
+  const canAsk = canPay; // a cashier can ask a manager to approve with their PIN
+  const showRefund = (canRefund || canAsk) && (state === "paid" || state === "part-refunded") && remaining > 0;
+  const showVoid = (canVoid || canAsk) && state !== "voided" && refunded === 0 && !dayClosed;
   const cancelLine = lines.find((l) => l.id === cancelId) ?? lines[0];
   const splitCount = Object.values(splitQty).reduce((s, q) => s + q, 0);
   const splitBlocked = hasPayments
@@ -131,7 +138,7 @@ export function BillActions({
   const mergeable = otherBills.filter((b) => b.mergeable);
   const discNum = discAmt.trim() === "" ? 0 : Math.round(Number(discAmt) * 100) / 100;
   const showAdjust =
-    !!adjust && state === "unpaid" && !hasPayments && (canDiscount || adjust.scAvailable) && (canPay || canDiscount);
+    !!adjust && state === "unpaid" && !hasPayments && (canPay || canDiscount);
   const adjustChanged = !!adjust && (discNum !== adjust.discount || (adjust.scAvailable && scWanted !== adjust.scOn));
 
   function run(fn: () => Promise<{ ok: boolean; error?: string; message?: string }>, after?: () => void) {
@@ -140,7 +147,9 @@ export function BillActions({
     start(async () => {
       const res = await fn();
       if (!res.ok) {
-        setError(res.error ?? "Something went wrong.");
+        const need = neededRight(res.error);
+        if (need) setApproval({ permission: need, retry: () => run(fn, after) });
+        setError(cleanMessage(res.error ?? "Something went wrong."));
         return;
       }
       setNotice(res.message ?? "Done.");
@@ -163,6 +172,23 @@ export function BillActions({
 
   return (
     <div className="no-print mx-auto mt-4 max-w-sm space-y-3">
+      {approval && (
+        <ApprovalPrompt
+          permission={approval.permission}
+          onCancel={() => setApproval(null)}
+          onApproved={(who) => {
+            const retry = approval.retry;
+            setApproval(null);
+            setNotice(`Approved by ${who}.`);
+            retry();
+          }}
+        />
+      )}
+      {dayClosed && state !== "voided" && (
+        <p className="rounded-lg px-3 py-2 text-xs" style={{ background: "var(--color-ground)", color: "var(--color-ink-2)" }}>
+          This bill&rsquo;s day is closed, so it cannot be voided or changed. Money back is given with a credit note dated today.
+        </p>
+      )}
       {notice && (
         <p className="rounded-lg px-3 py-2 text-sm" role="status" style={{ background: "var(--color-ok-soft)", color: "var(--color-ok)" }}>
           {notice}
@@ -319,8 +345,13 @@ export function BillActions({
                 <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
                   This bill has a senior citizen / PWD discount, so no other discount can be added.
                 </p>
-              ) : canDiscount ? (
+              ) : canDiscount || canPay ? (
                 <>
+                  {!canDiscount && (
+                    <p className="text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                      A manager approves discounts with their PIN.
+                    </p>
+                  )}
                   <label className="block text-xs font-medium" style={{ color: "var(--color-ink-2)" }} htmlFor="adj-disc">
                     Discount amount
                   </label>
@@ -490,7 +521,7 @@ export function BillActions({
         </section>
       )}
 
-      {open && canVoid && lines.length > 0 && (
+      {open && (canVoid || canAsk) && lines.length > 0 && !dayClosed && (
         <section className="card p-4">
           <h2 className="text-sm font-bold">Cancel an item</h2>
           <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
@@ -590,10 +621,28 @@ export function BillActions({
 
       {showRefund && (
         <section className="card p-4">
-          <h2 className="text-sm font-bold">Refund</h2>
+          <h2 className="text-sm font-bold">Refund (credit note)</h2>
           <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-            Up to {m(remaining)} can be refunded. The bill stays on record.
+            Up to {m(remaining)} can be given back. A credit note dated today is made with its own number; the bill stays as it was.
           </p>
+          <div className="mt-3 text-xs font-medium" style={{ color: "var(--color-ink-2)" }}>
+            Money given back by
+          </div>
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+            {methods.map((x) => (
+              <button
+                key={x.id}
+                onClick={() => setCnMethod(x.id)}
+                className="rounded-lg border px-2 py-2 text-xs font-semibold"
+                style={{
+                  borderColor: cnMethod === x.id ? "var(--color-brand)" : "var(--color-line)",
+                  background: cnMethod === x.id ? "var(--color-brand-soft)" : "transparent",
+                }}
+              >
+                {x.name}
+              </button>
+            ))}
+          </div>
           <input
             className="field mt-3 h-10 text-sm"
             inputMode="decimal"
@@ -611,16 +660,16 @@ export function BillActions({
                 className="btn flex-1 text-sm text-white"
                 style={{ background: "var(--color-bad)" }}
                 disabled={pending}
-                onClick={() => run(() => refundBill({ orderId, amount: Number(refundAmt), reason: refundReason }))}
+                onClick={() => run(() => issueCreditNote({ orderId, amount: Number(refundAmt), methodId: cnMethod, reason: refundReason }))}
               >
-                {pending ? "Saving…" : `Confirm refund ${m(Number(refundAmt) || 0)}`}
+                {pending ? "Saving…" : `Make credit note ${m(Number(refundAmt) || 0)}`}
               </button>
             </div>
           ) : (
             <button
               className="btn mt-3 w-full border text-sm"
               style={{ borderColor: "var(--color-line)" }}
-              disabled={!(Number(refundAmt) > 0) || refundReason.trim().length < 3}
+              disabled={!(Number(refundAmt) > 0) || Number(refundAmt) > remaining || refundReason.trim().length < 3 || !cnMethod}
               onClick={() => setConfirm("refund")}
             >
               Refund…

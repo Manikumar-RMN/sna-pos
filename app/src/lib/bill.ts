@@ -22,6 +22,10 @@ export type BillDetail = {
   hasDiscount: boolean;
   mergedInto: string | null;
   /** Payments on the bill, for "change payment mode". */
+  /** The bill's business day is closed: no void or change, only a credit note. */
+  dayClosed: boolean;
+  businessDate: string | null;
+  creditNotes: { id: string; number: string; amount: number; at: string; reason: string }[];
   paymentList: { id: string; methodId: string; methodName: string; amount: number; rounded: boolean }[];
   /** Discount and service charge as they stand on an open bill. */
   adjust: { discount: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
@@ -40,13 +44,13 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into, calc_params",
+      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into, calc_params, business_date",
     )
     .eq("id", orderId)
     .maybeSingle();
   if (!order) return null;
 
-  const [items, taxes, payments, refunds, restaurant, branch, settings, table, discounts, upiMethod] = await Promise.all([
+  const [items, taxes, payments, refunds, restaurant, branch, settings, table, discounts, upiMethod, day, creditNotes] = await Promise.all([
     supabase
       .from("order_items")
       .select("id, product_name, options_text, quantity, unit_price, line_subtotal, net_amount, created_at, cancelled_at, cancelled_qty, cancel_reason")
@@ -77,6 +81,10 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
       : Promise.resolve({ data: null }),
     supabase.from("order_discounts").select("discount_type, amount").eq("order_id", order.id),
     supabase.from("payment_methods").select("upi_id").eq("kind", "upi").eq("is_active", true).not("upi_id", "is", null).limit(1).maybeSingle(),
+    order.business_date
+      ? supabase.from("business_days").select("status").eq("branch_id", order.branch_id).eq("business_date", order.business_date).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase.from("credit_notes").select("id, number, amount, created_at, reason").eq("order_id", order.id).order("created_at"),
   ]);
 
   const { data: country } = restaurant.data?.country_code
@@ -209,6 +217,9 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     tableId: order.dining_table_id,
     hasDiscount: Number(order.discount_total) > 0 || !!sd?.name,
     mergedInto: order.merged_into,
+    dayClosed: (day.data as { status?: string } | null)?.status === "closed",
+    businessDate: order.business_date,
+    creditNotes: (creditNotes.data ?? []).map((c) => ({ id: c.id, number: c.number, amount: Number(c.amount), at: c.created_at, reason: c.reason })),
     paymentList: paymentRows.map((p) => ({
       id: p.id,
       methodId: p.payment_method_id,

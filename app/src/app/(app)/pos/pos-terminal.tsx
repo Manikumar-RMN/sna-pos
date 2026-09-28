@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money, roundCash } from "@/lib/format";
 import { UpiQr } from "../upi-qr";
+import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { addToBill, placeOrder, quoteOrder, type PlaceOrderInput, type Quote, type Senior } from "./actions";
 
 export type OptionGroup = {
@@ -121,6 +122,7 @@ export function PosTerminal({
   // Replies that arrive out of order are ignored.
   const cartKey = JSON.stringify([lines.map((l) => [l.key, l.qty]), discountAmt, scChoice, senior]);
   const [noteOpen, setNoteOpen] = useState<string | null>(null);
+  const [approval, setApproval] = useState<null | { permission: string; retry: () => void }>(null);
   useEffect(() => {
     if (addTo || lines.length === 0) {
       setQuote(null);
@@ -222,7 +224,11 @@ export function PosTerminal({
     };
     startTransition(async () => {
       const res = await placeOrder(input);
-      if (!res.ok) return setError(res.error);
+      if (!res.ok) {
+        const need = neededRight(res.error);
+        if (need) setApproval({ permission: need, retry: () => submit(mode) });
+        return setError(cleanMessage(res.error));
+      }
       if (mode === "split") router.push(`/bills/${res.orderId}?pay=split`);
       else router.push(`/pos/receipt/${res.orderId}`);
     });
@@ -472,7 +478,7 @@ export function PosTerminal({
                       />
                     </label>
                   )}
-                  {canDiscount && !senior && (
+                  {(canDiscount || canPay) && !senior && (
                     <div className="flex items-center gap-2">
                       <label className="text-xs font-medium" style={{ color: "var(--color-ink-2)" }} htmlFor="discount">
                         Discount
@@ -606,6 +612,18 @@ export function PosTerminal({
           )}
         </div>
       </div>
+
+      {approval && (
+        <ApprovalPrompt
+          permission={approval.permission}
+          onCancel={() => setApproval(null)}
+          onApproved={() => {
+            const r = approval.retry;
+            setApproval(null);
+            r();
+          }}
+        />
+      )}
 
       {picking && (
         <OptionPicker

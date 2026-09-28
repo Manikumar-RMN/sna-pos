@@ -84,6 +84,26 @@ export async function changePaymentMode(input: { orderId: string; paymentId: str
   return { ok: true, message: `Payment changed from ${res.from ?? "—"} to ${res.to ?? "—"}.` };
 }
 
+/** Money back on a paid bill: a credit note dated today, with its own number. */
+export async function issueCreditNote(input: { orderId: string; amount: number; methodId: string; reason: string }): Promise<ActionResult> {
+  const reason = input.reason.trim();
+  if (reason.length < 3) return { ok: false, error: "Write a short reason." };
+  if (!(input.amount > 0)) return { ok: false, error: "Enter the amount to give back." };
+  if (!input.methodId) return { ok: false, error: "Choose how the money is given back." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("issue_credit_note", {
+    p_order_id: input.orderId,
+    p_amount: Math.round(input.amount * 100) / 100,
+    p_method_id: input.methodId,
+    p_reason: reason,
+  });
+  if (error) return { ok: false, error: error.message };
+  refresh(input.orderId);
+  revalidatePath("/shift");
+  const res = (data ?? {}) as { number?: string; amount?: number };
+  return { ok: true, message: `Credit note ${res.number ?? ""} made for ${Number(res.amount ?? 0).toFixed(2)}.` };
+}
+
 export async function cancelItem(input: { orderId: string; itemId: string; qty: number; reason: string }): Promise<ActionResult> {
   const reason = input.reason.trim();
   if (reason.length < 3) return { ok: false, error: "Write a short reason for cancelling the item." };

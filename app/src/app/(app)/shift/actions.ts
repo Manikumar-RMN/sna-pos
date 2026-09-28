@@ -56,3 +56,23 @@ export async function closeShift(counted: number, notes: string): Promise<ShiftR
         : `Shift closed. The drawer is short by ${Math.abs(v).toFixed(2)}.`;
   return { ok: true, message: msg };
 }
+
+export async function closeDay(notes: string): Promise<ShiftResult & { dayId?: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("close_day", { p_notes: notes.trim() || undefined });
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  revalidatePath("/bills");
+  const z = (data ?? {}) as { business_date?: string; total_billed?: number };
+  return { ok: true, message: `Day ${z.business_date ?? ""} closed. Total billed ${Number(z.total_billed ?? 0).toFixed(2)}.` };
+}
+
+export async function reopenDay(reason: string): Promise<ShiftResult> {
+  if (reason.trim().length < 3) return { ok: false, error: "Write a short reason for reopening the day." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("reopen_day", { p_reason: reason.trim() });
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  revalidatePath("/bills");
+  return { ok: true, message: `Day ${(data as { business_date?: string } | null)?.business_date ?? ""} is open again. Changes go into that day. Close it again when done.` };
+}

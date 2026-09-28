@@ -59,7 +59,7 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
         showNextBill={from === "pos" && !open}
       />
 
-      {(bill.refunds.length > 0 || bill.voidedAt || bill.cancelled.length > 0) && (
+      {(bill.refunds.length > 0 || bill.voidedAt || bill.cancelled.length > 0 || bill.creditNotes.length > 0) && (
         <div className="no-print card mx-auto mt-4 max-w-sm p-4 text-sm">
           <h2 className="mb-2 font-bold">History</h2>
           <ul className="space-y-1.5" style={{ color: "var(--color-ink-2)" }}>
@@ -69,11 +69,21 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
                 {c.reason ? ` — ${c.reason}` : ""}
               </li>
             ))}
-            {bill.refunds.map((f, i) => (
-              <li key={i}>
-                Refund {money(f.amount, r.currency)} by {f.by}, {dateTime(f.at, tz)} — {f.reason}
+            {bill.creditNotes.map((cn) => (
+              <li key={cn.id}>
+                <Link href={`/bills/credit-note/${cn.id}`} className="font-semibold" style={{ color: "var(--color-brand)" }}>
+                  Credit note {cn.number}
+                </Link>{" "}
+                {money(cn.amount, r.currency)}, {dateTime(cn.at, tz)} — {cn.reason}
               </li>
             ))}
+            {bill.refunds
+              .filter((f) => !bill.creditNotes.some((cn) => cn.reason === f.reason && cn.amount === f.amount))
+              .map((f, i) => (
+                <li key={i}>
+                  Refund {money(f.amount, r.currency)} by {f.by}, {dateTime(f.at, tz)} — {f.reason}
+                </li>
+              ))}
             {bill.voidedAt && (
               <li>
                 Voided by {bill.voidedBy}, {dateTime(bill.voidedAt, tz)} — {r.voidReason}
@@ -98,6 +108,7 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
         canDiscount={can(user, "order.discount")}
         adjust={bill.adjust}
         canChangeMode={can(user, "payment.change_mode")}
+        dayClosed={bill.dayClosed}
         paymentList={bill.paymentList}
         upiPayee={r.upi?.payee ?? null}
         canRefund={can(user, "order.refund")}

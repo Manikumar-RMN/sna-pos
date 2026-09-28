@@ -369,6 +369,75 @@ export type Database = {
           },
         ]
       }
+      approval_failures: {
+        Row: {
+          at: string
+          id: number
+          restaurant_id: string
+          user_id: string
+        }
+        Insert: {
+          at?: string
+          id?: number
+          restaurant_id: string
+          user_id: string
+        }
+        Update: {
+          at?: string
+          id?: number
+          restaurant_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      approvals: {
+        Row: {
+          approved_by: string
+          created_at: string
+          expires_at: string
+          id: string
+          permission_key: string
+          requested_by: string
+          restaurant_id: string
+          used_at: string | null
+        }
+        Insert: {
+          approved_by: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          permission_key: string
+          requested_by: string
+          restaurant_id: string
+          used_at?: string | null
+        }
+        Update: {
+          approved_by?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          permission_key?: string
+          requested_by?: string
+          restaurant_id?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approvals_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "approvals_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -605,6 +674,66 @@ export type Database = {
           },
         ]
       }
+      business_days: {
+        Row: {
+          branch_id: string
+          business_date: string
+          close_notes: string | null
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          id: string
+          opened_at: string
+          reopen_count: number
+          restaurant_id: string
+          status: string
+          z_report: Json | null
+        }
+        Insert: {
+          branch_id: string
+          business_date: string
+          close_notes?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          reopen_count?: number
+          restaurant_id: string
+          status?: string
+          z_report?: Json | null
+        }
+        Update: {
+          branch_id?: string
+          business_date?: string
+          close_notes?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          reopen_count?: number
+          restaurant_id?: string
+          status?: string
+          z_report?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_days_restaurant_id_branch_id_fkey"
+            columns: ["restaurant_id", "branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "business_days_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_movements: {
         Row: {
           amount: number
@@ -755,6 +884,86 @@ export type Database = {
           tax_system_name?: string
         }
         Relationships: []
+      }
+      credit_notes: {
+        Row: {
+          amount: number
+          branch_id: string
+          business_date: string
+          created_at: string
+          created_by: string
+          id: string
+          number: string
+          order_id: string
+          payment_method_id: string
+          reason: string
+          restaurant_id: string
+          shift_id: string | null
+          tax_amount: number
+          taxes: Json
+        }
+        Insert: {
+          amount: number
+          branch_id: string
+          business_date: string
+          created_at?: string
+          created_by: string
+          id?: string
+          number: string
+          order_id: string
+          payment_method_id: string
+          reason: string
+          restaurant_id: string
+          shift_id?: string | null
+          tax_amount?: number
+          taxes?: Json
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          business_date?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          number?: string
+          order_id?: string
+          payment_method_id?: string
+          reason?: string
+          restaurant_id?: string
+          shift_id?: string | null
+          tax_amount?: number
+          taxes?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_notes_restaurant_id_branch_id_fkey"
+            columns: ["restaurant_id", "branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "credit_notes_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_notes_restaurant_id_order_id_fkey"
+            columns: ["restaurant_id", "order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "credit_notes_restaurant_id_payment_method_id_fkey"
+            columns: ["restaurant_id", "payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+        ]
       }
       currencies: {
         Row: {
@@ -1544,6 +1753,7 @@ export type Database = {
         Row: {
           bill_number: string
           branch_id: string
+          business_date: string | null
           calc_params: Json | null
           cashier_id: string
           client_created_at: string
@@ -1581,6 +1791,7 @@ export type Database = {
         Insert: {
           bill_number: string
           branch_id: string
+          business_date?: string | null
           calc_params?: Json | null
           cashier_id: string
           client_created_at: string
@@ -1618,6 +1829,7 @@ export type Database = {
         Update: {
           bill_number?: string
           branch_id?: string
+          business_date?: string | null
           calc_params?: Json | null
           cashier_id?: string
           client_created_at?: string
@@ -1659,6 +1871,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "branches"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_business_day_fk"
+            columns: ["branch_id", "business_date"]
+            isOneToOne: false
+            referencedRelation: "business_days"
+            referencedColumns: ["branch_id", "business_date"]
           },
           {
             foreignKeyName: "orders_cashier_id_fkey"
@@ -1832,6 +2051,7 @@ export type Database = {
           reference_no: string | null
           restaurant_id: string
           rounding_adjustment: number
+          shift_id: string | null
           status: string
           synced_at: string | null
           tendered_amount: number | null
@@ -1850,6 +2070,7 @@ export type Database = {
           reference_no?: string | null
           restaurant_id: string
           rounding_adjustment?: number
+          shift_id?: string | null
           status?: string
           synced_at?: string | null
           tendered_amount?: number | null
@@ -1868,6 +2089,7 @@ export type Database = {
           reference_no?: string | null
           restaurant_id?: string
           rounding_adjustment?: number
+          shift_id?: string | null
           status?: string
           synced_at?: string | null
           tendered_amount?: number | null
@@ -2264,11 +2486,14 @@ export type Database = {
           approved_by: string
           client_created_at: string
           created_at: string
+          credit_note_id: string | null
           id: string
           order_id: string
           payment_id: string | null
+          payment_method_id: string | null
           reason: string
           restaurant_id: string
+          shift_id: string | null
           synced_at: string | null
         }
         Insert: {
@@ -2276,11 +2501,14 @@ export type Database = {
           approved_by: string
           client_created_at: string
           created_at?: string
+          credit_note_id?: string | null
           id: string
           order_id: string
           payment_id?: string | null
+          payment_method_id?: string | null
           reason: string
           restaurant_id: string
+          shift_id?: string | null
           synced_at?: string | null
         }
         Update: {
@@ -2288,11 +2516,14 @@ export type Database = {
           approved_by?: string
           client_created_at?: string
           created_at?: string
+          credit_note_id?: string | null
           id?: string
           order_id?: string
           payment_id?: string | null
+          payment_method_id?: string | null
           reason?: string
           restaurant_id?: string
+          shift_id?: string | null
           synced_at?: string | null
         }
         Relationships: [
@@ -3098,6 +3329,10 @@ export type Database = {
         Args: { p_new_password: string; p_user_id: string }
         Returns: undefined
       }
+      approve_with_pin: {
+        Args: { p_permission: string; p_pin: string }
+        Returns: Json
+      }
       cancel_invite: { Args: { p_user_id: string }; Returns: undefined }
       cancel_order_item: {
         Args: { p_order_item_id: string; p_qty: number; p_reason: string }
@@ -3110,6 +3345,7 @@ export type Database = {
       claim_staff_invite: { Args: { p_code: string }; Returns: string }
       clear_pin_lockout: { Args: { p_device_id: string }; Returns: undefined }
       clear_staff_pin: { Args: { p_user_id: string }; Returns: undefined }
+      close_day: { Args: { p_notes?: string }; Returns: Json }
       close_shift: {
         Args: { p_counted_cash: number; p_notes?: string }
         Returns: Json
@@ -3152,6 +3388,8 @@ export type Database = {
         Returns: string
       }
       current_shift: { Args: never; Returns: Json }
+      day_report: { Args: { p_day_id: string }; Returns: Json }
+      day_status: { Args: never; Returns: Json }
       delete_role: { Args: { p_role_id: string }; Returns: undefined }
       invite_staff: {
         Args: {
@@ -3159,6 +3397,15 @@ export type Database = {
           p_full_name: string
           p_phone?: string
           p_role_id: string
+        }
+        Returns: Json
+      }
+      issue_credit_note: {
+        Args: {
+          p_amount: number
+          p_method_id: string
+          p_order_id: string
+          p_reason: string
         }
         Returns: Json
       }
@@ -3213,6 +3460,7 @@ export type Database = {
         Args: { p_device_id: string }
         Returns: undefined
       }
+      reopen_day: { Args: { p_reason: string }; Returns: Json }
       sales_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       save_payment_method: {
         Args: {
