@@ -1438,6 +1438,57 @@ export type Database = {
           },
         ]
       }
+      offline_series: {
+        Row: {
+          branch_id: string
+          created_at: string
+          device_key: string
+          fy: string | null
+          id: string
+          last_sync_at: string | null
+          next_seq: number
+          prefix: string
+          restaurant_id: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          device_key: string
+          fy?: string | null
+          id?: string
+          last_sync_at?: string | null
+          next_seq?: number
+          prefix: string
+          restaurant_id: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          device_key?: string
+          fy?: string | null
+          id?: string
+          last_sync_at?: string | null
+          next_seq?: number
+          prefix?: string
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offline_series_restaurant_id_branch_id_fkey"
+            columns: ["restaurant_id", "branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "offline_series_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_discounts: {
         Row: {
           amount: number
@@ -1773,6 +1824,7 @@ export type Database = {
           grand_total: number
           id: string
           merged_into: string | null
+          offline_flags: Json | null
           order_type: string
           paid_total: number
           payment_status: string
@@ -1814,6 +1866,7 @@ export type Database = {
           grand_total?: number
           id: string
           merged_into?: string | null
+          offline_flags?: Json | null
           order_type: string
           paid_total?: number
           payment_status?: string
@@ -1855,6 +1908,7 @@ export type Database = {
           grand_total?: number
           id?: string
           merged_into?: string | null
+          offline_flags?: Json | null
           order_type?: string
           paid_total?: number
           payment_status?: string
@@ -2386,6 +2440,41 @@ export type Database = {
           },
           {
             foreignKeyName: "product_modifier_groups_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_price_history: {
+        Row: {
+          id: number
+          price: number
+          product_id: string
+          restaurant_id: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          id?: number
+          price: number
+          product_id: string
+          restaurant_id: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Update: {
+          id?: number
+          price?: number
+          product_id?: string
+          restaurant_id?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_price_history_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
@@ -3446,6 +3535,7 @@ export type Database = {
       }
       my_account_state: { Args: never; Returns: string }
       my_device_state: { Args: never; Returns: Json }
+      offline_snapshot: { Args: { p_device_key: string }; Returns: Json }
       open_shift: { Args: { p_opening_float?: number }; Returns: string }
       password_changed: { Args: never; Returns: undefined }
       pay_order: {
@@ -3537,6 +3627,7 @@ export type Database = {
         Args: { p_items: Json; p_order_id: string }
         Returns: Json
       }
+      sync_offline_bill: { Args: { p_bill: Json }; Returns: Json }
       update_settings: { Args: { p_settings: Json }; Returns: undefined }
       update_staff: {
         Args: { p_is_active?: boolean; p_role_id?: string; p_user_id: string }

@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { money, roundCash } from "@/lib/format";
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
-import { addToBill, placeOrder, quoteOrder, type PlaceOrderInput, type Quote, type Senior } from "./actions";
+import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, type PlaceOrderInput, type Quote, type Senior } from "./actions";
+import { cashDue, deviceKey, offlineQuote, readQueue, readSnapshot, saveSnapshot, takeNumber, writeQueue, type OfflineBill, type Snapshot } from "@/lib/offline";
+import { OfflineReceipt } from "./offline-receipt";
 
 export type OptionGroup = {
   id: string;
@@ -125,6 +127,68 @@ export function PosTerminal({
   const [approval, setApproval] = useState<null | { permission: string; retry: () => void }>(null);
   // Same id for every retry of this bill; a new one after it is saved.
   const [clientRef, setClientRef] = useState(() => crypto.randomUUID());
+  // Offline billing: a copy of the menu and tax rules on this device.
+  const [snap, setSnap] = useState<Snapshot | null>(null);
+  const [offline, setOffline] = useState(false);
+  const [offlineBill, setOfflineBill] = useState<OfflineBill | null>(null);
+
+  useEffect(() => {
+    const cached = readSnapshot();
+    if (cached) setSnap(cached);
+    setOffline(!navigator.onLine);
+    const on = () => setOffline(false);
+    const off = () => setOffline(true);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    if (navigator.onLine) {
+      getOfflineSnapshot(deviceKey())
+        .then((r) => {
+          if (r.ok) {
+            saveSnapshot(r.snapshot as Snapshot);
+            setSnap(r.snapshot as Snapshot);
+          }
+        })
+        .catch(() => setOffline(true));
+    }
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
+
+  function localQuote(): Quote | string {
+    if (!snap) return "No internet, and this device has no offline copy of the menu yet. Open Billing once while online.";
+    if (senior) return "The senior citizen / PWD discount needs the internet.";
+    try {
+      const c = offlineQuote(
+        snap,
+        lines.map((l) => ({ product_id: l.item.id, qty: l.qty, unit_price: unitPrice(l) })),
+        snap.rights.discount ? discountAmt : 0,
+        scChoice,
+      );
+      const scOn = (scChoice ?? snap.settings.sc_default_on) && snap.settings.sc_percent > 0;
+      return {
+        subtotal: c.subtotal,
+        discount: c.discount,
+        senior_discount: 0,
+        tax_exempt_amount: 0,
+        service_charge: c.service_charge,
+        tax_total: c.tax_total,
+        tax_included: c.tax_included,
+        rounding: c.rounding,
+        grand_total: c.grand_total,
+        taxes: c.taxes.map((t) => ({ name: t.name, rate: t.rate, amount: t.amount })),
+        lines: c.lines.map((l) => ({ key: l.key, total: l.total })),
+        service_charge_available: snap.settings.sc_percent > 0,
+        service_charge_on: scOn,
+        service_charge_percent: snap.settings.sc_percent,
+        service_charge_label: snap.settings.sc_label,
+        cash_rounding: snap.settings.cash_rounding,
+      };
+    } catch (e) {
+      return (e as Error).message;
+    }
+  }
   useEffect(() => {
     if (addTo || lines.length === 0) {
       setQuote(null);
@@ -135,10 +199,18 @@ export function PosTerminal({
     setQuoting(true);
     const t = setTimeout(async () => {
       let res: Awaited<ReturnType<typeof quoteOrder>>;
-      try {
-        res = await quoteOrder({ items: itemsPayload(), discount_amount: discountAmt, service_charge: scChoice, senior });
-      } catch {
-        res = { ok: false, error: "Could not reach the server. Check the internet connection and try again." };
+      const fromDevice = () => {
+        const q = localQuote();
+        return typeof q === "string" ? ({ ok: false, error: q } as const) : ({ ok: true, quote: q } as const);
+      };
+      if (offline) res = fromDevice();
+      else {
+        try {
+          res = await quoteOrder({ items: itemsPayload(), discount_amount: discountAmt, service_charge: scChoice, senior });
+        } catch {
+          setOffline(true);
+          res = fromDevice();
+        }
       }
       if (id !== reqId.current) return;
       setQuoting(false);
@@ -152,7 +224,7 @@ export function PosTerminal({
     }, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cartKey]);
+  }, [cartKey, offline, snap]);
 
   const due = quote ? (isCash ? roundCash(quote.grand_total, quote.cash_rounding) : quote.grand_total) : 0;
   const cashRound = quote && isCash ? Math.round((due - quote.grand_total) * 100) / 100 : 0;
@@ -204,10 +276,63 @@ export function PosTerminal({
     setError(null);
   }
 
+  function submitOffline(mode: "pay" | "unpaid" | "split") {
+    if (!snap || !quote) return setError("No internet, and this device has no offline copy of the menu yet.");
+    if (mode !== "pay") return setError("Without internet only paid bills can be made. Take the payment now.");
+    if (!canPay) return setError("Without internet only the cashier can make bills here.");
+    const method = paymentMethods.find((p) => p.id === methodId);
+    if (!method) return setError("Choose how the customer paid.");
+    const byId = new Map(snap.menu.map((m) => [m.id, m]));
+    const missing = lines.find((l) => !byId.has(l.item.id));
+    if (missing) return setError(`${missing.item.name} is not in this device's offline menu. Remove it or wait for the internet.`);
+    const calc = offlineQuote(
+      snap,
+      lines.map((l) => ({ product_id: l.item.id, qty: l.qty, unit_price: unitPrice(l) })),
+      snap.rights.discount ? discountAmt : 0,
+      scChoice,
+    );
+    const dueNow = cashDue(snap, calc.grand_total, method.kind === "cash");
+    if (method.kind === "cash" && tendered !== "" && Number(tendered) < dueNow) return setError("Amount received is less than the total.");
+    const { seq, number } = takeNumber(snap);
+    const bill: OfflineBill = {
+      client_id: crypto.randomUUID(),
+      device_key: snap.device_key,
+      seq,
+      fy: snap.series.fy,
+      number,
+      created_at: new Date().toISOString(),
+      order_type: orderType,
+      items: lines.map((l) => ({
+        product_id: l.item.id,
+        name: l.item.name,
+        qty: l.qty,
+        price: unitPrice(l),
+        options: l.options.map((o) => o.id),
+        options_text: l.options.map((o) => o.name).join(", ") || null,
+        note: l.note.trim() || undefined,
+        station: byId.get(l.item.id)?.station ?? "Kitchen",
+      })),
+      discount: snap.rights.discount ? discountAmt : 0,
+      service_charge: (scChoice ?? snap.settings.sc_default_on) && snap.settings.sc_percent > 0,
+      method_id: method.id,
+      method_name: method.name,
+      tendered: method.kind === "cash" && tendered !== "" ? Number(tendered) : null,
+      reference: askRef ? reference : null,
+      grand_total: calc.grand_total,
+      due: dueNow,
+      calc,
+    };
+    const q = readQueue();
+    if (!writeQueue([...q, bill])) return setError("This device's storage is full, so the bill could not be saved. Free some space.");
+    window.dispatchEvent(new Event("sna-offline-queue"));
+    setOfflineBill(bill);
+  }
+
   function submit(mode: "pay" | "unpaid" | "split") {
     setError(null);
     if (lines.length === 0) return setError("Add at least one item.");
     if (!quote || quoting) return setError("Please wait a moment — the total is being checked.");
+    if (offline) return submitOffline(mode);
     const payNow = mode === "pay";
     if (payNow && !methodId) return setError("Choose how the customer paid.");
     if (payNow && isCash && tendered !== "" && Number(tendered) < due) return setError("Amount received is less than the total.");
@@ -226,7 +351,17 @@ export function PosTerminal({
       client_ref: clientRef,
     };
     startTransition(async () => {
-      const res = await placeOrder(input);
+      let res: Awaited<ReturnType<typeof placeOrder>>;
+      try {
+        res = await placeOrder(input);
+      } catch {
+        // The internet dropped while saving. Nothing reached the server's reply, so the same
+        // request id makes a later retry safe; meanwhile the bill can be made offline.
+        setOffline(true);
+        return setError(
+          "The internet dropped while saving, so this bill may already be saved. Check Bills when the internet is back. To bill offline now, press the button again.",
+        );
+      }
       if (!res.ok) {
         const need = neededRight(res.error);
         if (need) setApproval({ permission: need, retry: () => submit(mode) });
@@ -241,6 +376,7 @@ export function PosTerminal({
   function submitAdd() {
     if (!addTo) return;
     setError(null);
+    if (offline) return setError("Adding to an open bill needs the internet.");
     if (lines.length === 0) return setError("Add at least one item.");
     startTransition(async () => {
       const res = await addToBill(addTo.id, itemsPayload());
@@ -254,6 +390,11 @@ export function PosTerminal({
       <div>
         <div className="mb-3 flex flex-wrap items-center gap-x-3">
           <h1 className="text-xl font-bold tracking-tight">{addTo ? `Add items to bill ${addTo.billNumber}` : "Billing"}</h1>
+          {offline && (
+            <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
+              OFFLINE — paid bills only
+            </span>
+          )}
           <span className="text-xs" style={{ color: "var(--color-ink-3)" }}>
             Tap an item to add it · prices {pricesIncludeTax ? `include ${taxName}` : `before ${taxName}`}
           </span>
@@ -616,6 +757,18 @@ export function PosTerminal({
           )}
         </div>
       </div>
+
+      {offlineBill && snap && (
+        <OfflineReceipt
+          bill={offlineBill}
+          snap={snap}
+          onDone={() => {
+            setOfflineBill(null);
+            clearAll();
+            setCart({});
+          }}
+        />
+      )}
 
       {approval && (
         <ApprovalPrompt

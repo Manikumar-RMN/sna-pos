@@ -5,6 +5,8 @@ import { signOut } from "@/app/login/actions";
 import { lockCounter } from "@/app/counter/actions";
 import { NavLinks, NavRail } from "./nav-links";
 import { IdleLock } from "./idle-lock";
+import { OfflineSync } from "./offline-sync";
+import { SwRegister } from "./sw-register";
 
 /** SNA POS mark: a steaming bowl on a saffron plate. */
 function Mark({ size = 48 }: { size?: number }) {
@@ -131,7 +133,11 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <div className="ml-auto flex items-center gap-3">{actions(false)}</div>
         </header>
 
-        <main className="px-4 py-5 md:px-1 md:py-3">{children}</main>
+        <main className="px-4 py-5 md:px-1 md:py-3">
+          <OfflineSync />
+          <SwRegister />
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { readQueue } from "@/lib/offline";
 import { money } from "@/lib/format";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { closeDay, reopenDay } from "./actions";
@@ -30,7 +31,9 @@ export function DayPanel({ status, currency, canAsk }: { status: DayStatus; curr
   const [approval, setApproval] = useState<null | { permission: string; retry: () => void }>(null);
   const d = status.open_day;
   const lastClosed = status.recent.find((x) => x.status === "closed");
-  const blocked = status.shift_open || status.unpaid.length > 0;
+  const [waiting, setWaiting] = useState(0);
+  useEffect(() => setWaiting(readQueue().length), []);
+  const blocked = status.shift_open || status.unpaid.length > 0 || waiting > 0;
 
   function run(fn: () => Promise<{ ok: boolean; error?: string; message?: string }>) {
     setMsg(null);
@@ -79,6 +82,11 @@ export function DayPanel({ status, currency, canAsk }: { status: DayStatus; curr
           {status.shift_open && (
             <p className="mb-2 rounded-lg px-3 py-2 text-xs" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
               Close the shift above (count the cash) before closing the day.
+            </p>
+          )}
+          {waiting > 0 && (
+            <p className="mb-2 rounded-lg px-3 py-2 text-xs" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+              {waiting} bill{waiting === 1 ? " made" : "s made"} offline on this device {waiting === 1 ? "has" : "have"} not been sent yet. Wait for the internet, then close the day.
             </p>
           )}
           {status.unpaid.length > 0 && (

@@ -121,3 +121,24 @@ export async function addToBill(orderId: string, items: CartItem[]): Promise<{ o
   revalidatePath("/pos");
   return { ok: true };
 }
+
+/** Menu, tax rules and a bill-number series so this device can keep billing without the internet. */
+export async function getOfflineSnapshot(deviceKey: string): Promise<{ ok: true; snapshot: unknown } | { ok: false; error: string }> {
+  if (!/^[0-9a-f-]{36}$/i.test(deviceKey)) return { ok: false, error: "Bad device key." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("offline_snapshot", { p_device_key: deviceKey });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, snapshot: data };
+}
+
+/** Sends one offline bill. Safe to repeat: the server records each bill once. */
+export async function syncOfflineBill(bill: unknown): Promise<{ ok: boolean; error?: string; waiting?: boolean }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("sync_offline_bill", { p_bill: bill as Json });
+  if (error) return { ok: false, error: error.message };
+  const res = (data ?? {}) as { ok?: boolean; reason?: string };
+  if (res.ok === false) return { ok: false, waiting: true, error: res.reason };
+  revalidatePath("/bills");
+  revalidatePath("/shift");
+  return { ok: true };
+}
