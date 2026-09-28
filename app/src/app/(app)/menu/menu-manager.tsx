@@ -26,6 +26,7 @@ type Product = {
   tax_group_id: string;
   is_veg: boolean | null;
   is_available: boolean;
+  kitchen_station?: string | null;
 };
 type TaxGroup = { id: string; name: string };
 export type OptionGroupView = {
@@ -450,6 +451,29 @@ function ProductModal({
               <option value="off">Non-veg</option>
             </select>
           </div>
+        </div>
+
+        <div className="mb-4">
+          <label className="mb-1.5 block text-sm font-semibold">Kitchen station</label>
+          <input
+            name="kitchen_station"
+            defaultValue={product?.kitchen_station ?? ""}
+            className="field"
+            list="station-list"
+            maxLength={30}
+            placeholder="Kitchen"
+          />
+          <datalist id="station-list">
+            <option value="Kitchen" />
+            <option value="Bar" />
+            <option value="Tandoor" />
+            <option value="Chinese" />
+            <option value="Desserts" />
+            <option value="Beverages" />
+          </datalist>
+          <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+            Where this item is made. Each station gets its own kitchen ticket and printer. Empty means Kitchen.
+          </p>
         </div>
 
         <input type="hidden" name="options_present" value="1" />

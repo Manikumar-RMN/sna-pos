@@ -160,6 +160,11 @@ export function BillActions({
         return;
       }
       setNotice(res.message ?? "Done.");
+      if (res.message?.startsWith("Paid in full")) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("print", "1");
+        window.history.replaceState(null, "", url.toString());
+      }
       setConfirm(null);
       setPanel(null);
       setVoidReason("");

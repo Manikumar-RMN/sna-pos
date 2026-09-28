@@ -3428,6 +3428,7 @@ export type Database = {
         }
         Returns: Json
       }
+      mark_tickets_printed: { Args: { p_ids: string[] }; Returns: number }
       merge_orders: {
         Args: { p_source_id: string; p_target_id: string }
         Returns: Json

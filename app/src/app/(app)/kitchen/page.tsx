@@ -10,7 +10,7 @@ export default async function KitchenPage() {
 
   const { data: tickets } = await supabase
     .from("kitchen_tickets")
-    .select("id, order_id, ticket_number, status, created_at, started_at, ready_at")
+    .select("id, order_id, ticket_number, station, status, created_at, started_at, ready_at, printed_at")
     .in("status", ["new", "preparing", "ready"])
     .gte("created_at", since)
     .order("created_at");
@@ -25,8 +25,8 @@ export default async function KitchenPage() {
           .in("kitchen_ticket_id", ids)
       : Promise.resolve({ data: [] as { kitchen_ticket_id: string; product_name: string; quantity: number; note: string | null; status: string }[] }),
     orderIds.length
-      ? supabase.from("orders").select("id, order_type, dining_table_id").in("id", orderIds)
-      : Promise.resolve({ data: [] as { id: string; order_type: string; dining_table_id: string | null }[] }),
+      ? supabase.from("orders").select("id, order_type, dining_table_id, bill_number").in("id", orderIds)
+      : Promise.resolve({ data: [] as { id: string; order_type: string; dining_table_id: string | null; bill_number: string }[] }),
   ]);
   const tableIds = [...new Set((orders ?? []).map((o) => o.dining_table_id).filter(Boolean))] as string[];
   const { data: tables } = tableIds.length
@@ -44,6 +44,9 @@ export default async function KitchenPage() {
       status: t.status as Ticket["status"],
       createdAt: t.created_at,
       where: table ? `Table ${table}` : orderTypeLabel[o?.order_type ?? ""] ?? "",
+      station: t.station ?? "Kitchen",
+      printedAt: t.printed_at,
+      bill: o?.bill_number ?? "",
       items: (items ?? [])
         .filter((i) => i.kitchen_ticket_id === t.id)
         .map((i) => ({ name: i.product_name, qty: Number(i.quantity), note: i.note, cancelled: i.status === "cancelled" })),
@@ -56,7 +59,7 @@ export default async function KitchenPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight">Kitchen</h1>
           <p className="mt-1 text-sm" style={{ color: "var(--color-ink-3)" }}>
-            Every bill sends a ticket here. Tap to move it along. Refreshes every 15 seconds.
+            Every bill sends a ticket to its station. Tap to move it along. Refreshes every 10 seconds.
           </p>
         </div>
       </div>

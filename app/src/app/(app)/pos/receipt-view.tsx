@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { readDevicePrint } from "@/lib/device-print";
 import { money, orderTypeLabel } from "@/lib/format";
 import { UpiQr } from "../upi-qr";
 
@@ -69,6 +71,18 @@ export function ReceiptView({
 }) {
   const c = data.currency;
   const m = (n: number) => money(n, c);
+
+  // Counter set to print bills (Settings → Printers): print once, straight after payment.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("print") !== "1") return;
+    url.searchParams.delete("print");
+    window.history.replaceState(null, "", url.toString());
+    if (readDevicePrint().bills && (data.state === "paid" || data.state === "part-paid")) {
+      const t = setTimeout(() => window.print(), 300);
+      return () => clearTimeout(t);
+    }
+  }, [data.state]);
   const whenStr = new Date(data.createdAt).toLocaleString("en-IN", {
     timeZone: data.timezone,
     day: "2-digit",

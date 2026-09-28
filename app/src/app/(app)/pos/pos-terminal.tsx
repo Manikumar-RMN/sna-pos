@@ -230,7 +230,7 @@ export function PosTerminal({
         return setError(cleanMessage(res.error));
       }
       if (mode === "split") router.push(`/bills/${res.orderId}?pay=split`);
-      else router.push(`/pos/receipt/${res.orderId}`);
+      else router.push(`/pos/receipt/${res.orderId}${mode === "pay" ? "?print=1" : ""}`);
     });
   }
 

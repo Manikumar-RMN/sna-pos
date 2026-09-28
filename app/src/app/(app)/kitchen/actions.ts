@@ -13,3 +13,11 @@ export async function setTicketStatus(
   revalidatePath("/kitchen");
   return { ok: true };
 }
+
+/** This device printed these kitchen tickets (so another printer does not print them again). */
+export async function markPrinted(ids: string[]): Promise<{ ok: boolean }> {
+  if (!ids.length) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_tickets_printed", { p_ids: ids });
+  return { ok: !error };
+}
