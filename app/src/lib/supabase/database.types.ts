@@ -1762,6 +1762,7 @@ export type Database = {
           calc_params: Json | null
           cashier_id: string
           client_created_at: string
+          client_ref: string | null
           created_at: string
           currency_code: string
           customer_id: string | null
@@ -1802,6 +1803,7 @@ export type Database = {
           calc_params?: Json | null
           cashier_id: string
           client_created_at: string
+          client_ref?: string | null
           created_at?: string
           currency_code: string
           customer_id?: string | null
@@ -1842,6 +1844,7 @@ export type Database = {
           calc_params?: Json | null
           cashier_id?: string
           client_created_at?: string
+          client_ref?: string | null
           created_at?: string
           currency_code?: string
           customer_id?: string | null
@@ -2050,6 +2053,7 @@ export type Database = {
           amount: number
           change_amount: number
           client_created_at: string
+          client_ref: string | null
           created_at: string
           currency_code: string
           gateway_name: string | null
@@ -2069,6 +2073,7 @@ export type Database = {
           amount: number
           change_amount?: number
           client_created_at: string
+          client_ref?: string | null
           created_at?: string
           currency_code: string
           gateway_name?: string | null
@@ -2088,6 +2093,7 @@ export type Database = {
           amount?: number
           change_amount?: number
           client_created_at?: string
+          client_ref?: string | null
           created_at?: string
           currency_code?: string
           gateway_name?: string | null
@@ -3370,6 +3376,7 @@ export type Database = {
       }
       create_order: {
         Args: {
+          p_client_ref?: string
           p_customer_id?: string
           p_discount_amount?: number
           p_discount_reason?: string
@@ -3444,6 +3451,7 @@ export type Database = {
       pay_order: {
         Args: {
           p_amount?: number
+          p_client_ref?: string
           p_order_id: string
           p_payment_method_id: string
           p_reference?: string

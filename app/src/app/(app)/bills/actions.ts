@@ -27,6 +27,8 @@ export async function payBill(input: {
   tendered: number | null;
   amount: number | null;
   reference?: string | null;
+  /** Same id on a retry = the same payment, never a second one. */
+  clientRef?: string;
 }): Promise<ActionResult> {
   if (!input.paymentMethodId) return { ok: false, error: "Choose how the customer paid." };
   const supabase = await createClient();
@@ -36,10 +38,12 @@ export async function payBill(input: {
     p_tendered: input.tendered ?? undefined,
     p_amount: input.amount ?? undefined,
     p_reference: input.reference?.trim() ? input.reference.trim().slice(0, 60) : undefined,
+    p_client_ref: input.clientRef && /^[0-9a-f-]{36}$/i.test(input.clientRef) ? input.clientRef : undefined,
   });
   if (error) return { ok: false, error: error.message };
   refresh(input.orderId);
-  const res = (data ?? {}) as { change?: number; balance?: number; paid?: boolean };
+  const res = (data ?? {}) as { change?: number; balance?: number; paid?: boolean; repeat?: boolean };
+  if (res.repeat) return { ok: true, message: "This payment was already recorded." };
   const change = Number(res.change ?? 0);
   const changeText = change > 0 ? ` Give back change of ${change.toFixed(2)}.` : "";
   if (res.paid === false) return { ok: true, message: `Part payment taken. ${Number(res.balance ?? 0).toFixed(2)} still to pay.${changeText}` };

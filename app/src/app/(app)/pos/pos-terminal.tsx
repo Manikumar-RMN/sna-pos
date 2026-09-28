@@ -123,6 +123,8 @@ export function PosTerminal({
   const cartKey = JSON.stringify([lines.map((l) => [l.key, l.qty]), discountAmt, scChoice, senior]);
   const [noteOpen, setNoteOpen] = useState<string | null>(null);
   const [approval, setApproval] = useState<null | { permission: string; retry: () => void }>(null);
+  // Same id for every retry of this bill; a new one after it is saved.
+  const [clientRef, setClientRef] = useState(() => crypto.randomUUID());
   useEffect(() => {
     if (addTo || lines.length === 0) {
       setQuote(null);
@@ -221,6 +223,7 @@ export function PosTerminal({
       tendered: payNow && isCash && tendered !== "" ? Number(tendered) : null,
       discount_reason: discountAmt > 0 ? discountReason.trim() || null : null,
       reference: payNow && askRef ? reference : null,
+      client_ref: clientRef,
     };
     startTransition(async () => {
       const res = await placeOrder(input);
@@ -229,6 +232,7 @@ export function PosTerminal({
         if (need) setApproval({ permission: need, retry: () => submit(mode) });
         return setError(cleanMessage(res.error));
       }
+      setClientRef(crypto.randomUUID());
       if (mode === "split") router.push(`/bills/${res.orderId}?pay=split`);
       else router.push(`/pos/receipt/${res.orderId}${mode === "pay" ? "?print=1" : ""}`);
     });

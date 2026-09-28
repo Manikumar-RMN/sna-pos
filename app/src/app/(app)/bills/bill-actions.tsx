@@ -111,6 +111,7 @@ export function BillActions({
   const [fixReason, setFixReason] = useState("");
   const [cnMethod, setCnMethod] = useState(paymentList[0]?.methodId ?? methods[0]?.id ?? "");
   const [approval, setApproval] = useState<null | { permission: string; retry: () => void }>(null);
+  const [payRef, setPayRef] = useState(() => crypto.randomUUID());
   const [buyerId, setBuyerId] = useState(buyer?.taxId ?? "");
   const [buyerName, setBuyerName] = useState(buyer?.name ?? "");
 
@@ -314,7 +315,9 @@ export function BillActions({
                       tendered: isCash && tendered !== "" ? Number(tendered) : null,
                       amount: isFull ? null : part,
                       reference: askRef && !isCash ? reference : null,
+                      clientRef: payRef,
                     }),
+                    () => setPayRef(crypto.randomUUID()),
                   )
                 }
               >
