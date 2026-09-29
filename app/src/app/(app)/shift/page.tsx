@@ -19,7 +19,9 @@ export default async function ShiftPage() {
       .limit(10),
     supabase.rpc("day_status"),
   ]);
-  const figures = current as unknown as ShiftFigures | null;
+  const shiftsOn = !!(day as unknown as { shifts_enabled?: boolean } | null)?.shifts_enabled;
+  // Shifts off: the automatic drawer is not shown as a shift; cash is counted when the day is closed.
+  const figures = shiftsOn ? (current as unknown as ShiftFigures | null) : null;
 
   const { data: movements } = figures
     ? await supabase
@@ -43,11 +45,13 @@ export default async function ShiftPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-xl font-bold tracking-tight">Shift and day close</h1>
+      <h1 className="text-xl font-bold tracking-tight">{shiftsOn ? "Shift and day close" : "Day close"}</h1>
       <p className="mt-1 mb-5 text-sm" style={{ color: "var(--color-ink-3)" }}>
-        {figures
-          ? `Open since ${dateTime(figures.opened_at, tz)} · opened by ${figures.opened_by ?? "—"}`
-          : "No shift is open. Bills can only be taken while a shift is open."}
+        {!shiftsOn
+          ? "Shifts are off, so billing starts straight away. Count the drawer when you close the day. Turn shifts on in Settings → Day and sessions if each cashier should count their own drawer."
+          : figures
+            ? `Open since ${dateTime(figures.opened_at, tz)} · opened by ${figures.opened_by ?? "—"}`
+            : "No shift is open. Bills can only be taken while a shift is open."}
       </p>
 
       {figures && !canSeeMoney && (
@@ -65,9 +69,9 @@ export default async function ShiftPage() {
           canClose={can(user, "shift.close")}
           canSeeMoney={canSeeMoney}
         />
-      ) : (
+      ) : shiftsOn ? (
         <OpenShiftForm canOpen={can(user, "shift.open")} />
-      )}
+      ) : null}
 
       {day && (can(user, "day.close") || can(user, "day.reopen") || can(user, "report.view_sales") || can(user, "payment.take")) && (
         <DayPanel status={day as unknown as DayStatus} currency={c} canAsk={can(user, "payment.take")} />
@@ -92,7 +96,7 @@ export default async function ShiftPage() {
         </div>
       )}
 
-      {canSeeMoney && (history ?? []).length > 0 && (
+      {canSeeMoney && shiftsOn && (history ?? []).length > 0 && (
         <>
           <h2 className="mb-2 mt-8 text-base font-bold">Recent closed shifts</h2>
           <div className="card overflow-x-auto">

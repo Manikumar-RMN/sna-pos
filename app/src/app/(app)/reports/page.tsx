@@ -95,14 +95,16 @@ export default async function ReportsPage({
   const showRegister = user.country_code === "IN" && can(user, "report.view_financial");
   const showJournal = can(user, "report.view_financial") && has(user, "accounting");
   const multi = has(user, "multi_outlet") && user.outlet_count > 1;
-  const [{ data, error }, { data: settleData }, { data: registerData }, { data: journalData }, { data: compareData }, { data: outletData }] = await Promise.all([
+  const [{ data, error }, { data: settleData }, { data: registerData }, { data: journalData }, { data: compareData }, { data: outletData }, { data: sessionData }] = await Promise.all([
     supabase.rpc("sales_report", { p_from: from, p_to: to }),
     supabase.rpc("settlement_report", { p_from: from, p_to: to }),
     showRegister ? supabase.rpc("gst_register", { p_from: from, p_to: to }) : Promise.resolve({ data: null }),
     showJournal ? supabase.rpc("accounting_journal", { p_from: from, p_to: to }) : Promise.resolve({ data: null }),
     multi ? supabase.rpc("outlet_comparison", { p_from: from, p_to: to }) : Promise.resolve({ data: null }),
     multi ? supabase.rpc("my_outlets") : Promise.resolve({ data: null }),
+    supabase.rpc("session_report", { p_from: from, p_to: to }),
   ]);
+  const sessions = (sessionData ?? []) as unknown as { session: string; bills: number; total: number; average: number; top_items: { item: string; qty: number }[] }[];
   const compare = (compareData ?? []) as unknown as { outlet: string; code: string; bills: number; total: number; average: number; discounts: number; voids: number; void_value: number }[];
   const allOutlets = !!(outletData as unknown as { all_outlets?: boolean } | null)?.all_outlets;
   const rep = data as unknown as Report | null;
@@ -355,6 +357,21 @@ export default async function ReportsPage({
                 )}
               </Card>
             )}
+
+            <Card title="By meal session">
+              {sessions.length === 0 ? <Empty /> : (
+                <Table
+                  head={["Session", "Bills", "Total", "Average bill", "Top items"]}
+                  rows={sessions.map((x) => [
+                    x.session,
+                    String(x.bills),
+                    money(x.total, c),
+                    money(x.average, c),
+                    x.top_items.slice(0, 3).map((t) => `${t.item} ×${Number(t.qty)}`).join(", "),
+                  ])}
+                />
+              )}
+            </Card>
 
             <Card title="Order type">
               {rep.by_type.length === 0 ? <Empty /> : (

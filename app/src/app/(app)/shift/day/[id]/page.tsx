@@ -31,6 +31,8 @@ type Z = {
   credit_notes: { count: number; amount: number; tax: number; list: { number: string; amount: number; bill: string; reason: string }[] };
   shifts: { opened_at: string; closed_at: string | null; opened_by: string | null; expected_cash: number; counted_cash: number | null; variance: number | null }[];
   by_type: { type: string; bills: number; total: number }[];
+  /** Added with meal sessions; older saved reports do not have it. */
+  sessions?: { session: string; bills: number; total: number }[];
   net_sales_after_credit_notes: number;
   reopen_count: number;
 };
@@ -118,6 +120,15 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
             <div className="font-bold">By order type</div>
             {z.by_type.map((t, i) => (
               <Row key={i} label={`${t.type.replace("_", "-")} (${t.bills})`} value={m(t.total)} />
+            ))}
+          </>
+        )}
+        {(z.sessions ?? []).length > 0 && (
+          <>
+            <Rule />
+            <div className="font-bold">By meal session</div>
+            {(z.sessions ?? []).map((x, i) => (
+              <Row key={i} label={`${x.session} (${x.bills})`} value={m(x.total)} />
             ))}
           </>
         )}

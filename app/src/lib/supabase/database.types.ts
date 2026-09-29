@@ -697,6 +697,7 @@ export type Database = {
           auto_print_kot: boolean
           branch_id: string
           cash_rounding_mode: string
+          day_cutoff: string
           default_order_type: string
           receipt_footer: string | null
           receipt_header: string | null
@@ -706,12 +707,14 @@ export type Database = {
           service_charge_label: string
           service_charge_percent: number
           service_charge_taxable: boolean
+          shifts_enabled: boolean
           updated_at: string
         }
         Insert: {
           auto_print_kot?: boolean
           branch_id: string
           cash_rounding_mode?: string
+          day_cutoff?: string
           default_order_type?: string
           receipt_footer?: string | null
           receipt_header?: string | null
@@ -721,12 +724,14 @@ export type Database = {
           service_charge_label?: string
           service_charge_percent?: number
           service_charge_taxable?: boolean
+          shifts_enabled?: boolean
           updated_at?: string
         }
         Update: {
           auto_print_kot?: boolean
           branch_id?: string
           cash_rounding_mode?: string
+          day_cutoff?: string
           default_order_type?: string
           receipt_footer?: string | null
           receipt_header?: string | null
@@ -736,6 +741,7 @@ export type Database = {
           service_charge_label?: string
           service_charge_percent?: number
           service_charge_taxable?: boolean
+          shifts_enabled?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -1823,6 +1829,57 @@ export type Database = {
           },
         ]
       }
+      meal_sessions: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          days: number[]
+          display_order: number
+          end_time: string
+          id: string
+          name: string
+          restaurant_id: string
+          start_time: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          days?: number[]
+          display_order?: number
+          end_time: string
+          id?: string
+          name: string
+          restaurant_id: string
+          start_time: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          days?: number[]
+          display_order?: number
+          end_time?: string
+          id?: string
+          name?: string
+          restaurant_id?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_sessions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meal_sessions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       modifier_groups: {
         Row: {
           created_at: string
@@ -2342,6 +2399,8 @@ export type Database = {
           rounding_adjustment: number
           senior_details: Json | null
           service_charge: number
+          session_id: string | null
+          session_name: string | null
           shift_id: string | null
           status: string
           subtotal: number
@@ -2385,6 +2444,8 @@ export type Database = {
           rounding_adjustment?: number
           senior_details?: Json | null
           service_charge?: number
+          session_id?: string | null
+          session_name?: string | null
           shift_id?: string | null
           status?: string
           subtotal?: number
@@ -2428,6 +2489,8 @@ export type Database = {
           rounding_adjustment?: number
           senior_details?: Json | null
           service_charge?: number
+          session_id?: string | null
+          session_name?: string | null
           shift_id?: string | null
           status?: string
           subtotal?: number
@@ -4742,7 +4805,10 @@ export type Database = {
       clear_staff_pin: { Args: { p_user_id: string }; Returns: undefined }
       clock_in: { Args: never; Returns: Json }
       clock_out: { Args: never; Returns: Json }
-      close_day: { Args: { p_notes?: string }; Returns: Json }
+      close_day: {
+        Args: { p_counted_cash?: number; p_notes?: string }
+        Returns: Json
+      }
       close_shift: {
         Args: { p_counted_cash: number; p_notes?: string }
         Returns: Json
@@ -4944,6 +5010,10 @@ export type Database = {
       reset_table_qr: { Args: { p_table: string }; Returns: undefined }
       revoke_api_key: { Args: { p_id: string }; Returns: undefined }
       sales_report: { Args: { p_from: string; p_to: string }; Returns: Json }
+      save_day_settings: {
+        Args: { p_cutoff: string; p_shifts_enabled: boolean }
+        Returns: undefined
+      }
       save_ingredient: {
         Args: {
           p_cost: number
@@ -4960,6 +5030,10 @@ export type Database = {
           p_point_value: number
           p_spend_per_point: number
         }
+        Returns: undefined
+      }
+      save_meal_sessions: {
+        Args: { p_branch: string; p_sessions: Json }
         Returns: undefined
       }
       save_payment_method: {
@@ -5000,6 +5074,7 @@ export type Database = {
         Args: { p_components: Json; p_group_id: string; p_name: string }
         Returns: string
       }
+      session_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       set_bill_customer: {
         Args: { p_gstin: string; p_name: string; p_order_id: string }
         Returns: Json

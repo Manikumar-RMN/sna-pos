@@ -15,6 +15,9 @@ export type DayStatus = {
   recent: { id: string; business_date: string; status: string; closed_at: string | null; total: number | null }[];
   can_close: boolean;
   can_reopen: boolean;
+  /** Shifts switched on in Settings → Day and sessions. Off: one automatic drawer per day, counted at day close. */
+  shifts_enabled?: boolean;
+  expected_cash?: number | null;
 };
 
 function niceDate(d: string) {
@@ -27,6 +30,7 @@ export function DayPanel({ status, currency, canAsk }: { status: DayStatus; curr
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [notes, setNotes] = useState("");
   const [reason, setReason] = useState("");
+  const [counted, setCounted] = useState("");
   const [confirm, setConfirm] = useState<null | "close" | "reopen">(null);
   const [approval, setApproval] = useState<null | { permission: string; retry: () => void }>(null);
   const d = status.open_day;
@@ -110,13 +114,27 @@ export function DayPanel({ status, currency, canAsk }: { status: DayStatus; curr
             Closing freezes the day: its bills can no longer be voided or changed, and the end-of-day report is saved. Refunds
             after that are made as credit notes dated the day they are given.
           </p>
+          {!status.shifts_enabled && status.expected_cash != null && (
+            <div className="mt-3 rounded-lg p-3 text-sm" style={{ background: "var(--color-surface-2)" }}>
+              <div>
+                Cash expected in the drawer: <b className="tabular-nums">{money(Number(status.expected_cash), currency)}</b>
+              </div>
+              <input
+                className="field mt-2 h-10 text-sm"
+                inputMode="decimal"
+                placeholder="Cash counted (optional — shows any difference)"
+                value={counted}
+                onChange={(e) => setCounted(e.target.value)}
+              />
+            </div>
+          )}
           <input className="field mt-2 h-10 text-sm" placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
           {confirm === "close" ? (
             <div className="mt-2 flex gap-2">
               <button className="btn flex-1 border text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setConfirm(null)}>
                 Not yet
               </button>
-              <button className="btn btn-pay flex-1 text-sm" disabled={pending} onClick={() => run(() => closeDay(notes))}>
+              <button className="btn btn-pay flex-1 text-sm" disabled={pending} onClick={() => run(() => closeDay(notes, counted.trim() === "" ? null : Number(counted)))}>
                 {pending ? "Closing…" : `Close ${niceDate(d.business_date)}`}
               </button>
             </div>

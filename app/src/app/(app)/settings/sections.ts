@@ -8,6 +8,7 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
     { href: "/settings/company", label: "Company", hint: "Name, address, bill details", show: setup },
     { href: "/settings/taxes", label: "Taxes", hint: `${taxName} rates and groups`, show: setup },
     { href: "/settings/charges", label: "Service charge", hint: "Service charge and rounding", show: setup },
+    { href: "/settings/day", label: "Day and sessions", hint: "Shifts on/off, day end, meal sessions", show: can(user, "settings.manage") },
     { href: "/settings/tables", label: "Tables", hint: "Dine-in tables", show: setup },
     { href: "/settings/payments", label: "Payment methods", hint: "Cash, UPI, card and more", show: setup },
     { href: "/settings/counters", label: "Counter tablets", hint: "Shared tablets with PIN", show: setup },

@@ -41,7 +41,10 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       .order("display_order")
       .order("name"),
     supabase.from("payment_methods").select("id, name, kind, ask_reference, upi_id").eq("is_active", true).not("kind", "in", "(gift_card,loyalty)").order("display_order"),
-    supabase.from("shifts").select("id").eq("status", "open").limit(1).maybeSingle(),
+    // Shifts are optional: when they are off, the first bill opens the drawer automatically.
+    supabase.from("branch_settings").select("shifts_enabled").eq("branch_id", user.branch_id).maybeSingle().then(async (bs) =>
+      bs.data?.shifts_enabled ? await supabase.from("shifts").select("id").eq("status", "open").limit(1).maybeSingle() : { data: { id: "auto" } },
+    ),
     supabase.from("dining_tables").select("id, table_number").eq("is_active", true).order("table_number"),
     supabase
       .from("orders")

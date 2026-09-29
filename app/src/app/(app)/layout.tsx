@@ -36,6 +36,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   // Show only the screens this role can use. The database enforces the real
   // rules; this just keeps the menu honest.
+  const shiftsOn = !!(await (await createClient()).from("branch_settings").select("shifts_enabled").eq("branch_id", user.branch_id).maybeSingle()).data?.shifts_enabled;
   const links = [
     { href: "/dashboard", label: "Home", show: true },
     { href: "/owner", label: "Owner", show: has(user, "owner_app") && can(user, "report.view_sales") },
@@ -43,7 +44,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     { href: "/bills", label: "Bills", show: true },
     { href: "/kitchen", label: "Kitchen", show: true },
     { href: "/table-orders", label: "Table orders", show: can(user, "order.create") && has(user, "qr_ordering") },
-    { href: "/shift", label: "Shift", show: can(user, "shift.open") || can(user, "shift.close") || can(user, "cash.movement") },
+    { href: "/shift", label: shiftsOn ? "Shift" : "Day close", show: can(user, "shift.open") || can(user, "shift.close") || can(user, "cash.movement") || can(user, "day.close") },
     { href: "/reports", label: "Reports", show: can(user, "report.view_sales") },
     { href: "/stock", label: "Stock", show: can(user, "stock.manage") && has(user, "stock") },
     { href: "/reservations", label: "Bookings", show: can(user, "order.create") && has(user, "reservations") },

@@ -57,9 +57,10 @@ export async function closeShift(counted: number, notes: string): Promise<ShiftR
   return { ok: true, message: msg };
 }
 
-export async function closeDay(notes: string): Promise<ShiftResult & { dayId?: string }> {
+export async function closeDay(notes: string, counted: number | null = null): Promise<ShiftResult & { dayId?: string }> {
+  if (counted != null && !(counted >= 0)) return { ok: false, error: "Enter the cash counted, or leave it empty." };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("close_day", { p_notes: notes.trim() || undefined });
+  const { data, error } = await supabase.rpc("close_day", { p_notes: notes.trim() || undefined, p_counted_cash: counted ?? undefined });
   if (error) return { ok: false, error: error.message };
   refresh();
   revalidatePath("/bills");

@@ -249,3 +249,34 @@ export async function revokeApiKey(id: string): Promise<Result> {
   revalidatePath("/settings/api");
   return { ok: true, message: "Key removed." };
 }
+
+/** Business day: shifts on/off and the time the day ends (after midnight). */
+export async function saveDaySettings(shiftsEnabled: boolean, cutoff: string): Promise<Result> {
+  if (!/^\d{2}:\d{2}$/.test(cutoff)) return { ok: false, error: "Choose the time the day ends." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("save_day_settings", { p_shifts_enabled: shiftsEnabled, p_cutoff: cutoff });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/shift");
+  return done(shiftsEnabled ? "Saved. Cashiers now open a shift before billing." : "Saved. Billing starts without opening a shift.");
+}
+
+/** Meal sessions for the whole restaurant (outletId null) or one outlet. The database refuses overlaps. */
+export async function saveSessions(
+  outletId: string | null,
+  rows: { name: string; start: string; end: string; days: number[] }[],
+  clearOutletId: string | null = null,
+): Promise<Result> {
+  const supabase = await createClient();
+  // Switching an outlet back to the shared times removes its own times.
+  if (clearOutletId) {
+    const { error: e } = await supabase.rpc("save_meal_sessions", { p_branch: clearOutletId, p_sessions: [] as unknown as Json });
+    if (e) return { ok: false, error: e.message };
+  }
+  const { error } = await supabase.rpc("save_meal_sessions", {
+    p_branch: outletId as unknown as string,
+    p_sessions: rows.map((r) => ({ name: r.name, start: r.start, end: r.end, days: r.days })) as unknown as Json,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/settings/day");
+  return { ok: true, message: "Sessions saved. New bills use these times." };
+}
