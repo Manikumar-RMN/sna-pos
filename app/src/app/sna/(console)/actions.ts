@@ -80,3 +80,132 @@ export async function setPrice(item: string, currency: string, price: string): P
   if (error) return { ok: false, error: error.message };
   return done("Price saved.");
 }
+
+// ---------- Client book: licence, notes, contacts, sales history
+
+const clientPath = (restaurantId: string) => `/sna/r/${restaurantId}`;
+const dateOrNull = (v: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+
+export async function saveAccount(input: {
+  restaurantId: string;
+  status: string;
+  licenceStart: string;
+  licenceExpiry: string;
+  accountManager: string;
+  salesPerson: string;
+  supportPerson: string;
+}): Promise<SnaResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("sna_save_account", {
+    p_restaurant: input.restaurantId,
+    p_status: input.status,
+    // The database takes "no date" as null; the generated types only allow a string here.
+    p_licence_start: dateOrNull(input.licenceStart) as string,
+    p_licence_expiry: dateOrNull(input.licenceExpiry) as string,
+    p_account_manager: input.accountManager || undefined,
+    p_sales_person: input.salesPerson || undefined,
+    p_support_person: input.supportPerson || undefined,
+  });
+  if (error) return { ok: false, error: error.message };
+  return done("Saved.", clientPath(input.restaurantId));
+}
+
+export async function addNote(restaurantId: string, kind: string, body: string, nextContact: string): Promise<SnaResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("sna_add_note", {
+    p_restaurant: restaurantId,
+    p_kind: kind,
+    p_body: body,
+    p_next_contact: dateOrNull(nextContact) ?? undefined,
+  });
+  if (error) return { ok: false, error: error.message };
+  return done(kind === "note" ? "Note added." : "Added, and marked as contacted today.", clientPath(restaurantId));
+}
+
+export async function setFollowUp(restaurantId: string, nextContact: string): Promise<SnaResult> {
+  const supabase = await createClient();
+  const date = dateOrNull(nextContact);
+  const { error } = await supabase.rpc("sna_set_follow_up", { p_restaurant: restaurantId, p_next_contact: date as string });
+  if (error) return { ok: false, error: error.message };
+  return done(date ? "Follow-up date saved." : "Follow-up cleared.", clientPath(restaurantId));
+}
+
+export async function saveContact(input: {
+  restaurantId: string;
+  id: string | null;
+  kind: string;
+  fullName: string;
+  jobTitle: string;
+  phone: string;
+  email: string;
+}): Promise<SnaResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("sna_save_contact", {
+    p_restaurant: input.restaurantId,
+    p_id: input.id as string,
+    p_kind: input.kind,
+    p_full_name: input.fullName,
+    p_job_title: input.jobTitle || undefined,
+    p_phone: input.phone || undefined,
+    p_email: input.email || undefined,
+  });
+  if (error) return { ok: false, error: error.message };
+  return done(input.id ? "Contact saved." : "Contact added.", clientPath(input.restaurantId));
+}
+
+export async function removeContact(restaurantId: string, id: string): Promise<SnaResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("sna_remove_contact", { p_id: id });
+  if (error) return { ok: false, error: error.message };
+  return done("Contact removed.", clientPath(restaurantId));
+}
+
+export async function addSale(input: {
+  restaurantId: string;
+  kind: string;
+  description: string;
+  amount: string;
+  saleDate: string;
+  periodFrom: string;
+  periodTo: string;
+  invoiceNo: string;
+  paidOn: string;
+  note: string;
+  extendLicence: boolean;
+}): Promise<SnaResult> {
+  const amount = Number(input.amount);
+  if (input.amount.trim() === "" || !Number.isFinite(amount)) return { ok: false, error: "Enter the amount as a number." };
+  const saleDate = dateOrNull(input.saleDate);
+  if (!saleDate) return { ok: false, error: "Enter the sale date." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("sna_add_sale", {
+    p_restaurant: input.restaurantId,
+    p_kind: input.kind,
+    p_description: input.description,
+    p_amount: amount,
+    p_sale_date: saleDate,
+    p_period_from: dateOrNull(input.periodFrom) ?? undefined,
+    p_period_to: dateOrNull(input.periodTo) ?? undefined,
+    p_invoice_no: input.invoiceNo || undefined,
+    p_paid_on: dateOrNull(input.paidOn) ?? undefined,
+    p_note: input.note || undefined,
+    p_extend_licence: input.extendLicence,
+  });
+  if (error) return { ok: false, error: error.message };
+  return done(input.extendLicence ? "Sale recorded and the licence end date moved." : "Sale recorded.", clientPath(input.restaurantId));
+}
+
+export async function setSalePaid(restaurantId: string, id: string, paidOn: string): Promise<SnaResult> {
+  const supabase = await createClient();
+  const date = dateOrNull(paidOn);
+  const { error } = await supabase.rpc("sna_set_sale_paid", { p_id: id, p_paid_on: date as string });
+  if (error) return { ok: false, error: error.message };
+  return done(date ? "Marked paid." : "Marked not paid.", clientPath(restaurantId));
+}
+
+export async function cancelSale(restaurantId: string, id: string, reason: string): Promise<SnaResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("sna_cancel_sale", { p_id: id, p_reason: reason });
+  if (error) return { ok: false, error: error.message };
+  return done("Entry cancelled. Check the licence end date is still right.", clientPath(restaurantId));
+}

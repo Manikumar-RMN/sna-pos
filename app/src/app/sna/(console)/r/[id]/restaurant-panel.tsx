@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { money } from "@/lib/format";
 import { addOutletRequest, createOutlet, setEdition, setModule } from "../../actions";
 import { RequestRow, requestLabel, type SnaRequest } from "../../request-row";
+import { eventLabel } from "../../crm";
 
 type Mod = { key: string; name: string; kind: "professional" | "addon"; on: boolean; price: number | null };
 export type SnaRestaurant = {
@@ -44,30 +45,13 @@ export function RestaurantPanel({ r, role }: { r: SnaRestaurant; role: string })
   const approvedOutlets = r.requests.filter((q) => q.kind === "outlet" && q.status === "approved");
 
   return (
-    <div className="mt-3 space-y-5">
-      <div className="card p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold">{r.trading_name}</h1>
-            <div className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-              {r.legal_name} · {r.country_code} · since {new Date(r.created_at).toLocaleDateString()}
-              {r.contact_email ? ` · ${r.contact_email}` : ""}
-              {r.contact_phone ? ` · ${r.contact_phone}` : ""}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-xs font-bold uppercase" style={{ color: "var(--color-ink-3)" }}>
-              Monthly charge
-            </div>
-            <div className="font-display text-2xl font-bold tabular-nums">{money(Number(r.monthly), r.currency)}</div>
-          </div>
+    <div className="space-y-5">
+      {/* The client's name, licence and monthly charge are in the page header above the tabs. */}
+      {msg && (
+        <div role="status" className="card p-3 text-sm font-semibold" style={{ color: msg.ok ? "var(--color-ok)" : "var(--color-bad)" }}>
+          {msg.text}
         </div>
-        {msg && (
-          <div className="mt-3 text-sm font-semibold" style={{ color: msg.ok ? "var(--color-ok)" : "var(--color-bad)" }}>
-            {msg.text}
-          </div>
-        )}
-      </div>
+      )}
 
       <div className="card p-5">
         <h2 className="font-display text-lg font-bold">Edition</h2>
@@ -149,7 +133,7 @@ export function RestaurantPanel({ r, role }: { r: SnaRestaurant; role: string })
         <ul className="mt-2 space-y-1 text-sm">
           {r.events.map((e, i) => (
             <li key={i}>
-              <span style={{ color: "var(--color-ink-3)" }}>{new Date(e.created_at).toLocaleString()}</span> · <span className="font-semibold">{e.event}</span>
+              <span style={{ color: "var(--color-ink-3)" }}>{new Date(e.created_at).toLocaleString()}</span> · <span className="font-semibold">{eventLabel(e.event)}</span>
               {e.by ? ` · ${e.by}` : ""}
               {e.details && (e.details as { note?: string }).note ? ` — ${(e.details as { note?: string }).note}` : ""}
             </li>

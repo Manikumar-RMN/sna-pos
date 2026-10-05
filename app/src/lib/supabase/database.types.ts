@@ -4564,6 +4564,259 @@ export type Database = {
           },
         ]
       }
+      sna_accounts: {
+        Row: {
+          account_manager: string | null
+          last_contact: string | null
+          licence_expiry: string | null
+          licence_start: string | null
+          next_contact: string | null
+          restaurant_id: string
+          sales_person: string | null
+          support_person: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          account_manager?: string | null
+          last_contact?: string | null
+          licence_expiry?: string | null
+          licence_start?: string | null
+          next_contact?: string | null
+          restaurant_id: string
+          sales_person?: string | null
+          support_person?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          account_manager?: string | null
+          last_contact?: string | null
+          licence_expiry?: string | null
+          licence_start?: string | null
+          next_contact?: string | null
+          restaurant_id?: string
+          sales_person?: string | null
+          support_person?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sna_accounts_account_manager_fkey"
+            columns: ["account_manager"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sna_accounts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sna_accounts_sales_person_fkey"
+            columns: ["sales_person"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sna_accounts_support_person_fkey"
+            columns: ["support_person"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sna_accounts_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sna_contacts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string | null
+          full_name: string
+          id: string
+          job_title: string | null
+          kind: string
+          phone: string | null
+          removed_at: string | null
+          restaurant_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          job_title?: string | null
+          kind?: string
+          phone?: string | null
+          removed_at?: string | null
+          restaurant_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          job_title?: string | null
+          kind?: string
+          phone?: string | null
+          removed_at?: string | null
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sna_contacts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sna_contacts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sna_notes: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          kind: string
+          restaurant_id: string
+          staff_id: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          kind?: string
+          restaurant_id: string
+          staff_id?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          restaurant_id?: string
+          staff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sna_notes_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sna_notes_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sna_sales: {
+        Row: {
+          amount: number
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          created_at: string
+          currency_code: string
+          description: string
+          id: string
+          invoice_no: string | null
+          kind: string
+          note: string | null
+          paid_on: string | null
+          period_from: string | null
+          period_to: string | null
+          restaurant_id: string
+          sale_date: string
+          staff_id: string | null
+        }
+        Insert: {
+          amount: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          currency_code: string
+          description: string
+          id?: string
+          invoice_no?: string | null
+          kind: string
+          note?: string | null
+          paid_on?: string | null
+          period_from?: string | null
+          period_to?: string | null
+          restaurant_id: string
+          sale_date: string
+          staff_id?: string | null
+        }
+        Update: {
+          amount?: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          currency_code?: string
+          description?: string
+          id?: string
+          invoice_no?: string | null
+          kind?: string
+          note?: string | null
+          paid_on?: string | null
+          period_from?: string | null
+          period_to?: string | null
+          restaurant_id?: string
+          sale_date?: string
+          staff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sna_sales_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sna_sales_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sna_sales_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sna_staff: {
         Row: {
           auth_user_id: string
@@ -5955,6 +6208,15 @@ export type Database = {
       }
       share_bill: { Args: { p_order: string }; Returns: Json }
       shift_report: { Args: { p_shift_id: string }; Returns: Json }
+      sna_add_note: {
+        Args: {
+          p_body: string
+          p_kind: string
+          p_next_contact?: string
+          p_restaurant: string
+        }
+        Returns: string
+      }
       sna_add_request: {
         Args: {
           p_kind: string
@@ -5965,6 +6227,31 @@ export type Database = {
           p_restaurant: string
         }
         Returns: string
+      }
+      sna_add_sale: {
+        Args: {
+          p_amount: number
+          p_description: string
+          p_extend_licence?: boolean
+          p_invoice_no?: string
+          p_kind: string
+          p_note?: string
+          p_paid_on?: string
+          p_period_from?: string
+          p_period_to?: string
+          p_restaurant: string
+          p_sale_date: string
+        }
+        Returns: string
+      }
+      sna_cancel_sale: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
+      sna_client: { Args: { p_id: string }; Returns: Json }
+      sna_clients: {
+        Args: { p_filter?: string; p_search?: string }
+        Returns: Json
       }
       sna_create_outlet: {
         Args: {
@@ -5983,9 +6270,34 @@ export type Database = {
         Returns: undefined
       }
       sna_me: { Args: never; Returns: Json }
+      sna_remove_contact: { Args: { p_id: string }; Returns: undefined }
       sna_requests: { Args: { p_status?: string }; Returns: Json }
       sna_restaurant: { Args: { p_id: string }; Returns: Json }
       sna_restaurants: { Args: { p_search?: string }; Returns: Json }
+      sna_save_account: {
+        Args: {
+          p_account_manager?: string
+          p_licence_expiry: string
+          p_licence_start: string
+          p_restaurant: string
+          p_sales_person?: string
+          p_status: string
+          p_support_person?: string
+        }
+        Returns: undefined
+      }
+      sna_save_contact: {
+        Args: {
+          p_email?: string
+          p_full_name: string
+          p_id: string
+          p_job_title?: string
+          p_kind: string
+          p_phone?: string
+          p_restaurant: string
+        }
+        Returns: string
+      }
       sna_save_staff: {
         Args: {
           p_active?: boolean
@@ -5999,6 +6311,10 @@ export type Database = {
         Args: { p_edition: string; p_note?: string; p_restaurant: string }
         Returns: undefined
       }
+      sna_set_follow_up: {
+        Args: { p_next_contact: string; p_restaurant: string }
+        Returns: undefined
+      }
       sna_set_module: {
         Args: {
           p_module: string
@@ -6010,6 +6326,10 @@ export type Database = {
       }
       sna_set_price: {
         Args: { p_currency: string; p_item: string; p_price: number }
+        Returns: undefined
+      }
+      sna_set_sale_paid: {
+        Args: { p_id: string; p_paid_on: string }
         Returns: undefined
       }
       sna_staff_list: { Args: never; Returns: Json }
