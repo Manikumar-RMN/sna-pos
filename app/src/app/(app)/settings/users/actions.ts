@@ -25,6 +25,7 @@ export async function inviteStaff(input: { name: string; email: string; roleId: 
   });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings/users");
+  revalidatePath("/welcome");
   const d = data as unknown as { invite_code: string };
   return { ok: true, code: d.invite_code, name: input.name.trim(), email: input.email.trim().toLowerCase() };
 }
@@ -34,6 +35,7 @@ export async function newInviteCode(userId: string, name: string, email: string)
   const { data, error } = await supabase.rpc("regenerate_invite", { p_user_id: userId });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings/users");
+  revalidatePath("/welcome");
   return { ok: true, code: (data as unknown as { invite_code: string }).invite_code, name, email };
 }
 
@@ -42,6 +44,7 @@ export async function cancelInvite(userId: string): Promise<StaffResult> {
   const { error } = await supabase.rpc("cancel_invite", { p_user_id: userId });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings/users");
+  revalidatePath("/welcome");
   return { ok: true, message: "Invitation cancelled." };
 }
 
@@ -50,6 +53,7 @@ export async function changeRole(userId: string, roleId: string): Promise<StaffR
   const { error } = await supabase.rpc("update_staff", { p_user_id: userId, p_role_id: roleId });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings/users");
+  revalidatePath("/welcome");
   return { ok: true, message: "Role changed. It applies the next time they open a screen." };
 }
 
@@ -58,6 +62,7 @@ export async function setActive(userId: string, active: boolean): Promise<StaffR
   const { error } = await supabase.rpc("update_staff", { p_user_id: userId, p_is_active: active });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings/users");
+  revalidatePath("/welcome");
   return { ok: true, message: active ? "Access switched back on." : "Access switched off. They can no longer sign in to this restaurant." };
 }
 
@@ -73,6 +78,7 @@ export async function setPin(userId: string, name: string): Promise<StaffResult>
   const { data, error } = await supabase.rpc("set_staff_pin", { p_user_id: userId });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings/users");
+  revalidatePath("/welcome");
   const pin = (data as { pin?: string } | null)?.pin;
   if (!pin) return { ok: false, error: "The PIN could not be created. Try again." };
   return { ok: true, pin, name };
@@ -83,6 +89,7 @@ export async function removePin(userId: string): Promise<StaffResult> {
   const { error } = await supabase.rpc("clear_staff_pin", { p_user_id: userId });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings/users");
+  revalidatePath("/welcome");
   return { ok: true, message: "PIN removed. They can no longer unlock a counter tablet." };
 }
 
@@ -96,6 +103,7 @@ export async function addPinStaff(input: { name: string; roleId: string; phone: 
   });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings/users");
+  revalidatePath("/welcome");
   return { ok: true, pin: (data as { pin?: string } | null)?.pin, name: input.name.trim() };
 }
 
@@ -117,5 +125,6 @@ export async function resetPassword(userId: string, name: string): Promise<Staff
   const { error } = await supabase.rpc("admin_reset_password", { p_user_id: userId, p_new_password: temp });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings/users");
+  revalidatePath("/welcome");
   return { ok: true, tempPassword: temp, name };
 }

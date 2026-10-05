@@ -38,7 +38,8 @@ export async function createRestaurant(_prev: SetupState, formData: FormData): P
   if (error) return { error: error.message };
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  // A new restaurant starts in the setup guide; it can be left at any step.
+  redirect("/welcome");
 }
 
 /** A staff member joins the restaurant that invited them. */

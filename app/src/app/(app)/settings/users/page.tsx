@@ -9,13 +9,14 @@ export default async function StaffPage() {
   const current = await requireUser();
   const supabase = await createClient();
 
-  const [{ data: users }, { data: roles }] = await Promise.all([
+  const [{ data: users }, { data: roles }, { data: rest }] = await Promise.all([
     supabase
       .from("users")
       .select("id, full_name, employee_code, email, is_active, role_id, auth_user_id, pin_set_at")
       .is("deleted_at", null)
       .order("employee_code"),
     supabase.from("roles").select("id, name, role_permissions(permission_key)").order("name"),
+    supabase.from("restaurants").select("client_code").eq("id", current.restaurant_id).maybeSingle(),
   ]);
   const roleName = new Map((roles ?? []).map((r) => [r.id, r.name]));
 
@@ -29,6 +30,21 @@ export default async function StaffPage() {
         </Link>
         .
       </p>
+
+      {rest?.client_code && (
+        <div className="card mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 p-4">
+          <div>
+            <div className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+              Client code for staff sign-in
+            </div>
+            <div className="mt-0.5 text-2xl font-bold tabular-nums tracking-wider">{rest.client_code}</div>
+          </div>
+          <p className="min-w-0 flex-1 basis-64 text-sm" style={{ color: "var(--color-ink-2)" }}>
+            On the sign-in page, staff with a password choose <b>Staff</b> and type this client code, their username (the code under
+            their name below, for example EMP001) and their password. PIN-only staff use a counter tablet instead.
+          </p>
+        </div>
+      )}
 
       <StaffManager
         canManage={can(current, "user.manage")}

@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   const today = todayIn(user.timezone);
   const canSales = can(user, "report.view_sales");
 
-  const [report, shift, unpaid, kitchen, rest, products, staff, shiftsEver, tables] = await Promise.all([
+  const [report, shift, unpaid, kitchen, rest, products, staff, shiftsEver, tables, settings, billsEver, country] = await Promise.all([
     canSales ? supabase.rpc("sales_report", { p_from: today, p_to: today }) : Promise.resolve({ data: null }),
     supabase.from("shifts").select("id, opened_at, opened_by").eq("status", "open").limit(1).maybeSingle(),
     supabase.from("orders").select("id, grand_total, paid_total").in("payment_status", ["unpaid", "partial"]).neq("status", "voided"),
@@ -21,7 +21,13 @@ export default async function DashboardPage() {
     supabase.from("users").select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase.from("shifts").select("id", { count: "exact", head: true }),
     supabase.from("dining_tables").select("id", { count: "exact", head: true }).eq("is_active", true),
+    supabase.from("branch_settings").select("shifts_enabled").eq("branch_id", user.branch_id).maybeSingle(),
+    supabase.from("orders").select("id", { count: "exact", head: true }),
+    supabase.from("countries").select("tax_id_label").eq("code", user.country_code).maybeSingle(),
   ]);
+  // Shifts are optional (off unless the owner switches them on): without them billing is always open.
+  const shiftsOn = !!settings.data?.shifts_enabled;
+  const taxIdLabel = country.data?.tax_id_label ?? "tax number";
 
   const s = (report.data as unknown as { summary: Summary } | null)?.summary;
   const c = user.currency_code;
@@ -32,8 +38,10 @@ export default async function DashboardPage() {
 
   const checklist = [
     { done: (products.count ?? 0) > 0, text: "Add your menu", href: "/settings/menu" },
-    { done: !!rest.data?.tax_registration_no, text: "Add your GSTIN so it prints on bills", href: "/settings/company" },
-    { done: (shiftsEver.count ?? 0) > 0, text: "Open your first shift", href: "/shift" },
+    { done: !!rest.data?.tax_registration_no, text: `Add your ${taxIdLabel} so it prints on bills`, href: "/settings/company" },
+    shiftsOn
+      ? { done: (shiftsEver.count ?? 0) > 0, text: "Open your first shift", href: "/shift" }
+      : { done: (billsEver.count ?? 0) > 0, text: "Make your first bill", href: "/pos" },
     { done: (staff.count ?? 0) > 1, text: "Add your staff (each gets their own sign-in)", href: "/settings/users" },
     { done: (tables.count ?? 0) > 0, text: "Add your tables (optional)", href: "/settings/tables" },
   ];
@@ -67,9 +75,16 @@ export default async function DashboardPage() {
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Link href="/shift" className="card p-4">
           <div className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
-            Shift
+            {shiftsOn ? "Shift" : "Day close"}
           </div>
-          {shift.data ? (
+          {!shiftsOn ? (
+            <div className="mt-1 text-sm">
+              <span className="font-bold" style={{ color: "var(--color-ok)" }}>
+                Billing is open
+              </span>{" "}
+              · count the cash when you close the day
+            </div>
+          ) : shift.data ? (
             <div className="mt-1 text-sm">
               <span className="font-bold" style={{ color: "var(--color-ok)" }}>
                 Open
@@ -106,7 +121,14 @@ export default async function DashboardPage() {
 
       {remaining.length > 0 && (
         <div className="card p-5">
-          <h2 className="text-base font-bold">Getting started</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-bold">Getting started</h2>
+            {can(user, "settings.manage") && (
+              <Link href="/welcome" className="btn btn-primary">
+                Open the setup guide
+              </Link>
+            )}
+          </div>
           <ul className="mt-3 space-y-2 text-sm">
             {checklist.map((x) => (
               <li key={x.text} className="flex items-center gap-2">
