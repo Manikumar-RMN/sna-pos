@@ -68,6 +68,12 @@ export function OfflineReceipt({ bill, snap, onDone }: { bill: OfflineBill; snap
             <span>{typeLabel}</span>
           </div>
           <div className="text-[1em]">{when}</div>
+          {f.guest && bill.guest && (bill.guest.name || bill.guest.phone || bill.guest.address) && (
+            <div className="mt-1 text-[1em]">
+              {(bill.guest.name || bill.guest.phone) && <div>Guest: {[bill.guest.name, bill.guest.phone].filter(Boolean).join(" · ")}</div>}
+              {bill.guest.address && <div>Deliver to: {bill.guest.address}</div>}
+            </div>
+          )}
           <Rule />
           <table className="w-full text-[1em]">
             <tbody>

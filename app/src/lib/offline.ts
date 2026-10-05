@@ -66,6 +66,10 @@ export type OfflineBill = {
   number: string;
   created_at: string;
   order_type: "dine_in" | "takeaway" | "delivery";
+  /** Guest name, phone and delivery address as typed (takeaway and delivery). Missing on bills queued by an older version. */
+  guest?: { name: string; phone: string; address: string } | null;
+  /** How often sending the guest details has failed after the bill itself was saved on the server. */
+  guest_tries?: number;
   items: OfflineItem[];
   discount: number;
   service_charge: boolean;

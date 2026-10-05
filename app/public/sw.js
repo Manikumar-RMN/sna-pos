@@ -33,7 +33,8 @@ self.addEventListener("fetch", (event) => {
 
   // Screens: network first; keep a copy of Billing and Kitchen for when the internet is down.
   if (req.mode === "navigate") {
-    const keep = OFFLINE_PAGES.some((p) => url.pathname === p);
+    // Only the plain screen is kept: "/pos?add=…" (adding to one bill) must not replace the offline copy of Billing.
+    const keep = url.search === "" && OFFLINE_PAGES.some((p) => url.pathname === p);
     event.respondWith(
       fetch(req)
         .then((res) => {

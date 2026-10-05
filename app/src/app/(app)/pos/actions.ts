@@ -151,14 +151,65 @@ export async function getOfflineSnapshot(deviceKey: string): Promise<{ ok: true;
   return { ok: true, snapshot: data };
 }
 
-/** Sends one offline bill. Safe to repeat: the server records each bill once. */
-export async function syncOfflineBill(bill: unknown): Promise<{ ok: boolean; error?: string; waiting?: boolean }> {
+export type SyncResult = {
+  ok: boolean;
+  error?: string;
+  /** The server is not ready for offline bills yet (for example no shift is open). */
+  waiting?: boolean;
+  /** The bill is saved on the server; only its guest details are still to be sent. Try again later. */
+  guestPending?: boolean;
+  /** The bill is saved, but the server would not take its guest details (or they were given up). */
+  guestDropped?: boolean;
+};
+
+/**
+ * Sends one offline bill. Safe to repeat: the server records each bill once, and answers a repeat with the
+ * same bill.
+ *
+ * Guest details typed on the bill are put on it in a second step, once the bill is on the server. If that
+ * step fails for a passing reason the bill stays in this device's queue (`guestPending`), and the next try,
+ * which finds the bill already saved, does only the guest details. Nothing is recorded twice.
+ */
+export async function syncOfflineBill(bill: unknown, opts?: { skipGuest?: boolean }): Promise<SyncResult> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("sync_offline_bill", { p_bill: bill as Json });
   if (error) return { ok: false, error: error.message };
-  const res = (data ?? {}) as { ok?: boolean; reason?: string };
+  const res = (data ?? {}) as { ok?: boolean; reason?: string; order_id?: unknown; repeat?: unknown };
   if (res.ok === false) return { ok: false, waiting: true, error: res.reason };
   revalidatePath("/bills");
   revalidatePath("/shift");
-  return { ok: true };
+
+  const b = bill && typeof bill === "object" ? (bill as { guest?: unknown; order_type?: unknown }) : {};
+  const part = (k: string, max: number) => {
+    const v = b.guest && typeof b.guest === "object" ? (b.guest as Record<string, unknown>)[k] : null;
+    return typeof v === "string" ? v.trim().slice(0, max) : "";
+  };
+  // As online: no guest details on a dine-in bill, an address only on delivery.
+  const guest = { name: part("name", 80), phone: part("phone", 20), address: b.order_type === "delivery" ? part("address", 300) : "" };
+  const orderId = typeof res.order_id === "string" ? res.order_id : null;
+  if (b.order_type === "dine_in" || !orderId || !(guest.name || guest.phone || guest.address)) return { ok: true };
+  if (opts?.skipGuest) return { ok: true, guestDropped: true };
+
+  const later: SyncResult = { ok: false, guestPending: true, error: "Waiting to send the guest details of an offline bill…" };
+  // The bill was already on the server (an earlier try saved it but its answer was lost). If it has guest
+  // details by now, leave them: they may have been corrected on the bill screen since.
+  if (res.repeat === true) {
+    const { data: now, error: readError } = await supabase.from("orders").select("guest_name, guest_phone").eq("id", orderId).maybeSingle();
+    if (readError) return later;
+    if (now?.guest_name || now?.guest_phone) return { ok: true };
+  }
+  const setGuest = (phone: string) => supabase.rpc("set_order_guest", { p_order_id: orderId, p_name: guest.name, p_phone: phone, p_address: guest.address });
+  // P0001 is the database function itself saying no (a phone number it does not accept, a voided bill): that
+  // will be the same next time. Anything else -- no answer, a timeout, a busy server -- is worth another try.
+  const refused = (e: { code?: string } | null) => e?.code === "P0001";
+  const first = await setGuest(guest.phone);
+  if (!first.error) return { ok: true };
+  if (!refused(first.error)) return later;
+  // Refused. Keep what can be kept: the name and address without the phone.
+  if (guest.phone && (guest.name || guest.address)) {
+    const second = await setGuest("");
+    if (!second.error) return { ok: true, guestDropped: true };
+    if (!refused(second.error)) return later;
+  }
+  return { ok: true, guestDropped: true };
 }

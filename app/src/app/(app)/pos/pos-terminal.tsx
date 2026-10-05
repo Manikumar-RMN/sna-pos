@@ -187,6 +187,9 @@ export function PosTerminal({
   const [seniorOpen, setSeniorOpen] = useState(false);
   const [picking, setPicking] = useState<MenuItem | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // "This bill may already be saved": kept apart from the ordinary message, which the next price check wipes.
+  // It stays until the bill is saved, cleared or made offline.
+  const [maybeSaved, setMaybeSaved] = useState(false);
 
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoting, setQuoting] = useState(false);
@@ -195,6 +198,15 @@ export function PosTerminal({
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [offline, setOffline] = useState(false);
   const [offlineBill, setOfflineBill] = useState<OfflineBill | null>(null);
+  // After a bill is saved (or items are added) the screen moves on to the bill. Until it has, nothing more may
+  // be saved from here: the buttons would otherwise work again for a moment, and a second tap made a second bill.
+  // Value = where the screen is going. The ref is the same fact, readable at once by a tap that lands before
+  // the screen has drawn again.
+  const [saved, setSaved] = useState<string | null>(null);
+  const savedRef = useRef(false);
+  const [savedSlow, setSavedSlow] = useState(false);
+  // A save or an add is on its way to the server right now.
+  const sending = useRef(false);
 
   const m = (n: number) => money(n, currency);
   const lines = Object.values(cart);
@@ -297,6 +309,80 @@ export function PosTerminal({
     };
   }, []);
 
+  // "Offline" is also switched on when a call to the server fails although the device says it has internet
+  // (the server hiccuped, or the Wi-Fi is up but the line behind it is down). The browser never announces the
+  // end of that, so ask the server quietly every few seconds and go back to normal as soon as it answers.
+  const cameBack = useRef({ at: 0, times: 0 });
+  /** The device has internet, yet the server has not answered several times in a row. */
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    if (!offline) return;
+    // If "back to normal" keeps failing straight away (the server answers this question but not the billing
+    // ones), ask less and less often, so the screen does not flicker between the two states.
+    const b = cameBack.current;
+    b.times = Date.now() - b.at < 60000 ? b.times + 1 : 0;
+    const wait = Math.min(60000, 4000 * 2 ** b.times);
+    let stopped = false;
+    let asking = false;
+    let failed = 0;
+    const ask = async () => {
+      if (stopped || asking || !navigator.onLine) return;
+      asking = true;
+      try {
+        // Ten seconds at most: a question that never comes back must not be the last one asked.
+        const r = await Promise.race([
+          getOfflineSnapshot(deviceKey()),
+          new Promise<never>((_, no) => setTimeout(() => no(new Error("no answer")), 10000)),
+        ]);
+        if (stopped) return;
+        // Any answer at all, even a refusal, means the server can be reached again.
+        if (r.ok) {
+          saveSnapshot(r.snapshot as Snapshot);
+          setSnap(r.snapshot as Snapshot);
+        }
+        cameBack.current.at = Date.now();
+        setStuck(false);
+        setOffline(false);
+      } catch {
+        // Still no answer: stay offline and ask again later. After a few tries with the device itself
+        // online, the likeliest cause is that this screen is older than the system (it was updated): say so.
+        if (++failed >= 3 && navigator.onLine && !stopped) setStuck(true);
+      } finally {
+        asking = false;
+      }
+    };
+    const first = setTimeout(ask, wait);
+    const again = setInterval(ask, Math.max(15000, wait));
+    const seen = () => {
+      if (document.visibilityState === "visible") ask();
+    };
+    document.addEventListener("visibilitychange", seen);
+    return () => {
+      stopped = true;
+      clearTimeout(first);
+      clearInterval(again);
+      document.removeEventListener("visibilitychange", seen);
+      setStuck(false);
+    };
+  }, [offline]);
+
+  // Should this screen ever be shown again with what it held before (a browser keeping the page alive), a
+  // lock left over from a bill that was already saved must not greet the next guest.
+  useEffect(() => {
+    if (!savedRef.current) return;
+    savedRef.current = false;
+    setSaved(null);
+    clearAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // The bill is saved and the screen is on its way to it. If that takes long (a slow line), offer the way by hand.
+  useEffect(() => {
+    if (!saved) return setSavedSlow(false);
+    const t = setTimeout(() => setSavedSlow(true), 6000);
+    return () => clearTimeout(t);
+  }, [saved]);
+
   function localQuote(): Quote | string {
     if (!snap) return "No internet, and this device has no offline copy of the menu yet. Open Billing once while online.";
     if (senior) return "The senior citizen / PWD discount needs the internet.";
@@ -393,6 +479,8 @@ export function PosTerminal({
   const addSubtotal = Math.round((lines.reduce((s, l) => s + unitPrice(l) * l.qty, 0) + (packingTicked && lines.length > 0 ? packingAmount : 0)) * 100) / 100;
 
   function tapItem(item: MenuItem) {
+    // Saved and on the way to the bill: taps now would only be lost.
+    if (savedRef.current) return;
     setError(null);
     if (item.groups.length > 0) setPicking(item);
     else addLine(item, []);
@@ -415,6 +503,7 @@ export function PosTerminal({
     setCart((c) => (c[key] ? { ...c, [key]: { ...c[key], note: note.slice(0, 200) } } : c));
   }
   function step(key: string, delta: number) {
+    if (savedRef.current) return;
     setCart((c) => {
       const cur = c[key];
       if (!cur) return c;
@@ -449,6 +538,7 @@ export function PosTerminal({
     setScChoice(null);
     setSenior(null);
     setError(null);
+    setMaybeSaved(false);
   }
   // A bill emptied line by line ("−" on the last item) is over just as one that is cleared: nothing of it may
   // stay for the next guest. Only the change from "has items" to "empty" counts, so a guest name typed before
@@ -472,6 +562,8 @@ export function PosTerminal({
 
   /** Opens this screen for an open bill, taking the items already in the cart along. */
   function openAddTo(billId: string) {
+    // Not while this bill is being saved or has just been saved: its items would be carried onto the other bill as well.
+    if (savedRef.current || sending.current) return;
     try {
       if (lines.length > 0) {
         const carried: CarriedLine[] = lines.map((l) => ({ p: l.item.id, o: l.options.map((o) => o.id), q: l.qty, n: l.note, h: !!l.hold }));
@@ -505,6 +597,11 @@ export function PosTerminal({
     const calc = offlineQuote(snap, offlineLines(), snap.rights.discount ? discountAmt : 0, scChoice);
     const dueNow = cashDue(snap, calc.grand_total, method.kind === "cash");
     if (method.kind === "cash" && tendered !== "" && Number(tendered) < dueNow) return setError("Amount received is less than the total.");
+    // Guest details typed before or after the internet dropped go with the bill, as they do online: none on
+    // dine-in, an address only on delivery. The phone is checked here the way the server will check it later.
+    const guest =
+      orderType === "dine_in" ? null : { name: guestName.trim(), phone: guestPhone.trim(), address: orderType === "delivery" ? guestAddress.trim() : "" };
+    if (guest?.phone && guest.phone.replace(/\D/g, "").length < 7) return setError("That phone number looks too short.");
     const { seq, number } = takeNumber(snap);
     const bill: OfflineBill = {
       client_id: crypto.randomUUID(),
@@ -514,6 +611,7 @@ export function PosTerminal({
       number,
       created_at: new Date().toISOString(),
       order_type: orderType,
+      guest: guest && (guest.name || guest.phone || guest.address) ? guest : null,
       items: [
         ...lines.map((l) => ({
           product_id: l.item.id,
@@ -555,10 +653,13 @@ export function PosTerminal({
     window.dispatchEvent(new Event("sna-offline-queue"));
     // This guest now has an offline bill; whatever is billed next is another bill.
     billRef.current = null;
+    setMaybeSaved(false);
     setOfflineBill(bill);
   }
 
   function submit(mode: "pay" | "unpaid" | "split") {
+    // Already saved and on the way to the bill, an offline bill is showing, or a save is still on its way: one tap, one bill.
+    if (savedRef.current || offlineBill || sending.current) return;
     setError(null);
     if (lines.length === 0) return setError("Add at least one item.");
     if (!quote || quoting) return setError("Please wait a moment — the total is being checked.");
@@ -589,6 +690,7 @@ export function PosTerminal({
     const key = JSON.stringify(input);
     if (billRef.current?.key !== key) billRef.current = { key, id: crypto.randomUUID() };
     const ref = billRef.current.id;
+    sending.current = true;
     startTransition(async () => {
       let res: Awaited<ReturnType<typeof placeOrder>>;
       try {
@@ -596,24 +698,38 @@ export function PosTerminal({
       } catch {
         // The internet dropped while saving. No reply came back, so the id is kept: pressing again
         // with nothing changed is safe; meanwhile the bill can be made offline.
+        sending.current = false;
         setOffline(true);
-        return setError(
-          "The internet dropped while saving, so this bill may already be saved. Check Bills when the internet is back. To bill offline now, press the button again.",
-        );
+        return setMaybeSaved(true);
       }
+      sending.current = false;
       if (!res.ok) {
         const need = neededRight(res.error);
         if (need) setApproval({ permission: need, retry: () => submit(mode) });
         return setError(cleanMessage(res.error));
       }
-      billRef.current = null;
-      if (mode === "split") router.push(`/bills/${res.orderId}?pay=split`);
-      else router.push(`/pos/receipt/${res.orderId}${mode === "pay" ? "?print=1" : ""}`);
+      // Saved. The screen is locked until it has moved on to the bill; the id is kept on purpose, so that even
+      // a tap that slipped through would be answered with this same bill and not make another.
+      const next = mode === "split" ? `/bills/${res.orderId}?pay=split` : `/pos/receipt/${res.orderId}${mode === "pay" ? "?print=1" : ""}`;
+      savedRef.current = true;
+      setMaybeSaved(false);
+      setSaved(next);
+      router.push(next);
     });
   }
 
+  /** Only when the saved bill did not open by itself: leave it (it is in Bills) and start the next one. */
+  function startNextBill() {
+    savedRef.current = false;
+    setSaved(null);
+    clearAll();
+    // Going to this same screen again takes the place of the move to the saved bill that is still on its
+    // way, so it cannot arrive later and sweep away the next guest's items.
+    router.replace("/pos");
+  }
+
   function submitAdd() {
-    if (!addTo) return;
+    if (!addTo || savedRef.current || sending.current) return;
     setError(null);
     if (offline) return setError("Adding to an open bill needs the internet.");
     if (lines.length === 0) return setError("Add at least one item.");
@@ -621,16 +737,21 @@ export function PosTerminal({
     const key = JSON.stringify(items);
     if (addRef.current?.key !== key) addRef.current = { key, id: crypto.randomUUID() };
     const ref = addRef.current.id;
+    sending.current = true;
     startTransition(async () => {
       let res: Awaited<ReturnType<typeof addToBill>>;
       try {
         res = await addToBill(addTo.id, items, ref);
       } catch {
         // No reply from the server. The same request id makes pressing the button again safe.
+        sending.current = false;
         return setError("The internet dropped while adding. Press the button again — the items will not be added twice.");
       }
+      sending.current = false;
       if (!res.ok) return setError(res.error);
-      addRef.current = null;
+      // Added. Locked until the bill opens; the id is kept so that a tap that slipped through adds nothing twice.
+      savedRef.current = true;
+      setSaved(`/bills/${addTo.id}`);
       router.push(`/bills/${addTo.id}`);
     });
   }
@@ -643,6 +764,20 @@ export function PosTerminal({
           {offline && (
             <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
               OFFLINE — paid bills only
+            </span>
+          )}
+          {offline && stuck && !saved && (
+            <span className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--color-ink-2)" }}>
+              This device has internet but the server is not answering this screen.
+              <button
+                type="button"
+                className="min-h-9 rounded-lg border px-3 font-bold"
+                style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}
+                onClick={() => window.location.reload()}
+              >
+                Reload the screen
+              </button>
+              {lines.length > 0 ? "(the items on this bill will have to be added again)" : ""}
             </span>
           )}
           <span className="text-xs" style={{ color: "var(--color-ink-3)" }}>
@@ -814,13 +949,19 @@ export function PosTerminal({
                   {chosenTable.openBills.map((b) => (
                     <div key={b.id} className="flex items-center justify-between gap-2">
                       <span>{chosenTable.openBills.length > 1 ? b.billNumber : `Table ${chosenTable.number} has an open bill: ${b.billNumber}`}</span>
-                      <button
-                        className="shrink-0 font-semibold underline"
-                        style={{ color: "var(--color-brand-strong)" }}
-                        onClick={() => openAddTo(b.id)}
-                      >
-                        Add to this bill
-                      </button>
+                      {saved ? null : offline ? (
+                        <span className="shrink-0 text-right" style={{ color: "var(--color-ink-3)" }}>
+                          Adding to it needs the internet
+                        </span>
+                      ) : (
+                        <button
+                          className="shrink-0 font-semibold underline"
+                          style={{ color: "var(--color-brand-strong)" }}
+                          onClick={() => openAddTo(b.id)}
+                        >
+                          Add to this bill
+                        </button>
+                      )}
                     </div>
                   ))}
                   {!offline && (
@@ -834,7 +975,7 @@ export function PosTerminal({
             </div>
           )}
 
-          {!addTo && !offline && orderType !== "dine_in" && (
+          {!addTo && orderType !== "dine_in" && (
             <div className="border-b px-4 py-2" style={{ borderColor: "var(--color-line)" }}>
               <div className="mb-1.5 text-[11px] font-semibold" style={{ color: "var(--color-ink-3)" }}>
                 Guest details (optional)
@@ -1009,12 +1150,18 @@ export function PosTerminal({
               <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
                 The bill&rsquo;s tax, service charge and total are worked out again when you add. A new kitchen ticket is sent for these items only.
               </p>
-              {error && <ErrorBox text={error} />}
+              {offline && !saved && (
+                <p className="mt-3 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+                  No connection. Adding to an open bill needs it; your items stay here and can be added as soon as it is back.
+                </p>
+              )}
+              {error && !saved && <ErrorBox text={error} />}
+              {saved && <SavedBox text="Added. Opening the bill…" slow={savedSlow} onOpen={() => router.push(saved)} />}
               <div className="mt-3 flex gap-2">
                 <button onClick={() => router.push(`/bills/${addTo.id}`)} disabled={pending} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                   Back to bill
                 </button>
-                <button onClick={submitAdd} disabled={pending || lines.length === 0} className="btn btn-primary flex-1">
+                <button onClick={submitAdd} disabled={pending || lines.length === 0 || offline || !!saved} className="btn btn-primary flex-1">
                   {pending ? "Adding…" : `Add ${lines.reduce((s, l) => s + l.qty, 0) || ""} to bill`}
                 </button>
               </div>
@@ -1132,7 +1279,11 @@ export function PosTerminal({
                 )}
               </div>
 
-              {error && <ErrorBox text={error} />}
+              {maybeSaved && !saved && (
+                <ErrorBox text="The connection dropped while saving, so this bill may already be saved. Look in Bills before you save it again. To bill offline now, press the button again." />
+              )}
+              {error && !saved && <ErrorBox text={error} />}
+              {saved && <SavedBox text="Saved. Opening the bill…" slow={savedSlow} onOpen={() => router.push(saved)} onNext={startNextBill} />}
               {needSeparate && lines.length > 0 && (
                 <p className="mt-3 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
                   Table {chosenTable?.number} already has an open bill. Add to it, or tick &ldquo;Start a separate bill for this table&rdquo; above.
@@ -1140,21 +1291,21 @@ export function PosTerminal({
               )}
 
               <div className="mt-3 flex gap-2">
-                <button onClick={clearAll} disabled={pending || lines.length === 0} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
+                <button onClick={clearAll} disabled={pending || lines.length === 0 || !!saved} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                   Clear
                 </button>
                 {canPay ? (
                   <>
-                    <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote || needSeparate} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
+                    <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote || needSeparate || !!saved} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                       Save unpaid
                     </button>
-                    <button onClick={() => submit("pay")} disabled={pending || quoting || !quote || needSeparate} className="btn btn-pay flex-1 text-base">
+                    <button onClick={() => submit("pay")} disabled={pending || quoting || !quote || needSeparate || !!saved} className="btn btn-pay flex-1 text-base">
                       {pending ? "Saving…" : <Dual text="Charge" />}
                       {!pending && quote ? ` ${m(due)}` : ""}
                     </button>
                   </>
                 ) : (
-                  <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote || needSeparate} className="btn btn-primary flex-1 text-base">
+                  <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote || needSeparate || !!saved} className="btn btn-primary flex-1 text-base">
                     {pending ? "Saving…" : <Dual text="Send to kitchen" />}
                   </button>
                 )}
@@ -1162,7 +1313,7 @@ export function PosTerminal({
               {canPay ? (
                 <button
                   onClick={() => submit("split")}
-                  disabled={pending || quoting || !quote || needSeparate}
+                  disabled={pending || quoting || !quote || needSeparate || !!saved}
                   className="mt-2 w-full text-center text-xs font-semibold"
                   style={{ color: "var(--color-brand-strong)" }}
                 >
@@ -1311,6 +1462,32 @@ function OptionPicker({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Shown from the moment a bill is saved until the screen has moved on to it. */
+function SavedBox({ text, slow, onOpen, onNext }: { text: string; slow: boolean; onOpen: () => void; onNext?: () => void }) {
+  return (
+    <div className="mt-3 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-ok-soft)", color: "var(--color-ok)" }}>
+      <b>{text}</b>
+      {slow && (
+        <div className="mt-1.5">
+          <div style={{ color: "var(--color-ink-2)" }}>
+            This is taking longer than usual. The bill is saved. If you start the next one now, find this one in Bills to print it.
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            <button className="min-h-11 rounded-lg border px-3 font-bold" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)", color: "var(--color-ink)" }} onClick={onOpen}>
+              Open it
+            </button>
+            {onNext && (
+              <button className="min-h-11 rounded-lg border px-3 font-bold" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)", color: "var(--color-ink)" }} onClick={onNext}>
+                Start the next bill
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
