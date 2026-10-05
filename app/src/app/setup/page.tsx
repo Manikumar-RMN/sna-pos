@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { SetupForms } from "./setup-forms";
+import { SNA_CONTACT_EMAIL } from "@/lib/sna-contact";
 
 export default async function SetupPage() {
   const supabase = await createClient();
@@ -20,17 +21,11 @@ export default async function SetupPage() {
     if (sna) redirect("/sna/login");
   }
 
-  const { data: countries } = await supabase
-    .from("countries")
-    .select("code, name, tax_system_name, tax_id_label, compliance_note")
-    .eq("is_supported", true)
-    .order("name");
-
   return (
     <main className="min-h-screen px-4 py-10">
       <div className="mx-auto w-full max-w-lg">
         <h1 className="text-xl font-bold tracking-tight">
-          {state === "deactivated" ? "Your access is switched off" : "Welcome to SNA POS"}
+          {state === "deactivated" ? "Your access is switched off" : "Join your restaurant"}
         </h1>
 
         {state === "deactivated" ? (
@@ -40,16 +35,7 @@ export default async function SetupPage() {
           </div>
         ) : (
           <div className="mt-4">
-            <SetupForms
-              email={user.email ?? ""}
-              countries={(countries ?? []).map((c) => ({
-                code: c.code,
-                name: c.name,
-                taxName: c.tax_system_name ?? "Tax",
-                taxIdLabel: c.tax_id_label ?? "Tax number",
-                note: c.compliance_note ?? "",
-              }))}
-            />
+            <SetupForms email={user.email ?? ""} contact={SNA_CONTACT_EMAIL} />
           </div>
         )}
 

@@ -14,9 +14,11 @@ export type AuthState = { error: string | null; notice?: string | null };
  *   - Input: client_code, username, password
  *   - Flow: Lookup staff via RPC, then verify password with Supabase Auth
  *
- * OWNER SIGNUP (intent="signup"):
+ * INVITED STAFF SIGN-UP (intent="signup"):
  *   - Input: email, password, confirm (the password typed a second time)
- *   - Flow: Create account with Supabase Auth, redirect to setup
+ *   - Flow: Create the sign-in with Supabase Auth, then /setup asks for the invite code.
+ *   - A sign-in alone gives nothing: restaurants are created only by SNA staff from the
+ *     SNA console (sna_create_client); the database refuses anyone else.
  *
  * OWNER SIGNIN (intent="signin_email"):
  *   - Input: email, password
@@ -33,7 +35,7 @@ export async function authenticate(_prev: AuthState, formData: FormData): Promis
   const supabase = await createClient();
 
   if (intent === "signup") {
-    // Owner account creation
+    // A sign-in for someone invited to an existing restaurant
     if (!email || !password) {
       return { error: "Enter your email and password." };
     }

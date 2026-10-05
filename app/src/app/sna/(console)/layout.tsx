@@ -31,7 +31,8 @@ export default async function SnaLayout({ children }: Readonly<{ children: React
   if (!me) redirect("/sna/login");
 
   const links = [
-    { href: "/sna", label: "Requests and restaurants" },
+    { href: "/sna", label: "Clients" },
+    { href: "/sna/new", label: "New client" },
     ...(me.role === "admin"
       ? [
           { href: "/sna/prices", label: "Prices" },

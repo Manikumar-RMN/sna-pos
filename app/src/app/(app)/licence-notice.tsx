@@ -12,6 +12,8 @@ type Props = {
   daysLeft: number | null;
   remind: boolean;
   restaurantId: string;
+  /** Where to reach SNA. */
+  contact: string;
 };
 
 /** Screens that only change things. They are closed while the restaurant is read-only. */
@@ -25,6 +27,14 @@ function lockedLine(reason: string | null, endsText: string) {
   return endsText ? `The licence ended on ${endsText}, so SNA POS is read-only.` : "The licence has ended, so SNA POS is read-only.";
 }
 
+function Mail({ to }: { to: string }) {
+  return (
+    <a href={`mailto:${to}`} className="font-bold underline">
+      {to}
+    </a>
+  );
+}
+
 /** Morning and afternoon each get their own reminder: twice a day on every device. */
 function slotNow(): string {
   const d = new Date();
@@ -36,7 +46,7 @@ function slotNow(): string {
  * The licence reminder (a pop-up, twice a day, from 15 days before the end date)
  * and the strip that says the restaurant is read-only.
  */
-export function LicenceNotice({ state, reason, endsText, daysLeft, remind, restaurantId }: Props) {
+export function LicenceNotice({ state, reason, endsText, daysLeft, remind, restaurantId, contact }: Props) {
   const [open, setOpen] = useState(false);
   const okRef = useRef<HTMLButtonElement>(null);
   const key = `sna.licence.reminded.${restaurantId}`;
@@ -75,7 +85,7 @@ export function LicenceNotice({ state, reason, endsText, daysLeft, remind, resta
     return (
       <div role="alert" className="mb-3 rounded-2xl px-4 py-3 text-sm" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
         <b>{lockedTitle(reason)}.</b> {lockedLine(reason, endsText)} You can still see and print bills and reports, take payment for bills that are already open,
-        and close the day. New bills cannot be made. Please contact SNA to renew.
+        and close the day. New bills cannot be made. Please contact SNA to renew: <Mail to={contact} />.
       </div>
     );
   }
@@ -108,7 +118,7 @@ export function LicenceNotice({ state, reason, endsText, daysLeft, remind, resta
           After that day SNA POS becomes read-only: you can see bills and reports, but you cannot make new bills.
         </p>
         <p className="mt-2 text-sm" style={{ color: "var(--color-ink-2)" }}>
-          Please contact SNA to renew. If you have already paid, tell the owner: SNA will switch this reminder off.
+          Please contact SNA to renew: <Mail to={contact} />. If you have already paid, SNA will switch this reminder off.
         </p>
         <button ref={okRef} type="button" className="btn btn-primary mt-5 w-full" onClick={close}>
           OK
@@ -122,7 +132,19 @@ export function LicenceNotice({ state, reason, endsText, daysLeft, remind, resta
 }
 
 /** While the restaurant is read-only, the screens that only change things show this instead. */
-export function LicenceGate({ locked, reason, endsText, children }: { locked: boolean; reason: string | null; endsText: string; children: React.ReactNode }) {
+export function LicenceGate({
+  locked,
+  reason,
+  endsText,
+  contact,
+  children,
+}: {
+  locked: boolean;
+  reason: string | null;
+  endsText: string;
+  contact: string;
+  children: React.ReactNode;
+}) {
   const path = usePathname() ?? "";
   if (!locked || !CLOSED_WHEN_LOCKED.some((p) => path === p || path.startsWith(`${p}/`))) return <>{children}</>;
   return (
@@ -130,7 +152,7 @@ export function LicenceGate({ locked, reason, endsText, children }: { locked: bo
       <div className="card p-6">
         <h1 className="font-display text-xl font-bold">This screen is closed</h1>
         <p className="mt-2 text-sm" style={{ color: "var(--color-ink-2)" }}>
-          {lockedLine(reason, endsText)} Billing, settings, menu, stock and purchases are closed until the licence is renewed. Please contact SNA.
+          {lockedLine(reason, endsText)} Billing, settings, menu, stock and purchases are closed until the licence is renewed. Please contact SNA: <Mail to={contact} />.
         </p>
         <p className="mt-3 text-sm font-semibold">You can still use:</p>
         <div className="mt-2 flex flex-wrap gap-2">

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { authenticate, type AuthState } from "./actions";
+import { SNA_CONTACT_EMAIL } from "@/lib/sna-contact";
 
 const initial: AuthState = { error: null, notice: null };
 
@@ -111,9 +112,9 @@ export default function LoginPage() {
             <Mark size={44} />
             <span className="font-display text-xl font-extrabold">SNA POS</span>
           </div>
-          <h2 className="text-3xl font-extrabold">{isSignup ? "Create your account" : "Welcome back"}</h2>
+          <h2 className="text-3xl font-extrabold">{isSignup ? "Create your sign-in" : "Welcome back"}</h2>
           <p className="mb-6 mt-1 text-[15px]" style={{ color: "var(--color-ink-3)" }}>
-            {isSignup ? "For the owner of a new restaurant" : "Sign in to your restaurant"}
+            {isSignup ? "For staff who were given an invite code. You will type the code on the next page." : "Sign in to your restaurant"}
           </p>
 
           {/* Login mode tabs: Staff vs Owner/Email */}
@@ -194,7 +195,7 @@ export default function LoginPage() {
                   autoComplete="email"
                   required
                   className="field mb-4"
-                  placeholder="owner@restaurant.com"
+                  placeholder={isSignup ? "The email your invite was made for" : "owner@restaurant.com"}
                 />
               </>
             )}
@@ -275,7 +276,7 @@ export default function LoginPage() {
                 <div className="my-5 flex items-center gap-3">
                   <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />
                   <span className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
-                    {creating ? "or" : "new restaurant?"}
+                    {creating ? "or" : "invited to join a restaurant?"}
                   </span>
                   <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />
                 </div>
@@ -290,8 +291,15 @@ export default function LoginPage() {
                   style={{ border: "1.5px solid var(--color-line)", background: "var(--color-surface)" }}
                   disabled={pending}
                 >
-                  {creating ? "I already have an account" : "Create an account"}
+                  {creating ? "I already have an account" : "I have an invite code"}
                 </button>
+                <p className="mt-4 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
+                  New restaurant? SNA sets it up for you. Write to{" "}
+                  <a href={`mailto:${SNA_CONTACT_EMAIL}`} className="font-bold" style={{ color: "var(--color-brand)" }}>
+                    {SNA_CONTACT_EMAIL}
+                  </a>
+                  .
+                </p>
               </>
             )}
           </form>

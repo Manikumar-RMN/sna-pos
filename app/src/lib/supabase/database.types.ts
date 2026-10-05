@@ -6260,6 +6260,23 @@ export type Database = {
         Args: { p_filter?: string; p_search?: string }
         Returns: Json
       }
+      sna_create_client: {
+        Args: {
+          p_branch_code?: string
+          p_branch_name?: string
+          p_country_code: string
+          p_edition?: string
+          p_legal_name: string
+          p_licence_expiry?: string
+          p_licence_start?: string
+          p_owner_email: string
+          p_owner_name: string
+          p_tax_registration_no?: string
+          p_temp_password: string
+          p_trading_name: string
+        }
+        Returns: Json
+      }
       sna_create_outlet: {
         Args: {
           p_address?: string

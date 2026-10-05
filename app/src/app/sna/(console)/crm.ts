@@ -185,6 +185,7 @@ export function eventLabel(event: string): string {
     "sale.unpaid": "Sale marked not paid",
     "sale.cancelled": "Sale entry cancelled",
     "edition.changed": "Edition changed",
+    "client.created": "Client created by SNA",
     "reminder.off": "Renewal reminder switched off",
     "reminder.on": "Renewal reminder switched on",
     "module.on": "Add-on switched on",

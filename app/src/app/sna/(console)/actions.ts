@@ -1,6 +1,8 @@
 "use server";
 
+import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
 export type SnaResult = { ok: true; message: string } | { ok: false; error: string };
@@ -223,4 +225,80 @@ export async function setReminder(restaurantId: string, on: boolean): Promise<Sn
   const { error } = await supabase.rpc("sna_set_reminder", { p_restaurant: restaurantId, p_on: on });
   if (error) return { ok: false, error: error.message };
   return done(on ? "Reminder switched on." : "Reminder switched off for this end date.", clientPath(restaurantId));
+}
+
+// ---------- New client: the only way a restaurant is created
+
+export type NewClientResult =
+  | { ok: true; id: string; clientCode: string; tradingName: string; ownerEmail: string; tempPassword: string | null }
+  | { ok: false; error: string };
+
+/** Easy to read out and type: no 0/O, 1/I/L. Three groups of four, e.g. T7KM-9QXP-4HRA. */
+function makeTempPassword(): string {
+  const letters = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const group = () => Array.from({ length: 4 }, () => letters[randomInt(letters.length)]).join("");
+  return `${group()}-${group()}-${group()}`;
+}
+
+export async function createClientAccount(input: {
+  legalName: string;
+  tradingName: string;
+  ownerName: string;
+  ownerEmail: string;
+  countryCode: string;
+  branchName: string;
+  branchCode: string;
+  taxNo: string;
+  edition: string;
+  licenceStart: string;
+  licenceExpiry: string;
+}): Promise<NewClientResult> {
+  const supabase = await createClient();
+  // Only SNA staff reach the steps below. (The database checks again.)
+  const { data: me } = await supabase.rpc("sna_me");
+  if (!me) return { ok: false, error: "Only SNA staff can do this." };
+
+  const email = input.ownerEmail.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: "Enter the owner's email address." };
+  if (!input.legalName.trim() || !input.tradingName.trim() || !input.ownerName.trim()) {
+    return { ok: false, error: "Fill in the business name, the display name and the owner's name." };
+  }
+
+  // 1. Make the owner's sign-in the normal way, without touching the SNA person's own session.
+  //    If the address already has a sign-in, the next step takes it over safely or refuses.
+  const tempPassword = makeTempPassword();
+  const plain = createPlainClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const { error: signUpError } = await plain.auth.signUp({ email, password: tempPassword });
+  if (signUpError && signUpError.code !== "user_already_exists" && !/already (registered|exists)/i.test(signUpError.message)) {
+    return { ok: false, error: `The owner's sign-in could not be made: ${signUpError.message}` };
+  }
+
+  // 2. Build the restaurant for that sign-in.
+  const { data, error } = await supabase.rpc("sna_create_client", {
+    p_owner_email: email,
+    p_owner_name: input.ownerName,
+    p_legal_name: input.legalName,
+    p_trading_name: input.tradingName,
+    p_country_code: input.countryCode,
+    p_temp_password: tempPassword,
+    p_branch_name: input.branchName || undefined,
+    p_branch_code: input.branchCode || undefined,
+    p_tax_registration_no: input.taxNo.trim() || undefined,
+    p_edition: input.edition === "professional" ? "professional" : "basic",
+    p_licence_start: dateOrNull(input.licenceStart) ?? undefined,
+    p_licence_expiry: dateOrNull(input.licenceExpiry) ?? undefined,
+  });
+  if (error) return { ok: false, error: error.message };
+  const made = data as unknown as { id: string; client_code: string; owner_email: string; kept_password: boolean };
+  revalidatePath("/sna", "layout");
+  return {
+    ok: true,
+    id: made.id,
+    clientCode: made.client_code,
+    tradingName: input.tradingName.trim(),
+    ownerEmail: made.owner_email,
+    tempPassword: made.kept_password ? null : tempPassword,
+  };
 }

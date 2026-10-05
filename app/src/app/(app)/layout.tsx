@@ -13,6 +13,7 @@ import { isLang, type LangCode } from "@/lib/i18n";
 import { Dual, LangProvider } from "./lang";
 import { getLicence, licenceDate } from "@/lib/licence";
 import { LicenceGate, LicenceNotice } from "./licence-notice";
+import { SNA_CONTACT_EMAIL } from "@/lib/sna-contact";
 
 /** SNA POS mark: a steaming bowl on a saffron plate. */
 function Mark({ size = 48 }: { size?: number }) {
@@ -170,8 +171,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             daysLeft={licence.days_left ?? null}
             remind={!!licence.remind}
             restaurantId={user.restaurant_id}
+            contact={SNA_CONTACT_EMAIL}
           />
-          <LicenceGate locked={licence.state === "locked"} reason={licence.reason ?? null} endsText={licenceEnds}>
+          <LicenceGate locked={licence.state === "locked"} reason={licence.reason ?? null} endsText={licenceEnds} contact={SNA_CONTACT_EMAIL}>
             {children}
           </LicenceGate>
         </main>

@@ -5,8 +5,8 @@ import { RequestRow, type SnaRequest } from "./request-row";
 import { clientState, licenceState, shortDate, toneStyle, type ClientList } from "./crm";
 
 const LISTS: { key: keyof ClientList["counts"]; label: string; hint: string }[] = [
-  { key: "all", label: "All clients", hint: "every restaurant that has signed up" },
-  { key: "new", label: "New", hint: "signed up in the last 14 days" },
+  { key: "all", label: "All clients", hint: "every restaurant set up" },
+  { key: "new", label: "New", hint: "set up in the last 14 days" },
   { key: "followup", label: "Follow-up due", hint: "today or earlier" },
   { key: "expiring", label: "Expiring", hint: "licence ends within 30 days" },
   { key: "expired", label: "Expired", hint: "end date passed: read-only" },
@@ -32,10 +32,17 @@ export default async function SnaHome({ searchParams }: { searchParams: Promise<
   return (
     <div className="space-y-6">
       <section>
-        <h1 className="text-2xl font-bold">Clients</h1>
-        <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-          A restaurant appears here by itself as soon as it signs up. Newest first.
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">Clients</h1>
+            <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
+              Every restaurant SNA has set up. Newest first.
+            </p>
+          </div>
+          <Link href="/sna/new" className="btn px-5" style={{ background: "var(--color-ink)", color: "#fff" }}>
+            New client
+          </Link>
+        </div>
         {bookErr && <div className="card mt-3 p-3 text-sm">{bookErr.message}</div>}
 
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
@@ -86,7 +93,7 @@ export default async function SnaHome({ searchParams }: { searchParams: Promise<
             <thead>
               <tr className="text-left" style={{ color: "var(--color-ink-3)" }}>
                 <th className="px-4 py-2">Client</th>
-                <th className="px-4 py-2">Signed up</th>
+                <th className="px-4 py-2">Set up on</th>
                 <th className="px-4 py-2">Plan</th>
                 <th className="px-4 py-2">Licence ends</th>
                 <th className="px-4 py-2">Last bill</th>

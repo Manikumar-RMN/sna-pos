@@ -53,7 +53,7 @@ export default async function SnaClientPage({ params, searchParams }: { params: 
           <div className="min-w-0">
             <h1 className="text-2xl font-bold">{c.trading_name}</h1>
             <div className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-              {c.legal_name} · {c.country_code} · client code <b style={{ color: "var(--color-ink)" }}>{c.client_code}</b> · signed up {shortDate(c.signed_up)}
+              {c.legal_name} · {c.country_code} · client code <b style={{ color: "var(--color-ink)" }}>{c.client_code}</b> · set up on {shortDate(c.signed_up)}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
