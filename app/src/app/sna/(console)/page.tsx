@@ -13,7 +13,7 @@ const LISTS: { key: keyof ClientList["counts"]; label: string; hint: string }[] 
   { key: "nolicence", label: "No licence date", hint: "not limited until a date is set" },
 ];
 
-/** The client book: every restaurant from the moment it signs up, newest first. */
+/** The client book: every restaurant SNA has set up, newest first. */
 export default async function SnaHome({ searchParams }: { searchParams: Promise<{ q?: string; list?: string }> }) {
   const { q, list } = await searchParams;
   const filter = LISTS.some((l) => l.key === list) ? (list as string) : "all";

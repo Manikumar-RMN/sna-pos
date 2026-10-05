@@ -79,7 +79,7 @@ export function StaffManager({
               Ask {invite.name} to open <b>{appUrl}</b> on their phone or the counter tablet.
             </li>
             <li>
-              Tap <b>Create an account</b> using <b>{invite.email}</b> and a password of their own.
+              Choose the <b>Owner</b> tab, tap <b>I have an invite code</b>, and create a sign-in using <b>{invite.email}</b> and a password of their own.
             </li>
             <li>
               Enter this code on the next screen. It works once and expires in 7 days.
