@@ -11,6 +11,8 @@ import { OutletSwitcher, type OutletInfo } from "./outlet/outlet-switcher";
 import { cookies } from "next/headers";
 import { isLang, type LangCode } from "@/lib/i18n";
 import { Dual, LangProvider } from "./lang";
+import { getLicence, licenceDate } from "@/lib/licence";
+import { LicenceGate, LicenceNotice } from "./licence-notice";
 
 /** SNA POS mark: a steaming bowl on a saffron plate. */
 function Mark({ size = 48 }: { size?: number }) {
@@ -56,6 +58,10 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   ]
     .filter((l) => l.show)
     .map(({ href, label }) => ({ href, label }));
+
+  // The licence: a reminder from 15 days before the end date, read-only after it.
+  const licence = await getLicence();
+  const licenceEnds = licenceDate(licence.ends);
 
   const initial = (user.full_name || "?").trim().charAt(0).toUpperCase();
   // Second language under the English words: this device's choice, else the restaurant's.
@@ -157,7 +163,17 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         <main className="px-4 py-5 md:px-1 md:py-3">
           <OfflineSync />
           <SwRegister />
-          {children}
+          <LicenceNotice
+            state={licence.state}
+            reason={licence.reason ?? null}
+            endsText={licenceEnds}
+            daysLeft={licence.days_left ?? null}
+            remind={!!licence.remind}
+            restaurantId={user.restaurant_id}
+          />
+          <LicenceGate locked={licence.state === "locked"} reason={licence.reason ?? null} endsText={licenceEnds}>
+            {children}
+          </LicenceGate>
         </main>
       </div>
     </div>

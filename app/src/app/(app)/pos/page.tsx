@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getLicence } from "@/lib/licence";
 import { OpenShiftForm } from "../shift/shift-panel";
 import { PosTerminal, type AddTo, type OptionGroup, type PackingRule } from "./pos-terminal";
 
@@ -201,6 +202,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       allowHold={has(user, "courses")}
       customerDisplay={has(user, "customer_display") ? user.trading_name : null}
       tableOrdersWaiting={tableOrdersWaiting}
+      licenceLockAt={(await getLicence()).lock_at ?? null}
     />
   );
 }

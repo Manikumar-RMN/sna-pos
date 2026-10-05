@@ -4571,6 +4571,7 @@ export type Database = {
           licence_expiry: string | null
           licence_start: string | null
           next_contact: string | null
+          reminder_off_for: string | null
           restaurant_id: string
           sales_person: string | null
           support_person: string | null
@@ -4583,6 +4584,7 @@ export type Database = {
           licence_expiry?: string | null
           licence_start?: string | null
           next_contact?: string | null
+          reminder_off_for?: string | null
           restaurant_id: string
           sales_person?: string | null
           support_person?: string | null
@@ -4595,6 +4597,7 @@ export type Database = {
           licence_expiry?: string | null
           licence_start?: string | null
           next_contact?: string | null
+          reminder_off_for?: string | null
           restaurant_id?: string
           sales_person?: string | null
           support_person?: string | null
@@ -4747,6 +4750,7 @@ export type Database = {
           id: string
           invoice_no: string | null
           kind: string
+          modules: string[]
           note: string | null
           paid_on: string | null
           period_from: string | null
@@ -4766,6 +4770,7 @@ export type Database = {
           id?: string
           invoice_no?: string | null
           kind: string
+          modules?: string[]
           note?: string | null
           paid_on?: string | null
           period_from?: string | null
@@ -4785,6 +4790,7 @@ export type Database = {
           id?: string
           invoice_no?: string | null
           kind?: string
+          modules?: string[]
           note?: string | null
           paid_on?: string | null
           period_from?: string | null
@@ -5901,6 +5907,7 @@ export type Database = {
       }
       my_account_state: { Args: never; Returns: string }
       my_device_state: { Args: never; Returns: Json }
+      my_licence: { Args: never; Returns: Json }
       my_outlets: { Args: never; Returns: Json }
       my_plan: { Args: never; Returns: Json }
       offline_snapshot: { Args: { p_device_key: string }; Returns: Json }
@@ -6269,11 +6276,31 @@ export type Database = {
         Args: { p_approve: boolean; p_id: string; p_note?: string }
         Returns: undefined
       }
+      sna_licence: { Args: { p_id: string }; Returns: Json }
       sna_me: { Args: never; Returns: Json }
+      sna_record_sale: {
+        Args: {
+          p_amount: number
+          p_description: string
+          p_extend_licence?: boolean
+          p_invoice_no?: string
+          p_kind: string
+          p_modules?: string[]
+          p_note?: string
+          p_paid_on?: string
+          p_period_from?: string
+          p_period_to?: string
+          p_restaurant: string
+          p_sale_date: string
+          p_switch_on?: boolean
+        }
+        Returns: string
+      }
       sna_remove_contact: { Args: { p_id: string }; Returns: undefined }
       sna_requests: { Args: { p_status?: string }; Returns: Json }
       sna_restaurant: { Args: { p_id: string }; Returns: Json }
       sna_restaurants: { Args: { p_search?: string }; Returns: Json }
+      sna_sales_list: { Args: { p_id: string }; Returns: Json }
       sna_save_account: {
         Args: {
           p_account_manager?: string
@@ -6326,6 +6353,10 @@ export type Database = {
       }
       sna_set_price: {
         Args: { p_currency: string; p_item: string; p_price: number }
+        Returns: undefined
+      }
+      sna_set_reminder: {
+        Args: { p_on: boolean; p_restaurant: string }
         Returns: undefined
       }
       sna_set_sale_paid: {

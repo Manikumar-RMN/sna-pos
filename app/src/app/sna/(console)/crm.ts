@@ -79,14 +79,45 @@ export type Client = {
   staff: { id: string; full_name: string; role: string }[];
 };
 
-export const STATUSES: { key: string; label: string }[] = [
-  { key: "trial", label: "Trial" },
-  { key: "active", label: "Active" },
-  { key: "past_due", label: "Payment overdue" },
-  { key: "suspended", label: "Suspended" },
-  { key: "cancelled", label: "Cancelled" },
+/**
+ * The account switch SNA sets by hand. The licence end date does the everyday work
+ * (reminder, then read-only); this is only for stopping a client whatever the date.
+ */
+export const ACCOUNT_CHOICES: { key: string; label: string }[] = [
+  { key: "active", label: "Normal" },
+  { key: "suspended", label: "Suspended (read-only now)" },
+  { key: "cancelled", label: "Cancelled (read-only now)" },
 ];
-export const statusLabel = (s: string) => STATUSES.find((x) => x.key === s)?.label ?? s;
+/** The database also knows "trial" and "past_due" from earlier; both behave as Normal. */
+export const accountChoice = (status: string) => (status === "suspended" || status === "cancelled" ? status : "active");
+
+/** One plain answer to "where does this client stand?", from the account switch and the licence end date. */
+export function clientState(status: string, daysLeft: number | null): { text: string; tone: Tone } {
+  if (status === "suspended") return { text: "Suspended · read-only", tone: "bad" };
+  if (status === "cancelled") return { text: "Cancelled · read-only", tone: "bad" };
+  if (daysLeft === null || daysLeft === undefined) return { text: "No licence date", tone: "plain" };
+  if (daysLeft < 0) return { text: "Expired · read-only", tone: "bad" };
+  if (daysLeft <= 15) return { text: "Reminder showing", tone: "warn" };
+  return { text: "Active", tone: "ok" };
+}
+
+/** What the console is told about a client's licence right now. */
+export type LicenceNow = {
+  state: "ok" | "warn" | "locked";
+  reason?: string;
+  ends?: string | null;
+  days_left?: number;
+  lock_at?: string;
+  remind?: boolean;
+  reminder_off: boolean;
+};
+
+export type SalesExtra = {
+  /** Sale id → what was bought on it. */
+  modules: Record<string, string[]>;
+  /** What can be put on a sale, and whether the client has it switched on now. */
+  catalog: { key: string; name: string; on: boolean }[];
+};
 
 export const CONTACT_KINDS: { key: string; label: string }[] = [
   { key: "owner", label: "Owner" },
@@ -139,17 +170,10 @@ export const toneStyle: Record<Tone, { background: string; color: string }> = {
 /** How to say where a licence stands, from the days left (null = no date set). */
 export function licenceState(daysLeft: number | null): { text: string; tone: Tone } {
   if (daysLeft === null || daysLeft === undefined) return { text: "No date set", tone: "plain" };
-  if (daysLeft < 0) return { text: `Expired ${-daysLeft} ${daysLeft === -1 ? "day" : "days"} ago`, tone: "bad" };
+  if (daysLeft < 0) return { text: `Ended ${-daysLeft} ${daysLeft === -1 ? "day" : "days"} ago`, tone: "bad" };
   if (daysLeft === 0) return { text: "Ends today", tone: "bad" };
   if (daysLeft <= 30) return { text: `${daysLeft} ${daysLeft === 1 ? "day" : "days"} left`, tone: "warn" };
   return { text: `${daysLeft} days left`, tone: "ok" };
-}
-
-export function statusTone(status: string): Tone {
-  if (status === "active") return "ok";
-  if (status === "trial") return "plain";
-  if (status === "past_due") return "warn";
-  return "bad";
 }
 
 /** Friendly words for the lines in a client's history. */
@@ -161,6 +185,10 @@ export function eventLabel(event: string): string {
     "sale.unpaid": "Sale marked not paid",
     "sale.cancelled": "Sale entry cancelled",
     "edition.changed": "Edition changed",
+    "reminder.off": "Renewal reminder switched off",
+    "reminder.on": "Renewal reminder switched on",
+    "module.on": "Add-on switched on",
+    "module.off": "Add-on switched off",
   };
   return map[event] ?? event;
 }

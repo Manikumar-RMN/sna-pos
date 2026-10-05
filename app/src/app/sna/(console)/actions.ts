@@ -172,13 +172,17 @@ export async function addSale(input: {
   paidOn: string;
   note: string;
   extendLicence: boolean;
+  /** What was bought: basic, professional, or add-on module keys. */
+  modules: string[];
+  /** Also switch on what was bought. */
+  switchOn: boolean;
 }): Promise<SnaResult> {
   const amount = Number(input.amount);
   if (input.amount.trim() === "" || !Number.isFinite(amount)) return { ok: false, error: "Enter the amount as a number." };
   const saleDate = dateOrNull(input.saleDate);
   if (!saleDate) return { ok: false, error: "Enter the sale date." };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("sna_add_sale", {
+  const { error } = await supabase.rpc("sna_record_sale", {
     p_restaurant: input.restaurantId,
     p_kind: input.kind,
     p_description: input.description,
@@ -190,9 +194,12 @@ export async function addSale(input: {
     p_paid_on: dateOrNull(input.paidOn) ?? undefined,
     p_note: input.note || undefined,
     p_extend_licence: input.extendLicence,
+    p_modules: input.modules,
+    p_switch_on: input.switchOn && input.modules.length > 0,
   });
   if (error) return { ok: false, error: error.message };
-  return done(input.extendLicence ? "Sale recorded and the licence end date moved." : "Sale recorded.", clientPath(input.restaurantId));
+  const did = [input.extendLicence ? "the licence end date moved" : "", input.switchOn && input.modules.length > 0 ? "what was bought switched on" : ""].filter(Boolean);
+  return done(did.length ? `Sale recorded, ${did.join(" and ")}.` : "Sale recorded.", clientPath(input.restaurantId));
 }
 
 export async function setSalePaid(restaurantId: string, id: string, paidOn: string): Promise<SnaResult> {
@@ -208,4 +215,12 @@ export async function cancelSale(restaurantId: string, id: string, reason: strin
   const { error } = await supabase.rpc("sna_cancel_sale", { p_id: id, p_reason: reason });
   if (error) return { ok: false, error: error.message };
   return done("Entry cancelled. Check the licence end date is still right.", clientPath(restaurantId));
+}
+
+/** Renewal reminder shown to the restaurant: off once payment is in, or back on. */
+export async function setReminder(restaurantId: string, on: boolean): Promise<SnaResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("sna_set_reminder", { p_restaurant: restaurantId, p_on: on });
+  if (error) return { ok: false, error: error.message };
+  return done(on ? "Reminder switched on." : "Reminder switched off for this end date.", clientPath(restaurantId));
 }

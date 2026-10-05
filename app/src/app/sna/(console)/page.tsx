@@ -2,15 +2,15 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
 import { RequestRow, type SnaRequest } from "./request-row";
-import { licenceState, shortDate, statusLabel, statusTone, toneStyle, type ClientList } from "./crm";
+import { clientState, licenceState, shortDate, toneStyle, type ClientList } from "./crm";
 
 const LISTS: { key: keyof ClientList["counts"]; label: string; hint: string }[] = [
   { key: "all", label: "All clients", hint: "every restaurant that has signed up" },
   { key: "new", label: "New", hint: "signed up in the last 14 days" },
   { key: "followup", label: "Follow-up due", hint: "today or earlier" },
   { key: "expiring", label: "Expiring", hint: "licence ends within 30 days" },
-  { key: "expired", label: "Expired", hint: "licence end date has passed" },
-  { key: "nolicence", label: "No licence date", hint: "nothing set yet" },
+  { key: "expired", label: "Expired", hint: "end date passed: read-only" },
+  { key: "nolicence", label: "No licence date", hint: "not limited until a date is set" },
 ];
 
 /** The client book: every restaurant from the moment it signs up, newest first. */
@@ -97,6 +97,7 @@ export default async function SnaHome({ searchParams }: { searchParams: Promise<
             <tbody>
               {rows.map((r) => {
                 const lic = licenceState(r.days_left);
+                const st = clientState(r.status, r.days_left);
                 const due = !!r.next_contact && !!data && r.next_contact <= data.today;
                 return (
                   <tr key={r.id} className="border-t align-top" style={{ borderColor: "var(--color-line)" }}>
@@ -123,8 +124,8 @@ export default async function SnaHome({ searchParams }: { searchParams: Promise<
                     <td className="whitespace-nowrap px-4 py-2.5">{shortDate(r.signed_up)}</td>
                     <td className="px-4 py-2.5">
                       <span className="capitalize">{r.edition}</span>
-                      <span className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold" style={toneStyle[statusTone(r.status)]}>
-                        {statusLabel(r.status)}
+                      <span className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold" style={toneStyle[st.tone]}>
+                        {st.text}
                       </span>
                       <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
                         {r.outlets} {r.outlets === 1 ? "outlet" : "outlets"}
@@ -169,7 +170,8 @@ export default async function SnaHome({ searchParams }: { searchParams: Promise<
           </table>
         </div>
         <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
-          A licence date that has passed only shows here. It does not lock or limit the restaurant.
+          After the licence end date a restaurant is read-only: no new bills. It sees a reminder twice a day from 15 days before. A client with no licence
+          date is not limited.
         </p>
       </section>
 

@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { money } from "@/lib/format";
 import { ConfirmButton } from "@/app/(app)/settings/confirm-button";
-import { addNote, addSale, cancelSale, removeContact, saveAccount, saveContact, setFollowUp, setSalePaid, type SnaResult } from "../../actions";
-import { CONTACT_KINDS, NOTE_KINDS, SALE_KINDS, STATUSES, indiaDateTime, labelOf, shortDate, toneStyle, type Client, type Contact } from "../../crm";
+import { addNote, addSale, cancelSale, removeContact, saveAccount, saveContact, setFollowUp, setReminder, setSalePaid, type SnaResult } from "../../actions";
+import { ACCOUNT_CHOICES, CONTACT_KINDS, NOTE_KINDS, SALE_KINDS, accountChoice, indiaDateTime, labelOf, shortDate, toneStyle, type Client, type Contact, type LicenceNow, type SalesExtra } from "../../crm";
 
 /** Runs a save and shows what the server said, in words, next to the form. */
 function useSave() {
@@ -50,9 +50,10 @@ const dark = { background: "var(--color-ink)", color: "#fff" } as const;
 
 // ---------------------------------------------------------------- Overview
 
-export function AccountPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
+export function AccountPanel({ c, now, canEdit }: { c: Client; now: LicenceNow; canEdit: boolean }) {
   const { pending, msg, run } = useSave();
-  const [status, setStatus] = useState(c.status);
+  const rem = useSave();
+  const [status, setStatus] = useState(accountChoice(c.status));
   const [start, setStart] = useState(c.licence_start ?? "");
   const [end, setEnd] = useState(c.licence_expiry ?? "");
   const [am, setAm] = useState(c.account_manager ?? "");
@@ -81,10 +82,11 @@ export function AccountPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
         }}
       >
         <h2 className="font-display text-lg font-bold">Licence and who looks after this client</h2>
+        <LicenceBox c={c} now={now} />
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Status" htmlFor="acc-status">
+          <Field label="Account" htmlFor="acc-status" hint="Leave on Normal. The end date does the rest.">
             <select id="acc-status" className="field" value={status} onChange={(e) => setStatus(e.target.value)} disabled={!canEdit}>
-              {STATUSES.map((s) => (
+              {ACCOUNT_CHOICES.map((s) => (
                 <option key={s.key} value={s.key}>
                   {s.label}
                 </option>
@@ -108,8 +110,9 @@ export function AccountPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
           </Field>
         </div>
         <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
-          These are SNA&rsquo;s own records. A licence date that has passed only shows in this console: the restaurant keeps working. Suspended and
-          Cancelled stop the restaurant&rsquo;s daily summary from being sent; nothing else changes for them.
+          How it works: the restaurant sees a reminder twice a day from 15 days before <b>Licence ends</b>. The end date can be used in full; at 6 a.m. the
+          next morning (restaurant&rsquo;s time) it becomes read-only: no new bills, but open bills can be paid and the day closed. Move the end date and it
+          works again at once. With no end date nothing is limited.
         </p>
         {canEdit ? (
           <div className="flex flex-wrap items-center gap-3">
@@ -123,6 +126,31 @@ export function AccountPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
             Only Sales and Admin can change these. Account manager: {staffName(c.account_manager)}.
           </p>
         )}
+
+        <div className="border-t pt-4" style={{ borderColor: "var(--color-line)" }}>
+          <h3 className="text-sm font-bold">Renewal reminder shown to the restaurant</h3>
+          {!c.licence_expiry ? (
+            <p className="mt-1 text-sm" style={{ color: "var(--color-ink-3)" }}>
+              No reminder: there is no licence end date.
+            </p>
+          ) : (
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <span className="rounded-full px-3 py-1 text-xs font-bold" style={now.reminder_off ? toneStyle.plain : now.state === "warn" ? toneStyle.warn : toneStyle.ok}>
+                {now.reminder_off ? "Switched off for this end date" : now.state === "warn" ? "Showing now, twice a day" : now.state === "locked" ? "Not showing: already read-only" : "On: starts 15 days before the end date"}
+              </span>
+              {canEdit && (
+                <button type="button" className="btn h-10 min-h-0 px-4 text-sm" style={ghost} disabled={rem.pending} onClick={() => rem.run(setReminder(c.id, now.reminder_off))}>
+                  {now.reminder_off ? "Switch the reminder on" : "Payment received: switch the reminder off"}
+                </button>
+              )}
+              <Said msg={rem.msg} />
+            </div>
+          )}
+          <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
+            Switching the reminder off does not move the end date: the restaurant still becomes read-only after {c.licence_expiry ? shortDate(c.licence_expiry) : "the end date"}.
+            To renew, record the sale on the Sales history tab and tick &ldquo;Move the licence end date&rdquo;.
+          </p>
+        </div>
       </form>
 
       <div className="card p-5">
@@ -146,6 +174,32 @@ export function AccountPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
           Only counts and dates are shown here. SNA staff do not see the restaurant&rsquo;s bills or takings.
         </p>
       </div>
+    </div>
+  );
+}
+
+/** In one line: what the restaurant is experiencing right now. */
+function LicenceBox({ c, now }: { c: Client; now: LicenceNow }) {
+  let tone: keyof typeof toneStyle = "ok";
+  let text = "";
+  if (now.state === "locked") {
+    tone = "bad";
+    text =
+      now.reason === "ended"
+        ? `Read-only now. The licence ended on ${shortDate(c.licence_expiry)}. New bills are refused; open bills can still be paid.`
+        : `Read-only now, because the account is ${now.reason}. New bills are refused; open bills can still be paid.`;
+  } else if (!c.licence_expiry) {
+    tone = "plain";
+    text = "No licence end date: this restaurant is not limited and sees no reminder. Set the end date when the order comes in.";
+  } else if (now.state === "warn") {
+    tone = "warn";
+    text = `Ends on ${shortDate(c.licence_expiry)} (${now.days_left === 0 ? "today" : `${now.days_left} ${now.days_left === 1 ? "day" : "days"} left`}). Read-only from ${now.lock_at ? indiaDateTime(now.lock_at) : "the next morning"} India time.`;
+  } else {
+    text = `Working normally. Ends on ${shortDate(c.licence_expiry)} (${now.days_left} days left).`;
+  }
+  return (
+    <div role="status" className="rounded-2xl px-4 py-3 text-sm font-semibold" style={toneStyle[tone]}>
+      {text}
     </div>
   );
 }
@@ -413,10 +467,31 @@ export function NotesPanel({ c }: { c: Client }) {
 
 // ---------------------------------------------------------------- Sales history
 
-export function SalesPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
+export function SalesPanel({ c, extra, canEdit }: { c: Client; extra: SalesExtra; canEdit: boolean }) {
   const { pending, msg, run } = useSave();
   const row = useSave();
-  const blank = { kind: "new", description: "", amount: "", saleDate: c.today, periodFrom: "", periodTo: "", invoiceNo: "", paidOn: "", note: "", extendLicence: false };
+  const blank = {
+    kind: "new",
+    description: "",
+    amount: "",
+    saleDate: c.today,
+    periodFrom: "",
+    periodTo: "",
+    invoiceNo: "",
+    paidOn: "",
+    note: "",
+    extendLicence: false,
+    modules: [] as string[],
+    switchOn: true,
+  };
+  const moduleName = (key: string) => extra.catalog.find((m) => m.key === key)?.name ?? key;
+  const toggleModule = (key: string) =>
+    setF((x) => {
+      const has = x.modules.includes(key);
+      // Basic and Professional are one choice: picking one drops the other.
+      const rest = x.modules.filter((k) => k !== key && !((key === "basic" && k === "professional") || (key === "professional" && k === "basic")));
+      return { ...x, modules: has ? rest : [...rest, key] };
+    });
   const [f, setF] = useState(blank);
   const [open, setOpen] = useState(false);
   const [cancelling, setCancelling] = useState<string | null>(null);
@@ -475,8 +550,8 @@ export function SalesPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
               <Field label="Sale date" htmlFor="sl-date">
                 <input id="sl-date" type="date" className="field" value={f.saleDate} max={c.today} required onChange={(e) => set({ saleDate: e.target.value })} />
               </Field>
-              <Field label="Invoice number (optional)" htmlFor="sl-inv">
-                <input id="sl-inv" className="field" value={f.invoiceNo} maxLength={60} onChange={(e) => set({ invoiceNo: e.target.value })} />
+              <Field label="Invoice number" htmlFor="sl-inv">
+                <input id="sl-inv" className="field" value={f.invoiceNo} maxLength={60} placeholder="As printed on the invoice" onChange={(e) => set({ invoiceNo: e.target.value })} />
               </Field>
               <Field label="Period from (optional)" htmlFor="sl-from">
                 <input id="sl-from" type="date" className="field" value={f.periodFrom} onChange={(e) => set({ periodFrom: e.target.value })} />
@@ -488,6 +563,36 @@ export function SalesPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
                 <input id="sl-paid" type="date" className="field" value={f.paidOn} max={c.today} onChange={(e) => set({ paidOn: e.target.value })} />
               </Field>
             </div>
+            <fieldset>
+              <legend className="mb-1 block text-xs font-bold" style={{ color: "var(--color-ink-2)" }}>
+                Modules bought on this invoice
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {extra.catalog.map((m) => {
+                  const on = f.modules.includes(m.key);
+                  return (
+                    <label
+                      key={m.key}
+                      className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-3 text-sm font-semibold"
+                      style={on ? { background: "var(--color-ink)", color: "#fff" } : { background: "var(--color-surface)", border: "1px solid var(--color-line)", color: "var(--color-ink-2)" }}
+                    >
+                      <input type="checkbox" className="h-4 w-4" checked={on} onChange={() => toggleModule(m.key)} />
+                      {m.name}
+                      {m.on && <span className="text-[11px] font-normal">(has it)</span>}
+                    </label>
+                  );
+                })}
+              </div>
+              {f.modules.length > 0 && (
+                <label className="mt-3 flex items-start gap-3 text-sm">
+                  <input type="checkbox" className="mt-1 h-5 w-5" checked={f.switchOn} onChange={(e) => set({ switchOn: e.target.checked })} />
+                  <span>
+                    <b>Switch these on for the client now.</b>{" "}
+                    <span style={{ color: "var(--color-ink-3)" }}>Professional edition and add-ons are switched on. Nothing is ever switched off from a sale.</span>
+                  </span>
+                </label>
+              )}
+            </fieldset>
             <Field label="Note (optional)" htmlFor="sl-note">
               <input id="sl-note" className="field" value={f.note} maxLength={500} onChange={(e) => set({ note: e.target.value })} />
             </Field>
@@ -496,8 +601,7 @@ export function SalesPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
               <span>
                 <b>Move the licence end date to &ldquo;Period to&rdquo;.</b>{" "}
                 <span style={{ color: "var(--color-ink-3)" }}>
-                  {licenceKind ? "Tick this for a new licence or a renewal." : "Usually left off for add-ons, hardware and services."} The status is not changed: set it
-                  on the Overview tab.
+                  {licenceKind ? "Tick this for a new licence or a renewal: the restaurant works until that date, and the reminder starts again 15 days before it." : "Usually left off for add-ons, hardware and services."}
                 </span>
               </span>
             </label>
@@ -525,7 +629,8 @@ export function SalesPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
           <thead>
             <tr className="text-left" style={{ color: "var(--color-ink-3)" }}>
               <th className="px-4 py-2">Date</th>
-              <th className="px-4 py-2">What</th>
+              <th className="px-4 py-2">Invoice</th>
+              <th className="px-4 py-2">What and modules</th>
               <th className="px-4 py-2">Period</th>
               <th className="px-4 py-2 text-right">Amount</th>
               <th className="px-4 py-2">Paid</th>
@@ -538,16 +643,25 @@ export function SalesPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
             {c.sales.map((s) => (
               <tr key={s.id} className="border-t align-top" style={{ borderColor: "var(--color-line)", opacity: s.cancelled ? 0.6 : 1 }}>
                 <td className="whitespace-nowrap px-4 py-2.5">{shortDate(s.sale_date)}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 font-semibold">{s.invoice_no ?? <span className="font-normal" style={{ color: "var(--color-ink-3)" }}>No invoice</span>}</td>
                 <td className="px-4 py-2.5">
                   <div className="font-semibold" style={s.cancelled ? { textDecoration: "line-through" } : undefined}>
                     {s.description}
                   </div>
                   <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
                     {labelOf(SALE_KINDS, s.kind)}
-                    {s.invoice_no ? ` · invoice ${s.invoice_no}` : ""}
                     {s.by ? ` · ${s.by}` : ""}
                     {s.note ? ` · ${s.note}` : ""}
                   </div>
+                  {(extra.modules[s.id] ?? []).length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {(extra.modules[s.id] ?? []).map((k) => (
+                        <span key={k} className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={toneStyle.plain}>
+                          {moduleName(k)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {s.cancelled && (
                     <div className="text-xs font-semibold" style={{ color: "var(--color-bad)" }}>
                       Cancelled: {s.cancel_reason}
@@ -621,7 +735,7 @@ export function SalesPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
             ))}
             {c.sales.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center" style={{ color: "var(--color-ink-3)" }}>
+                <td colSpan={7} className="px-4 py-6 text-center" style={{ color: "var(--color-ink-3)" }}>
                   Nothing sold yet.
                 </td>
               </tr>
@@ -631,8 +745,8 @@ export function SalesPanel({ c, canEdit }: { c: Client; canEdit: boolean }) {
       </div>
       <Said msg={row.msg} />
       <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
-        This is SNA&rsquo;s own sales record, not an invoice and not a payment. A wrong entry is cancelled with a reason and stays in the list. Cancelling does not
-        move the licence end date back.
+        Each line is one invoice SNA raised, with the modules bought on it. The invoice itself is made outside SNA POS; this is the record of it. A wrong entry
+        is cancelled with a reason and stays in the list. Cancelling does not move the licence end date back or switch anything off.
         {!canEdit && " Only Sales and Admin can record sales."}
       </p>
     </div>

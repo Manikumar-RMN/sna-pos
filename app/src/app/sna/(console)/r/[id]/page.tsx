@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
 import { RestaurantPanel, type SnaRestaurant } from "./restaurant-panel";
 import { AccountPanel, ContactsPanel, NotesPanel, SalesPanel } from "./client-book";
-import { licenceState, shortDate, statusLabel, statusTone, toneStyle, type Client } from "../../crm";
+import { clientState, licenceState, shortDate, toneStyle, type Client, type LicenceNow, type SalesExtra } from "../../crm";
 
 const TABS = [
   { key: "overview", label: "Overview" },
@@ -24,10 +24,12 @@ export default async function SnaClientPage({ params, searchParams }: { params: 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
 
   const supabase = await createClient();
-  const [{ data, error }, { data: me }, plan] = await Promise.all([
+  const [{ data, error }, { data: me }, plan, { data: lic0 }, extra] = await Promise.all([
     supabase.rpc("sna_client", { p_id: id }),
     supabase.rpc("sna_me"),
     tab === "plan" ? supabase.rpc("sna_restaurant", { p_id: id }) : Promise.resolve({ data: null, error: null }),
+    supabase.rpc("sna_licence", { p_id: id }),
+    tab === "sales" ? supabase.rpc("sna_sales_list", { p_id: id }) : Promise.resolve({ data: null, error: null }),
   ]);
   if (error?.message?.includes("not found")) notFound();
   if (error || !data) return <div className="card p-5 text-sm">{error?.message ?? "Could not load."}</div>;
@@ -35,6 +37,9 @@ export default async function SnaClientPage({ params, searchParams }: { params: 
   const role = (me as { role?: string } | null)?.role ?? "support";
   const canSell = role === "admin" || role === "sales";
   const lic = licenceState(c.days_left);
+  const st = clientState(c.status, c.days_left);
+  const now = (lic0 ?? { state: "ok", reminder_off: false }) as unknown as LicenceNow;
+  const salesExtra = (extra.data ?? { modules: {}, catalog: [] }) as unknown as SalesExtra;
   const followDue = !!c.next_contact && c.next_contact <= c.today;
 
   return (
@@ -55,8 +60,8 @@ export default async function SnaClientPage({ params, searchParams }: { params: 
             <span className="rounded-full px-3 py-1 text-xs font-bold capitalize" style={toneStyle.plain}>
               {c.edition}
             </span>
-            <span className="rounded-full px-3 py-1 text-xs font-bold" style={toneStyle[statusTone(c.status)]}>
-              {statusLabel(c.status)}
+            <span className="rounded-full px-3 py-1 text-xs font-bold" style={toneStyle[st.tone]}>
+              {st.text}
             </span>
           </div>
         </div>
@@ -110,10 +115,10 @@ export default async function SnaClientPage({ params, searchParams }: { params: 
       </nav>
 
       <div className="mt-4">
-        {tab === "overview" && <AccountPanel c={c} canEdit={canSell} />}
+        {tab === "overview" && <AccountPanel c={c} now={now} canEdit={canSell} />}
         {tab === "contacts" && <ContactsPanel c={c} />}
         {tab === "notes" && <NotesPanel c={c} />}
-        {tab === "sales" && <SalesPanel c={c} canEdit={canSell} />}
+        {tab === "sales" && <SalesPanel c={c} extra={salesExtra} canEdit={canSell} />}
         {tab === "plan" &&
           (plan.data ? (
             <RestaurantPanel r={plan.data as unknown as SnaRestaurant} role={role} />

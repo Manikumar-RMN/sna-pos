@@ -136,6 +136,7 @@ export function PosTerminal({
   allowHold = false,
   customerDisplay = null,
   tableOrdersWaiting = 0,
+  licenceLockAt = null,
 }: {
   currency: string;
   canDiscount: boolean;
@@ -160,6 +161,8 @@ export function PosTerminal({
   customerDisplay?: string | null;
   /** Add-on: orders sent by guests from the table QR, waiting for staff. */
   tableOrdersWaiting?: number;
+  /** The moment this restaurant becomes read-only (licence end), or null. Used when billing without internet. */
+  licenceLockAt?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -586,6 +589,10 @@ export function PosTerminal({
   }
 
   function submitOffline(mode: "pay" | "unpaid" | "split") {
+    // The licence ended while this device was without internet: the server would refuse the bill, so it is not made.
+    if (licenceLockAt && Date.now() >= Date.parse(licenceLockAt)) {
+      return setError("The SNA POS licence for this restaurant has ended, so new bills cannot be made. Please contact SNA to renew.");
+    }
     if (!snap || !quote) return setError("No internet, and this device has no offline copy of the menu yet.");
     if (mode !== "pay") return setError("Without internet only paid bills can be made. Take the payment now.");
     if (!canPay) return setError("Without internet only the cashier can make bills here.");
