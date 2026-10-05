@@ -4,13 +4,14 @@ import { PasswordForm } from "./password-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function PasswordPage({ searchParams }: { searchParams: Promise<{ recovery?: string }> }) {
+export default async function PasswordPage({ searchParams }: { searchParams: Promise<{ recovery?: string; to?: string }> }) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { recovery } = await searchParams;
+  const { recovery, to } = await searchParams;
+  const toConsole = to === "console";
 
   const { data: state } = await supabase.rpc("my_account_state");
   if (state === "device_locked" || state === "device_removed" || state === "active" && user.email?.endsWith("@devices.sna-pos.app")) {
@@ -33,7 +34,7 @@ export default async function PasswordPage({ searchParams }: { searchParams: Pro
               ? "You opened a password reset link. Choose a new password for " + (user.email ?? "your account") + "."
               : "Signed in as " + (user.email ?? "") + "."}
         </p>
-        <PasswordForm allowCancel={!forced && !recovery} />
+        <PasswordForm allowCancel={!forced && !recovery} toConsole={toConsole} />
       </div>
     </main>
   );

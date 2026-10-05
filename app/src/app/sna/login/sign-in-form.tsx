@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { signInToConsole, type ConsoleSignInState } from "./actions";
 
@@ -29,6 +30,9 @@ export function ConsoleSignIn() {
       <button type="submit" disabled={pending} className="btn btn-primary w-full">
         {pending ? "Signing in…" : "Sign in"}
       </button>
+      <Link href="/sna/login/forgot" className="block text-center text-sm font-bold" style={{ color: "var(--color-brand)" }}>
+        Forgot password?
+      </Link>
     </form>
   );
 }

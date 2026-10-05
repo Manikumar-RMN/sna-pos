@@ -6,10 +6,11 @@ import { changePassword, type PasswordState } from "./actions";
 
 const initial: PasswordState = { error: null };
 
-export function PasswordForm({ allowCancel }: { allowCancel: boolean }) {
+export function PasswordForm({ allowCancel, toConsole = false }: { allowCancel: boolean; toConsole?: boolean }) {
   const [state, action, pending] = useActionState(changePassword, initial);
   return (
     <form action={action} className="card p-5">
+      {toConsole && <input type="hidden" name="to" value="console" />}
       <label className="mb-1.5 block text-sm font-semibold" htmlFor="password">
         New password
       </label>
@@ -27,7 +28,7 @@ export function PasswordForm({ allowCancel }: { allowCancel: boolean }) {
         {pending ? "Saving…" : "Save password"}
       </button>
       {allowCancel && (
-        <Link href="/dashboard" className="mt-3 block text-center text-sm font-semibold" style={{ color: "var(--color-ink-3)" }}>
+        <Link href={toConsole ? "/sna" : "/dashboard"} className="mt-3 block text-center text-sm font-semibold" style={{ color: "var(--color-ink-3)" }}>
           Cancel
         </Link>
       )}

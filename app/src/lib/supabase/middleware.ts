@@ -43,7 +43,7 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   // /t/… = guest QR ordering, /r/… = e-bill link: guests open these without signing in.
   // /sna/login = the SNA console's own sign-in page; the console is not part of the restaurant app.
-  const isPublic = path.startsWith("/login") || path === "/sna/login" || path.startsWith("/auth") || path.startsWith("/t/") || path.startsWith("/r/") ||
+  const isPublic = path.startsWith("/login") || path === "/sna/login" || path === "/sna/login/forgot" || path.startsWith("/auth") || path.startsWith("/t/") || path.startsWith("/r/") ||
     // Machine calls: the push and email senders (shared secret) and the open API (API key).
     path === "/api/push" || path === "/api/report-email" || path.startsWith("/api/v1/");
 

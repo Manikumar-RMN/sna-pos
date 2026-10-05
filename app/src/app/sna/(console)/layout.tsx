@@ -60,7 +60,7 @@ export default async function SnaLayout({ children }: Readonly<{ children: React
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3">
-            <Link href="/account/password" className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.85)" }}>
+            <Link href="/account/password?to=console" className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.85)" }}>
               Change password
             </Link>
             <form action={signOutOfConsole}>
