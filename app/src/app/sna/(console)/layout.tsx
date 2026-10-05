@@ -59,7 +59,10 @@ export default async function SnaLayout({ children }: Readonly<{ children: React
               </Link>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-3">
+            <Link href="/account/password" className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.85)" }}>
+              Change password
+            </Link>
             <form action={signOutOfConsole}>
               <button className="min-h-10 rounded-xl border px-3 text-xs font-bold" style={{ borderColor: "rgba(255,255,255,0.3)" }}>
                 Sign out

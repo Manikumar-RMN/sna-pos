@@ -36,5 +36,7 @@ export async function changePassword(_prev: PasswordState, formData: FormData): 
   const { error: flagError } = await supabase.rpc("password_changed");
   if (flagError) return { error: "Your password was saved, but the account could not be updated. Refresh the page and sign in with the new password." };
   revalidatePath("/", "layout");
+  // SNA staff with no restaurant go back to their console; everyone else to their restaurant.
+  if (state === "new" && (await supabase.rpc("sna_me")).data) redirect("/sna/login");
   redirect("/dashboard");
 }

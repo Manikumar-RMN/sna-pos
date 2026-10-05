@@ -16,7 +16,10 @@ export default async function PasswordPage({ searchParams }: { searchParams: Pro
   if (state === "device_locked" || state === "device_removed" || state === "active" && user.email?.endsWith("@devices.sna-pos.app")) {
     redirect("/counter");
   }
-  if (state === "new" || state === "deactivated") redirect("/setup");
+  // SNA staff with no restaurant of their own still need to be able to choose a password
+  // (a reset link, or "Change password" in the SNA console).
+  const snaOnly = state === "new" && !!(await supabase.rpc("sna_me")).data;
+  if ((state === "new" && !snaOnly) || state === "deactivated") redirect("/setup");
   const forced = state === "must_change_password";
 
   return (
