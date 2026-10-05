@@ -17,6 +17,7 @@ export function ConfirmButton({
   ariaLabel,
   yesLabel = "Yes, remove",
   noLabel = "Keep",
+  tone = "danger",
 }: {
   /** What the button says before it is tapped. */
   children: React.ReactNode;
@@ -29,6 +30,8 @@ export function ConfirmButton({
   ariaLabel?: string;
   yesLabel?: string;
   noLabel?: string;
+  /** "danger" (red) for removing something; "plain" for an action that only needs a second look. */
+  tone?: "danger" | "plain";
 }) {
   const [asking, setAsking] = useState(false);
   // When the question appeared, so a hurried double tap cannot land on "Yes, remove".
@@ -83,7 +86,7 @@ export function ConfirmButton({
       <button
         type="button"
         className="min-h-9 whitespace-nowrap rounded-lg px-3 text-xs font-bold"
-        style={{ background: "var(--color-bad)", color: "#fff" }}
+        style={{ background: tone === "plain" ? "var(--color-brand)" : "var(--color-bad)", color: "#fff" }}
         disabled={disabled}
         onClick={() => {
           if (Date.now() - askedAt.current < 400) return;

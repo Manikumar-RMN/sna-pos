@@ -5418,7 +5418,23 @@ export type Database = {
         Args: { p_endpoint: string }
         Returns: undefined
       }
+      remove_report_schedule: {
+        Args: {
+          p_id: string
+        }
+        Returns: undefined
+      }
       reopen_day: { Args: { p_reason: string }; Returns: Json }
+      report_schedules_list: { Args: never; Returns: Json }
+      report_sent: {
+        Args: {
+          p_note: string
+          p_ok: boolean
+          p_schedule: string
+          p_secret: string
+        }
+        Returns: undefined
+      }
       request_plan_change: {
         Args: {
           p_kind: string
@@ -5498,6 +5514,13 @@ export type Database = {
         Args: { p_lines: Json; p_product_id: string }
         Returns: number
       }
+      save_report_schedule: {
+        Args: {
+          p: Json
+          p_id: string
+        }
+        Returns: Json
+      }
       save_reservation: {
         Args: {
           p_id: string
@@ -5524,6 +5547,12 @@ export type Database = {
       save_tax_group: {
         Args: { p_components: Json; p_group_id: string; p_name: string }
         Returns: string
+      }
+      send_report_now: {
+        Args: {
+          p_id: string
+        }
+        Returns: Json
       }
       session_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       set_bill_customer: {
@@ -5570,6 +5599,13 @@ export type Database = {
           p_id: string
         }
         Returns: Json
+      }
+      set_report_schedule_active: {
+        Args: {
+          p_id: string
+          p_on: boolean
+        }
+        Returns: undefined
       }
       set_reservation_status: {
         Args: { p_id: string; p_status: string; p_table?: string }

@@ -10,6 +10,12 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
     { href: "/settings/taxes", label: "Taxes", hint: `${taxName} rates and groups`, show: setup },
     { href: "/settings/charges", label: "Service charge", hint: "Service and packing charge, tokens", show: setup },
     { href: "/settings/day", label: "Day and sessions", hint: "Shifts on/off, day end, meal sessions", show: can(user, "settings.manage") },
+    {
+      href: "/settings/reports",
+      label: "Daily summary",
+      hint: "Send the day's figures by email or phone alert",
+      show: can(user, "settings.manage") && can(user, "report.view_sales"),
+    },
     { href: "/settings/tables", label: "Tables", hint: "Dine-in tables", show: setup },
     { href: "/settings/payments", label: "Payment methods", hint: "Cash, UPI, card and more", show: setup },
     { href: "/settings/counters", label: "Counter tablets", hint: "Shared tablets with PIN", show: setup },
