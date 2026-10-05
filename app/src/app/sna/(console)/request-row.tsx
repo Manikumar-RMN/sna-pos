@@ -68,7 +68,7 @@ export function RequestRow({ request: r, role }: { request: SnaRequest; role: st
         </div>
       )}
       {r.status === "approved" && r.kind === "outlet" && canBuild && (
-        <Link href={`/sna/r/${r.restaurant_id}#outlet-${r.id}`} className="btn btn-pay h-10 min-h-0 px-4 text-sm">
+        <Link href={`/sna/r/${r.restaurant_id}?tab=plan#outlet-${r.id}`} className="btn btn-pay h-10 min-h-0 px-4 text-sm">
           Set up outlet
         </Link>
       )}
