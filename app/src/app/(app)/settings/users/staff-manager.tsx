@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addPinStaff, cancelInvite, changeRole, inviteStaff, newInviteCode, removePin, resetPassword, setActive, setPin, type StaffResult } from "./actions";
+import { ConfirmButton } from "../confirm-button";
 
 type Staff = {
   id: string;
@@ -183,9 +184,15 @@ export function StaffManager({
                           <SmallBtn disabled={pending} onClick={() => run(() => newInviteCode(s.id, s.name, s.email ?? ""))}>
                             New code
                           </SmallBtn>
-                          <SmallBtn danger disabled={pending} onClick={() => run(() => cancelInvite(s.id))}>
+                          <ConfirmButton
+                            className="whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+                            style={{ borderColor: "var(--color-bad)", color: "var(--color-bad)" }}
+                            question={`Cancel the invite for ${s.name}?`}
+                            disabled={pending}
+                            onConfirm={() => run(() => cancelInvite(s.id))}
+                          >
                             Cancel invite
-                          </SmallBtn>
+                          </ConfirmButton>
                         </div>
                       )}
                       {!locked && (s.joined || s.pinOnly) && (
@@ -199,9 +206,15 @@ export function StaffManager({
                             {s.hasPin ? "New PIN" : "Pick a PIN"}
                           </SmallBtn>
                           {s.hasPin && (
-                            <SmallBtn danger disabled={pending} onClick={() => run(() => removePin(s.id))}>
+                            <ConfirmButton
+                              className="whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+                              style={{ borderColor: "var(--color-bad)", color: "var(--color-bad)" }}
+                              question={`Remove the PIN for ${s.name}?`}
+                              disabled={pending}
+                              onConfirm={() => run(() => removePin(s.id))}
+                            >
                               Remove PIN
-                            </SmallBtn>
+                            </ConfirmButton>
                           )}
                           {s.joined && !s.isMe && (
                             confirmReset === s.id ? (

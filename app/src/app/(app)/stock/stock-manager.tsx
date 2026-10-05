@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { money } from "@/lib/format";
 import { recordStock, saveIngredient, saveRecipe, type StockResult } from "./actions";
 
-export type Level = { id: string; name: string; unit: string; cost: number; reorder: number; stock: number; used: number; wasted: number; bought: number; count_diff: number };
+export type Level = { id: string; name: string; unit: string; cost: number; reorder: number; stock: number; used: number; wasted: number; bought: number; count_diff: number; category: string | null };
 export type FoodCost = { product: string; price: number; cost: number; cost_pct: number | null };
 type Product = { id: string; name: string; price: number };
 type RecipeRow = { product_id: string; ingredient_id: string; qty: number };
@@ -38,12 +39,14 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
   const [cost, setCost] = useState("");
   const [note, setNote] = useState("");
   // New / edit ingredient.
-  const [edit, setEdit] = useState<{ id: string | null; name: string; unit: string; cost: string; reorder: string } | null>(null);
+  const [edit, setEdit] = useState<{ id: string | null; name: string; unit: string; cost: string; reorder: string; category: string } | null>(null);
   // Recipe editor.
   const [recipeFor, setRecipeFor] = useState<string>("");
   const [recipeRows, setRecipeRows] = useState<{ ingredient_id: string; qty: string }[]>([]);
 
   const low = levels.filter((l) => Number(l.stock) <= Number(l.reorder) && Number(l.reorder) > 0);
+  // Groups already in use, offered as suggestions when typing a group.
+  const groups = Array.from(new Set(levels.map((l) => (l.category ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
   function openRecipe(pid: string) {
     setRecipeFor(pid);
@@ -80,8 +83,13 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
       {tab === "levels" && (
         <>
           {low.length > 0 && (
-            <div className="rounded-xl px-4 py-3 text-sm" style={{ background: "var(--color-warn-soft)" }}>
-              <b style={{ color: "var(--color-warn)" }}>Running low:</b> {low.map((l) => `${l.name} (${n2(l.stock)} ${l.unit})`).join(", ")}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm" style={{ background: "var(--color-warn-soft)" }}>
+              <div className="min-w-0">
+                <b style={{ color: "var(--color-warn)" }}>Running low:</b> {low.map((l) => `${l.name} (${n2(l.stock)} ${l.unit})`).join(", ")}
+              </div>
+              <Link href="/purchases?tab=orders&low=1" className="btn btn-primary h-10 min-h-0 shrink-0 px-4 text-sm">
+                Order low stock
+              </Link>
             </div>
           )}
           <div className="card overflow-x-auto">
@@ -109,9 +117,14 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
                   return (
                     <tr key={l.id} style={{ borderTop: "1px solid var(--color-line)" }}>
                       <td className="px-3 py-2">
-                        <button className="text-left font-semibold" onClick={() => setEdit({ id: l.id, name: l.name, unit: l.unit, cost: String(l.cost), reorder: String(l.reorder) })}>
+                        <button className="text-left font-semibold" onClick={() => setEdit({ id: l.id, name: l.name, unit: l.unit, cost: String(l.cost), reorder: String(l.reorder), category: l.category ?? "" })}>
                           {l.name}
                         </button>
+                        {l.category && (
+                          <span className="ml-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "var(--color-ground)", color: "var(--color-ink-3)" }}>
+                            {l.category}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums" style={{ color: isLow ? "var(--color-bad)" : undefined, fontWeight: isLow ? 700 : 400 }}>
                         {n2(l.stock)} {l.unit}
@@ -183,6 +196,20 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
                 </select>
                 <input className="field h-10 text-sm" inputMode="decimal" placeholder="Cost per unit" value={edit.cost} onChange={(e) => setEdit({ ...edit, cost: e.target.value })} />
                 <input className="field h-10 text-sm sm:col-span-2" inputMode="decimal" placeholder="Warn when stock falls to (optional)" value={edit.reorder} onChange={(e) => setEdit({ ...edit, reorder: e.target.value })} />
+                <input
+                  className="field h-10 text-sm sm:col-span-2"
+                  placeholder="Group, e.g. Vegetables (optional)"
+                  aria-label="Group (optional)"
+                  list="ingredient-groups"
+                  value={edit.category}
+                  onChange={(e) => setEdit({ ...edit, category: e.target.value })}
+                  maxLength={40}
+                />
+                <datalist id="ingredient-groups">
+                  {groups.map((g) => (
+                    <option key={g} value={g} />
+                  ))}
+                </datalist>
               </div>
               <div className="mt-3 flex gap-2">
                 <button className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setEdit(null)}>
@@ -191,14 +218,14 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
                 <button
                   className="btn btn-primary px-4 text-sm"
                   disabled={pending || !edit.name.trim()}
-                  onClick={() => run(() => saveIngredient({ id: edit.id, name: edit.name, unit: edit.unit, cost: Number(edit.cost) || 0, reorder: Number(edit.reorder) || 0 }), () => setEdit(null))}
+                  onClick={() => run(() => saveIngredient({ id: edit.id, name: edit.name, unit: edit.unit, cost: Number(edit.cost) || 0, reorder: Number(edit.reorder) || 0, category: edit.category }), () => setEdit(null))}
                 >
                   {pending ? "Saving…" : "Save ingredient"}
                 </button>
               </div>
             </section>
           ) : (
-            <button className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setEdit({ id: null, name: "", unit: "kg", cost: "", reorder: "" })}>
+            <button className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setEdit({ id: null, name: "", unit: "kg", cost: "", reorder: "", category: "" })}>
               + Add ingredient
             </button>
           )}

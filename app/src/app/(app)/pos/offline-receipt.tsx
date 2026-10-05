@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { money } from "@/lib/format";
+import { money, orderTypeLabel } from "@/lib/format";
+import { billFormat, billTextPx, paperWidth } from "@/lib/bill-format";
 import type { OfflineBill, Snapshot } from "@/lib/offline";
 
 /** Bill and kitchen tickets for a bill made offline, printed from this device. */
@@ -12,7 +13,15 @@ export function OfflineReceipt({ bill, snap, onDone }: { bill: OfflineBill; snap
   const when = new Date(bill.created_at).toLocaleString("en-IN", { timeZone: r.timezone, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const c = bill.calc;
   const addedTax = Math.round((c.tax_total - c.tax_included) * 100) / 100;
-  const stations = [...new Set(bill.items.map((i) => i.station))];
+  // The owner's bill layout (Settings → Bill layout): paper width, text size, logo, registered name, rate column.
+  const f = billFormat(r.format);
+  const paper = paperWidth(f);
+  const typeLabel = orderTypeLabel[bill.order_type] ?? bill.order_type;
+  // The packing charge is on the bill but is not food, so it stays off the kitchen ticket.
+  const kotItems = bill.items.filter((i) => i.product_id !== snap.settings.packing?.product_id);
+  const stations = [...new Set(kotItems.map((i) => i.station))];
+  const kotItemPx = f.kot_text === "large" ? 19 : 15;
+  const kotNotePx = f.kot_text === "large" ? 17 : 13;
   const print = (t: "bill" | "kot") => {
     setTarget(t);
     setTimeout(() => window.print(), 50);
@@ -24,7 +33,7 @@ export function OfflineReceipt({ bill, snap, onDone }: { bill: OfflineBill; snap
         @media print {
           body * { visibility: hidden !important; }
           #${target === "bill" ? "off-bill" : "off-kot"}, #${target === "bill" ? "off-bill" : "off-kot"} * { visibility: visible !important; }
-          #${target === "bill" ? "off-bill" : "off-kot"} { position: absolute; left: 0; top: 0; width: 80mm; }
+          #${target === "bill" ? "off-bill" : "off-kot"} { position: absolute; left: 0; top: 0; width: ${paper.printMm}mm; }
           .kot-page { page-break-after: always; }
         }
       `}</style>
@@ -32,41 +41,51 @@ export function OfflineReceipt({ bill, snap, onDone }: { bill: OfflineBill; snap
         <div className="no-print rounded-xl px-3 py-2 text-sm" style={{ background: "var(--color-warn-soft)" }}>
           Saved offline on this device. It is sent to the server by itself when the internet is back.
         </div>
-        <div id="off-bill" className="card p-4" style={{ width: 302, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", color: "#111", background: "#fff" }}>
+        {/* Sizes are in em so the owner's text size applies to the whole bill, as on the online bill. */}
+        <div
+          id="off-bill"
+          className="card p-4"
+          style={{ width: paper.screenPx, fontSize: billTextPx(f), fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", color: "#111", background: "#fff" }}
+        >
           <div className="text-center">
-            {r.invoice_title && <div className="mb-1 text-[11px] font-bold uppercase tracking-wide">{r.invoice_title}</div>}
-            <div className="text-base font-bold">{r.header}</div>
-            {r.legal_name && r.legal_name !== r.header && <div className="text-[11px]">{r.legal_name}</div>}
+            {r.invoice_title && <div className="mb-1 text-[1em] font-bold uppercase tracking-wide">{r.invoice_title}</div>}
+            {f.logo && r.logo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={r.logo} alt="" className="mx-auto mb-1.5 block" style={{ maxHeight: 64, maxWidth: "70%" }} />
+            )}
+            <div className="text-[1.45em] font-bold">{r.header}</div>
+            {f.legal_name && r.legal_name && r.legal_name !== r.header && <div className="text-[1em]">{r.legal_name}</div>}
             {r.tax_id && (
-              <div className="text-[11px]">
+              <div className="text-[1em]">
                 {r.tax_id_label ?? "Tax No."}: {r.tax_id}
               </div>
             )}
-            {r.fssai_no && <div className="text-[11px]">FSSAI Lic. No.: {r.fssai_no}</div>}
+            {r.fssai_no && <div className="text-[1em]">FSSAI Lic. No.: {r.fssai_no}</div>}
           </div>
           <Rule />
-          <div className="flex justify-between text-[11px]">
+          <div className="flex justify-between text-[1em]">
             <span>Bill: {bill.number}</span>
-            <span>{bill.order_type === "dine_in" ? "Dine-in" : "Takeaway"}</span>
+            <span>{typeLabel}</span>
           </div>
-          <div className="text-[11px]">{when}</div>
+          <div className="text-[1em]">{when}</div>
           <Rule />
-          <table className="w-full text-[11px]">
+          <table className="w-full text-[1em]">
             <tbody>
               {bill.items.map((it, i) => (
                 <tr key={i}>
                   <td className="pr-1 align-top">
                     {it.name}
-                    {it.options_text && <div className="text-[10px]">{it.options_text}</div>}
+                    {it.options_text && <div className="text-[0.91em]">{it.options_text}</div>}
                   </td>
                   <td className="w-8 text-center align-top">{it.qty}</td>
+                  {f.rate && <td className="w-12 text-right align-top">{it.price.toFixed(2)}</td>}
                   <td className="w-16 text-right align-top">{m(c.lines[i]?.subtotal ?? it.price * it.qty)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <Rule />
-          <div className="space-y-0.5 text-[11px]">
+          <div className="space-y-0.5 text-[1em]">
             <Row label="Subtotal" value={m(c.subtotal)} />
             {c.discount > 0 && <Row label="Discount" value={`-${m(c.discount)}`} />}
             {c.service_charge > 0 && <Row label={snap.settings.sc_label} value={m(c.service_charge)} />}
@@ -78,33 +97,40 @@ export function OfflineReceipt({ bill, snap, onDone }: { bill: OfflineBill; snap
             {Math.abs(c.rounding) >= 0.005 && <Row label="Rounding" value={m(c.rounding)} />}
             {Math.abs(bill.due - bill.grand_total) >= 0.005 && <Row label="Cash rounding" value={m(bill.due - bill.grand_total)} />}
           </div>
-          <div className="mt-1 flex justify-between text-sm font-bold">
+          <div className="mt-1 flex justify-between text-[1.27em] font-bold">
             <span>Total</span>
             <span>{m(bill.due)}</span>
           </div>
-          {c.tax_included > 0 && addedTax === 0 && <div className="text-right text-[10px]">Prices include tax {m(c.tax_included)}</div>}
+          {c.tax_included > 0 && addedTax === 0 && <div className="text-right text-[0.91em]">Prices include tax {m(c.tax_included)}</div>}
           <Rule />
-          <Row label={`Paid (${bill.method_name})`} value={m(bill.due)} />
-          {bill.tendered != null && bill.tendered > bill.due && <Row label="Change" value={m(bill.tendered - bill.due)} />}
+          {/* Paid and change have always printed larger than the rest on the offline bill; kept that way. */}
+          <div className="text-[1.45em]">
+            <Row label={`Paid (${bill.method_name})`} value={m(bill.due)} />
+            {bill.tendered != null && bill.tendered > bill.due && <Row label="Change" value={m(bill.tendered - bill.due)} />}
+          </div>
           <Rule />
-          <div className="text-center text-[11px]">{r.footer || "Thank you — visit again"}</div>
+          <div className="text-center text-[1em]">{r.footer || "Thank you — visit again"}</div>
         </div>
 
-        <div id="off-kot" className="card p-3" style={{ width: 302, background: "#fff", color: "#000" }}>
+        <div id="off-kot" className="card p-3" style={{ width: paper.screenPx, background: "#fff", color: "#000" }}>
           {stations.map((s) => (
             <div key={s} className="kot-page mb-2 font-mono">
               <div className="text-center text-[16px] font-bold">KOT · {s}</div>
               <div className="text-[12px]">
-                {bill.number} · {bill.order_type === "dine_in" ? "Dine-in" : "Takeaway"} · {when}
+                {bill.number} · {typeLabel} · {when}
               </div>
               <div className="my-1 border-t border-dashed border-black" />
-              {bill.items
+              {kotItems
                 .filter((i) => i.station === s)
                 .map((i, idx) => (
-                  <div key={idx} className="text-[15px]">
+                  <div key={idx} style={{ fontSize: kotItemPx }}>
                     <b>{i.qty} ×</b> {i.name}
                     {i.options_text && ` (${i.options_text})`}
-                    {i.note && <div className="pl-4 text-[13px] font-bold">** {i.note}</div>}
+                    {i.note && (
+                      <div className="pl-4 font-bold" style={{ fontSize: kotNotePx }}>
+                        ** {i.note}
+                      </div>
+                    )}
                   </div>
                 ))}
             </div>

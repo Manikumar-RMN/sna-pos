@@ -9,6 +9,7 @@ import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { can, getCurrentUser } from "@/lib/auth";
 import type { Database, Json } from "@/lib/supabase/database.types";
+import { billFormat, DEFAULT_BILL_FORMAT, type BillFormat } from "@/lib/bill-format";
 
 export type Result = { ok: true; message?: string } | { ok: false; error: string };
 
@@ -28,6 +29,58 @@ export async function saveSettings(settings: Record<string, string | boolean | n
   const { error } = await supabase.rpc("update_settings", { p_settings: settings as unknown as Json });
   if (error) return { ok: false, error: error.message };
   return done("Settings saved.");
+}
+
+/**
+ * How the printed bill looks (Settings → Bill layout), and the logo on it.
+ * `logo`: leave out to keep the current one, "" to remove it, or a small
+ * PNG / JPEG picture as a data URL.
+ */
+export async function saveBillLayout(format: BillFormat, logo?: string): Promise<Result> {
+  if (logo && (logo.length > 140000 || !/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(logo))) {
+    return { ok: false, error: "The logo must be a small PNG or JPEG picture. Choose it again, or use a simpler picture." };
+  }
+  // Only known choices are sent, and only the ones that differ from the standard layout.
+  const clean = billFormat(format);
+  const changed: Record<string, string | boolean> = {};
+  for (const k of Object.keys(DEFAULT_BILL_FORMAT) as (keyof BillFormat)[]) {
+    if (clean[k] !== DEFAULT_BILL_FORMAT[k]) changed[k] = clean[k];
+  }
+  const settings: Record<string, Json> = { bill_format: changed };
+  if (logo !== undefined) settings.logo = logo;
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_settings", { p_settings: settings });
+  if (error) return { ok: false, error: error.message };
+  return done("Bill layout saved.");
+}
+
+/**
+ * The packing charge added to takeaway and delivery bills at this outlet.
+ * An amount of 0 switches it off; the other choices are then ignored.
+ */
+export async function savePackingCharge(input: {
+  amount: number;
+  per: "bill" | "item";
+  taxGroupId: string;
+  takeaway: boolean;
+  delivery: boolean;
+}): Promise<Result> {
+  if (!Number.isFinite(input.amount) || input.amount < 0) {
+    return { ok: false, error: "Enter the packing charge as a number, or 0 to switch it off." };
+  }
+  if (input.amount > 0 && !input.taxGroupId) return { ok: false, error: "Choose the tax for the packing charge." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("save_packing_charge", {
+    p_amount: input.amount,
+    p_per: input.per,
+    // Empty only when the charge is being switched off; the database then ignores it.
+    p_tax_group_id: (input.taxGroupId || null) as string,
+    p_takeaway: input.takeaway,
+    p_delivery: input.delivery,
+  });
+  if (error) return { ok: false, error: error.message };
+  const on = !!(data as { on?: boolean } | null)?.on;
+  return done(on ? "Packing charge saved. New takeaway and delivery bills get it from now on." : "Packing charge switched off.");
 }
 
 /** Create (groupId null) or change a tax group. The change applies to new bills from today. */

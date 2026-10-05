@@ -28,6 +28,8 @@ export type PlaceOrderInput = CartInput & {
   reference?: string | null;
   /** One id per bill attempt: a double tap or network retry returns the same bill instead of a second one. */
   client_ref?: string;
+  /** Guest name, phone and delivery address taken at the counter (takeaway / delivery). All optional. */
+  guest?: { name?: string; phone?: string; address?: string } | null;
 };
 
 export type Quote = {
@@ -49,7 +51,9 @@ export type Quote = {
   cash_rounding: string;
 };
 
-export type PlaceOrderResult = { ok: true; orderId: string; billNumber: string } | { ok: false; error: string };
+export type PlaceOrderResult =
+  | { ok: true; orderId: string; billNumber: string; /** Token number for the day, when the outlet uses tokens. */ tokenNo: number | null }
+  | { ok: false; error: string };
 
 function itemsJson(items: CartItem[]) {
   return items.map((i) => ({ product_id: i.product_id, qty: i.qty, note: i.note ?? "", options: i.options ?? [], hold: !!i.hold })) as unknown as Json;
@@ -89,6 +93,14 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
   if (!input.items?.length) return { ok: false, error: "The bill is empty." };
   // Discounts: the database checks the right, or a manager's PIN approval.
 
+  // Guest details are sent only when something was typed; the database cleans the phone and checks it.
+  const guest = {
+    guest_name: input.guest?.name?.trim() ?? "",
+    guest_phone: input.guest?.phone?.trim() ?? "",
+    address: input.guest?.address?.trim() ?? "",
+  };
+  const hasGuest = !!(guest.guest_name || guest.guest_phone || guest.address);
+
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_order", {
     ...cartArgs(input),
@@ -99,21 +111,29 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     p_discount_reason: input.discount_reason ?? undefined,
     p_reference: input.payment_method_id && input.reference?.trim() ? input.reference.trim().slice(0, 60) : undefined,
     p_client_ref: input.client_ref && /^[0-9a-f-]{36}$/i.test(input.client_ref) ? input.client_ref : undefined,
+    p_extra: hasGuest ? guest : undefined,
   });
   if (error) return { ok: false, error: error.message };
 
-  const res = data as unknown as { order_id: string; bill_number: string };
+  const res = data as unknown as { order_id: string; bill_number: string; token_no?: number | null };
   if (!res?.order_id) return { ok: false, error: "The bill could not be saved. Please try again." };
   revalidatePath("/bills");
   revalidatePath("/kitchen");
-  return { ok: true, orderId: res.order_id, billNumber: res.bill_number };
+  return { ok: true, orderId: res.order_id, billNumber: res.bill_number, tokenNo: res.token_no ?? null };
 }
 
-/** Adds items to an unpaid or part-paid bill. The database recalculates the whole bill. */
-export async function addToBill(orderId: string, items: CartItem[]): Promise<{ ok: true } | { ok: false; error: string }> {
+/**
+ * Adds items to an unpaid or part-paid bill. The database recalculates the whole bill.
+ * `clientRef` is one id per attempt: a double tap or network retry adds the items once, not twice.
+ */
+export async function addToBill(orderId: string, items: CartItem[], clientRef?: string): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!items.length) return { ok: false, error: "Add at least one item." };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("add_order_items", { p_order_id: orderId, p_items: itemsJson(items) });
+  const { error } = await supabase.rpc("add_order_items", {
+    p_order_id: orderId,
+    p_items: itemsJson(items),
+    p_client_ref: clientRef && /^[0-9a-f-]{36}$/i.test(clientRef) ? clientRef : undefined,
+  });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/bills");
   revalidatePath(`/bills/${orderId}`);

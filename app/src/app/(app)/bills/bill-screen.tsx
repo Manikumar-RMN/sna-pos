@@ -8,6 +8,7 @@ import { ReceiptView } from "../pos/receipt-view";
 import { BillActions } from "./bill-actions";
 import { WhatsAppShare } from "./whatsapp-share";
 import { LoyaltyPanel } from "./loyalty-panel";
+import { GuestDetails } from "./guest-details";
 
 /** One bill: printable receipt, its history, and the actions the user may take. */
 export async function BillScreen({ orderId, from, splitPay = false }: { orderId: string; from: "pos" | "bills"; splitPay?: boolean }) {
@@ -63,6 +64,14 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
           .
         </div>
       )}
+
+      <GuestDetails
+        orderId={bill.id}
+        token={r.token ?? null}
+        guest={r.guest ?? null}
+        delivery={r.orderType === "delivery"}
+        canEdit={r.state !== "voided" && !bill.dayClosed && can(user, "order.create")}
+      />
 
       <ReceiptView
         data={r}

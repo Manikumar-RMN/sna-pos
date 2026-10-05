@@ -6,6 +6,9 @@ import { authenticate, type AuthState } from "./actions";
 
 const initial: AuthState = { error: null, notice: null };
 
+type LoginMode = "staff" | "owner";
+const MODE_KEY = "sna.login.mode.v1";
+
 const PLATES = [
   { name: "Dosa", bg: "#FFE6BF", ink: "#7A4400", icon: "M3 18L19 5c1.2 1.2 1.6 2.6 1 4L7 20c-1.6.4-3.2-.4-4-2zM9 14l3 3" },
   { name: "Biryani", bg: "#FFE0D6", ink: "#8C2A12", icon: "M3 11h18M5 11l1.5 8h11L19 11M9 7c0-2 6-2 6 0M12 4v3" },
@@ -27,9 +30,45 @@ function Mark({ size }: { size: number }) {
 export default function LoginPage() {
   const [state, action, pending] = useActionState(authenticate, initial);
   const [linkExpired, setLinkExpired] = useState(false);
+  const [loginMode, setLoginMode] = useState<LoginMode>("staff");
+  /** Owner tab only: the form is creating a new account instead of signing in. */
+  const [creating, setCreating] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+
   useEffect(() => {
     setLinkExpired(new URLSearchParams(window.location.search).get("link") === "expired");
+    // Open on the tab this device used last, so an owner is not asked for a client code every time.
+    try {
+      if (window.localStorage.getItem(MODE_KEY) === "owner") setLoginMode("owner");
+    } catch {
+      /* private browsing: keep the default */
+    }
   }, []);
+
+  // The form action empties the plain fields after every answer, but the two
+  // password boxes are held here. Empty them too, so a wrong password is not
+  // left sitting in the box; and once the account is made, go back to "sign
+  // in" so the main button cannot create the account a second time.
+  useEffect(() => {
+    if (!state.error && !state.notice) return;
+    setPassword("");
+    setConfirm("");
+    if (state.notice) setCreating(false);
+  }, [state]);
+
+  function chooseMode(mode: LoginMode) {
+    setLoginMode(mode);
+    if (mode === "staff") setCreating(false);
+    try {
+      window.localStorage.setItem(MODE_KEY, mode);
+    } catch {
+      /* nothing to remember */
+    }
+  }
+
+  const isSignup = loginMode === "owner" && creating;
+  const mismatch = isSignup && confirm.length > 0 && confirm !== password;
 
   return (
     <main className="flex min-h-screen gap-3 p-3">
@@ -72,19 +111,95 @@ export default function LoginPage() {
             <Mark size={44} />
             <span className="font-display text-xl font-extrabold">SNA POS</span>
           </div>
-          <h2 className="text-3xl font-extrabold">Welcome back</h2>
+          <h2 className="text-3xl font-extrabold">{isSignup ? "Create your account" : "Welcome back"}</h2>
           <p className="mb-6 mt-1 text-[15px]" style={{ color: "var(--color-ink-3)" }}>
-            Sign in to your restaurant
+            {isSignup ? "For the owner of a new restaurant" : "Sign in to your restaurant"}
           </p>
 
-          {/* One form. Both buttons submit the same email + password; the button's
-              own name/value ("intent") tells the server which to do. */}
-          <form action={action} className="flex flex-col">
-            <label className="mb-1.5 block text-sm font-bold" htmlFor="email">
-              Email
-            </label>
-            <input id="email" name="email" type="email" autoComplete="email" required className="field mb-4" placeholder="owner@restaurant.com" />
+          {/* Login mode tabs: Staff vs Owner/Email */}
+          <div className="mb-6 flex gap-2 rounded-lg p-1" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-line)" }}>
+            <button
+              type="button"
+              onClick={() => chooseMode("staff")}
+              className="flex-1 rounded px-3 py-2 text-sm font-bold transition-colors"
+              style={{
+                background: loginMode === "staff" ? "var(--color-brand)" : "transparent",
+                color: loginMode === "staff" ? "white" : "var(--color-ink-2)",
+              }}
+            >
+              Staff
+            </button>
+            <button
+              type="button"
+              onClick={() => chooseMode("owner")}
+              className="flex-1 rounded px-3 py-2 text-sm font-bold transition-colors"
+              style={{
+                background: loginMode === "owner" ? "var(--color-brand)" : "transparent",
+                color: loginMode === "owner" ? "white" : "var(--color-ink-2)",
+              }}
+            >
+              Owner
+            </button>
+          </div>
 
+          {/* Form: Handles both staff and owner login */}
+          <form action={action} className="flex flex-col">
+            {/* STAFF LOGIN FIELDS */}
+            {loginMode === "staff" && (
+              <>
+                <label className="mb-1.5 block text-sm font-bold" htmlFor="clientCode">
+                  Client Code
+                </label>
+                <input
+                  id="clientCode"
+                  name="clientCode"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  required
+                  className="field mb-4"
+                  placeholder="1000"
+                  pattern="[0-9]{4,6}"
+                  title="Your restaurant's client code, e.g. 1000"
+                />
+
+                <label className="mb-1.5 block text-sm font-bold" htmlFor="username">
+                  Username
+                </label>
+                <p className="mb-1.5 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                  Your staff code, for example EMP001. Your manager can tell you yours.
+                </p>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  className="field mb-4"
+                  placeholder="EMP001"
+                />
+              </>
+            )}
+
+            {/* OWNER LOGIN FIELDS */}
+            {loginMode === "owner" && (
+              <>
+                <label className="mb-1.5 block text-sm font-bold" htmlFor="email">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  className="field mb-4"
+                  placeholder="owner@restaurant.com"
+                />
+              </>
+            )}
+
+            {/* PASSWORD (shown for both) */}
             <label className="mb-1.5 block text-sm font-bold" htmlFor="password">
               Password
             </label>
@@ -92,14 +207,41 @@ export default function LoginPage() {
               id="password"
               name="password"
               type="password"
-              autoComplete="current-password"
+              autoComplete={isSignup ? "new-password" : "current-password"}
               required
-              className="field mb-2"
-              placeholder="Your password"
+              minLength={isSignup ? 8 : undefined}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={isSignup ? "field mb-4" : "field mb-2"}
+              placeholder={isSignup ? "At least 8 characters" : "Your password"}
             />
-            <Link href="/login/forgot" className="mb-5 self-end text-sm font-bold" style={{ color: "var(--color-brand)" }}>
-              Forgot password?
-            </Link>
+
+            {isSignup ? (
+              <>
+                <label className="mb-1.5 block text-sm font-bold" htmlFor="confirm">
+                  Type the password again
+                </label>
+                <input
+                  id="confirm"
+                  name="confirm"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  className="field mb-2"
+                  placeholder="Same password"
+                  aria-invalid={mismatch}
+                />
+                <p className="mb-5 min-h-5 text-sm" style={{ color: "var(--color-bad)" }} role={mismatch ? "alert" : undefined}>
+                  {mismatch ? "The two passwords are not the same." : ""}
+                </p>
+              </>
+            ) : (
+              <Link href="/login/forgot" className="mb-5 self-end text-sm font-bold" style={{ color: "var(--color-brand)" }}>
+                Forgot password?
+              </Link>
+            )}
 
             {state.error && (
               <p className="mb-4 rounded-xl px-3 py-2 text-sm" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }} role="alert">
@@ -118,28 +260,40 @@ export default function LoginPage() {
               </p>
             )}
 
-            <button type="submit" name="intent" value="signin" className="btn btn-primary h-14 w-full text-base" disabled={pending}>
-              {pending ? "Please wait…" : "Sign in"}
-            </button>
-
-            <div className="my-5 flex items-center gap-3">
-              <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />
-              <span className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
-                new restaurant?
-              </span>
-              <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />
-            </div>
-
             <button
               type="submit"
               name="intent"
-              value="signup"
-              className="btn h-14 w-full text-base"
-              style={{ border: "1.5px solid var(--color-line)", background: "var(--color-surface)" }}
-              disabled={pending}
+              value={isSignup ? "signup" : loginMode === "staff" ? "signin" : "signin_email"}
+              className="btn btn-primary h-14 w-full text-base"
+              disabled={pending || mismatch}
             >
-              Create an account
+              {pending ? "Please wait…" : isSignup ? "Create account" : "Sign in"}
             </button>
+
+            {loginMode === "owner" && (
+              <>
+                <div className="my-5 flex items-center gap-3">
+                  <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />
+                  <span className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+                    {creating ? "or" : "new restaurant?"}
+                  </span>
+                  <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreating((c) => !c);
+                    setConfirm("");
+                  }}
+                  className="btn h-14 w-full text-base"
+                  style={{ border: "1.5px solid var(--color-line)", background: "var(--color-surface)" }}
+                  disabled={pending}
+                >
+                  {creating ? "I already have an account" : "Create an account"}
+                </button>
+              </>
+            )}
           </form>
 
           <p className="mt-8 text-center text-xs" style={{ color: "var(--color-ink-3)" }}>

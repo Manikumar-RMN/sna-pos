@@ -35,7 +35,7 @@ export default async function BillsPage({
   const supabase = await createClient();
   let q = supabase
     .from("orders")
-    .select("id, bill_number, created_at, order_type, grand_total, paid_total, status, payment_status, dining_table_id, cashier_id, merged_into")
+    .select("id, bill_number, created_at, order_type, grand_total, paid_total, status, payment_status, dining_table_id, cashier_id, merged_into, guest_name, token_no")
     .gte("created_at", localDayStartIso(date, tz))
     .lt("created_at", localDayStartIso(addDays(date, 1), tz))
     .order("created_at", { ascending: false })
@@ -149,6 +149,11 @@ export default async function BillsPage({
                       <Link href={`/bills/${o.id}`} style={{ color: "var(--color-brand)" }}>
                         {o.bill_number}
                       </Link>
+                      {(o.token_no != null || o.guest_name) && (
+                        <div className="text-xs font-normal" style={{ color: "var(--color-ink-2)" }}>
+                          {[o.token_no != null ? `Token ${o.token_no}` : null, o.guest_name].filter(Boolean).join(" · ")}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 tabular-nums">{timeOnly(o.created_at, tz)}</td>
                     <td className="px-4 py-3">

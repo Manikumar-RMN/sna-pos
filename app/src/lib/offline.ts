@@ -27,7 +27,19 @@ export type Snapshot = {
   rights: { discount: boolean; pay: boolean };
   menu: SnapItem[];
   methods: { id: string; name: string; kind: string; ask_reference: boolean; upi_id: string | null }[];
-  settings: { sc_percent: number; sc_taxable: boolean; sc_default_on: boolean; sc_label: string; rounding: string; cash_rounding: string };
+  settings: {
+    sc_percent: number;
+    sc_taxable: boolean;
+    sc_default_on: boolean;
+    sc_label: string;
+    rounding: string;
+    cash_rounding: string;
+    /**
+     * The outlet's packing charge: which menu item it is, per bill or per item, and whether takeaway and
+     * delivery bills get it by default. Null when there is none; missing in a copy saved by an older version.
+     */
+    packing?: { product_id: string; per: string; takeaway: boolean; delivery: boolean } | null;
+  };
   receipt: {
     header: string;
     legal_name: string;
@@ -39,6 +51,10 @@ export type Snapshot = {
     timezone: string;
     country: string;
     invoice_title: string | null;
+    /** The owner's bill layout choices, as stored (run it through billFormat()). Missing in an older copy. */
+    format?: unknown;
+    /** The restaurant's logo as a small picture (data URL), if one was uploaded. */
+    logo?: string | null;
   };
 };
 export type OfflineItem = { product_id: string; name: string; qty: number; price: number; options: string[]; options_text: string | null; note?: string; station: string };
@@ -49,7 +65,7 @@ export type OfflineBill = {
   fy: string | null;
   number: string;
   created_at: string;
-  order_type: "dine_in" | "takeaway";
+  order_type: "dine_in" | "takeaway" | "delivery";
   items: OfflineItem[];
   discount: number;
   service_charge: boolean;

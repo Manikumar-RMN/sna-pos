@@ -6,7 +6,15 @@ import type { Json } from "@/lib/supabase/database.types";
 
 export type StockResult = { ok: true; message?: string } | { ok: false; error: string };
 
-export async function saveIngredient(input: { id: string | null; name: string; unit: string; cost: number; reorder: number }): Promise<StockResult> {
+export async function saveIngredient(input: {
+  id: string | null;
+  name: string;
+  unit: string;
+  cost: number;
+  reorder: number;
+  /** The group it belongs to ("Vegetables", "Dairy"…), or "" for none. Always sent: leaving it out would clear the group. */
+  category: string;
+}): Promise<StockResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("save_ingredient", {
     p_id: input.id as string,
@@ -14,6 +22,7 @@ export async function saveIngredient(input: { id: string | null; name: string; u
     p_unit: input.unit,
     p_cost: input.cost,
     p_reorder: input.reorder,
+    p_category: (input.category ?? "").trim().slice(0, 40),
   });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/stock");

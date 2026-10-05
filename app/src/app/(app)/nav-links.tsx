@@ -9,6 +9,7 @@ const ICONS: Record<string, string> = {
   "/dashboard": "M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6",
   "/pos": "M4 5h16v14H4zM8 10h8M8 14h5",
   "/stock": "M4 7l8-4 8 4v10l-8 4-8-4zM4 7l8 4 8-4M12 11v10",
+  "/purchases": "M3 9h18l-2 11H5zM8 9l4-6 4 6M9.5 13v3.5M14.5 13v3.5",
   "/owner": "M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2",
   "/reservations": "M5 5h14v15H5zM5 9h14M9 3v4M15 3v4",
   "/loyalty": "M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z",

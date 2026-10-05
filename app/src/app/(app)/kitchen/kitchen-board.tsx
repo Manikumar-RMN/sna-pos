@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { printedTickets, readDevicePrint, rememberPrinted } from "@/lib/device-print";
+import { timeOnly } from "@/lib/format";
 import { markPrinted, setTicketStatus } from "./actions";
+import { playNewTicketSound, readSoundWanted, saveSoundWanted, soundReady, soundSupported, unlockSound, watchSound } from "./sound";
 import { DishName, Dual } from "../lang";
 
 export type Ticket = {
@@ -11,12 +13,18 @@ export type Ticket = {
   number: string;
   status: "new" | "preparing" | "ready";
   createdAt: string;
+  /** "Table 4", "Takeaway · Ravi", "Delivery" … */
   where: string;
+  /** Token number the counter calls out, when the bill has one. */
+  token: number | null;
   station: string;
   printedAt: string | null;
   bill: string;
   items: { name: string; local?: string | null; qty: number; note: string | null; cancelled: boolean }[];
 };
+
+/** A ticket already marked "Served" a short while ago; it can be brought back to "Ready to serve". */
+export type ServedTicket = Omit<Ticket, "status"> & { readyAt: string | null };
 
 const COLUMNS: { key: Ticket["status"]; title: string; next: "preparing" | "ready" | "served"; action: string }[] = [
   { key: "new", title: "New", next: "preparing", action: "Start" },
@@ -28,7 +36,22 @@ function minutesAgo(iso: string, now: number) {
   return Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60000));
 }
 
-export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezone: string }) {
+export function KitchenBoard({
+  tickets,
+  served,
+  timezone,
+  printMm,
+  largePrint,
+}: {
+  tickets: Ticket[];
+  /** Served in the last 2 hours, most recent first. */
+  served: ServedTicket[];
+  timezone: string;
+  /** Paper roll width for the printed ticket, in millimetres (Settings → Bill layout). */
+  printMm: number;
+  /** Print the dishes in larger text (Settings → Bill layout → kitchen ticket text). */
+  largePrint: boolean;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -38,6 +61,14 @@ export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezon
   const [filter, setFilter] = useState<string>("All");
   const [printing, setPrinting] = useState<Ticket[]>([]);
   const busyPrinting = useRef(false);
+  const [showServed, setShowServed] = useState(false);
+  // Sound for a new ticket: chosen on this device, and only "live" once the browser allows it (after a tap).
+  const [soundWanted, setSoundWanted] = useState(false);
+  const [soundLive, setSoundLive] = useState(false);
+  const [soundMissing, setSoundMissing] = useState(false);
+  /** Tickets in "New" at the last refresh (every station). Null until the first load has been seen. */
+  const seenNew = useRef<Set<string> | null>(null);
+  const soundButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const d = readDevicePrint();
@@ -46,12 +77,47 @@ export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezon
   }, []);
 
   useEffect(() => {
+    setSoundWanted(readSoundWanted());
+    setSoundMissing(!soundSupported());
+    setSoundLive(soundReady());
+    return watchSound(() => setSoundLive(soundReady()));
+  }, []);
+
+  // Sound was chosen on this device earlier, but the page has been reloaded since:
+  // the browser needs one tap before it plays anything, so the next tap anywhere
+  // on the screen switches it back on.
+  useEffect(() => {
+    if (!soundWanted || soundLive) return;
+    const unlock = (e: Event) => {
+      // A tap on the sound button is handled by the button itself. Unlocking here as well
+      // could show "Sound on" between the finger lifting and the click, and the click
+      // would then switch the sound off again.
+      if (e.target instanceof Node && soundButton.current?.contains(e.target)) return;
+      unlockSound();
+    };
+    const events = ["click", "touchend", "keydown"] as const;
+    events.forEach((e) => window.addEventListener(e, unlock));
+    return () => events.forEach((e) => window.removeEventListener(e, unlock));
+  }, [soundWanted, soundLive]);
+
+  useEffect(() => {
     const t = setInterval(() => {
       setNow(Date.now());
       router.refresh();
     }, 10000);
     return () => clearInterval(t);
   }, [router]);
+
+  // Beep when a ticket lands in "New" that was not there at the last refresh.
+  // Tickets already on screen when the page opens never beep; with a station
+  // chosen, only that station's tickets do.
+  useEffect(() => {
+    const fresh = tickets.filter((t) => t.status === "new");
+    const before = seenNew.current;
+    seenNew.current = new Set(fresh.map((t) => t.id));
+    if (!before || !soundWanted) return;
+    if (fresh.some((t) => !before.has(t.id) && (filter === "All" || t.station === filter))) playNewTicketSound();
+  }, [tickets, filter, soundWanted]);
 
   // This device prints new tickets for its stations (Settings → Printers).
   useEffect(() => {
@@ -83,8 +149,16 @@ export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezon
     return () => clearTimeout(timer);
   }, [printing]);
 
-  const stations = useMemo(() => [...new Set([...tickets.map((t) => t.station), ...myStations])].sort(), [tickets, myStations]);
+  const stations = useMemo(
+    () => [...new Set([...tickets.map((t) => t.station), ...served.map((t) => t.station), ...myStations])].sort(),
+    [tickets, served, myStations],
+  );
   const shown = filter === "All" ? tickets : tickets.filter((t) => t.station === filter);
+  const servedShown = filter === "All" ? served : served.filter((t) => t.station === filter);
+  const soundOn = soundWanted && soundLive;
+  // Printed ticket: dishes about 25% larger when the owner chose large kitchen-ticket text.
+  const itemPx = largePrint ? 20 : 16;
+  const subPx = largePrint ? 18 : 14;
 
   function move(id: string, next: "preparing" | "ready" | "served") {
     setBusyId(id);
@@ -97,43 +171,69 @@ export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezon
     });
   }
 
+  /** Runs inside the tap, which is the only moment a browser lets a page switch sound on. */
+  function toggleSound() {
+    if (soundOn) {
+      saveSoundWanted(false);
+      setSoundWanted(false);
+      return;
+    }
+    if (!unlockSound()) {
+      setSoundMissing(true);
+      return;
+    }
+    saveSoundWanted(true);
+    setSoundWanted(true);
+    // Play it once now, so the cook hears what a new ticket sounds like and can set the volume.
+    playNewTicketSound();
+  }
+
   return (
     <>
       <style>{`
         @media print {
           body * { visibility: hidden !important; }
           #kot-print, #kot-print * { visibility: visible !important; }
-          #kot-print { position: absolute !important; left: 0 !important; top: 0 !important; width: 80mm; }
+          #kot-print { position: absolute !important; left: 0 !important; top: 0 !important; width: ${printMm}mm; }
           .kot-page { page-break-after: always; }
         }
       `}</style>
-      <div id="kot-print" aria-hidden="true" className="pointer-events-none fixed left-[-9999px] top-0" style={{ width: "80mm", color: "#000", background: "#fff" }}>
+      <div id="kot-print" aria-hidden="true" className="pointer-events-none fixed left-[-9999px] top-0" style={{ width: `${printMm}mm`, color: "#000", background: "#fff" }}>
         {printing.map((t) => (
           <div key={t.id} className="kot-page p-2 font-mono">
             <div className="text-center text-[18px] font-bold">KOT · {t.station}</div>
-            <div className="flex justify-between text-[14px] font-bold">
+            {t.token != null && <div className="text-center text-[28px] font-bold leading-tight">Token {t.token}</div>}
+            <div className="flex justify-between gap-2 text-[14px] font-bold">
               <span>{t.where}</span>
-              <span>{new Date(t.createdAt).toLocaleTimeString("en-IN", { timeZone: timezone, hour: "2-digit", minute: "2-digit" })}</span>
+              <span className="shrink-0">{new Date(t.createdAt).toLocaleTimeString("en-IN", { timeZone: timezone, hour: "2-digit", minute: "2-digit" })}</span>
             </div>
             <div className="text-[12px]">
               {t.number} · Bill {t.bill}
             </div>
             <div className="my-1 border-t border-dashed border-black" />
             {t.items.map((i, idx) => (
-              <div key={idx} className="text-[16px] leading-tight" style={i.cancelled ? { textDecoration: "line-through" } : undefined}>
+              <div key={idx} className="leading-tight" style={{ fontSize: itemPx, textDecoration: i.cancelled ? "line-through" : undefined }}>
                 <b>{i.qty} ×</b> {i.name}
-                {i.local && <span className="block pl-5 text-[14px]">{i.local}</span>}
+                {i.local && (
+                  <span className="block pl-5" style={{ fontSize: subPx }}>
+                    {i.local}
+                  </span>
+                )}
                 {i.cancelled && " — CANCELLED"}
-                {i.note && <div className="pl-5 text-[14px] font-bold">** {i.note}</div>}
+                {i.note && (
+                  <div className="pl-5 font-bold" style={{ fontSize: subPx }}>
+                    ** {i.note}
+                  </div>
+                )}
               </div>
             ))}
             <div className="my-1 border-t border-dashed border-black" />
           </div>
         ))}
       </div>
-      {stations.length > 1 && (
-        <div className="mb-3 flex flex-wrap gap-1.5">
-          {["All", ...stations].map((s) => (
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        {stations.length > 1 &&
+          ["All", ...stations].map((s) => (
             <button
               key={s}
               onClick={() => setFilter(s)}
@@ -148,8 +248,27 @@ export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezon
               {s !== "All" && ` (${tickets.filter((t) => t.station === s).length})`}
             </button>
           ))}
-        </div>
-      )}
+        {soundMissing ? (
+          <span className="ml-auto text-xs" style={{ color: "var(--color-ink-3)" }}>
+            This browser cannot play a sound for new tickets.
+          </span>
+        ) : (
+          <button
+            ref={soundButton}
+            type="button"
+            onClick={toggleSound}
+            aria-pressed={soundOn}
+            className="ml-auto min-h-11 rounded-full border px-4 text-sm font-bold"
+            style={
+              soundOn
+                ? { borderColor: "var(--color-ok)", background: "var(--color-ok-soft)", color: "var(--color-ok)" }
+                : { borderColor: "var(--color-warn)", background: "var(--color-warn-soft)", color: "var(--color-warn)" }
+            }
+          >
+            {soundOn ? "Sound on" : "Sound is off — tap to turn on"}
+          </button>
+        )}
+      </div>
       {myStations.length > 0 && (
         <p className="mb-3 text-xs" style={{ color: "var(--color-ink-3)" }}>
           This device prints new tickets for: {myStations.join(", ")}.
@@ -179,9 +298,12 @@ export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezon
                   const late = col.key !== "ready" && age >= 15;
                   return (
                     <div key={t.id} className="card p-3" style={late ? { borderColor: "var(--color-bad)" } : undefined}>
-                      <div className="mb-2 flex items-baseline justify-between gap-2">
-                        <span className="text-sm font-bold">{t.where || t.number}</span>
-                        <span className="text-xs tabular-nums" style={{ color: late ? "var(--color-bad)" : "var(--color-ink-3)" }}>
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          {t.token != null && <div className="font-display text-2xl font-bold leading-tight">Token {t.token}</div>}
+                          {(t.where || t.token == null) && <div className="break-words text-sm font-bold">{t.where || t.number}</div>}
+                        </div>
+                        <span className="shrink-0 text-xs tabular-nums" style={{ color: late ? "var(--color-bad)" : "var(--color-ink-3)" }}>
                           {age} min · {new Date(t.createdAt).toLocaleTimeString("en-IN", { timeZone: timezone, hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
@@ -221,6 +343,59 @@ export function KitchenBoard({ tickets, timezone }: { tickets: Ticket[]; timezon
           );
         })}
       </div>
+      {servedShown.length > 0 && (
+        <section className="mt-6">
+          <button
+            type="button"
+            onClick={() => setShowServed((v) => !v)}
+            aria-expanded={showServed}
+            className="tap flex w-full items-center justify-between gap-3 rounded-xl border px-4 text-left text-sm font-bold"
+            style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}
+          >
+            <span>Served in the last 2 hours ({servedShown.length})</span>
+            <span className="shrink-0 text-xs font-semibold" style={{ color: "var(--color-brand)" }}>
+              {showServed ? "Hide" : "Show"}
+            </span>
+          </button>
+          {showServed && (
+            <ul className="card mt-2 overflow-hidden">
+              {servedShown.map((t) => {
+                const dishes = t.items.filter((i) => !i.cancelled);
+                const busy = pending && busyId === t.id;
+                return (
+                  <li
+                    key={t.id}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-3 py-2 last:border-b-0"
+                    style={{ borderColor: "var(--color-line)" }}
+                  >
+                    <div className="min-w-0 flex-1 basis-56">
+                      <div className="break-words text-sm font-bold">
+                        {[t.token != null ? `Token ${t.token}` : "", t.where].filter(Boolean).join(" · ") || t.number}
+                      </div>
+                      <div className="text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                        {t.number} · {t.station}
+                        {t.readyAt && ` · Ready ${timeOnly(t.readyAt, timezone)}`}
+                      </div>
+                      <div className="break-words text-xs" style={{ color: "var(--color-ink-2)" }}>
+                        {dishes.length ? dishes.map((i) => `${i.qty}× ${i.name}`).join(", ") : "No dishes"}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn shrink-0 border text-sm"
+                      style={{ borderColor: "var(--color-brand)", background: "var(--color-surface)", color: "var(--color-brand)" }}
+                      disabled={busy}
+                      onClick={() => move(t.id, "ready")}
+                    >
+                      {busy ? "…" : "Bring back"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
     </>
   );
 }

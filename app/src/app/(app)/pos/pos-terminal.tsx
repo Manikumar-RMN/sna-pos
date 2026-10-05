@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { money, roundCash } from "@/lib/format";
+import { money, orderTypeLabel, roundCash } from "@/lib/format";
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
-import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, type PlaceOrderInput, type Quote, type Senior } from "./actions";
+import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, type CartItem, type PlaceOrderInput, type Quote, type Senior } from "./actions";
 import { cashDue, deviceKey, offlineQuote, readQueue, readSnapshot, saveSnapshot, takeNumber, writeQueue, type OfflineBill, type Snapshot } from "@/lib/offline";
 import { OfflineReceipt } from "./offline-receipt";
 import { DishName, Dual } from "../lang";
@@ -30,12 +30,29 @@ type MenuItem = {
   name_local?: string | null;
 };
 type PaymentMethod = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
-type Table = { id: string; number: string; busy: boolean; openBillId: string | null; openBillNumber: string | null };
+type Table = { id: string; number: string; busy: boolean; /** Unpaid and part-paid bills on this table, oldest first. */ openBills: { id: string; billNumber: string }[] };
+type OrderType = "dine_in" | "takeaway" | "delivery";
+/**
+ * The outlet's packing charge (Settings). It is an ordinary menu item that is
+ * added to the bill by a tick in the cart, never by tapping it on the menu.
+ */
+export type PackingRule = {
+  productId: string;
+  /** Price of one. */
+  price: number;
+  /** Charged once per bill, or once for every item on it. */
+  per: "bill" | "item";
+  /** Ticked by default on takeaway / delivery bills. */
+  takeaway: boolean;
+  delivery: boolean;
+};
 type ChosenOption = { id: string; name: string; price: number };
 type CartLine = { key: string; item: MenuItem; qty: number; options: ChosenOption[]; note: string; hold?: boolean };
 
 /** One-tap kitchen notes; staff can also type their own. */
 const QUICK_NOTES = ["No onion", "No garlic", "Less spicy", "Extra spicy", "Less oil", "Parcel"];
+/** The optional guest boxes are smaller than the usual input so they do not push the bill down. */
+const GUEST_FIELD = { minHeight: 40, padding: "0 12px" } as const;
 export type AddTo = { id: string; billNumber: string; table: string | null };
 
 function lineKey(productId: string, options: ChosenOption[]) {
@@ -43,6 +60,64 @@ function lineKey(productId: string, options: ChosenOption[]) {
 }
 function unitPrice(l: { item: MenuItem; options: ChosenOption[] }) {
   return Math.round((l.item.price + l.options.reduce((s, o) => s + o.price, 0)) * 100) / 100;
+}
+/**
+ * "Add to this bill" opens this screen again for that bill, which starts it empty. The items already
+ * in the cart travel in this tab's sessionStorage: only what was chosen (item, options, quantity,
+ * note, hold) — never a price, the packing charge, guest details, discount or payment.
+ */
+const CARRY_KEY = "sna.pos.carry.v1";
+const CARRY_MAX_AGE_MS = 2 * 60 * 1000;
+type CarriedLine = { p: string; o: string[]; q: number; n: string; h: boolean };
+/**
+ * Reads the carried items for this bill, once (the saved copy is removed). Null: nothing usable was saved.
+ * Names and prices come from today's menu; a line whose item or option is no longer on it is left out and counted.
+ */
+function takeCarried(billId: string, menu: MenuItem[], packingId: string | null, allowHold: boolean): { cart: Record<string, CartLine>; dropped: number } | null {
+  let raw: string | null;
+  try {
+    raw = sessionStorage.getItem(CARRY_KEY);
+    sessionStorage.removeItem(CARRY_KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  let saved: { bill?: unknown; at?: unknown; lines?: unknown } | null;
+  try {
+    saved = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!saved || typeof saved !== "object") return null;
+  const age = typeof saved.at === "number" ? Date.now() - saved.at : NaN;
+  if (saved.bill !== billId || !(age >= 0 && age < CARRY_MAX_AGE_MS) || !Array.isArray(saved.lines)) return null;
+  const cart: Record<string, CartLine> = {};
+  let dropped = 0;
+  saved.lines.forEach((x: unknown, i: number) => {
+    const l = (x && typeof x === "object" ? x : {}) as { [K in keyof CarriedLine]?: unknown };
+    const item = menu.find((it) => it.id === l.p && it.id !== packingId);
+    const ids = Array.isArray(l.o) ? [...new Set<unknown>(l.o)] : null;
+    const qty = l.q;
+    // The chosen options, as today's menu has them and in the order the option picker gives them.
+    const options: ChosenOption[] = item && ids ? item.groups.flatMap((g) => g.options.filter((o) => ids.includes(o.id))) : [];
+    if (!item || !ids || options.length !== ids.length || typeof qty !== "number" || !Number.isInteger(qty) || qty < 1) {
+      dropped++;
+      return;
+    }
+    const base = lineKey(item.id, options);
+    const key = cart[base] ? `${base}#c${i}` : base;
+    const line: CartLine = { key, item, options, qty, note: typeof l.n === "string" ? l.n.slice(0, 200) : "" };
+    if (allowHold && l.h === true) line.hold = true;
+    cart[key] = line;
+  });
+  return { cart, dropped };
+}
+/** The packing charge rule kept in this device's offline copy (null: none, or its menu item is not in the copy). */
+function offlinePackingRule(snap: Snapshot | null): PackingRule | null {
+  const rule = snap?.settings.packing;
+  const item = rule ? snap.menu.find((x) => x.id === rule.product_id) : undefined;
+  if (!rule || !item) return null;
+  return { productId: item.id, price: Number(item.price), per: rule.per === "item" ? "item" : "bill", takeaway: !!rule.takeaway, delivery: !!rule.delivery };
 }
 
 export function PosTerminal({
@@ -57,6 +132,7 @@ export function PosTerminal({
   paymentMethods,
   tables,
   addTo,
+  packing = null,
   allowHold = false,
   customerDisplay = null,
   tableOrdersWaiting = 0,
@@ -76,6 +152,8 @@ export function PosTerminal({
   tables: Table[];
   /** When set, the screen adds items to this open bill instead of making a new one. */
   addTo: AddTo | null;
+  /** The outlet's packing charge, or null when it has none. */
+  packing?: PackingRule | null;
   /** Professional: hold items for the next course. */
   allowHold?: boolean;
   /** Add-on: a second screen facing the guest shows the order and total. Value = restaurant name. */
@@ -87,8 +165,18 @@ export function PosTerminal({
   const [pending, startTransition] = useTransition();
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [search, setSearch] = useState("");
-  const [orderType, setOrderType] = useState<"dine_in" | "takeaway">("dine_in");
+  /** Category tab; null = All. Not remembered between visits. */
+  const [tab, setTab] = useState<string | null>(null);
+  const [orderType, setOrderType] = useState<OrderType>("dine_in");
   const [tableId, setTableId] = useState<string | null>(null);
+  /** The cashier chose to start a second bill on a table that already has an open one. */
+  const [separateBill, setSeparateBill] = useState(false);
+  // Guest details for takeaway and delivery bills. All optional.
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestAddress, setGuestAddress] = useState("");
+  /** Packing charge tick: null = not touched, so it follows the order type. */
+  const [packingChoice, setPackingChoice] = useState<boolean | null>(null);
   const [methodId, setMethodId] = useState<string>(paymentMethods[0]?.id ?? "");
   const [tendered, setTendered] = useState("");
   const [reference, setReference] = useState("");
@@ -103,6 +191,10 @@ export function PosTerminal({
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoting, setQuoting] = useState(false);
   const reqId = useRef(0);
+  // Offline billing: a copy of the menu and tax rules on this device.
+  const [snap, setSnap] = useState<Snapshot | null>(null);
+  const [offline, setOffline] = useState(false);
+  const [offlineBill, setOfflineBill] = useState<OfflineBill | null>(null);
 
   const m = (n: number) => money(n, currency);
   const lines = Object.values(cart);
@@ -110,12 +202,37 @@ export function PosTerminal({
   const askRef = !!paymentMethods.find((p) => p.id === methodId)?.ask_reference;
   const discountAmt = Math.max(0, Number(discount) || 0);
   const chosenTable = tables.find((t) => t.id === tableId) ?? null;
+  // A table that already has an open bill: the cashier adds to it, or says clearly that a second bill is wanted.
+  // (Bills made without internet are paid at once and carry no table, so they are not held back.)
+  const needSeparate = !addTo && !offline && orderType === "dine_in" && !!chosenTable && chosenTable.openBills.length > 0 && !separateBill;
+
+  // Packing charge. Without internet the rule and the price come from this device's offline copy.
+  const offlinePacking = useMemo(() => offlinePackingRule(snap), [snap]);
+  const packRule = offline ? offlinePacking : packing;
+  const packingId = packRule?.productId ?? null;
+  const packingDefault = !addTo && !!packRule && ((orderType === "takeaway" && packRule.takeaway) || (orderType === "delivery" && packRule.delivery));
+  const packingTicked = !!packRule && (packingChoice ?? packingDefault);
+  // Per item: one for every item on the bill.
+  const packingQty = packRule?.per === "item" ? Math.max(1, Math.ceil(lines.reduce((s, l) => s + l.qty, 0))) : 1;
+  const packingAmount = packRule ? Math.round(packRule.price * packingQty * 100) / 100 : 0;
+
+  // Category tabs, in menu order. The packing charge is not sold from the menu.
+  const tabs = useMemo(() => {
+    const out: { id: string; name: string }[] = [];
+    for (const x of menu) if (x.id !== packingId && !out.some((c) => c.id === x.category_id)) out.push({ id: x.category_id, name: x.category_name });
+    return out;
+  }, [menu, packingId]);
+  const activeTab = tab !== null && tabs.some((c) => c.id === tab) ? tab : null;
+  const searching = search.trim() !== "";
 
   const categories = useMemo(() => {
+    // A search looks in every category; otherwise the chosen tab decides.
     const q = search.trim().toLowerCase();
-    const filtered = q
-      ? menu.filter((x) => x.name.toLowerCase().includes(q) || (x.short_name ?? "").toLowerCase().includes(q))
-      : menu;
+    const filtered = menu.filter(
+      (x) =>
+        x.id !== packingId &&
+        (q ? x.name.toLowerCase().includes(q) || (x.short_name ?? "").toLowerCase().includes(q) : activeTab === null || x.category_id === activeTab),
+    );
     const groups: { id: string; name: string; items: MenuItem[] }[] = [];
     for (const x of filtered) {
       let g = groups.find((y) => y.id === x.category_id);
@@ -126,23 +243,35 @@ export function PosTerminal({
       g.items.push(x);
     }
     return groups;
-  }, [menu, search]);
+  }, [menu, search, activeTab, packingId]);
 
   const qtyInCart = (productId: string) => lines.filter((l) => l.item.id === productId).reduce((s, l) => s + l.qty, 0);
-  const itemsPayload = () =>
-    lines.map((l) => ({ product_id: l.item.id, qty: l.qty, options: l.options.map((o) => o.id), note: l.note.trim() || undefined, hold: !!l.hold }));
+  // The same list goes to the live total and to the saved bill, so the two always agree.
+  // The packing charge, when ticked, is one more item at the end: no note, no options, never held.
+  const itemsPayload = () => {
+    const items: CartItem[] = lines.map((l) => ({ product_id: l.item.id, qty: l.qty, options: l.options.map((o) => o.id), note: l.note.trim() || undefined, hold: !!l.hold }));
+    if (packRule && packingTicked && lines.length > 0) items.push({ product_id: packRule.productId, qty: packingQty });
+    return items;
+  };
+  /** The same list for the offline calculation. */
+  const offlineLines = () => {
+    const out = lines.map((l) => ({ product_id: l.item.id, qty: l.qty, unit_price: unitPrice(l) }));
+    if (packRule && packingTicked && lines.length > 0) out.push({ product_id: packRule.productId, qty: packingQty, unit_price: packRule.price });
+    return out;
+  };
 
   // Ask the database for the exact bill whenever the cart changes (new bills only).
   // Replies that arrive out of order are ignored.
-  const cartKey = JSON.stringify([lines.map((l) => [l.key, l.qty]), discountAmt, scChoice, senior]);
+  const cartKey = JSON.stringify([lines.map((l) => [l.key, l.qty]), discountAmt, scChoice, senior, packingTicked ? packingId : null]);
   const [noteOpen, setNoteOpen] = useState<string | null>(null);
   const [approval, setApproval] = useState<null | { permission: string; retry: () => void }>(null);
-  // Same id for every retry of this bill; a new one after it is saved.
-  const [clientRef, setClientRef] = useState(() => crypto.randomUUID());
-  // Offline billing: a copy of the menu and tax rules on this device.
-  const [snap, setSnap] = useState<Snapshot | null>(null);
-  const [offline, setOffline] = useState(false);
-  const [offlineBill, setOfflineBill] = useState<OfflineBill | null>(null);
+  // New bills: the id sent with a bill belongs to exactly what was submitted. The identical submission again
+  // (double tap, "internet dropped, press again", the retry after a manager's PIN) sends the same id, so the
+  // server answers with the bill it already saved. Anything different gets a new id, so a different bill can
+  // never be answered with an older one. Forgotten when the bill is saved, cleared, emptied or made offline.
+  const billRef = useRef<{ key: string; id: string } | null>(null);
+  // Adding to an open bill: the same id while the same items are retried, a new one when they change or after they are added.
+  const addRef = useRef<{ key: string; id: string } | null>(null);
 
   useEffect(() => {
     const cached = readSnapshot();
@@ -172,12 +301,7 @@ export function PosTerminal({
     if (!snap) return "No internet, and this device has no offline copy of the menu yet. Open Billing once while online.";
     if (senior) return "The senior citizen / PWD discount needs the internet.";
     try {
-      const c = offlineQuote(
-        snap,
-        lines.map((l) => ({ product_id: l.item.id, qty: l.qty, unit_price: unitPrice(l) })),
-        snap.rights.discount ? discountAmt : 0,
-        scChoice,
-      );
+      const c = offlineQuote(snap, offlineLines(), snap.rights.discount ? discountAmt : 0, scChoice);
       const scOn = (scChoice ?? snap.settings.sc_default_on) && snap.settings.sc_percent > 0;
       return {
         subtotal: c.subtotal,
@@ -203,6 +327,8 @@ export function PosTerminal({
   }
   useEffect(() => {
     if (addTo || lines.length === 0) {
+      // A reply still on its way for the cart as it was must not put its total back.
+      reqId.current++;
       setQuote(null);
       setQuoting(false);
       return;
@@ -245,23 +371,26 @@ export function PosTerminal({
     ch.postMessage({
       restaurant: customerDisplay,
       currency,
-      lines: Object.values(cart).map((l) => ({
-        name: l.item.name,
-        local: l.item.name_local ?? null,
-        options: l.options.map((o) => o.name).join(", ") || null,
-        qty: l.qty,
-        amount: Math.round(unitPrice(l) * l.qty * 100) / 100,
-      })),
+      lines: [
+        ...Object.values(cart).map((l) => ({
+          name: l.item.name,
+          local: l.item.name_local ?? null,
+          options: l.options.map((o) => o.name).join(", ") || null,
+          qty: l.qty,
+          amount: Math.round(unitPrice(l) * l.qty * 100) / 100,
+        })),
+        ...(packingTicked && Object.keys(cart).length ? [{ name: "Packing charge", local: null, options: null, qty: packingQty, amount: packingAmount }] : []),
+      ],
       total: quote && Object.keys(cart).length ? quote.grand_total : null,
     });
     ch.close();
-  }, [cart, quote, customerDisplay, currency]);
+  }, [cart, quote, customerDisplay, currency, packingTicked, packingQty, packingAmount]);
 
   const due = quote ? (isCash ? roundCash(quote.grand_total, quote.cash_rounding) : quote.grand_total) : 0;
   const cashRound = quote && isCash ? Math.round((due - quote.grand_total) * 100) / 100 : 0;
   const change = isCash && Number(tendered) > due ? Math.round((Number(tendered) - due) * 100) / 100 : 0;
   const addedTax = quote ? Math.round((quote.tax_total - quote.tax_included) * 100) / 100 : 0;
-  const addSubtotal = Math.round(lines.reduce((s, l) => s + unitPrice(l) * l.qty, 0) * 100) / 100;
+  const addSubtotal = Math.round((lines.reduce((s, l) => s + unitPrice(l) * l.qty, 0) + (packingTicked && lines.length > 0 ? packingAmount : 0)) * 100) / 100;
 
   function tapItem(item: MenuItem) {
     setError(null);
@@ -300,14 +429,68 @@ export function PosTerminal({
   }
   function clearAll() {
     setCart({});
+    // The search goes too; the chosen category tab stays.
+    setSearch("");
+    resetBill();
+  }
+  /** Everything that belongs to one bill, apart from its items. The order type, category tab and payment method stay. */
+  function resetBill() {
+    billRef.current = null;
     setDiscount("");
     setDiscountReason("");
     setTendered("");
     setReference("");
     setTableId(null);
+    setSeparateBill(false);
+    setGuestName("");
+    setGuestPhone("");
+    setGuestAddress("");
+    setPackingChoice(null);
     setScChoice(null);
     setSenior(null);
     setError(null);
+  }
+  // A bill emptied line by line ("−" on the last item) is over just as one that is cleared: nothing of it may
+  // stay for the next guest. Only the change from "has items" to "empty" counts, so a guest name typed before
+  // the first item is added is kept.
+  const hadLines = useRef(false);
+  useEffect(() => {
+    if (hadLines.current && lines.length === 0) resetBill();
+    hadLines.current = lines.length > 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lines.length]);
+
+  // Add mode: pick up the items carried over from the billing screen ("Add to this bill"), once.
+  useEffect(() => {
+    if (!addTo) return;
+    const carried = takeCarried(addTo.id, menu, packing?.productId ?? null, allowHold);
+    if (!carried) return;
+    if (Object.keys(carried.cart).length > 0) setCart((c) => (Object.keys(c).length > 0 ? c : carried.cart));
+    if (carried.dropped > 0) setError(`${carried.dropped} item${carried.dropped === 1 ? "" : "s"} could not be brought over because the menu changed. Check the list before adding.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Opens this screen for an open bill, taking the items already in the cart along. */
+  function openAddTo(billId: string) {
+    try {
+      if (lines.length > 0) {
+        const carried: CarriedLine[] = lines.map((l) => ({ p: l.item.id, o: l.options.map((o) => o.id), q: l.qty, n: l.note, h: !!l.hold }));
+        sessionStorage.setItem(CARRY_KEY, JSON.stringify({ bill: billId, at: Date.now(), lines: carried }));
+      } else sessionStorage.removeItem(CARRY_KEY);
+    } catch {
+      // No storage on this device: the screen opens with an empty cart, as before.
+    }
+    router.push(`/pos?add=${billId}`);
+  }
+  function chooseOrderType(t: OrderType) {
+    // Another kind of bill: the packing tick follows that kind again, whatever was ticked by hand before.
+    if (t !== orderType) setPackingChoice(null);
+    setOrderType(t);
+  }
+  function chooseTable(id: string | null) {
+    setTableId(id);
+    // A new table is a new question: is a second bill really wanted here?
+    setSeparateBill(false);
   }
 
   function submitOffline(mode: "pay" | "unpaid" | "split") {
@@ -319,12 +502,7 @@ export function PosTerminal({
     const byId = new Map(snap.menu.map((m) => [m.id, m]));
     const missing = lines.find((l) => !byId.has(l.item.id));
     if (missing) return setError(`${missing.item.name} is not in this device's offline menu. Remove it or wait for the internet.`);
-    const calc = offlineQuote(
-      snap,
-      lines.map((l) => ({ product_id: l.item.id, qty: l.qty, unit_price: unitPrice(l) })),
-      snap.rights.discount ? discountAmt : 0,
-      scChoice,
-    );
+    const calc = offlineQuote(snap, offlineLines(), snap.rights.discount ? discountAmt : 0, scChoice);
     const dueNow = cashDue(snap, calc.grand_total, method.kind === "cash");
     if (method.kind === "cash" && tendered !== "" && Number(tendered) < dueNow) return setError("Amount received is less than the total.");
     const { seq, number } = takeNumber(snap);
@@ -336,16 +514,32 @@ export function PosTerminal({
       number,
       created_at: new Date().toISOString(),
       order_type: orderType,
-      items: lines.map((l) => ({
-        product_id: l.item.id,
-        name: l.item.name,
-        qty: l.qty,
-        price: unitPrice(l),
-        options: l.options.map((o) => o.id),
-        options_text: l.options.map((o) => o.name).join(", ") || null,
-        note: l.note.trim() || undefined,
-        station: byId.get(l.item.id)?.station ?? "Kitchen",
-      })),
+      items: [
+        ...lines.map((l) => ({
+          product_id: l.item.id,
+          name: l.item.name,
+          qty: l.qty,
+          price: unitPrice(l),
+          options: l.options.map((o) => o.id),
+          options_text: l.options.map((o) => o.name).join(", ") || null,
+          note: l.note.trim() || undefined,
+          station: byId.get(l.item.id)?.station ?? "Kitchen",
+        })),
+        // The packing charge is the last line, as in the calculation above, so the server records it when the bill is sent.
+        ...(packRule && packingTicked
+          ? [
+              {
+                product_id: packRule.productId,
+                name: byId.get(packRule.productId)?.name ?? "Packing charge",
+                qty: packingQty,
+                price: packRule.price,
+                options: [],
+                options_text: null,
+                station: byId.get(packRule.productId)?.station ?? "Kitchen",
+              },
+            ]
+          : []),
+      ],
       discount: snap.rights.discount ? discountAmt : 0,
       service_charge: (scChoice ?? snap.settings.sc_default_on) && snap.settings.sc_percent > 0,
       method_id: method.id,
@@ -359,6 +553,8 @@ export function PosTerminal({
     const q = readQueue();
     if (!writeQueue([...q, bill])) return setError("This device's storage is full, so the bill could not be saved. Free some space.");
     window.dispatchEvent(new Event("sna-offline-queue"));
+    // This guest now has an offline bill; whatever is billed next is another bill.
+    billRef.current = null;
     setOfflineBill(bill);
   }
 
@@ -366,12 +562,13 @@ export function PosTerminal({
     setError(null);
     if (lines.length === 0) return setError("Add at least one item.");
     if (!quote || quoting) return setError("Please wait a moment — the total is being checked.");
+    if (needSeparate) return setError(`Table ${chosenTable?.number ?? ""} already has an open bill. Add to it, or tick “Start a separate bill for this table”.`);
     if (offline) return submitOffline(mode);
     const payNow = mode === "pay";
     if (payNow && !methodId) return setError("Choose how the customer paid.");
     if (payNow && isCash && tendered !== "" && Number(tendered) < due) return setError("Amount received is less than the total.");
 
-    const input: PlaceOrderInput = {
+    const input: Omit<PlaceOrderInput, "client_ref"> = {
       items: itemsPayload(),
       discount_amount: senior ? 0 : discountAmt,
       service_charge: scChoice,
@@ -382,15 +579,23 @@ export function PosTerminal({
       tendered: payNow && isCash && tendered !== "" ? Number(tendered) : null,
       discount_reason: discountAmt > 0 ? discountReason.trim() || null : null,
       reference: payNow && askRef ? reference : null,
-      client_ref: clientRef,
+      // Only what the cashier can see is sent: no guest details on dine-in, an address only on delivery.
+      guest: orderType === "dine_in" ? null : { name: guestName, phone: guestPhone, address: orderType === "delivery" ? guestAddress : "" },
     };
+    // The same submission keeps its id; any difference at all (items, table, guest, discount, payment…) makes a new one.
+    // Known limit, not solvable from the browser: if an attempt did reach the server but its reply was lost, and the
+    // cashier then changes anything before pressing again (for example pays by another method), that is a new id and
+    // the server saves a second bill. Hence the "check Bills" message below.
+    const key = JSON.stringify(input);
+    if (billRef.current?.key !== key) billRef.current = { key, id: crypto.randomUUID() };
+    const ref = billRef.current.id;
     startTransition(async () => {
       let res: Awaited<ReturnType<typeof placeOrder>>;
       try {
-        res = await placeOrder(input);
+        res = await placeOrder({ ...input, client_ref: ref });
       } catch {
-        // The internet dropped while saving. Nothing reached the server's reply, so the same
-        // request id makes a later retry safe; meanwhile the bill can be made offline.
+        // The internet dropped while saving. No reply came back, so the id is kept: pressing again
+        // with nothing changed is safe; meanwhile the bill can be made offline.
         setOffline(true);
         return setError(
           "The internet dropped while saving, so this bill may already be saved. Check Bills when the internet is back. To bill offline now, press the button again.",
@@ -401,7 +606,7 @@ export function PosTerminal({
         if (need) setApproval({ permission: need, retry: () => submit(mode) });
         return setError(cleanMessage(res.error));
       }
-      setClientRef(crypto.randomUUID());
+      billRef.current = null;
       if (mode === "split") router.push(`/bills/${res.orderId}?pay=split`);
       else router.push(`/pos/receipt/${res.orderId}${mode === "pay" ? "?print=1" : ""}`);
     });
@@ -412,9 +617,20 @@ export function PosTerminal({
     setError(null);
     if (offline) return setError("Adding to an open bill needs the internet.");
     if (lines.length === 0) return setError("Add at least one item.");
+    const items = itemsPayload();
+    const key = JSON.stringify(items);
+    if (addRef.current?.key !== key) addRef.current = { key, id: crypto.randomUUID() };
+    const ref = addRef.current.id;
     startTransition(async () => {
-      const res = await addToBill(addTo.id, itemsPayload());
+      let res: Awaited<ReturnType<typeof addToBill>>;
+      try {
+        res = await addToBill(addTo.id, items, ref);
+      } catch {
+        // No reply from the server. The same request id makes pressing the button again safe.
+        return setError("The internet dropped while adding. Press the button again — the items will not be added twice.");
+      }
       if (!res.ok) return setError(res.error);
+      addRef.current = null;
       router.push(`/bills/${addTo.id}`);
     });
   }
@@ -455,7 +671,34 @@ export function PosTerminal({
             <span>Review →</span>
           </a>
         )}
-        <input className="field mb-4" placeholder="Search the menu…" value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
+        <input className="field mb-3" placeholder="Search the menu…" value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
+        {tabs.length > 1 && (
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Menu categories">
+            {[{ id: null as string | null, name: "All" }, ...tabs].map((c) => {
+              // While a search is typed it looks everywhere, so no tab is shown as chosen.
+              const on = !searching && activeTab === c.id;
+              return (
+                <button
+                  key={c.id ?? "all"}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => {
+                    setTab(c.id);
+                    setSearch("");
+                  }}
+                  className="min-h-[44px] shrink-0 whitespace-nowrap rounded-full border px-4 text-sm font-semibold"
+                  style={{
+                    borderColor: on ? "var(--color-brand)" : "var(--color-line)",
+                    background: on ? "var(--color-brand)" : "var(--color-surface)",
+                    color: on ? "#fff" : "var(--color-ink-2)",
+                  }}
+                >
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {categories.length === 0 && (
           <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
             No items match “{search}”.
@@ -535,14 +778,15 @@ export function PosTerminal({
               </span>
             ) : (
               <div className="flex overflow-hidden rounded-lg border" style={{ borderColor: "var(--color-line)" }}>
-                {(["dine_in", "takeaway"] as const).map((t) => (
+                {(["dine_in", "takeaway", "delivery"] as const).map((t) => (
                   <button
                     key={t}
-                    onClick={() => setOrderType(t)}
+                    onClick={() => chooseOrderType(t)}
+                    aria-pressed={orderType === t}
                     className="px-2.5 py-1.5 text-[11px] font-semibold"
                     style={{ background: orderType === t ? "var(--color-brand)" : "transparent", color: orderType === t ? "#fff" : "var(--color-ink-2)" }}
                   >
-                    <Dual text={t === "dine_in" ? "Dine-in" : "Takeaway"} />
+                    <Dual text={orderTypeLabel[t]} />
                   </button>
                 ))}
               </div>
@@ -555,24 +799,81 @@ export function PosTerminal({
                 Table
               </div>
               <div className="flex flex-wrap gap-1.5">
-                <Chip label="None" active={tableId === null} onClick={() => setTableId(null)} />
+                <Chip label="None" active={tableId === null} onClick={() => chooseTable(null)} />
                 {tables.map((t) => (
-                  <Chip key={t.id} label={`T${t.number}`} busy={t.busy} active={tableId === t.id} onClick={() => setTableId(t.id)} />
+                  <Chip key={t.id} label={`T${t.number}`} busy={t.busy} active={tableId === t.id} onClick={() => chooseTable(t.id)} />
                 ))}
               </div>
-              {chosenTable?.openBillId && (
-                <div className="mt-2 flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-xs" style={{ background: "var(--color-warn-soft)" }}>
-                  <span>
-                    Table {chosenTable.number} already has bill {chosenTable.openBillNumber}.
-                  </span>
-                  <button
-                    className="shrink-0 font-semibold underline"
-                    style={{ color: "var(--color-brand-strong)" }}
-                    onClick={() => router.push(`/pos?add=${chosenTable.openBillId}`)}
-                  >
-                    Add to that bill
-                  </button>
+              {chosenTable && chosenTable.openBills.length > 0 && (
+                <div className="mt-2 space-y-1.5 rounded-md px-2.5 py-2 text-xs" style={{ background: "var(--color-warn-soft)" }}>
+                  {chosenTable.openBills.length > 1 && (
+                    <div>
+                      Table {chosenTable.number} has {chosenTable.openBills.length} open bills:
+                    </div>
+                  )}
+                  {chosenTable.openBills.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between gap-2">
+                      <span>{chosenTable.openBills.length > 1 ? b.billNumber : `Table ${chosenTable.number} has an open bill: ${b.billNumber}`}</span>
+                      <button
+                        className="shrink-0 font-semibold underline"
+                        style={{ color: "var(--color-brand-strong)" }}
+                        onClick={() => openAddTo(b.id)}
+                      >
+                        Add to this bill
+                      </button>
+                    </div>
+                  ))}
+                  {!offline && (
+                    <label className="flex items-center gap-2 border-t pt-1.5 font-semibold" style={{ borderColor: "var(--color-line)" }}>
+                      <input type="checkbox" className="h-5 w-5 shrink-0" checked={separateBill} onChange={(e) => setSeparateBill(e.target.checked)} />
+                      Start a separate bill for this table
+                    </label>
+                  )}
                 </div>
+              )}
+            </div>
+          )}
+
+          {!addTo && !offline && orderType !== "dine_in" && (
+            <div className="border-b px-4 py-2" style={{ borderColor: "var(--color-line)" }}>
+              <div className="mb-1.5 text-[11px] font-semibold" style={{ color: "var(--color-ink-3)" }}>
+                Guest details (optional)
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <input
+                  className="field text-sm"
+                  style={GUEST_FIELD}
+                  placeholder="Guest name"
+                  aria-label="Guest name (optional)"
+                  value={guestName}
+                  maxLength={80}
+                  autoComplete="off"
+                  onChange={(e) => setGuestName(e.target.value)}
+                />
+                <input
+                  className="field text-sm"
+                  style={GUEST_FIELD}
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="Phone"
+                  aria-label="Guest phone (optional)"
+                  value={guestPhone}
+                  maxLength={20}
+                  autoComplete="off"
+                  onChange={(e) => setGuestPhone(e.target.value)}
+                />
+              </div>
+              {orderType === "delivery" && (
+                <input
+                  className="field mt-1.5 text-sm"
+                  style={GUEST_FIELD}
+                  placeholder="Delivery address"
+                  aria-label="Delivery address (optional)"
+                  value={guestAddress}
+                  maxLength={300}
+                  autoComplete="off"
+                  onChange={(e) => setGuestAddress(e.target.value)}
+                />
               )}
             </div>
           )}
@@ -583,6 +884,7 @@ export function PosTerminal({
                 No items yet.
               </p>
             ) : (
+              <>
               <ul>
                 {lines.map((l) => (
                   <li key={l.key} className="border-b py-2 last:border-0" style={{ borderColor: "var(--color-line)" }}>
@@ -667,6 +969,34 @@ export function PosTerminal({
                   </li>
                 ))}
               </ul>
+              {packRule && (
+                <label className="tap flex items-center gap-2 border-t text-sm" style={{ borderColor: "var(--color-line)" }}>
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium">{addTo ? "Add packing charge" : "Packing charge"}</span>
+                    {packRule.per === "item" && (
+                      <span className="ml-1.5 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                        {m(packRule.price)} × {packingQty}
+                      </span>
+                    )}
+                    {addTo && (
+                      <span className="block text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                        This bill may already have one.
+                      </span>
+                    )}
+                  </span>
+                  <span className={packingTicked ? "font-semibold" : undefined} style={packingTicked ? undefined : { color: "var(--color-ink-3)" }}>
+                    {m(packingAmount)}
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 shrink-0"
+                    checked={packingTicked}
+                    onChange={(e) => setPackingChoice(e.target.checked)}
+                    aria-label="Add the packing charge to this bill"
+                  />
+                </label>
+              )}
+              </>
             )}
           </div>
 
@@ -803,6 +1133,11 @@ export function PosTerminal({
               </div>
 
               {error && <ErrorBox text={error} />}
+              {needSeparate && lines.length > 0 && (
+                <p className="mt-3 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+                  Table {chosenTable?.number} already has an open bill. Add to it, or tick &ldquo;Start a separate bill for this table&rdquo; above.
+                </p>
+              )}
 
               <div className="mt-3 flex gap-2">
                 <button onClick={clearAll} disabled={pending || lines.length === 0} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
@@ -810,16 +1145,16 @@ export function PosTerminal({
                 </button>
                 {canPay ? (
                   <>
-                    <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
+                    <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote || needSeparate} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                       Save unpaid
                     </button>
-                    <button onClick={() => submit("pay")} disabled={pending || quoting || !quote} className="btn btn-pay flex-1 text-base">
+                    <button onClick={() => submit("pay")} disabled={pending || quoting || !quote || needSeparate} className="btn btn-pay flex-1 text-base">
                       {pending ? "Saving…" : <Dual text="Charge" />}
                       {!pending && quote ? ` ${m(due)}` : ""}
                     </button>
                   </>
                 ) : (
-                  <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote} className="btn btn-primary flex-1 text-base">
+                  <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote || needSeparate} className="btn btn-primary flex-1 text-base">
                     {pending ? "Saving…" : <Dual text="Send to kitchen" />}
                   </button>
                 )}
@@ -827,7 +1162,7 @@ export function PosTerminal({
               {canPay ? (
                 <button
                   onClick={() => submit("split")}
-                  disabled={pending || quoting || !quote}
+                  disabled={pending || quoting || !quote || needSeparate}
                   className="mt-2 w-full text-center text-xs font-semibold"
                   style={{ color: "var(--color-brand-strong)" }}
                 >

@@ -89,6 +89,40 @@ export function calcBill(p: CalcInput): CalcResult {
   }
   if (n > 0) discs[big] = discount - alloc;
 
+  // A small discount over many lines can leave the largest line with less than
+  // nothing (every small line rounds up to 0.01). When that happens, spread it
+  // again to the paisa by largest remainder: no line goes below zero or above
+  // its own value, and the parts still add up exactly. Whole-number arithmetic
+  // (BigInt) so that a very large bill cannot lose precision.
+  if (n > 0 && subtotal > 0 && (discs[big] < 0 || discs[big] > subs[big])) {
+    const dc = BigInt(discount);
+    const tc = BigInt(subtotal);
+    const bases: number[] = [];
+    const rems: bigint[] = [];
+    const taken: boolean[] = [];
+    let sum = 0;
+    for (let i = 0; i < n; i++) {
+      const prod = dc * BigInt(subs[i]);
+      const base = Number(prod / tc);
+      bases.push(base);
+      rems.push(prod % tc);
+      taken.push(false);
+      sum += base;
+    }
+    let left = discount - sum;
+    while (left > 0) {
+      let best = -1;
+      for (let i = 0; i < n; i++) {
+        if (!taken[i] && (best === -1 || rems[i] > rems[best])) best = i;
+      }
+      if (best === -1) break;
+      bases[best] += 1;
+      taken[best] = true;
+      left -= 1;
+    }
+    for (let i = 0; i < n; i++) discs[i] = bases[i];
+  }
+
   const out: CalcResult["lines"] = [];
   let tDisc = 0, tSdisc = 0, tRemoved = 0, tSc = 0, tTax = 0, tIncl = 0, tExempt = 0, tNet = 0, tLines = 0;
   const taxmap = new Map<string, { name: string; rate: number; taxable: number; amount: number }>();

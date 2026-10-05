@@ -2,7 +2,7 @@ import Link from "next/link";
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { OpenShiftForm } from "../shift/shift-panel";
-import { PosTerminal, type AddTo, type OptionGroup } from "./pos-terminal";
+import { PosTerminal, type AddTo, type OptionGroup, type PackingRule } from "./pos-terminal";
 
 export default async function PosPage({ searchParams }: { searchParams: Promise<{ add?: string }> }) {
   const user = await requireUser();
@@ -24,7 +24,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   const [
     { data: menu },
     { data: methods },
-    { data: shift },
+    { data: shift, settings },
     { data: tables },
     { data: openTabs },
     { data: groups },
@@ -41,10 +41,17 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       .order("display_order")
       .order("name"),
     supabase.from("payment_methods").select("id, name, kind, ask_reference, upi_id").eq("is_active", true).not("kind", "in", "(gift_card,loyalty)").order("display_order"),
+    // One read of this outlet's settings: whether shifts are used, and its packing charge rule.
     // Shifts are optional: when they are off, the first bill opens the drawer automatically.
-    supabase.from("branch_settings").select("shifts_enabled").eq("branch_id", user.branch_id).maybeSingle().then(async (bs) =>
-      bs.data?.shifts_enabled ? await supabase.from("shifts").select("id").eq("status", "open").limit(1).maybeSingle() : { data: { id: "auto" } },
-    ),
+    supabase
+      .from("branch_settings")
+      .select("shifts_enabled, packing_product_id, packing_per, packing_takeaway, packing_delivery")
+      .eq("branch_id", user.branch_id)
+      .maybeSingle()
+      .then(async (bs) => ({
+        settings: bs.data,
+        data: bs.data?.shifts_enabled ? (await supabase.from("shifts").select("id").eq("status", "open").limit(1).maybeSingle()).data : { id: "auto" },
+      })),
     supabase.from("dining_tables").select("id, table_number").eq("is_active", true).order("table_number"),
     supabase
       .from("orders")
@@ -130,7 +137,20 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       name_local: x.name_local,
     }));
 
-  if (items.length === 0) {
+  // The packing charge is an ordinary menu item. If it is not on today's menu (e.g. marked unavailable), there is no packing charge.
+  const packingItem = settings?.packing_product_id ? items.find((x) => x.id === settings.packing_product_id) : undefined;
+  const packing: PackingRule | null =
+    settings && packingItem
+      ? {
+          productId: packingItem.id,
+          price: packingItem.price,
+          per: settings.packing_per === "item" ? "item" : "bill",
+          takeaway: !!settings.packing_takeaway,
+          delivery: !!settings.packing_delivery,
+        }
+      : null;
+
+  if (items.every((x) => x.id === packing?.productId)) {
     return (
       <div className="mx-auto max-w-md">
         <h1 className="text-xl font-bold tracking-tight">Billing</h1>
@@ -149,9 +169,13 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     ? ((await supabase.from("qr_orders").select("id", { count: "exact", head: true }).eq("status", "pending")).count ?? 0)
     : 0;
 
-  const openByTable = new Map<string, { id: string; bill: string }>();
+  // Every unpaid or part-paid bill of each table, oldest first.
+  const openByTable = new Map<string, { id: string; billNumber: string }[]>();
   for (const o of openTabs ?? []) {
-    if (o.dining_table_id && !openByTable.has(o.dining_table_id)) openByTable.set(o.dining_table_id, { id: o.id, bill: o.bill_number });
+    if (!o.dining_table_id) continue;
+    const list = openByTable.get(o.dining_table_id) ?? [];
+    list.push({ id: o.id, billNumber: o.bill_number });
+    openByTable.set(o.dining_table_id, list);
   }
 
   return (
@@ -170,9 +194,9 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
         id: t.id,
         number: t.table_number,
         busy: openByTable.has(t.id),
-        openBillId: openByTable.get(t.id)?.id ?? null,
-        openBillNumber: openByTable.get(t.id)?.bill ?? null,
+        openBills: openByTable.get(t.id) ?? [],
       }))}
+      packing={packing}
       addTo={addTo}
       allowHold={has(user, "courses")}
       customerDisplay={has(user, "customer_display") ? user.trading_name : null}

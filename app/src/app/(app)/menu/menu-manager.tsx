@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { startTransition, useEffect, useState, useTransition } from "react";
 import { useActionState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   saveOptionGroup,
@@ -16,6 +17,7 @@ import {
   deleteProduct,
   type MenuState,
 } from "./actions";
+import { ConfirmButton } from "../settings/confirm-button";
 
 type Category = { id: string; name: string; display_order: number };
 type Product = {
@@ -28,6 +30,10 @@ type Product = {
   is_available: boolean;
   kitchen_station?: string | null;
   name_local?: string | null;
+  /** India: optional HSN / SAC code for this dish (4 to 8 digits). */
+  hsn_code?: string | null;
+  /** The packing charge: a charge, not a dish. Its amount and on/off are set in Settings → Service charge, not here. */
+  is_charge?: boolean;
 };
 type TaxGroup = { id: string; name: string };
 export type OptionGroupView = {
@@ -61,6 +67,7 @@ export function MenuManager({
   optionGroups,
   productGroups,
   showStations = true,
+  showHsn = false,
 }: {
   canManage: boolean;
   currency: string;
@@ -71,6 +78,8 @@ export function MenuManager({
   productGroups: Record<string, string[]>;
   /** Professional: kitchen station per item. */
   showStations?: boolean;
+  /** India: an HSN / SAC code field on each dish. */
+  showHsn?: boolean;
 }) {
   const [editing, setEditing] = useState<Product | null>(null);
   const [addingIn, setAddingIn] = useState<string | null>(null); // category id
@@ -176,6 +185,7 @@ export function MenuManager({
           defaultCategory={addingIn}
           optionGroups={optionGroups}
           selectedGroups={[]}
+          showHsn={showHsn}
           action={createProduct}
           onClose={() => setAddingIn(null)}
         />
@@ -189,6 +199,7 @@ export function MenuManager({
           product={editing}
           optionGroups={optionGroups}
           selectedGroups={productGroups[editing.id] ?? []}
+          showHsn={showHsn}
           action={updateProduct}
           onClose={() => setEditing(null)}
         />
@@ -218,7 +229,7 @@ function CategoryHeader({ cat, itemCount }: { cat: Category; itemCount: number }
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
       <span className="text-sm font-bold">{cat.name}</span>
       <span className="text-xs tabular-nums" style={{ color: "var(--color-ink-3)" }}>
         {itemCount} item{itemCount === 1 ? "" : "s"}
@@ -227,12 +238,19 @@ function CategoryHeader({ cat, itemCount }: { cat: Category; itemCount: number }
         rename
       </button>
       {itemCount === 0 && (
-        <form action={delAction} className="inline">
-          <input type="hidden" name="id" value={cat.id} />
-          <button type="submit" className="text-xs underline" style={{ color: "var(--color-bad)" }} disabled={deleting}>
-            delete
-          </button>
-        </form>
+        <ConfirmButton
+          className="text-xs underline"
+          question={`Delete the category ${cat.name}?`}
+          yesLabel="Yes, delete"
+          disabled={deleting}
+          onConfirm={() => {
+            const fd = new FormData();
+            fd.set("id", cat.id);
+            startTransition(() => delAction(fd));
+          }}
+        >
+          delete
+        </ConfirmButton>
       )}
       {(renameState.error || delState.error) && (
         <span className="text-xs" style={{ color: "var(--color-bad)" }}>
@@ -257,9 +275,34 @@ function ProductRow({
   const [availState, availAction, toggling] = useActionState(toggleAvailability, initial);
   const [delState, delAction, deleting] = useActionState(deleteProduct, initial);
 
+  // The packing charge is not a dish. Deleting it, switching it off or changing its amount
+  // here would stop bills getting it, so those are done in Settings → Service charge only.
+  if (product.is_charge) {
+    return (
+      <div
+        className="flex flex-wrap items-center justify-end gap-3 px-4 py-3"
+        style={{ borderBottom: "1px solid var(--color-line)" }}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium">{product.name}</div>
+          <div className="text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+            Added to takeaway and delivery bills. Its amount, and switching it on or off, are in Settings.
+          </div>
+        </div>
+        <Link
+          href="/settings/charges"
+          className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+          style={{ borderColor: "var(--color-line)" }}
+        >
+          Settings → Service charge
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3"
+      className="flex flex-wrap items-center justify-end gap-3 px-4 py-3"
       style={{ borderBottom: "1px solid var(--color-line)" }}
     >
       {product.is_veg !== null && (
@@ -324,17 +367,18 @@ function ProductRow({
         Edit
       </button>
 
-      <form action={delAction}>
-        <input type="hidden" name="id" value={product.id} />
-        <button
-          type="submit"
-          className="rounded-lg px-2 py-1.5 text-xs font-semibold"
-          style={{ color: "var(--color-bad)" }}
-          disabled={deleting}
-        >
-          Delete
-        </button>
-      </form>
+      <ConfirmButton
+        question={`Delete ${product.name}?`}
+        yesLabel="Yes, delete"
+        disabled={deleting}
+        onConfirm={() => {
+          const fd = new FormData();
+          fd.set("id", product.id);
+          startTransition(() => delAction(fd));
+        }}
+      >
+        Delete
+      </ConfirmButton>
 
       {(availState.error || delState.error) && (
         <span className="text-xs" style={{ color: "var(--color-bad)" }}>
@@ -375,6 +419,7 @@ function ProductModal({
   defaultCategory,
   optionGroups,
   selectedGroups,
+  showHsn,
   action,
   onClose,
 }: {
@@ -385,6 +430,7 @@ function ProductModal({
   defaultCategory?: string;
   optionGroups: OptionGroupView[];
   selectedGroups: string[];
+  showHsn: boolean;
   action: (prev: MenuState, fd: FormData) => Promise<MenuState>;
   onClose: () => void;
 }) {
@@ -485,6 +531,28 @@ function ProductModal({
           </p>
         </div>
 
+        {showHsn && (
+          <div className="mb-4">
+            <label className="mb-1.5 block text-sm font-semibold" htmlFor="hsn-code">
+              HSN / SAC code <span className="font-normal" style={{ color: "var(--color-ink-3)" }}>(optional)</span>
+            </label>
+            <input
+              id="hsn-code"
+              name="hsn_code"
+              defaultValue={product?.hsn_code ?? ""}
+              className="field"
+              inputMode="numeric"
+              maxLength={8}
+              pattern="[0-9]{4,8}"
+              title="4 to 8 digits"
+              placeholder="996331"
+            />
+            <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+              4 to 8 digits, from your accountant. Leave empty if you do not have one for this item.
+            </p>
+          </div>
+        )}
+
         <input type="hidden" name="options_present" value="1" />
         {optionGroups.length > 0 && (
           <fieldset className="mb-4">
@@ -550,7 +618,7 @@ function OptionGroupsCard({ groups, currency }: { groups: OptionGroupView[]; cur
         </p>
       ) : (
         groups.map((g) => (
-          <div key={g.id} className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "1px solid var(--color-line)" }}>
+          <div key={g.id} className="flex flex-wrap items-center justify-end gap-3 px-4 py-3" style={{ borderBottom: "1px solid var(--color-line)" }}>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium">
                 {g.name}{" "}
@@ -565,11 +633,10 @@ function OptionGroupsCard({ groups, currency }: { groups: OptionGroupView[]; cur
             <button className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--color-line)" }} onClick={() => setEditing(g)}>
               Edit
             </button>
-            <button
-              className="rounded-lg px-2 py-1.5 text-xs font-semibold"
-              style={{ color: "var(--color-bad)" }}
+            <ConfirmButton
+              question={`Remove ${g.name}?`}
               disabled={pending}
-              onClick={() =>
+              onConfirm={() =>
                 start(async () => {
                   setError(null);
                   const r = await removeOptionGroup(g.id);
@@ -579,7 +646,7 @@ function OptionGroupsCard({ groups, currency }: { groups: OptionGroupView[]; cur
               }
             >
               Remove
-            </button>
+            </ConfirmButton>
           </div>
         ))
       )}

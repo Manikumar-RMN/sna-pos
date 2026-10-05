@@ -90,7 +90,14 @@ export async function changePaymentMode(input: { orderId: string; paymentId: str
 }
 
 /** Money back on a paid bill: a credit note dated today, with its own number. */
-export async function issueCreditNote(input: { orderId: string; amount: number; methodId: string; reason: string }): Promise<ActionResult> {
+export async function issueCreditNote(input: {
+  orderId: string;
+  amount: number;
+  methodId: string;
+  reason: string;
+  /** Same id on a retry = the same credit note, never a second one. */
+  clientRef?: string;
+}): Promise<ActionResult> {
   const reason = input.reason.trim();
   if (reason.length < 3) return { ok: false, error: "Write a short reason." };
   if (!(input.amount > 0)) return { ok: false, error: "Enter the amount to give back." };
@@ -101,12 +108,29 @@ export async function issueCreditNote(input: { orderId: string; amount: number; 
     p_amount: Math.round(input.amount * 100) / 100,
     p_method_id: input.methodId,
     p_reason: reason,
+    p_client_ref: input.clientRef && /^[0-9a-f-]{36}$/i.test(input.clientRef) ? input.clientRef : undefined,
   });
   if (error) return { ok: false, error: error.message };
   refresh(input.orderId);
   revalidatePath("/shift");
-  const res = (data ?? {}) as { number?: string; amount?: number };
+  const res = (data ?? {}) as { number?: string; amount?: number; repeat?: boolean };
+  if (res.repeat) return { ok: true, message: `Credit note ${res.number ?? ""} for ${Number(res.amount ?? 0).toFixed(2)} was already made.` };
   return { ok: true, message: `Credit note ${res.number ?? ""} made for ${Number(res.amount ?? 0).toFixed(2)}.` };
+}
+
+/** Guest name, phone and (delivery bills) address on a bill. The database cleans the phone and finds or starts the customer record. */
+export async function setGuestDetails(input: { orderId: string; name: string; phone: string; address?: string | null }): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_order_guest", {
+    p_order_id: input.orderId,
+    p_name: input.name.trim(),
+    p_phone: input.phone.trim(),
+    // Only delivery bills carry an address; for other bills the database leaves it alone.
+    p_address: input.address != null ? input.address.trim() : undefined,
+  });
+  if (error) return { ok: false, error: error.message };
+  refresh(input.orderId);
+  return { ok: true, message: "Guest details saved." };
 }
 
 /** B2B bill: the customer's GSTIN / tax number and business name, printed on the bill. */
@@ -164,11 +188,17 @@ export async function mergeBills(input: { targetId: string; sourceId: string }):
 export async function splitBill(input: {
   orderId: string;
   items: { order_item_id: string; qty: number }[];
+  /** Same id on a retry = the same new bill, never a second split. */
+  clientRef?: string;
 }): Promise<{ ok: true; newOrderId: string; message: string } | { ok: false; error: string }> {
   const items = input.items.filter((i) => i.qty > 0);
   if (items.length === 0) return { ok: false, error: "Choose the items to move to the new bill." };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("split_order", { p_order_id: input.orderId, p_items: items as unknown as Json });
+  const { data, error } = await supabase.rpc("split_order", {
+    p_order_id: input.orderId,
+    p_items: items as unknown as Json,
+    p_client_ref: input.clientRef && /^[0-9a-f-]{36}$/i.test(input.clientRef) ? input.clientRef : undefined,
+  });
   if (error) return { ok: false, error: error.message };
   refresh(input.orderId);
   const res = data as { order_id: string; bill_number: string };

@@ -38,6 +38,7 @@ export function DayPanel({ status, currency, canAsk }: { status: DayStatus; curr
   const [waiting, setWaiting] = useState(0);
   useEffect(() => setWaiting(readQueue().length), []);
   const blocked = status.shift_open || status.unpaid.length > 0 || waiting > 0;
+  const unpaidAmount = status.unpaid.reduce((sum, u) => sum + Number(u.balance ?? 0), 0);
 
   function run(fn: () => Promise<{ ok: boolean; error?: string; message?: string }>) {
     setMsg(null);
@@ -96,7 +97,8 @@ export function DayPanel({ status, currency, canAsk }: { status: DayStatus; curr
           {status.unpaid.length > 0 && (
             <div className="mb-2 rounded-lg px-3 py-2 text-xs" style={{ background: "var(--color-warn-soft)" }}>
               <div className="font-semibold" style={{ color: "var(--color-warn)" }}>
-                {status.unpaid.length} bill{status.unpaid.length === 1 ? " is" : "s are"} not paid. Settle or void {status.unpaid.length === 1 ? "it" : "them"} first:
+                {status.unpaid.length} bill{status.unpaid.length === 1 ? " is" : "s are"} not paid.{unpaidAmount > 0 ? ` Not yet paid: ${money(unpaidAmount, currency)}.` : ""} Settle or void{" "}
+                {status.unpaid.length === 1 ? "it" : "them"} first:
               </div>
               <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
                 {status.unpaid.map((u) => (

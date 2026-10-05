@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { billState } from "@/lib/format";
+import { billFormat } from "@/lib/bill-format";
 import type { ReceiptData } from "@/app/(app)/pos/receipt-view";
 
 export type BillDetail = {
@@ -46,7 +47,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into, calc_params, business_date, buyer_gstin, buyer_name",
+      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into, calc_params, business_date, buyer_gstin, buyer_name, guest_name, guest_phone, delivery_address, token_no",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -69,13 +70,13 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     supabase.from("refunds").select("amount, reason, created_at, approved_by").eq("order_id", order.id).order("created_at"),
     supabase
       .from("restaurants")
-      .select("legal_name, trading_name, tax_registration_no, currency_code, timezone, country_code, fssai_no, sac_code")
+      .select("legal_name, trading_name, tax_registration_no, currency_code, timezone, country_code, fssai_no, sac_code, logo_url")
       .limit(1)
       .maybeSingle(),
     supabase.from("branches").select("name, address_line1, address_line2, city, phone").eq("id", order.branch_id).maybeSingle(),
     supabase
       .from("branch_settings")
-      .select("receipt_header, receipt_footer, service_charge_label, service_charge_percent, cash_rounding_mode, rounding_cash_only")
+      .select("receipt_header, receipt_footer, service_charge_label, service_charge_percent, cash_rounding_mode, rounding_cash_only, bill_format")
       .eq("branch_id", order.branch_id)
       .maybeSingle(),
     order.dining_table_id
@@ -196,6 +197,14 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
       restaurant.data?.country_code === "IN" && upiMethod.data?.upi_id
         ? { id: upiMethod.data.upi_id, payee: restaurant.data?.trading_name ?? "Restaurant" }
         : null,
+    // The owner's layout choices for this outlet, with every choice filled in.
+    format: billFormat(settings.data?.bill_format),
+    logo: restaurant.data?.logo_url ?? null,
+    guest:
+      order.guest_name || order.guest_phone || order.delivery_address
+        ? { name: order.guest_name, phone: order.guest_phone, address: order.delivery_address }
+        : null,
+    token: order.token_no,
   };
 
   return {

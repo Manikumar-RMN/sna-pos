@@ -98,8 +98,20 @@ function parseRupees(raw: string): number | null {
   return Math.round(n * 100) / 100; // 2 dp; stored as numeric(14,2) in rupees
 }
 
+/**
+ * India: the optional HSN / SAC code on a dish. `undefined` means the form did
+ * not carry the field (other countries), so the stored value is left alone.
+ */
+function parseHsn(formData: FormData, countryCode: string | undefined): { value: string | null | undefined; error: string | null } {
+  if (countryCode !== "IN" || !formData.has("hsn_code")) return { value: undefined, error: null };
+  const raw = String(formData.get("hsn_code") ?? "").replace(/\s+/g, "");
+  if (raw === "") return { value: null, error: null };
+  if (!/^[0-9]{4,8}$/.test(raw)) return { value: undefined, error: "The HSN / SAC code is 4 to 8 digits. Leave it empty if you do not have one." };
+  return { value: raw, error: null };
+}
+
 export async function createProduct(_prev: MenuState, formData: FormData): Promise<MenuState> {
-  const { restaurantId, denied } = await requireMenuManager();
+  const { user, restaurantId, denied } = await requireMenuManager();
   if (denied) return { error: denied };
 
   const name = String(formData.get("name") ?? "").trim();
@@ -114,6 +126,8 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
   if (!categoryId) return { error: "Choose a category." };
   if (!taxGroupId) return { error: "Choose a tax group." };
   if (price === null) return { error: "Enter a valid price." };
+  const hsn = parseHsn(formData, user?.country_code);
+  if (hsn.error) return { error: hsn.error };
 
   const supabase = await createClient();
   const { data: created, error } = await supabase
@@ -127,6 +141,7 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
       is_veg: isVeg,
       kitchen_station: station,
       name_local: nameLocal,
+      ...(hsn.value !== undefined ? { hsn_code: hsn.value } : {}),
     })
     .select("id")
     .single();
@@ -153,7 +168,7 @@ async function linkOptionGroups(productId: string, restaurantId: string, formDat
 }
 
 export async function updateProduct(_prev: MenuState, formData: FormData): Promise<MenuState> {
-  const { restaurantId, denied } = await requireMenuManager();
+  const { user, restaurantId, denied } = await requireMenuManager();
   if (denied) return { error: denied };
 
   const id = String(formData.get("id") ?? "");
@@ -170,11 +185,22 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
   if (!categoryId) return { error: "Choose a category." };
   if (!taxGroupId) return { error: "Choose a tax group." };
   if (price === null) return { error: "Enter a valid price." };
+  const hsn = parseHsn(formData, user?.country_code);
+  if (hsn.error) return { error: hsn.error };
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("products")
-    .update({ name, name_local: nameLocal, category_id: categoryId, tax_group_id: taxGroupId, price, is_veg: isVeg, kitchen_station: station })
+    .update({
+      name,
+      name_local: nameLocal,
+      category_id: categoryId,
+      tax_group_id: taxGroupId,
+      price,
+      is_veg: isVeg,
+      kitchen_station: station,
+      ...(hsn.value !== undefined ? { hsn_code: hsn.value } : {}),
+    })
     .eq("id", id);
   if (error) return { error: error.message };
   const linkError = await linkOptionGroups(id, restaurantId!, formData);

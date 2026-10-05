@@ -695,10 +695,15 @@ export type Database = {
       branch_settings: {
         Row: {
           auto_print_kot: boolean
+          bill_format: Json
           branch_id: string
           cash_rounding_mode: string
           day_cutoff: string
           default_order_type: string
+          packing_delivery: boolean
+          packing_per: string
+          packing_product_id: string | null
+          packing_takeaway: boolean
           receipt_footer: string | null
           receipt_header: string | null
           restaurant_id: string
@@ -708,14 +713,20 @@ export type Database = {
           service_charge_percent: number
           service_charge_taxable: boolean
           shifts_enabled: boolean
+          token_numbers: string
           updated_at: string
         }
         Insert: {
           auto_print_kot?: boolean
+          bill_format?: Json
           branch_id: string
           cash_rounding_mode?: string
           day_cutoff?: string
           default_order_type?: string
+          packing_delivery?: boolean
+          packing_per?: string
+          packing_product_id?: string | null
+          packing_takeaway?: boolean
           receipt_footer?: string | null
           receipt_header?: string | null
           restaurant_id: string
@@ -725,14 +736,20 @@ export type Database = {
           service_charge_percent?: number
           service_charge_taxable?: boolean
           shifts_enabled?: boolean
+          token_numbers?: string
           updated_at?: string
         }
         Update: {
           auto_print_kot?: boolean
+          bill_format?: Json
           branch_id?: string
           cash_rounding_mode?: string
           day_cutoff?: string
           default_order_type?: string
+          packing_delivery?: boolean
+          packing_per?: string
+          packing_product_id?: string | null
+          packing_takeaway?: boolean
           receipt_footer?: string | null
           receipt_header?: string | null
           restaurant_id?: string
@@ -742,6 +759,7 @@ export type Database = {
           service_charge_percent?: number
           service_charge_taxable?: boolean
           shifts_enabled?: boolean
+          token_numbers?: string
           updated_at?: string
         }
         Relationships: [
@@ -852,6 +870,7 @@ export type Database = {
           closed_by: string | null
           created_at: string
           id: string
+          last_token: number
           opened_at: string
           reopen_count: number
           restaurant_id: string
@@ -866,6 +885,7 @@ export type Database = {
           closed_by?: string | null
           created_at?: string
           id?: string
+          last_token?: number
           opened_at?: string
           reopen_count?: number
           restaurant_id: string
@@ -880,6 +900,7 @@ export type Database = {
           closed_by?: string | null
           created_at?: string
           id?: string
+          last_token?: number
           opened_at?: string
           reopen_count?: number
           restaurant_id?: string
@@ -1556,8 +1577,126 @@ export type Database = {
           },
         ]
       }
+      goods_receipt_lines: {
+        Row: {
+          goods_receipt_id: string
+          id: string
+          ingredient_id: string
+          line_total: number
+          new_cost: number | null
+          prev_cost: number | null
+          qty: number
+          restaurant_id: string
+          unit_cost: number
+        }
+        Insert: {
+          goods_receipt_id: string
+          id?: string
+          ingredient_id: string
+          line_total: number
+          new_cost?: number | null
+          prev_cost?: number | null
+          qty: number
+          restaurant_id: string
+          unit_cost: number
+        }
+        Update: {
+          goods_receipt_id?: string
+          id?: string
+          ingredient_id?: string
+          line_total?: number
+          new_cost?: number | null
+          prev_cost?: number | null
+          qty?: number
+          restaurant_id?: string
+          unit_cost?: number
+        }
+        Relationships: []
+      }
+      goods_receipts: {
+        Row: {
+          branch_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          client_ref: string | null
+          created_at: string
+          due_on: string | null
+          id: string
+          notes: string | null
+          number: string
+          other_charges: number
+          paid_total: number
+          payment_status: string
+          purchase_order_id: string | null
+          received_by: string
+          received_on: string
+          restaurant_id: string
+          status: string
+          subtotal: number
+          supplier_bill_date: string | null
+          supplier_bill_no: string | null
+          supplier_id: string
+          tax_amount: number
+          total: number
+        }
+        Insert: {
+          branch_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          client_ref?: string | null
+          created_at?: string
+          due_on?: string | null
+          id?: string
+          notes?: string | null
+          number: string
+          other_charges?: number
+          paid_total?: number
+          payment_status?: string
+          purchase_order_id?: string | null
+          received_by: string
+          received_on: string
+          restaurant_id: string
+          status?: string
+          subtotal?: number
+          supplier_bill_date?: string | null
+          supplier_bill_no?: string | null
+          supplier_id: string
+          tax_amount?: number
+          total?: number
+        }
+        Update: {
+          branch_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          client_ref?: string | null
+          created_at?: string
+          due_on?: string | null
+          id?: string
+          notes?: string | null
+          number?: string
+          other_charges?: number
+          paid_total?: number
+          payment_status?: string
+          purchase_order_id?: string | null
+          received_by?: string
+          received_on?: string
+          restaurant_id?: string
+          status?: string
+          subtotal?: number
+          supplier_bill_date?: string | null
+          supplier_bill_no?: string | null
+          supplier_id?: string
+          tax_amount?: number
+          total?: number
+        }
+        Relationships: []
+      }
       ingredients: {
         Row: {
+          category: string | null
           cost_per_unit: number
           created_at: string
           id: string
@@ -1568,6 +1707,7 @@ export type Database = {
           unit: string
         }
         Insert: {
+          category?: string | null
           cost_per_unit?: number
           created_at?: string
           id?: string
@@ -1578,6 +1718,7 @@ export type Database = {
           unit: string
         }
         Update: {
+          category?: string | null
           cost_per_unit?: number
           created_at?: string
           id?: string
@@ -2382,11 +2523,14 @@ export type Database = {
           created_at: string
           currency_code: string
           customer_id: string | null
+          delivery_address: string | null
           device_id: string | null
           dining_table_id: string | null
           discount_total: number
           exempt_sales: number
           grand_total: number
+          guest_name: string | null
+          guest_phone: string | null
           id: string
           merged_into: string | null
           offline_flags: Json | null
@@ -2408,6 +2552,7 @@ export type Database = {
           tax_exempt_amount: number
           tax_included: number
           tax_total: number
+          token_no: number | null
           updated_at: string
           void_reason: string | null
           voided_at: string | null
@@ -2427,11 +2572,14 @@ export type Database = {
           created_at?: string
           currency_code: string
           customer_id?: string | null
+          delivery_address?: string | null
           device_id?: string | null
           dining_table_id?: string | null
           discount_total?: number
           exempt_sales?: number
           grand_total?: number
+          guest_name?: string | null
+          guest_phone?: string | null
           id: string
           merged_into?: string | null
           offline_flags?: Json | null
@@ -2453,6 +2601,7 @@ export type Database = {
           tax_exempt_amount?: number
           tax_included?: number
           tax_total?: number
+          token_no?: number | null
           updated_at?: string
           void_reason?: string | null
           voided_at?: string | null
@@ -2472,11 +2621,14 @@ export type Database = {
           created_at?: string
           currency_code?: string
           customer_id?: string | null
+          delivery_address?: string | null
           device_id?: string | null
           dining_table_id?: string | null
           discount_total?: number
           exempt_sales?: number
           grand_total?: number
+          guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           merged_into?: string | null
           offline_flags?: Json | null
@@ -2498,6 +2650,7 @@ export type Database = {
           tax_exempt_amount?: number
           tax_included?: number
           tax_total?: number
+          token_no?: number | null
           updated_at?: string
           void_reason?: string | null
           voided_at?: string | null
@@ -3249,6 +3402,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_available: boolean
+          is_charge: boolean
           is_veg: boolean | null
           kitchen_station: string | null
           name: string
@@ -3272,6 +3426,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_available?: boolean
+          is_charge?: boolean
           is_veg?: boolean | null
           kitchen_station?: string | null
           name: string
@@ -3295,6 +3450,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_available?: boolean
+          is_charge?: boolean
           is_veg?: boolean | null
           kitchen_station?: string | null
           name?: string
@@ -3343,6 +3499,84 @@ export type Database = {
             referencedColumns: ["restaurant_id", "id"]
           },
         ]
+      }
+      purchase_order_lines: {
+        Row: {
+          id: string
+          ingredient_id: string
+          purchase_order_id: string
+          qty: number
+          received_qty: number
+          restaurant_id: string
+          unit_cost: number
+        }
+        Insert: {
+          id?: string
+          ingredient_id: string
+          purchase_order_id: string
+          qty: number
+          received_qty?: number
+          restaurant_id: string
+          unit_cost?: number
+        }
+        Update: {
+          id?: string
+          ingredient_id?: string
+          purchase_order_id?: string
+          qty?: number
+          received_qty?: number
+          restaurant_id?: string
+          unit_cost?: number
+        }
+        Relationships: []
+      }
+      purchase_orders: {
+        Row: {
+          branch_id: string
+          closed_at: string | null
+          created_at: string
+          created_by: string
+          expected_on: string | null
+          id: string
+          notes: string | null
+          number: string
+          ordered_at: string | null
+          restaurant_id: string
+          status: string
+          supplier_id: string
+          total: number
+        }
+        Insert: {
+          branch_id: string
+          closed_at?: string | null
+          created_at?: string
+          created_by: string
+          expected_on?: string | null
+          id?: string
+          notes?: string | null
+          number: string
+          ordered_at?: string | null
+          restaurant_id: string
+          status?: string
+          supplier_id: string
+          total?: number
+        }
+        Update: {
+          branch_id?: string
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string
+          expected_on?: string | null
+          id?: string
+          notes?: string | null
+          number?: string
+          ordered_at?: string | null
+          restaurant_id?: string
+          status?: string
+          supplier_id?: string
+          total?: number
+        }
+        Relationships: []
       }
       push_subscriptions: {
         Row: {
@@ -3619,6 +3853,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      request_refs: {
+        Row: {
+          created_at: string
+          kind: string
+          order_id: string | null
+          ref: string
+          restaurant_id: string
+          result: Json
+        }
+        Insert: {
+          created_at?: string
+          kind: string
+          order_id?: string | null
+          ref: string
+          restaurant_id: string
+          result: Json
+        }
+        Update: {
+          created_at?: string
+          kind?: string
+          order_id?: string | null
+          ref?: string
+          restaurant_id?: string
+          result?: Json
+        }
+        Relationships: []
       }
       reservations: {
         Row: {
@@ -4095,6 +4356,7 @@ export type Database = {
           branch_id: string
           created_at: string
           created_by: string | null
+          goods_receipt_id: string | null
           id: string
           ingredient_id: string
           kind: string
@@ -4110,6 +4372,7 @@ export type Database = {
           branch_id: string
           created_at?: string
           created_by?: string | null
+          goods_receipt_id?: string | null
           id?: string
           ingredient_id: string
           kind: string
@@ -4125,6 +4388,7 @@ export type Database = {
           branch_id?: string
           created_at?: string
           created_by?: string | null
+          goods_receipt_id?: string | null
           id?: string
           ingredient_id?: string
           kind?: string
@@ -4211,6 +4475,108 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      supplier_payments: {
+        Row: {
+          amount: number
+          branch_id: string
+          cash_movement_id: string | null
+          client_ref: string | null
+          created_at: string
+          from_till: boolean
+          goods_receipt_id: string
+          id: string
+          method: string
+          paid_by: string
+          paid_on: string
+          reason: string | null
+          reference: string | null
+          restaurant_id: string
+          reverses_id: string | null
+          supplier_id: string
+        }
+        Insert: {
+          amount: number
+          branch_id: string
+          cash_movement_id?: string | null
+          client_ref?: string | null
+          created_at?: string
+          from_till?: boolean
+          goods_receipt_id: string
+          id?: string
+          method: string
+          paid_by: string
+          paid_on: string
+          reason?: string | null
+          reference?: string | null
+          restaurant_id: string
+          reverses_id?: string | null
+          supplier_id: string
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          cash_movement_id?: string | null
+          client_ref?: string | null
+          created_at?: string
+          from_till?: boolean
+          goods_receipt_id?: string
+          id?: string
+          method?: string
+          paid_by?: string
+          paid_on?: string
+          reason?: string | null
+          reference?: string | null
+          restaurant_id?: string
+          reverses_id?: string | null
+          supplier_id?: string
+        }
+        Relationships: []
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          contact_person: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          payment_days: number
+          phone: string | null
+          restaurant_id: string
+          tax_no: string | null
+        }
+        Insert: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          payment_days?: number
+          phone?: string | null
+          restaurant_id: string
+          tax_no?: string | null
+        }
+        Update: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          payment_days?: number
+          phone?: string | null
+          restaurant_id?: string
+          tax_no?: string | null
+        }
+        Relationships: []
       }
       sync_log: {
         Row: {
@@ -4762,7 +5128,11 @@ export type Database = {
         Returns: Json
       }
       add_order_items: {
-        Args: { p_items: Json; p_order_id: string }
+        Args: {
+          p_client_ref?: string
+          p_items: Json
+          p_order_id: string
+        }
         Returns: Json
       }
       adjust_order: {
@@ -4788,6 +5158,13 @@ export type Database = {
       }
       attach_customer: {
         Args: { p_name?: string; p_order: string; p_phone: string }
+        Returns: Json
+      }
+      cancel_goods_receipt: {
+        Args: {
+          p_id: string
+          p_reason: string
+        }
         Returns: Json
       }
       cancel_invite: { Args: { p_user_id: string }; Returns: undefined }
@@ -4820,6 +5197,7 @@ export type Database = {
           p_customer_id?: string
           p_discount_amount?: number
           p_discount_reason?: string
+          p_extra?: Json
           p_items: Json
           p_order_type?: string
           p_payment_method_id?: string
@@ -4875,6 +5253,7 @@ export type Database = {
       issue_credit_note: {
         Args: {
           p_amount: number
+          p_client_ref?: string
           p_method_id: string
           p_order_id: string
           p_reason: string
@@ -4888,6 +5267,14 @@ export type Database = {
           p_phone?: string
           p_valid_days?: number
           p_value: number
+        }
+        Returns: Json
+      }
+      login_staff: {
+        Args: {
+          p_client_code: string
+          p_password: string
+          p_username: string
         }
         Returns: Json
       }
@@ -4922,10 +5309,29 @@ export type Database = {
         }
         Returns: Json
       }
+      pay_supplier: {
+        Args: {
+          p_amount: number
+          p_client_ref?: string
+          p_from_till?: boolean
+          p_method: string
+          p_paid_on?: string
+          p_receipt_id: string
+          p_reference?: string
+        }
+        Returns: Json
+      }
       pin_lock: { Args: never; Returns: undefined }
       pin_touch: { Args: never; Returns: boolean }
       pin_unlock: { Args: { p_pin: string }; Returns: Json }
       public_receipt: { Args: { p_token: string }; Returns: Json }
+      purchase_report: {
+        Args: {
+          p_from: string
+          p_to: string
+        }
+        Returns: Json
+      }
       push_gone: {
         Args: { p_endpoints: string[]; p_secret: string }
         Returns: undefined
@@ -4950,6 +5356,22 @@ export type Database = {
           p_items: Json
           p_senior?: Json
           p_service_charge?: boolean
+        }
+        Returns: Json
+      }
+      receive_goods: {
+        Args: {
+          p_bill_date?: string
+          p_bill_no?: string
+          p_client_ref?: string
+          p_due_on?: string
+          p_lines: Json
+          p_notes?: string
+          p_other?: number
+          p_payment?: Json
+          p_purchase_order_id?: string
+          p_supplier_id: string
+          p_tax?: number
         }
         Returns: Json
       }
@@ -5016,6 +5438,7 @@ export type Database = {
       }
       save_ingredient: {
         Args: {
+          p_category?: string
           p_cost: number
           p_id: string
           p_name: string
@@ -5036,6 +5459,16 @@ export type Database = {
         Args: { p_branch: string; p_sessions: Json }
         Returns: undefined
       }
+      save_packing_charge: {
+        Args: {
+          p_amount: number
+          p_delivery?: boolean
+          p_per: string
+          p_takeaway?: boolean
+          p_tax_group_id: string
+        }
+        Returns: Json
+      }
       save_payment_method: {
         Args: {
           p_ask_reference?: boolean
@@ -5045,6 +5478,17 @@ export type Database = {
           p_upi_id?: string
         }
         Returns: string
+      }
+      save_purchase_order: {
+        Args: {
+          p_expected_on?: string
+          p_id: string
+          p_lines: Json
+          p_notes?: string
+          p_place?: boolean
+          p_supplier_id: string
+        }
+        Returns: Json
       }
       save_push_subscription: {
         Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
@@ -5070,6 +5514,13 @@ export type Database = {
         Args: { p_name: string; p_permissions: string[]; p_role_id: string }
         Returns: string
       }
+      save_supplier: {
+        Args: {
+          p: Json
+          p_id: string
+        }
+        Returns: string
+      }
       save_tax_group: {
         Args: { p_components: Json; p_group_id: string; p_name: string }
         Returns: string
@@ -5091,6 +5542,15 @@ export type Database = {
         Args: { p_status: string; p_ticket_id: string }
         Returns: undefined
       }
+      set_order_guest: {
+        Args: {
+          p_address?: string
+          p_name: string
+          p_order_id: string
+          p_phone: string
+        }
+        Returns: Json
+      }
       set_outlet_price: {
         Args: {
           p_available: boolean
@@ -5103,6 +5563,13 @@ export type Database = {
       set_prices_include_tax: {
         Args: { p_inclusive: boolean }
         Returns: undefined
+      }
+      set_purchase_order_status: {
+        Args: {
+          p_action: string
+          p_id: string
+        }
+        Returns: Json
       }
       set_reservation_status: {
         Args: { p_id: string; p_status: string; p_table?: string }
@@ -5186,7 +5653,11 @@ export type Database = {
       }
       sna_staff_list: { Args: never; Returns: Json }
       split_order: {
-        Args: { p_items: Json; p_order_id: string }
+        Args: {
+          p_client_ref?: string
+          p_items: Json
+          p_order_id: string
+        }
         Returns: Json
       }
       stock_report: { Args: { p_from: string; p_to: string }; Returns: Json }
@@ -5200,6 +5671,13 @@ export type Database = {
           p_to_branch: string
         }
         Returns: string
+      }
+      undo_supplier_payment: {
+        Args: {
+          p_payment_id: string
+          p_reason: string
+        }
+        Returns: Json
       }
       update_settings: { Args: { p_settings: Json }; Returns: undefined }
       update_staff: {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money, roundCash } from "@/lib/format";
 import { UpiQr } from "../upi-qr";
@@ -118,6 +118,10 @@ export function BillActions({
   const [cnMethod, setCnMethod] = useState(paymentList[0]?.methodId ?? methods[0]?.id ?? "");
   const [approval, setApproval] = useState<null | { permission: string; retry: () => void }>(null);
   const [payRef, setPayRef] = useState(() => crypto.randomUUID());
+  // Split and credit note: the same id while the same request is retried, a new one when
+  // what is asked changes or after it is done. A repeat is answered once by the server.
+  const splitRef = useRef<{ key: string; id: string } | null>(null);
+  const creditRef = useRef<{ key: string; id: string } | null>(null);
   const [buyerId, setBuyerId] = useState(buyer?.taxId ?? "");
   const [buyerName, setBuyerName] = useState(buyer?.name ?? "");
 
@@ -456,12 +460,23 @@ export function BillActions({
                     disabled={pending || splitCount === 0 || splitCount >= lines.reduce((s, l) => s + l.qty, 0)}
                     onClick={() => {
                       setError(null);
+                      const items = Object.entries(splitQty)
+                        .filter(([, qty]) => qty > 0)
+                        .map(([order_item_id, qty]) => ({ order_item_id, qty }))
+                        .sort((a, b) => a.order_item_id.localeCompare(b.order_item_id));
+                      const key = JSON.stringify(items);
+                      if (splitRef.current?.key !== key) splitRef.current = { key, id: crypto.randomUUID() };
+                      const clientRef = splitRef.current.id;
                       start(async () => {
-                        const res = await splitBill({
-                          orderId,
-                          items: Object.entries(splitQty).map(([order_item_id, qty]) => ({ order_item_id, qty })),
-                        });
+                        let res: Awaited<ReturnType<typeof splitBill>>;
+                        try {
+                          res = await splitBill({ orderId, items, clientRef });
+                        } catch {
+                          // No reply from the server. The same request id makes pressing the button again safe.
+                          return setError("The internet dropped while splitting. Press the button again — the bill will not be split twice.");
+                        }
                         if (!res.ok) return setError(res.error);
+                        splitRef.current = null;
                         router.push(`/bills/${res.newOrderId}`);
                       });
                     }}
@@ -715,7 +730,25 @@ export function BillActions({
                 className="btn flex-1 text-sm text-white"
                 style={{ background: "var(--color-bad)" }}
                 disabled={pending}
-                onClick={() => run(() => issueCreditNote({ orderId, amount: Number(refundAmt), methodId: cnMethod, reason: refundReason }))}
+                onClick={() => {
+                  const input = { orderId, amount: Number(refundAmt), methodId: cnMethod, reason: refundReason.trim() };
+                  const key = JSON.stringify(input);
+                  if (creditRef.current?.key !== key) creditRef.current = { key, id: crypto.randomUUID() };
+                  const clientRef = creditRef.current.id;
+                  run(
+                    async () => {
+                      try {
+                        return await issueCreditNote({ ...input, clientRef });
+                      } catch {
+                        // No reply from the server. The same request id makes pressing the button again safe.
+                        return { ok: false, error: "The internet dropped while saving. Press the button again — the credit note will not be made twice." };
+                      }
+                    },
+                    () => {
+                      creditRef.current = null;
+                    },
+                  );
+                }}
               >
                 {pending ? "Saving…" : `Make credit note ${m(Number(refundAmt) || 0)}`}
               </button>

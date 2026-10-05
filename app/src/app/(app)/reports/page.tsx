@@ -41,7 +41,11 @@ type Report = {
     voided_value: number;
     refunds: number;
     refund_count: number;
+    /** Money actually received: billed, less what is not yet paid, less refunds. */
     net_collected: number;
+    /** Bills that still have something to pay, and how much. Older databases do not send these. */
+    unpaid_bills?: number;
+    unpaid_amount?: number;
     net_sales: number;
     service_charge: number;
     tax_included: number;
@@ -87,6 +91,10 @@ export default async function ReportsPage({
     from = addDays(today, -6);
   } else if (range === "month") {
     from = today.slice(0, 8) + "01";
+  } else if (range === "lastmonth") {
+    // The day before the 1st of this month is the last day of last month.
+    to = addDays(today.slice(0, 8) + "01", -1);
+    from = to.slice(0, 8) + "01";
   } else {
     range = "today";
   }
@@ -110,12 +118,16 @@ export default async function ReportsPage({
   const rep = data as unknown as Report | null;
   const settle = settleData as unknown as Settlement | null;
   const c = user.currency_code;
+  const unpaidAmount = Number(rep?.summary.unpaid_amount ?? 0);
+  const unpaidBills = Number(rep?.summary.unpaid_bills ?? 0);
+  const unpaidCount = `${unpaidBills} bill${unpaidBills === 1 ? "" : "s"}`;
 
   const presets = [
     { key: "today", label: "Today" },
     { key: "yesterday", label: "Yesterday" },
     { key: "7d", label: "Last 7 days" },
     { key: "month", label: "This month" },
+    { key: "lastmonth", label: "Last month" },
   ];
 
   return (
@@ -190,10 +202,20 @@ export default async function ReportsPage({
       ) : (
         <>
           <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi label="Total billed" value={money(rep.summary.total_billed, c)} strong />
+            <Kpi
+              label="Total billed"
+              value={money(rep.summary.total_billed, c)}
+              strong
+              note={unpaidAmount > 0 ? `Not yet paid: ${money(unpaidAmount, c)} · ${unpaidCount}` : undefined}
+              warn
+            />
             <Kpi label="Bills" value={String(rep.summary.bills)} />
             <Kpi label="Average bill" value={money(rep.summary.average_bill, c)} />
-            <Kpi label="Billed minus refunds" value={money(rep.summary.net_collected, c)} />
+            <Kpi
+              label="Money received"
+              value={money(rep.summary.net_collected, c)}
+              note={unpaidAmount > 0 ? "After unpaid bills and refunds" : "After refunds"}
+            />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
@@ -210,9 +232,11 @@ export default async function ReportsPage({
                     ],
                     ["Rounding", money(rep.summary.rounding, c)],
                     ["Total billed", money(rep.summary.total_billed, c)],
+                    unpaidAmount > 0 ? [`Not yet paid (${unpaidCount})`, `−${money(unpaidAmount, c)}`] : null,
                     ["Net sales (excluding tax)", money(rep.summary.net_sales, c)],
                     rep.summary.exempt_sales > 0 ? ["Tax-exempt sales", money(rep.summary.exempt_sales, c)] : null,
                     [`Refunds (${rep.summary.refund_count})`, `−${money(rep.summary.refunds, c)}`],
+                    [unpaidAmount > 0 ? "Money received (after unpaid bills and refunds)" : "Money received (after refunds)", money(rep.summary.net_collected, c)],
                     [`Voided bills (${rep.summary.voided_bills})`, money(rep.summary.voided_value, c)],
                   ].filter((r): r is [string, string] => r !== null)
                 }
@@ -434,7 +458,7 @@ export default async function ReportsPage({
   );
 }
 
-function Kpi({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Kpi({ label, value, strong, note, warn }: { label: string; value: string; strong?: boolean; note?: string; warn?: boolean }) {
   return (
     <div className="card p-4">
       <div className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
@@ -443,6 +467,11 @@ function Kpi({ label, value, strong }: { label: string; value: string; strong?: 
       <div className="mt-1 text-2xl font-bold tabular-nums" style={strong ? { color: "var(--color-brand-strong)" } : undefined}>
         {value}
       </div>
+      {note && (
+        <div className="mt-1 text-xs font-semibold tabular-nums" style={{ color: warn ? "var(--color-warn)" : "var(--color-ink-3)" }}>
+          {note}
+        </div>
+      )}
     </div>
   );
 }

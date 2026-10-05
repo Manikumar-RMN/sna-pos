@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createApiKey, revokeApiKey } from "../actions";
+import { ConfirmButton } from "../confirm-button";
 
 type Key = { id: string; name: string; prefix: string; created_at: string; last_used_at: string | null; revoked_at: string | null };
 
@@ -52,20 +53,19 @@ export function ApiKeys({ keys }: { keys: Key[] }) {
               </div>
             </div>
             {!k.revoked_at && (
-              <button
+              <ConfirmButton
                 className="text-xs font-bold"
-                style={{ color: "var(--color-bad)" }}
+                question={`Remove key "${k.name}"? Software using it stops working at once.`}
                 disabled={pending}
-                onClick={() => {
-                  if (!confirm(`Remove key "${k.name}"? Software using it stops working at once.`)) return;
+                onConfirm={() =>
                   start(async () => {
                     await revokeApiKey(k.id);
                     router.refresh();
-                  });
-                }}
+                  })
+                }
               >
                 Remove
-              </button>
+              </ConfirmButton>
             )}
           </li>
         ))}

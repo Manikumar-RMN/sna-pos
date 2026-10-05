@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { resetTableQr } from "../../actions";
+import { ConfirmButton } from "../../confirm-button";
 
 type Code = { table_id: string; table_number: string; token: string };
 
@@ -35,20 +36,22 @@ export function QrSheet({ restaurant, origin, codes }: { restaurant: string; ori
             <div className="font-display text-2xl font-bold">Table {c.table_number}</div>
             <Qr url={`${origin}/t/${c.token}`} />
             <div className="text-xs">Scan to see the menu and order</div>
-            <button
-              className="mt-2 text-xs font-semibold print:hidden"
-              style={{ color: "var(--color-bad)" }}
-              disabled={pending}
-              onClick={() => {
-                if (!confirm(`Make a new QR code for table ${c.table_number}? The old printed code will stop working.`)) return;
-                start(async () => {
-                  await resetTableQr(c.table_id);
-                  router.refresh();
-                });
-              }}
-            >
-              New code
-            </button>
+            <div className="mt-2 print:hidden">
+              <ConfirmButton
+                className="text-xs font-semibold"
+                question={`Make a new QR code for table ${c.table_number}? The old printed code will stop working.`}
+                yesLabel="Yes, new code"
+                disabled={pending}
+                onConfirm={() =>
+                  start(async () => {
+                    await resetTableQr(c.table_id);
+                    router.refresh();
+                  })
+                }
+              >
+                New code
+              </ConfirmButton>
+            </div>
           </div>
         ))}
       </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   addTable,
   removeTable,
+  savePackingCharge,
   saveSettings,
   saveTaxGroup,
   setPaymentMethod,
@@ -16,6 +17,7 @@ import {
   removeCounter,
   clearCounterLock,
 } from "./actions";
+import { ConfirmButton } from "./confirm-button";
 
 function useRunner() {
   const router = useRouter();
@@ -251,6 +253,148 @@ export function ChargesForm({ initial, canEdit, taxName, serviceChargeHint }: { 
   );
 }
 
+/* ----------------------------------------------- packing charge + tokens */
+
+type Packing = {
+  /** 0 = switched off. */
+  amount: number;
+  per: "bill" | "item";
+  /** "" = not chosen yet. */
+  taxGroupId: string;
+  takeaway: boolean;
+  delivery: boolean;
+};
+
+export function PackingForm({
+  initial,
+  taxGroups,
+  canEdit,
+  currency,
+  taxName,
+  severalOutlets,
+  lost,
+}: {
+  initial: Packing;
+  taxGroups: { id: string; name: string }[];
+  canEdit: boolean;
+  currency: string;
+  taxName: string;
+  severalOutlets: boolean;
+  /** The charge is switched on here, but its menu item was removed or switched off on the Menu screen. */
+  lost: boolean;
+}) {
+  const [v, setV] = useState(initial);
+  const [amount, setAmount] = useState(initial.amount > 0 ? String(initial.amount) : "");
+  const { pending, msg, run } = useRunner();
+  const typed = amount.trim();
+  const value = typed === "" ? 0 : Number(typed);
+
+  return (
+    <section className="card p-5">
+      <h2 className="text-base font-bold">Packing charge</h2>
+      <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+        Added automatically to takeaway and delivery bills. The cashier can untick it on any bill. It appears in the menu as
+        &ldquo;Packing charge&rdquo; under &ldquo;Charges&rdquo;.
+      </p>
+      {lost && (
+        <p className="mt-3 rounded-lg px-3 py-2 text-sm" role="alert" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+          The &ldquo;Packing charge&rdquo; menu item was removed or switched off, so bills are not getting it. Enter the amount and save here to put it back.
+        </p>
+      )}
+      <fieldset disabled={!canEdit} className="mt-4 space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label={`Amount (${currency})`} hint="Empty or 0 = no packing charge.">
+            <input className="field" inputMode="decimal" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </Field>
+          <Field label="Charge it">
+            <select className="field" value={v.per} onChange={(e) => setV({ ...v, per: e.target.value === "item" ? "item" : "bill" })}>
+              <option value="bill">Once per bill</option>
+              <option value="item">For every item</option>
+            </select>
+          </Field>
+          <Field label={`${taxName} on it`}>
+            <select className="field" value={v.taxGroupId} onChange={(e) => setV({ ...v, taxGroupId: e.target.value })}>
+              <option value="">Choose…</option>
+              {taxGroups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        <div className="flex flex-wrap gap-x-8 gap-y-3">
+          <Toggle checked={v.takeaway} onChange={(x) => setV({ ...v, takeaway: x })} label="Takeaway bills" />
+          <Toggle checked={v.delivery} onChange={(x) => setV({ ...v, delivery: x })} label="Delivery bills" />
+        </div>
+      </fieldset>
+      {severalOutlets && (
+        <p className="mt-3 text-xs" style={{ color: "var(--color-ink-3)" }}>
+          You have several outlets: each outlet sets its own amount here and chooses for itself whether to use the packing charge.
+          The {taxName} on it is the same at every outlet.
+        </p>
+      )}
+      {canEdit && (
+        <button
+          className="btn btn-primary mt-5"
+          disabled={pending}
+          onClick={() => run(() => savePackingCharge({ ...v, amount: value }), () => value === 0 && setAmount(""))}
+        >
+          {pending ? "Saving…" : "Save changes"}
+        </button>
+      )}
+      <Msg msg={msg} />
+    </section>
+  );
+}
+
+const TOKEN_CHOICES: { key: "off" | "takeaway" | "all"; label: string; hint: string }[] = [
+  { key: "off", label: "Off", hint: "No token numbers." },
+  { key: "takeaway", label: "Takeaway and delivery", hint: "Dine-in bills go by table." },
+  { key: "all", label: "Every bill", hint: "Dine-in bills too." },
+];
+
+export function TokensForm({ initial, canEdit }: { initial: string; canEdit: boolean }) {
+  const [v, setV] = useState<"off" | "takeaway" | "all">(initial === "takeaway" || initial === "all" ? initial : "off");
+  const { pending, msg, run } = useRunner();
+
+  return (
+    <section className="card p-5">
+      <h2 className="text-base font-bold">Token numbers</h2>
+      <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+        Tokens start again from 1 every business day and print large on the bill and the kitchen ticket.
+      </p>
+      <fieldset disabled={!canEdit} className="mt-4 grid gap-2 sm:grid-cols-3">
+        <legend className="sr-only">Give a token number to</legend>
+        {TOKEN_CHOICES.map((t) => {
+          const on = v === t.key;
+          return (
+            <label
+              key={t.key}
+              className="flex min-h-14 items-center gap-3 rounded-2xl border px-3.5 py-2 text-sm"
+              style={on ? { borderColor: "var(--color-brand)", background: "var(--color-brand-soft)" } : { borderColor: "var(--color-line)" }}
+            >
+              <input type="radio" name="token_numbers" className="h-5 w-5 shrink-0" checked={on} onChange={() => setV(t.key)} />
+              <span>
+                <span className="block font-semibold">{t.label}</span>
+                <span className="block text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                  {t.hint}
+                </span>
+              </span>
+            </label>
+          );
+        })}
+      </fieldset>
+      {canEdit && (
+        <button className="btn btn-primary mt-5" disabled={pending} onClick={() => run(() => saveSettings({ token_numbers: v }))}>
+          {pending ? "Saving…" : "Save changes"}
+        </button>
+      )}
+      <Msg msg={msg} />
+    </section>
+  );
+}
+
 /* ---------------------------------------------------------------------- tax */
 
 export type TaxGroupView = { id: string; name: string; items: number; comps: TaxComponent[] };
@@ -461,13 +605,19 @@ export function TablesForm({ tables, canEdit }: { tables: { id: string; number: 
           </span>
         )}
         {tables.map((t) => (
-          <span key={t.id} className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: t.busy ? "var(--color-warn)" : "var(--color-line)" }}>
+          <span key={t.id} className="flex max-w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: t.busy ? "var(--color-warn)" : "var(--color-line)" }}>
             <b>T{t.number}</b>
             <span style={{ color: "var(--color-ink-3)" }}>{t.seats} seats</span>
             {canEdit && (
-              <button className="text-xs font-semibold" style={{ color: "var(--color-bad)" }} disabled={pending} onClick={() => run(() => removeTable(t.id))} aria-label={`Remove table ${t.number}`}>
+              <ConfirmButton
+                className="text-xs font-semibold"
+                question={`Remove table ${t.number}?`}
+                ariaLabel={`Remove table ${t.number}`}
+                disabled={pending}
+                onConfirm={() => run(() => removeTable(t.id))}
+              >
                 ✕
-              </button>
+              </ConfirmButton>
             )}
           </span>
         ))}
@@ -675,7 +825,7 @@ export function CountersForm({
           </li>
         )}
         {devices.map((d) => (
-          <li key={d.id} className="flex items-center justify-between gap-2">
+          <li key={d.id} className="flex flex-wrap items-center justify-between gap-2">
             <span>
               <b>{d.name}</b>
               <span className="ml-2 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
@@ -683,13 +833,13 @@ export function CountersForm({
               </span>
             </span>
             {canEdit && (
-              <span className="flex shrink-0 gap-3">
+              <span className="flex flex-wrap items-center justify-end gap-3">
                 <button className="text-xs font-semibold" style={{ color: "var(--color-ink-2)" }} disabled={pending} onClick={() => run(() => clearCounterLock(d.id))}>
                   Clear PIN lock
                 </button>
-                <button className="text-xs font-semibold" style={{ color: "var(--color-bad)" }} disabled={pending} onClick={() => run(() => removeCounter(d.id))}>
+                <ConfirmButton className="text-xs font-semibold" question={`Remove ${d.name}?`} disabled={pending} onConfirm={() => run(() => removeCounter(d.id))}>
                   Remove
-                </button>
+                </ConfirmButton>
               </span>
             )}
           </li>

@@ -5,6 +5,7 @@ import { WhatsAppSummary } from "./whatsapp-summary";
 import { createClient } from "@/lib/supabase/server";
 import { dateTime, money } from "@/lib/format";
 import { PrintButton } from "../../../print-button";
+import { paidLaterNote, voidedAfterCloseNote } from "../../figures";
 
 type Z = {
   business_date: string;
@@ -26,10 +27,25 @@ type Z = {
   voided_bills: number;
   voided_value: number;
   unpaid_bills: number;
+  /** Still to collect on the unpaid bills. Reports saved before this was added do not have it. */
+  unpaid_amount?: number;
   payments: { method: string; count: number; amount: number }[];
   taxes: { component: string; rate: number; taxable: number; tax: number }[];
   credit_notes: { count: number; amount: number; tax: number; list: { number: string; amount: number; bill: string; reason: string }[] };
-  shifts: { opened_at: string; closed_at: string | null; opened_by: string | null; expected_cash: number; counted_cash: number | null; variance: number | null }[];
+  shifts: {
+    opened_at: string;
+    closed_at: string | null;
+    opened_by: string | null;
+    expected_cash: number;
+    counted_cash: number | null;
+    variance: number | null;
+    /** Bills voided after the shift closed. Older saved reports do not have these. */
+    voided_after_close?: number;
+    voided_after_close_value?: number;
+    /** Bills unpaid when the shift closed that were paid in a later shift. Older saved reports do not have these. */
+    paid_later?: number;
+    paid_later_value?: number;
+  }[];
   by_type: { type: string; bills: number; total: number }[];
   /** Added with meal sessions; older saved reports do not have it. */
   sessions?: { session: string; bills: number; total: number }[];
@@ -55,6 +71,9 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
   const c = user.currency_code;
   const tz = user.timezone;
   const m = (n: number | null | undefined) => money(Number(n ?? 0), c);
+  const unpaidAmount = Number(z.unpaid_amount ?? 0);
+  const unpaidBills = Number(z.unpaid_bills ?? 0);
+  const unpaidLabel = `Not yet paid (${unpaidBills} bill${unpaidBills === 1 ? "" : "s"})`;
   const date = new Date(`${z.business_date}T00:00:00`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   return (
@@ -89,6 +108,7 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
           <span>Total billed</span>
           <span>{m(z.total_billed)}</span>
         </div>
+        {unpaidAmount > 0 && <Row label={unpaidLabel} value={m(unpaidAmount)} />}
         {z.credit_notes.count > 0 && (
           <>
             <Row label={`Credit notes (${z.credit_notes.count})`} value={`-${m(z.credit_notes.amount)}`} />
@@ -141,16 +161,22 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
           <>
             <Rule />
             <div className="font-bold">Cash drawer</div>
-            {z.shifts.map((s, i) => (
-              <div key={i} className="mt-1">
-                <div>
-                  Shift {i + 1}: {s.opened_by ?? "—"}
+            {z.shifts.map((s, i) => {
+              const lateVoids = voidedAfterCloseNote(s, c);
+              const paidLater = paidLaterNote(s, c);
+              return (
+                <div key={i} className="mt-1">
+                  <div>
+                    Shift {i + 1}: {s.opened_by ?? "—"}
+                  </div>
+                  <Row label="Expected" value={m(s.expected_cash)} />
+                  {s.counted_cash != null && <Row label="Counted" value={m(s.counted_cash)} />}
+                  {s.variance != null && <Row label="Difference" value={m(s.variance)} />}
+                  {lateVoids && <div className="mt-0.5">{lateVoids}</div>}
+                  {paidLater && <div className="mt-0.5">{paidLater}</div>}
                 </div>
-                <Row label="Expected" value={m(s.expected_cash)} />
-                {s.counted_cash != null && <Row label="Counted" value={m(s.counted_cash)} />}
-                {s.variance != null && <Row label="Difference" value={m(s.variance)} />}
-              </div>
-            ))}
+              );
+            })}
           </>
         )}
         <Rule />
@@ -166,6 +192,7 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
             text={[
               `${user.trading_name} — ${z.branch}, day ${z.business_date}${z.status === "closed" ? " (closed)" : " (so far)"}`,
               `Bills: ${z.bills} · Total billed: ${m(z.total_billed)}`,
+              unpaidAmount > 0 ? `${unpaidLabel}: ${m(unpaidAmount)}` : "",
               `Tax: ${m(z.tax + z.tax_included)} · Discounts: ${m(z.discounts)}`,
               ...z.payments.map((p) => `${p.method}: ${m(p.amount)} (${p.count})`),
               z.voided_bills ? `Voided: ${z.voided_bills} bills, ${m(z.voided_value)}` : "",

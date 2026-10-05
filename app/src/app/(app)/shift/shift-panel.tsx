@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import { closeShift, openShift, recordCash } from "./actions";
+import { paidLaterNote, voidedAfterCloseNote } from "./figures";
 
 export type ShiftFigures = {
   shift_id: string;
@@ -11,6 +12,14 @@ export type ShiftFigures = {
   opened_by: string | null;
   bills: number;
   unpaid?: number;
+  /** Still to collect on the unpaid bills. Older reports do not have it. */
+  unpaid_amount?: number;
+  /** A closed shift only: bills voided after it closed. Older reports do not have them. */
+  voided_after_close?: number;
+  voided_after_close_value?: number;
+  /** A closed shift only: bills unpaid when it closed that were paid in a later shift. Older reports do not have them. */
+  paid_later?: number;
+  paid_later_value?: number;
   sales?: number;
   opening_float?: number;
   cash_sales?: number;
@@ -115,6 +124,9 @@ export function ShiftPanel({
 
   const f = figures;
   const c = currency;
+  const unpaidAmount = Number(f.unpaid_amount ?? 0);
+  const lateVoids = voidedAfterCloseNote(f, c);
+  const paidLater = paidLaterNote(f, c);
 
   return (
     <div className="space-y-4">
@@ -154,7 +166,18 @@ export function ShiftPanel({
           )}
           {(f.unpaid ?? 0) > 0 && (
             <p className="mt-3 rounded-lg px-3 py-2 text-xs" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
-              {f.unpaid} unpaid bill{f.unpaid === 1 ? "" : "s"} in this shift. Collect payment on the Bills screen before closing.
+              {f.unpaid} unpaid bill{f.unpaid === 1 ? "" : "s"} in this shift.{unpaidAmount > 0 ? ` Not yet paid: ${money(unpaidAmount, c)}.` : ""} Collect
+              payment on the Bills screen before closing.
+            </p>
+          )}
+          {lateVoids && (
+            <p className="mt-3 rounded-lg px-3 py-2 text-xs" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+              {lateVoids}
+            </p>
+          )}
+          {paidLater && (
+            <p className="mt-3 rounded-lg px-3 py-2 text-xs" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+              {paidLater}
             </p>
           )}
         </div>
