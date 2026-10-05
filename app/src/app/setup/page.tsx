@@ -17,7 +17,7 @@ export default async function SetupPage() {
   // SNA staff without a restaurant of their own work in the SNA console.
   if (state === "new") {
     const { data: sna } = await supabase.rpc("sna_me");
-    if (sna) redirect("/sna");
+    if (sna) redirect("/sna/login");
   }
 
   const { data: countries } = await supabase

@@ -42,7 +42,8 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   // /t/… = guest QR ordering, /r/… = e-bill link: guests open these without signing in.
-  const isPublic = path.startsWith("/login") || path.startsWith("/auth") || path.startsWith("/t/") || path.startsWith("/r/") ||
+  // /sna/login = the SNA console's own sign-in page; the console is not part of the restaurant app.
+  const isPublic = path.startsWith("/login") || path === "/sna/login" || path.startsWith("/auth") || path.startsWith("/t/") || path.startsWith("/r/") ||
     // Machine calls: the push and email senders (shared secret) and the open API (API key).
     path === "/api/push" || path === "/api/report-email" || path.startsWith("/api/v1/");
 
@@ -57,7 +58,7 @@ export async function updateSession(request: NextRequest) {
     return res;
   };
 
-  if (!user && !isPublic) return redirectTo("/login");
+  if (!user && !isPublic) return redirectTo(path === "/sna" || path.startsWith("/sna/") ? "/sna/login" : "/login");
   if (user && path.startsWith("/login")) return redirectTo("/dashboard");
 
   return supabaseResponse;

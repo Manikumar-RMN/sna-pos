@@ -79,11 +79,6 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     ) : (
       <>
         {outlets && <OutletSwitcher info={outlets} onGreen={onGreen} />}
-        {user.is_sna_staff && (
-          <Link href="/sna" className="text-xs font-bold" style={{ color: onGreen ? "#fff" : "var(--color-brand)" }}>
-            SNA console
-          </Link>
-        )}
         <Link
           href="/account/password"
           className="hidden text-xs font-semibold sm:inline"
