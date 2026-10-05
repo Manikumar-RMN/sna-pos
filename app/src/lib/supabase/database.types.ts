@@ -4570,6 +4570,8 @@ export type Database = {
           last_contact: string | null
           licence_expiry: string | null
           licence_start: string | null
+          live_at: string | null
+          live_by: string | null
           next_contact: string | null
           reminder_off_for: string | null
           restaurant_id: string
@@ -4583,6 +4585,8 @@ export type Database = {
           last_contact?: string | null
           licence_expiry?: string | null
           licence_start?: string | null
+          live_at?: string | null
+          live_by?: string | null
           next_contact?: string | null
           reminder_off_for?: string | null
           restaurant_id: string
@@ -4596,6 +4600,8 @@ export type Database = {
           last_contact?: string | null
           licence_expiry?: string | null
           licence_start?: string | null
+          live_at?: string | null
+          live_by?: string | null
           next_contact?: string | null
           reminder_off_for?: string | null
           restaurant_id?: string
@@ -4608,6 +4614,13 @@ export type Database = {
           {
             foreignKeyName: "sna_accounts_account_manager_fkey"
             columns: ["account_manager"]
+            isOneToOne: false
+            referencedRelation: "sna_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sna_accounts_live_by_fkey"
+            columns: ["live_by"]
             isOneToOne: false
             referencedRelation: "sna_staff"
             referencedColumns: ["id"]
@@ -6305,10 +6318,7 @@ export type Database = {
         }
         Returns: Json
       }
-      sna_erase_preview: {
-        Args: { p_id: string }
-        Returns: Json
-      }
+      sna_erase_preview: { Args: { p_id: string }; Returns: Json }
       sna_licence: { Args: { p_id: string }; Returns: Json }
       sna_me: { Args: never; Returns: Json }
       sna_record_sale: {
