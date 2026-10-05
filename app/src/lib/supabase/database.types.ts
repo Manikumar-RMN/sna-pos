@@ -778,6 +778,20 @@ export type Database = {
             referencedColumns: ["restaurant_id", "id"]
           },
           {
+            foreignKeyName: "branch_settings_packing_product_same_rest"
+            columns: ["restaurant_id", "packing_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "branch_settings_packing_product_same_rest"
+            columns: ["restaurant_id", "packing_product_id"]
+            isOneToOne: false
+            referencedRelation: "v_menu"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
             foreignKeyName: "branch_settings_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
@@ -1611,7 +1625,22 @@ export type Database = {
           restaurant_id?: string
           unit_cost?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "goods_receipt_lines_restaurant_id_goods_receipt_id_fkey"
+            columns: ["restaurant_id", "goods_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "goods_receipts"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "goods_receipt_lines_restaurant_id_ingredient_id_fkey"
+            columns: ["restaurant_id", "ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+        ]
       }
       goods_receipts: {
         Row: {
@@ -1692,7 +1721,64 @@ export type Database = {
           tax_amount?: number
           total?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "goods_receipts_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_restaurant_id_branch_id_fkey"
+            columns: ["restaurant_id", "branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_restaurant_id_purchase_order_id_fkey"
+            columns: ["restaurant_id", "purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "goods_receipts_restaurant_id_supplier_id_fkey"
+            columns: ["restaurant_id", "supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+        ]
       }
       ingredients: {
         Row: {
@@ -3528,7 +3614,22 @@ export type Database = {
           restaurant_id?: string
           unit_cost?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_lines_restaurant_id_ingredient_id_fkey"
+            columns: ["restaurant_id", "ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "purchase_order_lines_restaurant_id_purchase_order_id_fkey"
+            columns: ["restaurant_id", "purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+        ]
       }
       purchase_orders: {
         Row: {
@@ -3576,7 +3677,43 @@ export type Database = {
           supplier_id?: string
           total?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_restaurant_id_branch_id_fkey"
+            columns: ["restaurant_id", "branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_restaurant_id_supplier_id_fkey"
+            columns: ["restaurant_id", "supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+        ]
       }
       push_subscriptions: {
         Row: {
@@ -3854,6 +3991,122 @@ export type Database = {
           },
         ]
       }
+      report_schedules: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          days: number[]
+          emails: string[]
+          id: string
+          is_active: boolean
+          last_email_result: string | null
+          last_for_date: string | null
+          last_problem: string | null
+          last_problem_at: string | null
+          last_result: string | null
+          last_run_on: string | null
+          last_sent_at: string | null
+          phone_alert: boolean
+          restaurant_id: string
+          send_time: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          days?: number[]
+          emails?: string[]
+          id?: string
+          is_active?: boolean
+          last_email_result?: string | null
+          last_for_date?: string | null
+          last_problem?: string | null
+          last_problem_at?: string | null
+          last_result?: string | null
+          last_run_on?: string | null
+          last_sent_at?: string | null
+          phone_alert?: boolean
+          restaurant_id: string
+          send_time: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          days?: number[]
+          emails?: string[]
+          id?: string
+          is_active?: boolean
+          last_email_result?: string | null
+          last_for_date?: string | null
+          last_problem?: string | null
+          last_problem_at?: string | null
+          last_result?: string | null
+          last_run_on?: string | null
+          last_sent_at?: string | null
+          phone_alert?: boolean
+          restaurant_id?: string
+          send_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "report_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "report_schedules_restaurant_id_branch_id_fkey"
+            columns: ["restaurant_id", "branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "report_schedules_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      report_send_days: {
+        Row: {
+          day: string
+          emails: number
+          scope: string
+          sends: number
+          tests: number
+        }
+        Insert: {
+          day: string
+          emails?: number
+          scope: string
+          sends?: number
+          tests?: number
+        }
+        Update: {
+          day?: string
+          emails?: number
+          scope?: string
+          sends?: number
+          tests?: number
+        }
+        Relationships: []
+      }
       request_refs: {
         Row: {
           created_at: string
@@ -3879,7 +4132,15 @@ export type Database = {
           restaurant_id?: string
           result?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "request_refs_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reservations: {
         Row: {
@@ -4006,6 +4267,8 @@ export type Database = {
       }
       restaurants: {
         Row: {
+          backup_phone: string | null
+          client_code: string
           contact_email: string | null
           contact_phone: string | null
           country_code: string
@@ -4026,6 +4289,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          backup_phone?: string | null
+          client_code?: string
           contact_email?: string | null
           contact_phone?: string | null
           country_code: string
@@ -4046,6 +4311,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          backup_phone?: string | null
+          client_code?: string
           contact_email?: string | null
           contact_phone?: string | null
           country_code?: string
@@ -4147,6 +4414,45 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_closings: {
+        Row: {
+          created_at: string
+          figures: Json
+          restaurant_id: string
+          shift_id: string
+          unpaid_orders: string[]
+        }
+        Insert: {
+          created_at?: string
+          figures: Json
+          restaurant_id: string
+          shift_id: string
+          unpaid_orders?: string[]
+        }
+        Update: {
+          created_at?: string
+          figures?: Json
+          restaurant_id?: string
+          shift_id?: string
+          unpaid_orders?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_closings_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_closings_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: true
+            referencedRelation: "shifts"
             referencedColumns: ["id"]
           },
         ]
@@ -4531,7 +4837,57 @@ export type Database = {
           reverses_id?: string | null
           supplier_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payments_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_restaurant_id_branch_id_fkey"
+            columns: ["restaurant_id", "branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_restaurant_id_goods_receipt_id_fkey"
+            columns: ["restaurant_id", "goods_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "goods_receipts"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_restaurant_id_supplier_id_fkey"
+            columns: ["restaurant_id", "supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppliers: {
         Row: {
@@ -4576,7 +4932,15 @@ export type Database = {
           restaurant_id?: string
           tax_no?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sync_log: {
         Row: {
@@ -4923,6 +5287,8 @@ export type Database = {
           id: string
           is_active: boolean
           last_login_at: string | null
+          login_failed_count: number
+          login_locked_until: string | null
           must_change_password: boolean
           password_reset_hash: string | null
           phone: string | null
@@ -4944,6 +5310,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_login_at?: string | null
+          login_failed_count?: number
+          login_locked_until?: string | null
           must_change_password?: boolean
           password_reset_hash?: string | null
           phone?: string | null
@@ -4965,6 +5333,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_login_at?: string | null
+          login_failed_count?: number
+          login_locked_until?: string | null
           must_change_password?: boolean
           password_reset_hash?: string | null
           phone?: string | null
@@ -5128,11 +5498,7 @@ export type Database = {
         Returns: Json
       }
       add_order_items: {
-        Args: {
-          p_client_ref?: string
-          p_items: Json
-          p_order_id: string
-        }
+        Args: { p_client_ref?: string; p_items: Json; p_order_id: string }
         Returns: Json
       }
       adjust_order: {
@@ -5161,10 +5527,7 @@ export type Database = {
         Returns: Json
       }
       cancel_goods_receipt: {
-        Args: {
-          p_id: string
-          p_reason: string
-        }
+        Args: { p_id: string; p_reason: string }
         Returns: Json
       }
       cancel_invite: { Args: { p_user_id: string }; Returns: undefined }
@@ -5271,11 +5634,7 @@ export type Database = {
         Returns: Json
       }
       login_staff: {
-        Args: {
-          p_client_code: string
-          p_password: string
-          p_username: string
-        }
+        Args: { p_client_code: string; p_password: string; p_username: string }
         Returns: Json
       }
       mark_tickets_printed: { Args: { p_ids: string[] }; Returns: number }
@@ -5325,13 +5684,7 @@ export type Database = {
       pin_touch: { Args: never; Returns: boolean }
       pin_unlock: { Args: { p_pin: string }; Returns: Json }
       public_receipt: { Args: { p_token: string }; Returns: Json }
-      purchase_report: {
-        Args: {
-          p_from: string
-          p_to: string
-        }
-        Returns: Json
-      }
+      purchase_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       push_gone: {
         Args: { p_endpoints: string[]; p_secret: string }
         Returns: undefined
@@ -5418,12 +5771,7 @@ export type Database = {
         Args: { p_endpoint: string }
         Returns: undefined
       }
-      remove_report_schedule: {
-        Args: {
-          p_id: string
-        }
-        Returns: undefined
-      }
+      remove_report_schedule: { Args: { p_id: string }; Returns: undefined }
       reopen_day: { Args: { p_reason: string }; Returns: Json }
       report_schedules_list: { Args: never; Returns: Json }
       report_sent: {
@@ -5514,13 +5862,7 @@ export type Database = {
         Args: { p_lines: Json; p_product_id: string }
         Returns: number
       }
-      save_report_schedule: {
-        Args: {
-          p: Json
-          p_id: string
-        }
-        Returns: Json
-      }
+      save_report_schedule: { Args: { p: Json; p_id: string }; Returns: Json }
       save_reservation: {
         Args: {
           p_id: string
@@ -5537,23 +5879,12 @@ export type Database = {
         Args: { p_name: string; p_permissions: string[]; p_role_id: string }
         Returns: string
       }
-      save_supplier: {
-        Args: {
-          p: Json
-          p_id: string
-        }
-        Returns: string
-      }
+      save_supplier: { Args: { p: Json; p_id: string }; Returns: string }
       save_tax_group: {
         Args: { p_components: Json; p_group_id: string; p_name: string }
         Returns: string
       }
-      send_report_now: {
-        Args: {
-          p_id: string
-        }
-        Returns: Json
-      }
+      send_report_now: { Args: { p_id: string }; Returns: Json }
       session_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       set_bill_customer: {
         Args: { p_gstin: string; p_name: string; p_order_id: string }
@@ -5594,17 +5925,11 @@ export type Database = {
         Returns: undefined
       }
       set_purchase_order_status: {
-        Args: {
-          p_action: string
-          p_id: string
-        }
+        Args: { p_action: string; p_id: string }
         Returns: Json
       }
       set_report_schedule_active: {
-        Args: {
-          p_id: string
-          p_on: boolean
-        }
+        Args: { p_id: string; p_on: boolean }
         Returns: undefined
       }
       set_reservation_status: {
@@ -5689,11 +6014,7 @@ export type Database = {
       }
       sna_staff_list: { Args: never; Returns: Json }
       split_order: {
-        Args: {
-          p_client_ref?: string
-          p_items: Json
-          p_order_id: string
-        }
+        Args: { p_client_ref?: string; p_items: Json; p_order_id: string }
         Returns: Json
       }
       stock_report: { Args: { p_from: string; p_to: string }; Returns: Json }
@@ -5709,10 +6030,7 @@ export type Database = {
         Returns: string
       }
       undo_supplier_payment: {
-        Args: {
-          p_payment_id: string
-          p_reason: string
-        }
+        Args: { p_payment_id: string; p_reason: string }
         Returns: Json
       }
       update_settings: { Args: { p_settings: Json }; Returns: undefined }
