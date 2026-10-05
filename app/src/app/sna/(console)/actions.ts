@@ -302,3 +302,40 @@ export async function createClientAccount(input: {
     tempPassword: made.kept_password ? null : tempPassword,
   };
 }
+
+// ---------- Go-live and erasing a client's test data
+
+export async function setLive(restaurantId: string, live: boolean, reason: string): Promise<SnaResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("sna_set_live", { p_restaurant: restaurantId, p_live: live, p_reason: reason || undefined });
+  if (error) return { ok: false, error: error.message };
+  return done(live ? "Marked as Live. Its data can no longer be erased." : "Live taken off. Its data can be erased again.", clientPath(restaurantId));
+}
+
+export async function eraseData(input: {
+  restaurantId: string;
+  posTx: boolean;
+  posMaster: boolean;
+  stockTx: boolean;
+  stockMaster: boolean;
+  clientCode: string;
+  reason: string;
+}): Promise<SnaResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("sna_erase", {
+    p_restaurant: input.restaurantId,
+    p_pos_tx: input.posTx,
+    p_pos_master: input.posMaster,
+    p_stock_tx: input.stockTx,
+    p_stock_master: input.stockMaster,
+    p_client_code: input.clientCode,
+    p_reason: input.reason,
+  });
+  if (error) return { ok: false, error: error.message };
+  const rows = ((data as unknown as { rows?: Record<string, number> } | null)?.rows ?? {}) as Record<string, number>;
+  const names: Record<string, string> = { pos_tx: "POS transactions", pos_master: "POS masters", stock_tx: "Stock transactions", stock_master: "Stock masters" };
+  const said = Object.entries(rows)
+    .map(([k, n]) => `${names[k] ?? k}: ${n}`)
+    .join(", ");
+  return done(`Erased. ${said || "Nothing was there to remove."}`, clientPath(input.restaurantId));
+}

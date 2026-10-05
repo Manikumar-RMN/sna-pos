@@ -6293,6 +6293,22 @@ export type Database = {
         Args: { p_approve: boolean; p_id: string; p_note?: string }
         Returns: undefined
       }
+      sna_erase: {
+        Args: {
+          p_client_code: string
+          p_pos_master: boolean
+          p_pos_tx: boolean
+          p_reason: string
+          p_restaurant: string
+          p_stock_master: boolean
+          p_stock_tx: boolean
+        }
+        Returns: Json
+      }
+      sna_erase_preview: {
+        Args: { p_id: string }
+        Returns: Json
+      }
       sna_licence: { Args: { p_id: string }; Returns: Json }
       sna_me: { Args: never; Returns: Json }
       sna_record_sale: {
@@ -6357,6 +6373,10 @@ export type Database = {
       }
       sna_set_follow_up: {
         Args: { p_next_contact: string; p_restaurant: string }
+        Returns: undefined
+      }
+      sna_set_live: {
+        Args: { p_live: boolean; p_reason?: string; p_restaurant: string }
         Returns: undefined
       }
       sna_set_module: {

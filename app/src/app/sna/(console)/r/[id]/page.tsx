@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
 import { RestaurantPanel, type SnaRestaurant } from "./restaurant-panel";
 import { AccountPanel, ContactsPanel, NotesPanel, SalesPanel } from "./client-book";
+import { ErasePanel, type ErasePreview } from "./erase-panel";
 import { clientState, licenceState, shortDate, toneStyle, type Client, type LicenceNow, type SalesExtra } from "../../crm";
 
 const TABS = [
@@ -12,6 +13,7 @@ const TABS = [
   { key: "notes", label: "Notes and follow-up" },
   { key: "sales", label: "Sales history" },
   { key: "plan", label: "Plan and outlets" },
+  { key: "erase", label: "Go-live and erase" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -24,12 +26,13 @@ export default async function SnaClientPage({ params, searchParams }: { params: 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
 
   const supabase = await createClient();
-  const [{ data, error }, { data: me }, plan, { data: lic0 }, extra] = await Promise.all([
+  const [{ data, error }, { data: me }, plan, { data: lic0 }, extra, preview] = await Promise.all([
     supabase.rpc("sna_client", { p_id: id }),
     supabase.rpc("sna_me"),
     tab === "plan" ? supabase.rpc("sna_restaurant", { p_id: id }) : Promise.resolve({ data: null, error: null }),
     supabase.rpc("sna_licence", { p_id: id }),
     tab === "sales" ? supabase.rpc("sna_sales_list", { p_id: id }) : Promise.resolve({ data: null, error: null }),
+    tab === "erase" ? supabase.rpc("sna_erase_preview", { p_id: id }) : Promise.resolve({ data: null, error: null }),
   ]);
   if (error?.message?.includes("not found")) notFound();
   if (error || !data) return <div className="card p-5 text-sm">{error?.message ?? "Could not load."}</div>;
@@ -119,6 +122,12 @@ export default async function SnaClientPage({ params, searchParams }: { params: 
         {tab === "contacts" && <ContactsPanel c={c} />}
         {tab === "notes" && <NotesPanel c={c} />}
         {tab === "sales" && <SalesPanel c={c} extra={salesExtra} canEdit={canSell} />}
+        {tab === "erase" &&
+          (preview.data ? (
+            <ErasePanel restaurantId={c.id} p={preview.data as unknown as ErasePreview} isAdmin={role === "admin"} />
+          ) : (
+            <div className="card p-5 text-sm">{preview.error?.message ?? "Could not load."}</div>
+          ))}
         {tab === "plan" &&
           (plan.data ? (
             <RestaurantPanel r={plan.data as unknown as SnaRestaurant} role={role} />
