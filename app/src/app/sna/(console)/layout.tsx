@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createConsoleClient as createClient } from "@/lib/supabase/server";
 import { CONSOLE_COOKIE } from "../console-cookie";
 import { signOutOfConsole } from "../login/actions";
 
@@ -60,7 +60,7 @@ export default async function SnaLayout({ children }: Readonly<{ children: React
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3">
-            <Link href="/account/password?to=console" className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.85)" }}>
+            <Link href="/sna/password" className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.85)" }}>
               Change password
             </Link>
             <form action={signOutOfConsole}>

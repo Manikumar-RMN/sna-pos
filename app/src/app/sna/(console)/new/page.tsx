@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createConsoleClient as createClient } from "@/lib/supabase/server";
 import { NewClientForm } from "./new-client-form";
 
 /** SNA staff set up a new restaurant here. This is the only way a restaurant is created. */

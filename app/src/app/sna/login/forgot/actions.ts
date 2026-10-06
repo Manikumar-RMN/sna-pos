@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createConsoleClient as createClient } from "@/lib/supabase/server";
 
 export type ConsoleForgotState = { error: string | null; sent?: boolean };
 
@@ -17,7 +17,7 @@ export async function requestConsoleReset(_prev: ConsoleForgotState, formData: F
   const site = (process.env.NEXT_PUBLIC_SITE_URL || "https://sna-pos.vercel.app").replace(/\/$/, "");
   const supabase = await createClient();
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${site}/auth/confirm?next=${encodeURIComponent("/account/password?recovery=1&to=console")}`,
+    redirectTo: `${site}/auth/confirm?next=${encodeURIComponent("/sna/password?recovery=1")}`,
   });
   return { error: null, sent: true };
 }

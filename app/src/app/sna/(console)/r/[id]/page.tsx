@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createConsoleClient as createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
 import { RestaurantPanel, type SnaRestaurant } from "./restaurant-panel";
 import { AccountPanel, ContactsPanel, NotesPanel, SalesPanel } from "./client-book";

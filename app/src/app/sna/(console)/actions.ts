@@ -3,7 +3,7 @@
 import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/server";
+import { createConsoleClient as createClient } from "@/lib/supabase/server";
 
 export type SnaResult = { ok: true; message: string } | { ok: false; error: string };
 

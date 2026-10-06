@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createConsoleClient as createClient } from "@/lib/supabase/server";
 import { CONSOLE_COOKIE } from "../console-cookie";
 import { ConsoleSignIn } from "./sign-in-form";
 

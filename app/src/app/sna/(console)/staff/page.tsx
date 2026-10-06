@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createConsoleClient as createClient } from "@/lib/supabase/server";
 import { StaffEditor, type SnaStaff } from "./staff-editor";
 
 export default async function SnaStaffPage() {

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { CONSOLE_SESSION } from "./console-session";
 import type { Database } from "./database.types";
 
 /**
@@ -13,10 +14,16 @@ import type { Database } from "./database.types";
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
+  const path = request.nextUrl.pathname;
+  // The SNA console has its own sign-in, separate from the restaurant app's,
+  // so both can be open in one browser. Each side checks only its own.
+  const isConsole = path === "/sna" || path.startsWith("/sna/");
+
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      ...(isConsole ? { cookieOptions: { name: CONSOLE_SESSION } } : {}),
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -40,7 +47,6 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
   // /t/… = guest QR ordering, /r/… = e-bill link: guests open these without signing in.
   // /sna/login = the SNA console's own sign-in page; the console is not part of the restaurant app.
   const isPublic = path.startsWith("/login") || path === "/sna/login" || path === "/sna/login/forgot" || path.startsWith("/auth") || path.startsWith("/t/") || path.startsWith("/r/") ||
@@ -58,7 +64,7 @@ export async function updateSession(request: NextRequest) {
     return res;
   };
 
-  if (!user && !isPublic) return redirectTo(path === "/sna" || path.startsWith("/sna/") ? "/sna/login" : "/login");
+  if (!user && !isPublic) return redirectTo(isConsole ? "/sna/login" : "/login");
   if (user && path.startsWith("/login")) return redirectTo("/dashboard");
 
   return supabaseResponse;

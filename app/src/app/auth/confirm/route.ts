@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createConsoleClient } from "@/lib/supabase/server";
+import { CONSOLE_COOKIE } from "@/app/sna/console-cookie";
 
 /**
  * Landing page for links in Supabase emails (password reset). Handles both link
@@ -11,6 +12,11 @@ export async function GET(request: NextRequest) {
   const url = request.nextUrl;
   const next = url.searchParams.get("next");
   const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+
+  // A reset link asked for from the SNA console signs in to the console only.
+  // It never touches a restaurant sign-in in the same browser.
+  if (safeNext === "/sna" || safeNext.startsWith("/sna/")) return consoleLink(request, safeNext);
+
   const supabase = await createClient();
 
   // Never let an email link replace a counter tablet's own sign-in.
@@ -44,4 +50,47 @@ export async function GET(request: NextRequest) {
     dest.searchParams.set("link", "expired");
   }
   return NextResponse.redirect(dest);
+}
+
+/** The same link, for the SNA console: it uses the console's own sign-in. */
+async function consoleLink(request: NextRequest, next: string) {
+  const url = request.nextUrl;
+  const supabase = await createConsoleClient();
+  const code = url.searchParams.get("code");
+  const tokenHash = url.searchParams.get("token_hash");
+  const type = url.searchParams.get("type") as EmailOtpType | null;
+
+  let userId: string | null = null;
+  if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) userId = data.user?.id ?? null;
+  } else if (tokenHash && type) {
+    const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+    if (!error) userId = data.user?.id ?? null;
+  }
+
+  const dest = url.clone();
+  dest.search = "";
+  dest.pathname = "/sna/login";
+  if (!userId) return NextResponse.redirect(dest);
+
+  // Only SNA staff may hold a console sign-in.
+  if (!(await supabase.rpc("sna_me")).data) {
+    await supabase.auth.signOut({ scope: "local" });
+    return NextResponse.redirect(dest);
+  }
+
+  const [path, query] = next.split("?");
+  dest.pathname = path;
+  if (query) dest.search = "?" + query;
+  const res = NextResponse.redirect(dest);
+  // The same mark the console's sign-in page sets: 12 hours, console pages only.
+  res.cookies.set(CONSOLE_COOKIE, userId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/sna",
+    maxAge: 60 * 60 * 12,
+  });
+  return res;
 }

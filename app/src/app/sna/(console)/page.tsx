@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createConsoleClient as createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
 import { RequestRow, type SnaRequest } from "./request-row";
 import { clientState, licenceState, shortDate, toneStyle, type ClientList } from "./crm";

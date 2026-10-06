@@ -139,7 +139,9 @@ export async function authenticate(_prev: AuthState, formData: FormData): Promis
 
 export async function signOut() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  // This browser only. The same person may also be signed in to the SNA console
+  // (its own, separate sign-in) or on another device; those stay as they are.
+  await supabase.auth.signOut({ scope: "local" });
   revalidatePath("/", "layout");
   redirect("/login");
 }
