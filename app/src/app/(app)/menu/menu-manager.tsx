@@ -53,6 +53,8 @@ type Product = {
   /** A size of another dish (its "parent"): Small, Large, Half, Full… */
   parent_id?: string | null;
   variant_name?: string | null;
+  /** A combo / meal deal: its options are other dishes. */
+  is_combo?: boolean;
 };
 type TaxGroup = { id: string; name: string };
 export type OptionGroupView = {
@@ -60,7 +62,8 @@ export type OptionGroupView = {
   name: string;
   required: boolean;
   max: number;
-  options: { id: string; name: string; price: number }[];
+  /** productId: this choice is a dish (combos). */
+  options: { id: string; name: string; price: number; productId?: string | null }[];
 };
 
 const initial: MenuState = { error: null };
@@ -211,7 +214,15 @@ export function MenuManager({
 
       <AddCategoryCard mains={mains} />
 
-      <OptionGroupsCard groups={optionGroups} currency={currency} />
+      <OptionGroupsCard
+        groups={optionGroups}
+        currency={currency}
+        // Dishes that can be a combo choice: not a combo, not the packing charge, not a dish sold only in sizes.
+        dishes={products
+          .filter((p) => !p.is_combo && !p.is_charge && !products.some((z) => z.parent_id === p.id))
+          .map((p) => ({ id: p.id, name: p.name, price: p.price }))
+          .sort((a, b) => a.name.localeCompare(b.name))}
+      />
 
       {addingIn && (
         <ProductModal
@@ -421,6 +432,11 @@ function ProductRow({
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">
           {product.name}
+          {product.is_combo && (
+            <span className="ml-2 rounded px-1.5 py-0.5 text-[11px] font-bold" style={{ background: "var(--color-brand-soft)", color: "var(--color-brand)" }}>
+              Combo
+            </span>
+          )}
           {!product.is_available && (
             <span className="ml-2 rounded px-1.5 py-0.5 text-[11px]" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
               Sold out
@@ -803,6 +819,17 @@ function ProductModal({
           </div>
         )}
 
+        <label className="mb-4 flex items-start gap-2 text-sm">
+          <input type="checkbox" name="is_combo" defaultChecked={!!product?.is_combo} className="mt-0.5 h-4 w-4" />
+          <span>
+            <b>This is a combo / meal deal</b>
+            <span className="block text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+              Price above is the combo price. Tick the option groups whose choices are dishes (e.g. &ldquo;Choose drink&rdquo;). The chosen
+              dishes go on the kitchen ticket and their ingredients come out of stock.
+            </span>
+          </span>
+        </label>
+
         <input type="hidden" name="options_present" value="1" />
         {optionGroups.length > 0 && (
           <fieldset className="mb-4">
@@ -839,7 +866,9 @@ function ProductModal({
 
 /* ---------- options & add-ons ---------- */
 
-function OptionGroupsCard({ groups, currency }: { groups: OptionGroupView[]; currency: string }) {
+type DishChoice = { id: string; name: string; price: number };
+
+function OptionGroupsCard({ groups, currency, dishes }: { groups: OptionGroupView[]; currency: string; dishes: DishChoice[] }) {
   const [editing, setEditing] = useState<OptionGroupView | "new" | null>(null);
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -851,7 +880,7 @@ function OptionGroupsCard({ groups, currency }: { groups: OptionGroupView[]; cur
         <div>
           <div className="text-sm font-bold">Options &amp; add-ons</div>
           <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
-            Sizes, half/full, spice level, extra toppings. Make a group once, then tick it on each item.
+            Spice level, extra toppings, and combo choices (&ldquo;Choose drink&rdquo;: Coke, Lime soda). Make a group once, then tick it on each item.
           </div>
         </div>
         <button
@@ -877,6 +906,11 @@ function OptionGroupsCard({ groups, currency }: { groups: OptionGroupView[]; cur
                 </span>
               </div>
               <div className="truncate text-xs" style={{ color: "var(--color-ink-2)" }}>
+                {g.options.some((o) => o.productId) && (
+                  <span className="mr-1 rounded px-1 text-[10px] font-bold uppercase" style={{ background: "var(--color-brand-soft)", color: "var(--color-brand)" }}>
+                    dishes
+                  </span>
+                )}
                 {g.options.map((o) => (o.price ? `${o.name} ${o.price > 0 ? "+" : "−"}${money(currency, Math.abs(o.price))}` : o.name)).join(" · ")}
               </div>
             </div>
@@ -905,29 +939,30 @@ function OptionGroupsCard({ groups, currency }: { groups: OptionGroupView[]; cur
           {error}
         </p>
       )}
-      {editing && <OptionGroupModal group={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && <OptionGroupModal group={editing === "new" ? null : editing} dishes={dishes} currency={currency} onClose={() => setEditing(null)} />}
     </div>
   );
 }
 
-function OptionGroupModal({ group, onClose }: { group: OptionGroupView | null; onClose: () => void }) {
+function OptionGroupModal({ group, dishes, currency, onClose }: { group: OptionGroupView | null; dishes: DishChoice[]; currency: string; onClose: () => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [name, setName] = useState(group?.name ?? "");
   const [required, setRequired] = useState(group?.required ?? true);
   const [max, setMax] = useState(String(group?.max ?? 1));
-  const [rows, setRows] = useState<{ id: string | null; name: string; price: string }[]>(
-    group?.options.map((o) => ({ id: o.id, name: o.name, price: String(o.price) })) ?? [
-      { id: null, name: "", price: "0" },
-      { id: null, name: "", price: "0" },
+  const [rows, setRows] = useState<{ id: string | null; name: string; price: string; productId: string }[]>(
+    group?.options.map((o) => ({ id: o.id, name: o.name, price: String(o.price), productId: o.productId ?? "" })) ?? [
+      { id: null, name: "", price: "0", productId: "" },
+      { id: null, name: "", price: "0", productId: "" },
     ],
   );
+  const dishById = new Map(dishes.map((d) => [d.id, d]));
   const [error, setError] = useState<string | null>(null);
   const update = (i: number, patch: Partial<(typeof rows)[number]>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
   function save() {
     setError(null);
-    const options: OptionInput[] = rows.map((r) => ({ id: r.id, name: r.name, price: Number(r.price.replace(/\u2212/g, "-").trim() || 0) }));
+    const options: OptionInput[] = rows.map((r) => ({ id: r.id, name: r.name, price: Number(r.price.replace(/\u2212/g, "-").trim() || 0), productId: r.productId || null }));
     start(async () => {
       const r = await saveOptionGroup(group?.id ?? null, name, required, Number(max), options);
       if (r.error) return setError(r.error);
@@ -968,7 +1003,28 @@ function OptionGroupModal({ group, onClose }: { group: OptionGroupView | null; o
         <div className="max-h-[40vh] space-y-2 overflow-y-auto">
           {rows.map((r, i) => (
             <div key={i} className="grid grid-cols-[1fr_110px_28px] items-center gap-2">
-              <input className="field h-10 text-sm" value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder={i === 0 ? "Half" : "Full"} aria-label="Option name" />
+              <div className="min-w-0">
+                <input className="field h-10 text-sm" value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder={i === 0 ? "Coke" : "Lime soda"} aria-label="Option name" />
+                {dishes.length > 0 && (
+                  <select
+                    className="mt-1 w-full rounded-md border bg-transparent px-1.5 py-1 text-[11px]"
+                    style={{ borderColor: "var(--color-line)", color: r.productId ? "var(--color-brand)" : "var(--color-ink-3)" }}
+                    value={r.productId}
+                    aria-label="This choice is a dish (for combos)"
+                    onChange={(e) => {
+                      const d = dishById.get(e.target.value);
+                      update(i, { productId: e.target.value, ...(d && !r.name.trim() ? { name: d.name } : {}) });
+                    }}
+                  >
+                    <option value="">Not a dish (plain option)</option>
+                    {dishes.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        Dish: {d.name} ({money(currency, d.price)})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
               <input className="field h-10 text-right text-sm" inputMode="decimal" value={r.price} onChange={(e) => update(i, { price: e.target.value })} aria-label="Extra price" />
               <button className="text-sm font-semibold" style={{ color: "var(--color-bad)" }} onClick={() => setRows(rows.filter((_, j) => j !== i))} aria-label="Remove option">
                 ✕
@@ -976,11 +1032,12 @@ function OptionGroupModal({ group, onClose }: { group: OptionGroupView | null; o
             </div>
           ))}
         </div>
-        <button className="mt-2 text-xs font-semibold" style={{ color: "var(--color-brand)" }} onClick={() => setRows([...rows, { id: null, name: "", price: "0" }])} disabled={rows.length >= 20}>
+        <button className="mt-2 text-xs font-semibold" style={{ color: "var(--color-brand)" }} onClick={() => setRows([...rows, { id: null, name: "", price: "0", productId: "" }])} disabled={rows.length >= 20}>
           + Add option
         </button>
         <p className="mt-2 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-          Extra price is added to the item&rsquo;s price (use 0 for no change, or a minus for cheaper, e.g. Half -40).
+          Extra price is added to the item&rsquo;s price (use 0 for no change, or a minus for cheaper). For a combo, pick the dish under
+          each choice: the kitchen sees it and its ingredients come out of stock. A choice whose dish is sold out is hidden on the billing screen.
         </p>
 
         {error && (

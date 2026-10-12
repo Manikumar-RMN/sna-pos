@@ -32,6 +32,8 @@ type MenuItem = {
   variantOf?: string | null;
   /** Set on a dish sold in sizes: the sizes on sale, cheapest first. Tapping the dish asks which one. */
   variants?: { id: string; name: string; price: number }[];
+  /** A combo / meal deal (its choices are other dishes). */
+  isCombo?: boolean;
 };
 type PaymentMethod = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type Table = { id: string; number: string; busy: boolean; /** Unpaid and part-paid bills on this table, oldest first. */ openBills: { id: string; billNumber: string }[] };
@@ -943,7 +945,12 @@ export function PosTerminal({
                             · {item.variants.length} sizes
                           </span>
                         )}
-                        {!item.variants && item.groups.length > 0 && (
+                        {item.isCombo && (
+                          <span className="ml-1 rounded px-1 text-[10px] font-bold uppercase" style={{ background: "var(--color-brand-soft)", color: "var(--color-brand)" }}>
+                            combo
+                          </span>
+                        )}
+                        {!item.variants && !item.isCombo && item.groups.length > 0 && (
                           <span className="ml-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
                             · options
                           </span>

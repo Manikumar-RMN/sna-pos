@@ -38,7 +38,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   ] = await Promise.all([
     supabase
       .from("v_menu")
-      .select("id, name, short_name, price, category_id, category_name, category_order, is_veg, display_order, is_available, name_local, parent_id, variant_name")
+      .select("id, name, short_name, price, category_id, category_name, category_order, is_veg, display_order, is_available, name_local, parent_id, variant_name, is_combo")
       .eq("is_available", true)
       .order("category_order")
       .order("display_order")
@@ -67,7 +67,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     supabase.from("countries").select("tax_system_name, has_senior_discount").eq("code", user.country_code).maybeSingle(),
     supabase.from("product_modifier_groups").select("product_id, modifier_group_id"),
     supabase.from("modifier_groups").select("id, name, min_select, max_select, is_required, is_active").eq("is_active", true),
-    supabase.from("modifier_items").select("id, modifier_group_id, name, price_delta, display_order").eq("is_active", true).order("display_order").order("name"),
+    supabase.from("modifier_items").select("id, modifier_group_id, name, price_delta, display_order, product_id").eq("is_active", true).order("display_order").order("name"),
     // Dishes that have sizes (even sold-out ones): such a dish is sold only through one of its sizes.
     supabase.from("products").select("parent_id").not("parent_id", "is", null).is("deleted_at", null),
   ]);
@@ -105,6 +105,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     addTo = { id: o.id, billNumber: o.bill_number, table: o.dining_tables?.table_number ?? null };
   }
 
+  const onSale = new Set((menu ?? []).map((x) => x.id as string));
   // Option groups per menu item, in the order the kitchen expects: required choices first.
   const groupById = new Map(
     (optGroups ?? []).map((g) => {
@@ -115,7 +116,8 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
         min,
         max: Math.max(g.max_select ?? 1, min, 1),
         options: (optItems ?? [])
-          .filter((i) => i.modifier_group_id === g.id)
+          // A combo choice that is a dish shows only while that dish is on sale (not sold out).
+          .filter((i) => i.modifier_group_id === g.id && (!i.product_id || onSale.has(i.product_id)))
           .map((i) => ({ id: i.id, name: i.name, price: Number(i.price_delta ?? 0) })),
       };
       return [g.id, group];
@@ -153,6 +155,8 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       variantOf: (x.parent_id as string | null) ?? null,
       /** Set on a dish that has sizes: tapping it asks which size. */
       variants: hasSizes.has(x.id as string) ? sizesFor(x.id as string) : undefined,
+      /** A combo / meal deal: shown with a "combo" mark. */
+      isCombo: !!x.is_combo,
     }));
 
   // The packing charge is an ordinary menu item. If it is not on today's menu (e.g. marked unavailable), there is no packing charge.

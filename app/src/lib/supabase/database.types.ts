@@ -2228,6 +2228,7 @@ export type Database = {
           modifier_group_id: string
           name: string
           price_delta: number
+          product_id: string | null
           restaurant_id: string
         }
         Insert: {
@@ -2237,6 +2238,7 @@ export type Database = {
           modifier_group_id: string
           name: string
           price_delta?: number
+          product_id?: string | null
           restaurant_id: string
         }
         Update: {
@@ -2246,6 +2248,7 @@ export type Database = {
           modifier_group_id?: string
           name?: string
           price_delta?: number
+          product_id?: string | null
           restaurant_id?: string
         }
         Relationships: [
@@ -3587,6 +3590,7 @@ export type Database = {
           image_url: string | null
           is_available: boolean
           is_charge: boolean
+          is_combo: boolean
           is_veg: boolean | null
           kitchen_station: string | null
           name: string
@@ -3613,6 +3617,7 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean
           is_charge?: boolean
+          is_combo?: boolean
           is_veg?: boolean | null
           kitchen_station?: string | null
           name: string
@@ -3639,6 +3644,7 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean
           is_charge?: boolean
+          is_combo?: boolean
           is_veg?: boolean | null
           kitchen_station?: string | null
           name?: string
@@ -5830,6 +5836,7 @@ export type Database = {
           display_order: number | null
           id: string | null
           is_available: boolean | null
+          is_combo: boolean | null
           is_price_inclusive: boolean | null
           is_veg: boolean | null
           menu_price: number | null

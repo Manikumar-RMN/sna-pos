@@ -150,6 +150,7 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
   const taxGroupId = String(formData.get("tax_group_id") ?? "");
   const price = parseRupees(String(formData.get("price") ?? ""));
   const isVeg = formData.get("is_veg") === "on" ? true : formData.get("is_veg") === "off" ? false : null;
+  const isCombo = formData.get("is_combo") === "on";
   const station = String(formData.get("kitchen_station") ?? "").trim().slice(0, 30) || null;
   const nameLocal = String(formData.get("name_local") ?? "").trim().slice(0, 120) || null;
 
@@ -170,6 +171,7 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
       name,
       price,
       is_veg: isVeg,
+      is_combo: isCombo,
       kitchen_station: station,
       name_local: nameLocal,
       ...(hsn.value !== undefined ? { hsn_code: hsn.value } : {}),
@@ -209,6 +211,7 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
   const taxGroupId = String(formData.get("tax_group_id") ?? "");
   const price = parseRupees(String(formData.get("price") ?? ""));
   const isVeg = formData.get("is_veg") === "on" ? true : formData.get("is_veg") === "off" ? false : null;
+  const isCombo = formData.get("is_combo") === "on";
   const station = String(formData.get("kitchen_station") ?? "").trim().slice(0, 30) || null;
   const nameLocal = String(formData.get("name_local") ?? "").trim().slice(0, 120) || null;
 
@@ -230,6 +233,7 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
       tax_group_id: taxGroupId,
       price,
       is_veg: isVeg,
+      is_combo: isCombo,
       kitchen_station: station,
       ...(hsn.value !== undefined ? { hsn_code: hsn.value } : {}),
     })
@@ -315,7 +319,8 @@ export async function updateSize(id: string, sizeName: string, rawPrice: string)
 
 /* ---------- options & add-ons ---------- */
 
-export type OptionInput = { id: string | null; name: string; price: number };
+/** productId: this choice is a dish (a combo choice); its ingredients come out of stock when chosen. */
+export type OptionInput = { id: string | null; name: string; price: number; productId?: string | null };
 
 /**
  * Creates or changes an option group (e.g. "Size": Small / Large +20).
@@ -364,7 +369,7 @@ export async function saveOptionGroup(
     if (error) return { error: error.message };
   }
   for (const [i, o] of clean.entries()) {
-    const row = { name: o.name, price_delta: Math.round(o.price * 100) / 100, display_order: i + 1, is_active: true };
+    const row = { name: o.name, price_delta: Math.round(o.price * 100) / 100, display_order: i + 1, is_active: true, product_id: o.productId || null };
     const { error } = o.id
       ? await supabase.from("modifier_items").update(row).eq("id", o.id).eq("modifier_group_id", gid)
       : await supabase.from("modifier_items").insert({ ...row, restaurant_id: restaurantId!, modifier_group_id: gid });

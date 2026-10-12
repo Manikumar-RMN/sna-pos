@@ -13,12 +13,12 @@ export default async function MenuPage() {
       supabase.from("categories").select("id, name, display_order, parent_id").is("deleted_at", null).order("display_order").order("name"),
       supabase
         .from("products")
-        .select("id, name, price, category_id, tax_group_id, is_veg, is_available, kitchen_station, name_local, hsn_code, is_charge, parent_id, variant_name")
+        .select("id, name, price, category_id, tax_group_id, is_veg, is_available, kitchen_station, name_local, hsn_code, is_charge, parent_id, variant_name, is_combo")
         .is("deleted_at", null)
         .order("name"),
       supabase.from("tax_groups").select("id, name").eq("is_active", true).order("name"),
       supabase.from("modifier_groups").select("id, name, is_required, min_select, max_select").eq("is_active", true).order("name"),
-      supabase.from("modifier_items").select("id, modifier_group_id, name, price_delta, display_order").eq("is_active", true).order("display_order"),
+      supabase.from("modifier_items").select("id, modifier_group_id, name, price_delta, display_order, product_id").eq("is_active", true).order("display_order"),
       supabase.from("product_modifier_groups").select("product_id, modifier_group_id"),
     ]);
 
@@ -29,7 +29,7 @@ export default async function MenuPage() {
     max: g.max_select ?? 1,
     options: (optItems ?? [])
       .filter((i) => i.modifier_group_id === g.id)
-      .map((i) => ({ id: i.id, name: i.name, price: Number(i.price_delta ?? 0) })),
+      .map((i) => ({ id: i.id, name: i.name, price: Number(i.price_delta ?? 0), productId: i.product_id ?? null })),
   }));
   const productGroups: Record<string, string[]> = {};
   for (const l of links ?? []) (productGroups[l.product_id] ??= []).push(l.modifier_group_id);
