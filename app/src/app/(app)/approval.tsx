@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { approveWithPin } from "./approval-actions";
 
 const LABELS: Record<string, string> = {
-  "order.discount": "give this discount",
+  "order.discount": "give this discount or free bill",
   "order.void": "void or cancel",
   "order.refund": "issue a credit note",
   "payment.take": "take this payment",

@@ -49,6 +49,8 @@ export type ReceiptData = {
   refunded: number;
   state: "paid" | "unpaid" | "part-paid" | "voided" | "refunded" | "part-refunded";
   voidReason: string | null;
+  /** Complimentary bill or staff meal: no money was taken. */
+  comp?: { kind: "complimentary" | "staff_meal"; reason: string } | null;
   footer: string | null;
   /** India: the restaurant's UPI ID, for a scan-to-pay QR on unpaid bills. */
   upi?: { id: string; payee: string } | null;
@@ -138,6 +140,12 @@ export function ReceiptView({
           <div className="mb-2 border-2 border-dashed py-1 text-center text-[1.27em] font-bold" style={{ borderColor: "#111" }}>
             VOIDED — NOT VALID
             {data.voidReason && <div className="text-[1em] font-normal">Reason: {data.voidReason}</div>}
+          </div>
+        )}
+        {data.comp && data.state !== "voided" && (
+          <div className="mb-2 border-2 border-dashed py-1 text-center text-[1.09em] font-bold" style={{ borderColor: "#111" }}>
+            {data.comp.kind === "complimentary" ? "COMPLIMENTARY — NO CHARGE" : "STAFF MEAL — NO CHARGE"}
+            {data.comp.reason && <div className="text-[1em] font-normal">{data.comp.reason}</div>}
           </div>
         )}
         {(data.state === "unpaid" || data.state === "part-paid") && (
@@ -235,7 +243,9 @@ export function ReceiptView({
 
         <div className="space-y-0.5 text-[1em]">
           <Row label="Subtotal" value={m(data.subtotal)} />
-          {data.discount > 0 && <Row label="Discount" value={`-${m(data.discount)}`} />}
+          {data.discount > 0 && (
+            <Row label={data.comp ? (data.comp.kind === "complimentary" ? "Complimentary" : "Staff meal") : "Discount"} value={`-${m(data.discount)}`} />
+          )}
           {data.vatRemoved > 0 && <Row label="Less: VAT (exempt)" value={`-${m(data.vatRemoved)}`} />}
           {data.seniorDiscount > 0 && (
             <Row label={`Less: ${data.senior?.kind === "pwd" ? "PWD" : "Senior"} 20%`} value={`-${m(data.seniorDiscount)}`} />

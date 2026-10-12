@@ -169,7 +169,7 @@ function OutletForm({ request, canBuild, pro, pending, run }: { request: SnaRequ
           }}
         >
           <input className="field" placeholder="Outlet name" value={name} onChange={(e) => setName(e.target.value)} required />
-          <input className="field uppercase" placeholder="Code, 2–4 letters (starts bill numbers)" value={code} onChange={(e) => setCode(e.target.value)} required maxLength={4} />
+          <input className="field uppercase" placeholder="Code, 2 or 3 letters (starts bill numbers)" value={code} onChange={(e) => setCode(e.target.value)} required maxLength={3} />
           <input className="field" placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
           <input className="field" placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
           <input className="field sm:col-span-2" placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} />

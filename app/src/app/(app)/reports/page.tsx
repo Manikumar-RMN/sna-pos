@@ -39,6 +39,11 @@ type Report = {
     average_bill: number;
     voided_bills: number;
     voided_value: number;
+    /** Complimentary bills and staff meals, at menu value (closed at 0.00). Older databases do not send these. */
+    complimentary_bills?: number;
+    complimentary_value?: number;
+    staff_meal_bills?: number;
+    staff_meal_value?: number;
     refunds: number;
     refund_count: number;
     /** Money actually received: billed, less what is not yet paid, less refunds. */
@@ -238,6 +243,10 @@ export default async function ReportsPage({
                     [`Refunds (${rep.summary.refund_count})`, `−${money(rep.summary.refunds, c)}`],
                     [unpaidAmount > 0 ? "Money received (after unpaid bills and refunds)" : "Money received (after refunds)", money(rep.summary.net_collected, c)],
                     [`Voided bills (${rep.summary.voided_bills})`, money(rep.summary.voided_value, c)],
+                    (rep.summary.complimentary_bills ?? 0) > 0
+                      ? [`Complimentary bills (${rep.summary.complimentary_bills}), menu value`, money(rep.summary.complimentary_value ?? 0, c)]
+                      : null,
+                    (rep.summary.staff_meal_bills ?? 0) > 0 ? [`Staff meals (${rep.summary.staff_meal_bills}), menu value`, money(rep.summary.staff_meal_value ?? 0, c)] : null,
                   ].filter((r): r is [string, string] => r !== null)
                 }
               />

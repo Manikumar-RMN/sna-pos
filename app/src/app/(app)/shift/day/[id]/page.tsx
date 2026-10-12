@@ -26,6 +26,11 @@ type Z = {
   total_billed: number;
   voided_bills: number;
   voided_value: number;
+  /** Complimentary bills and staff meals (closed at 0.00). Reports saved before change 089 do not have them. */
+  complimentary_bills?: number;
+  complimentary_value?: number;
+  staff_meal_bills?: number;
+  staff_meal_value?: number;
   unpaid_bills: number;
   /** Still to collect on the unpaid bills. Reports saved before this was added do not have it. */
   unpaid_amount?: number;
@@ -154,6 +159,8 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
         )}
         <Rule />
         <Row label="Voided bills" value={`${z.voided_bills} · ${m(z.voided_value)}`} />
+        {(z.complimentary_bills ?? 0) > 0 && <Row label={`Complimentary (${z.complimentary_bills})`} value={m(z.complimentary_value ?? 0)} />}
+        {(z.staff_meal_bills ?? 0) > 0 && <Row label={`Staff meals (${z.staff_meal_bills})`} value={m(z.staff_meal_value ?? 0)} />}
         {z.credit_notes.list.map((cn) => (
           <Row key={cn.number} label={`${cn.number} (bill ${cn.bill})`} value={`-${m(cn.amount)}`} />
         ))}
@@ -196,6 +203,8 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
               `Tax: ${m(z.tax + z.tax_included)} · Discounts: ${m(z.discounts)}`,
               ...z.payments.map((p) => `${p.method}: ${m(p.amount)} (${p.count})`),
               z.voided_bills ? `Voided: ${z.voided_bills} bills, ${m(z.voided_value)}` : "",
+              z.complimentary_bills ? `Complimentary: ${z.complimentary_bills} bills, ${m(z.complimentary_value ?? 0)}` : "",
+              z.staff_meal_bills ? `Staff meals: ${z.staff_meal_bills} bills, ${m(z.staff_meal_value ?? 0)}` : "",
               z.credit_notes?.count ? `Credit notes: ${z.credit_notes.count}, ${m(z.credit_notes.amount)}` : "",
               `Net after credit notes: ${m(z.net_sales_after_credit_notes)}`,
             ]

@@ -2869,6 +2869,9 @@ export type Database = {
           buyer_name: string | null
           calc_params: Json | null
           cashier_id: string
+          comp_by: string | null
+          comp_kind: string | null
+          comp_reason: string | null
           client_created_at: string
           client_ref: string | null
           created_at: string
@@ -2918,6 +2921,9 @@ export type Database = {
           buyer_name?: string | null
           calc_params?: Json | null
           cashier_id: string
+          comp_by: string | null
+          comp_kind: string | null
+          comp_reason: string | null
           client_created_at: string
           client_ref?: string | null
           created_at?: string
@@ -2967,6 +2973,9 @@ export type Database = {
           buyer_name?: string | null
           calc_params?: Json | null
           cashier_id?: string
+          comp_by?: string | null
+          comp_kind?: string | null
+          comp_reason?: string | null
           client_created_at?: string
           client_ref?: string | null
           created_at?: string
@@ -6222,6 +6231,10 @@ export type Database = {
       }
       login_staff: {
         Args: { p_client_code: string; p_password: string; p_username: string }
+        Returns: Json
+      }
+      make_complimentary: {
+        Args: { p_kind: string; p_order_id: string; p_reason: string }
         Returns: Json
       }
       mark_tickets_printed: { Args: { p_ids: string[] }; Returns: number }

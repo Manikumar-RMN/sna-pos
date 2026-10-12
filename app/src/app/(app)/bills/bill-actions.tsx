@@ -7,14 +7,14 @@ import { money, roundCash } from "@/lib/format";
 import { UpiQr } from "../upi-qr";
 import { Dual } from "../lang";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
-import { adjustBill, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
+import { adjustBill, makeComplimentary, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
 
 type Method = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type PaymentRow = { id: string; methodId: string; methodName: string; amount: number; rounded: boolean };
 type Line = { id: string; name: string; options: string | null; qty: number; amount: number };
 type TableOpt = { id: string; number: string; busy: boolean };
 type OtherBill = { id: string; billNumber: string; total: number; table: string | null; mergeable: boolean };
-type Panel = null | "split" | "move" | "merge" | "cancel" | "adjust";
+type Panel = null | "split" | "move" | "merge" | "cancel" | "adjust" | "comp";
 type Adjust = { discount: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
 
 export function BillActions({
@@ -111,6 +111,8 @@ export function BillActions({
   const [cancelReason, setCancelReason] = useState("");
   const [discAmt, setDiscAmt] = useState(adjust && adjust.discount > 0 ? String(adjust.discount) : "");
   const [discReason, setDiscReason] = useState("");
+  const [compKind, setCompKind] = useState<"complimentary" | "staff_meal">("complimentary");
+  const [compReason, setCompReason] = useState("");
   const [scWanted, setScWanted] = useState<boolean>(adjust?.scOn ?? false);
   const [fixPay, setFixPay] = useState(paymentList.find((p) => !p.rounded)?.id ?? "");
   const [fixTo, setFixTo] = useState("");
@@ -363,7 +365,49 @@ export function BillActions({
                 onClick={() => setPanel(panel === "adjust" ? null : "adjust")}
               />
             )}
+            {showAdjust && !adjust?.senior && (
+              <PanelButton label="Complimentary / staff meal" active={panel === "comp"} onClick={() => setPanel(panel === "comp" ? null : "comp")} />
+            )}
           </div>
+
+          {panel === "comp" && (
+            <div className="mt-3 space-y-2 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
+              <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+                The whole bill ({m(grandTotal)}) is taken off and the bill closes at 0.00. It shows on the reports as{" "}
+                {compKind === "complimentary" ? "complimentary" : "a staff meal"}, not as a discount.
+                {!canDiscount ? " A manager approves it with their PIN." : ""}
+              </p>
+              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Kind">
+                {(["complimentary", "staff_meal"] as const).map((k) => (
+                  <button
+                    key={k}
+                    role="radio"
+                    aria-checked={compKind === k}
+                    className="btn border text-sm"
+                    style={{ borderColor: compKind === k ? "var(--color-brand)" : "var(--color-line)", background: compKind === k ? "var(--color-brand-soft)" : undefined }}
+                    onClick={() => setCompKind(k)}
+                  >
+                    {k === "complimentary" ? "Complimentary" : "Staff meal"}
+                  </button>
+                ))}
+              </div>
+              <input
+                className="field h-10 text-sm"
+                placeholder={compKind === "complimentary" ? "Reason, e.g. guest name / owner's guest" : "Staff member's name"}
+                aria-label="Reason"
+                value={compReason}
+                onChange={(e) => setCompReason(e.target.value)}
+                maxLength={200}
+              />
+              <button
+                className="btn btn-primary mt-1 w-full text-sm"
+                disabled={pending || compReason.trim().length < 3}
+                onClick={() => run(() => makeComplimentary({ orderId, kind: compKind, reason: compReason }), () => setCompReason(""))}
+              >
+                {pending ? "Saving…" : compKind === "complimentary" ? "Make complimentary" : "Make staff meal"}
+              </button>
+            </div>
+          )}
 
           {panel === "adjust" && adjust && (
             <div className="mt-3 space-y-2 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>

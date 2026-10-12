@@ -73,6 +73,20 @@ export async function adjustBill(input: {
   return { ok: true, message: `Bill updated. New total ${Number(res.grand_total ?? 0).toFixed(2)}.` };
 }
 
+/**
+ * Complimentary bill (free for a guest) or staff meal: the whole bill comes off and it closes at 0.00.
+ * Needs a manager (or a manager's PIN); the database checks this, records the reason and who approved.
+ */
+export async function makeComplimentary(input: { orderId: string; kind: "complimentary" | "staff_meal"; reason: string }): Promise<ActionResult> {
+  const reason = input.reason.trim();
+  if (reason.length < 3) return { ok: false, error: "Write a short reason (for example the guest's name or the staff member's name)." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("make_complimentary", { p_order_id: input.orderId, p_kind: input.kind, p_reason: reason.slice(0, 200) });
+  if (error) return { ok: false, error: error.message };
+  refresh(input.orderId);
+  return { ok: true, message: input.kind === "complimentary" ? "Bill made complimentary. It is closed at 0.00." : "Bill made a staff meal. It is closed at 0.00." };
+}
+
 /** Wrong payment mode on a paid bill (e.g. cash pressed, customer paid by UPI). Only while the shift is open. */
 export async function changePaymentMode(input: { orderId: string; paymentId: string; methodId: string; reason: string }): Promise<ActionResult> {
   const reason = input.reason.trim();

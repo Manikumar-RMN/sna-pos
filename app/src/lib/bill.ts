@@ -47,7 +47,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into, calc_params, business_date, buyer_gstin, buyer_name, guest_name, guest_phone, delivery_address, token_no",
+      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into, calc_params, business_date, buyer_gstin, buyer_name, guest_name, guest_phone, delivery_address, token_no, comp_kind, comp_reason",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -189,6 +189,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     refunded,
     state: billState(order.status, order.payment_status),
     voidReason: order.void_reason,
+    comp: order.comp_kind === "complimentary" || order.comp_kind === "staff_meal" ? { kind: order.comp_kind, reason: order.comp_reason ?? "" } : null,
     footer: settings.data?.receipt_footer ?? null,
     fssaiNo: restaurant.data?.country_code === "IN" ? (restaurant.data?.fssai_no ?? null) : null,
     sacCode: restaurant.data?.country_code === "IN" ? (restaurant.data?.sac_code ?? null) : null,

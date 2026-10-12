@@ -27,6 +27,10 @@ export type ReportSummary = {
   service_charge: number;
   voided_bills: number;
   voided_value: number;
+  complimentary_bills: number;
+  complimentary_value: number;
+  staff_meal_bills: number;
+  staff_meal_value: number;
   unpaid_bills: number;
   unpaid_amount: number;
   refunds: number;
@@ -76,6 +80,10 @@ export function cleanSummary(raw: unknown): ReportSummary | null {
     service_charge: num(r.service_charge),
     voided_bills: num(r.voided_bills),
     voided_value: num(r.voided_value),
+    complimentary_bills: num(r.complimentary_bills),
+    complimentary_value: num(r.complimentary_value),
+    staff_meal_bills: num(r.staff_meal_bills),
+    staff_meal_value: num(r.staff_meal_value),
     unpaid_bills: num(r.unpaid_bills),
     unpaid_amount: num(r.unpaid_amount),
     refunds: num(r.refunds),
@@ -132,6 +140,8 @@ export function buildSummaryEmail(s: ReportSummary, test: boolean): { subject: s
   if (s.tax > 0) other.push(["Tax", m(s.tax)]);
   if (s.voided_bills > 0) other.push([`Voided (${plural(s.voided_bills, "bill", "bills")})`, m(s.voided_value)]);
   if (s.refund_count > 0) other.push([`Refunds (${s.refund_count})`, m(s.refunds)]);
+  if (s.complimentary_bills > 0) other.push([`Complimentary (${plural(s.complimentary_bills, "bill", "bills")})`, m(s.complimentary_value)]);
+  if (s.staff_meal_bills > 0) other.push([`Staff meals (${plural(s.staff_meal_bills, "bill", "bills")})`, m(s.staff_meal_value)]);
 
   const sections: [string, [string, string][]][] = [
     ["", headline],
