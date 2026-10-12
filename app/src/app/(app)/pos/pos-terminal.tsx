@@ -17,7 +17,7 @@ export type OptionGroup = {
   max: number;
   options: { id: string; name: string; price: number }[];
 };
-type MenuItem = {
+export type MenuItem = {
   id: string;
   name: string;
   short_name: string | null;
@@ -54,7 +54,7 @@ export type PackingRule = {
   takeaway: boolean;
   delivery: boolean;
 };
-type ChosenOption = { id: string; name: string; price: number };
+export type ChosenOption = { id: string; name: string; price: number };
 type CartLine = { key: string; item: MenuItem; qty: number; options: ChosenOption[]; note: string; hold?: boolean };
 
 /** One-tap kitchen notes; staff can also type their own. */
@@ -1495,7 +1495,7 @@ export function PosTerminal({
 }
 
 /** Which size of a dish: one tap adds it (or opens its options). */
-function SizePicker({
+export function SizePicker({
   item,
   currency,
   inCart,
@@ -1560,7 +1560,7 @@ function SizePicker({
   );
 }
 
-function OptionPicker({
+export function OptionPicker({
   item,
   currency,
   onCancel,

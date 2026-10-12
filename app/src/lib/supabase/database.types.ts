@@ -2690,6 +2690,7 @@ export type Database = {
           comp_by: string | null
           comp_kind: string | null
           comp_reason: string | null
+          covers: number | null
           created_at: string
           currency_code: string
           customer_id: string | null
@@ -2742,6 +2743,7 @@ export type Database = {
           comp_by?: string | null
           comp_kind?: string | null
           comp_reason?: string | null
+          covers?: number | null
           created_at?: string
           currency_code: string
           customer_id?: string | null
@@ -2794,6 +2796,7 @@ export type Database = {
           comp_by?: string | null
           comp_kind?: string | null
           comp_reason?: string | null
+          covers?: number | null
           created_at?: string
           currency_code?: string
           customer_id?: string | null

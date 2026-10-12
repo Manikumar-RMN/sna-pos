@@ -30,6 +30,8 @@ export type PlaceOrderInput = CartInput & {
   client_ref?: string;
   /** Guest name, phone and delivery address taken at the counter (takeaway / delivery). All optional. */
   guest?: { name?: string; phone?: string; address?: string } | null;
+  /** Captain app: guests at the table (dine-in). */
+  covers?: number | null;
 };
 
 export type Quote = {
@@ -100,6 +102,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     address: input.guest?.address?.trim() ?? "",
   };
   const hasGuest = !!(guest.guest_name || guest.guest_phone || guest.address);
+  const covers = input.order_type === "dine_in" && input.covers && input.covers >= 1 && input.covers <= 99 ? String(Math.round(input.covers)) : null;
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_order", {
@@ -111,7 +114,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     p_discount_reason: input.discount_reason ?? undefined,
     p_reference: input.payment_method_id && input.reference?.trim() ? input.reference.trim().slice(0, 60) : undefined,
     p_client_ref: input.client_ref && /^[0-9a-f-]{36}$/i.test(input.client_ref) ? input.client_ref : undefined,
-    p_extra: hasGuest ? guest : undefined,
+    p_extra: hasGuest || covers ? { ...(hasGuest ? guest : {}), ...(covers ? { covers } : {}) } : undefined,
   });
   if (error) return { ok: false, error: error.message };
 
