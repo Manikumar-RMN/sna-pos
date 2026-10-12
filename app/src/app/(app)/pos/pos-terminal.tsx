@@ -40,6 +40,8 @@ export type MenuItem = {
   byWeight?: boolean;
   /** Item code for the barcode scanner and weighing-scale labels. */
   barcode?: string;
+  /** Counted in batches: how many are left today at this outlet. */
+  left?: number;
 };
 
 /**
@@ -1030,6 +1032,11 @@ export function PosTerminal({
                         )}
                         {item.variants?.length ? `from ${m(item.variants[0].price)}` : m(item.price)}
                         {item.byWeight && "/kg"}
+                        {item.left != null && (
+                          <span className="ml-1 text-[11px] font-semibold" style={{ color: item.left - qtyInCart(item.id) > 0 ? "var(--color-ink-3)" : "var(--color-bad)" }}>
+                            · {Math.max(0, item.left - qtyInCart(item.id))} left
+                          </span>
+                        )}
                         {item.variants && item.variants.length > 1 && (
                           <span className="ml-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
                             · {item.variants.length} sizes

@@ -3611,6 +3611,7 @@ export type Database = {
           sold_by: string
           sku: string | null
           tax_group_id: string
+          track_batches: boolean
           updated_at: string
           variant_name: string | null
         }
@@ -3639,6 +3640,7 @@ export type Database = {
           sold_by?: string
           sku?: string | null
           tax_group_id: string
+          track_batches?: boolean
           updated_at?: string
           variant_name?: string | null
         }
@@ -3667,6 +3669,7 @@ export type Database = {
           sold_by?: string
           sku?: string | null
           tax_group_id?: string
+          track_batches?: boolean
           updated_at?: string
           variant_name?: string | null
         }
@@ -6349,6 +6352,13 @@ export type Database = {
       }
       pre_order_save: { Args: { p: Json }; Returns: Json }
       pre_orders_list: { Args: { p_status?: string }; Returns: Json }
+      batch_add: {
+        Args: { p_expires_on: string; p_made_on?: string; p_note?: string; p_product: string; p_qty: number }
+        Returns: string
+      }
+      batch_stock: { Args: never; Returns: Json }
+      batch_write_off: { Args: { p_batch: string }; Returns: number }
+      batches_list: { Args: never; Returns: Json }
       set_bill_prefix: { Args: { p_prefix: string }; Returns: Json }
       set_central_kitchen: {
         Args: { p_branch: string; p_on: boolean }

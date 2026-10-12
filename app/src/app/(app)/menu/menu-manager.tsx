@@ -59,6 +59,8 @@ type Product = {
   sold_by?: string;
   /** Item code / barcode; for weighed items, the code the scale prints in its label. */
   barcode?: string | null;
+  /** Ready-made goods counted in batches (made on, best before). */
+  track_batches?: boolean;
 };
 type TaxGroup = { id: string; name: string };
 export type OptionGroupView = {
@@ -843,6 +845,17 @@ function ProductModal({
           Sold by weight: the price above is per kg and the bill asks for the weight. Item code: scanning it adds this dish; for a weighing
           scale, use the item (PLU) code set in the scale, e.g. 00123.
         </p>
+
+        <label className="mb-3 flex items-start gap-2 text-sm">
+          <input type="checkbox" name="track_batches" defaultChecked={!!product?.track_batches} className="mt-0.5 h-4 w-4" />
+          <span>
+            <b>Track in batches</b>
+            <span className="block text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+              For ready-made goods (cakes, puffs, sweets): record each batch made with its best-before date on the Batches screen. Sales take
+              from the oldest batch, and the billing screen shows how many are left.
+            </span>
+          </span>
+        </label>
 
         <label className="mb-4 flex items-start gap-2 text-sm">
           <input type="checkbox" name="is_combo" defaultChecked={!!product?.is_combo} className="mt-0.5 h-4 w-4" />

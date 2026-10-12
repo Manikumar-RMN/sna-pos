@@ -154,6 +154,7 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
   const station = String(formData.get("kitchen_station") ?? "").trim().slice(0, 30) || null;
   const nameLocal = String(formData.get("name_local") ?? "").trim().slice(0, 120) || null;
   const soldBy = formData.get("sold_by") === "weight" ? "weight" : "unit";
+  const trackBatches = formData.get("track_batches") === "on";
   const barcode = String(formData.get("barcode") ?? "").replace(/\s/g, "").slice(0, 20) || null;
   if (barcode && !/^[0-9A-Za-z-]{1,20}$/.test(barcode)) return { error: "The item code can have only letters, digits and -." };
 
@@ -178,6 +179,7 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
       kitchen_station: station,
       name_local: nameLocal,
       sold_by: soldBy,
+      track_batches: trackBatches,
       barcode,
       ...(hsn.value !== undefined ? { hsn_code: hsn.value } : {}),
     })
@@ -220,6 +222,7 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
   const station = String(formData.get("kitchen_station") ?? "").trim().slice(0, 30) || null;
   const nameLocal = String(formData.get("name_local") ?? "").trim().slice(0, 120) || null;
   const soldBy = formData.get("sold_by") === "weight" ? "weight" : "unit";
+  const trackBatches = formData.get("track_batches") === "on";
   const barcode = String(formData.get("barcode") ?? "").replace(/\s/g, "").slice(0, 20) || null;
   if (barcode && !/^[0-9A-Za-z-]{1,20}$/.test(barcode)) return { error: "The item code can have only letters, digits and -." };
 
@@ -238,6 +241,7 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
       name,
       name_local: nameLocal,
       sold_by: soldBy,
+      track_batches: trackBatches,
       barcode,
       category_id: categoryId,
       tax_group_id: taxGroupId,

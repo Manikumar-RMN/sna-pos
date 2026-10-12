@@ -88,9 +88,14 @@ export default async function KitchenPage() {
             Every bill sends a ticket to its station. Tap to move it along. Refreshes every 10 seconds.
           </p>
         </div>
-        <a href="/ready" target="_blank" rel="noreferrer" className="btn border text-sm" style={{ borderColor: "var(--color-line)" }}>
-          Order-ready screen
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <a href="/batches" className="btn border text-sm" style={{ borderColor: "var(--color-line)" }}>
+            Batches made
+          </a>
+          <a href="/ready" target="_blank" rel="noreferrer" className="btn border text-sm" style={{ borderColor: "var(--color-line)" }}>
+            Order-ready screen
+          </a>
+        </div>
       </div>
       <KitchenBoard
         tickets={board}
