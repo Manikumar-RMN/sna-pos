@@ -369,44 +369,6 @@ export type Database = {
           },
         ]
       }
-      ai_employees: {
-        Row: {
-          business_id: string
-          created_at: string
-          id: string
-          name: string
-          role: string
-          status: string
-          system_prompt: string | null
-        }
-        Insert: {
-          business_id: string
-          created_at?: string
-          id?: string
-          name: string
-          role?: string
-          status?: string
-          system_prompt?: string | null
-        }
-        Update: {
-          business_id?: string
-          created_at?: string
-          id?: string
-          name?: string
-          role?: string
-          status?: string
-          system_prompt?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_employees_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       api_calls: {
         Row: {
           action: string
@@ -490,54 +452,6 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      appointments: {
-        Row: {
-          appointment_type: string
-          business_id: string
-          created_at: string
-          id: string
-          lead_id: string | null
-          notes: string | null
-          scheduled_at: string
-          status: string
-        }
-        Insert: {
-          appointment_type?: string
-          business_id: string
-          created_at?: string
-          id?: string
-          lead_id?: string | null
-          notes?: string | null
-          scheduled_at: string
-          status?: string
-        }
-        Update: {
-          appointment_type?: string
-          business_id?: string
-          created_at?: string
-          id?: string
-          lead_id?: string | null
-          notes?: string | null
-          scheduled_at?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "appointments_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "appointments_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
@@ -1023,30 +937,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      businesses: {
-        Row: {
-          city: string | null
-          created_at: string
-          id: string
-          industry: string
-          name: string
-        }
-        Insert: {
-          city?: string | null
-          created_at?: string
-          id?: string
-          industry?: string
-          name: string
-        }
-        Update: {
-          city?: string | null
-          created_at?: string
-          id?: string
-          industry?: string
-          name?: string
-        }
-        Relationships: []
       }
       cash_movements: {
         Row: {
@@ -1944,54 +1834,6 @@ export type Database = {
           },
         ]
       }
-      interactions: {
-        Row: {
-          business_id: string
-          channel: string
-          created_at: string
-          direction: string | null
-          id: string
-          lead_id: string | null
-          outcome: string | null
-          summary: string | null
-        }
-        Insert: {
-          business_id: string
-          channel: string
-          created_at?: string
-          direction?: string | null
-          id?: string
-          lead_id?: string | null
-          outcome?: string | null
-          summary?: string | null
-        }
-        Update: {
-          business_id?: string
-          channel?: string
-          created_at?: string
-          direction?: string | null
-          id?: string
-          lead_id?: string | null
-          outcome?: string | null
-          summary?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "interactions_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interactions_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       kitchen_ticket_items: {
         Row: {
           id: string
@@ -2116,103 +1958,6 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      knowledge_items: {
-        Row: {
-          active: boolean
-          business_id: string
-          category: string
-          content: string
-          created_at: string
-          id: string
-          title: string
-        }
-        Insert: {
-          active?: boolean
-          business_id: string
-          category: string
-          content: string
-          created_at?: string
-          id?: string
-          title: string
-        }
-        Update: {
-          active?: boolean
-          business_id?: string
-          category?: string
-          content?: string
-          created_at?: string
-          id?: string
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "knowledge_items_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      leads: {
-        Row: {
-          budget: string | null
-          business_id: string
-          created_at: string
-          id: string
-          name: string
-          next_action: string | null
-          notes: string | null
-          phone: string | null
-          requirement: string | null
-          score: number
-          source: string | null
-          status: string
-          timeline: string | null
-          updated_at: string
-        }
-        Insert: {
-          budget?: string | null
-          business_id: string
-          created_at?: string
-          id?: string
-          name: string
-          next_action?: string | null
-          notes?: string | null
-          phone?: string | null
-          requirement?: string | null
-          score?: number
-          source?: string | null
-          status?: string
-          timeline?: string | null
-          updated_at?: string
-        }
-        Update: {
-          budget?: string | null
-          business_id?: string
-          created_at?: string
-          id?: string
-          name?: string
-          next_action?: string | null
-          notes?: string | null
-          phone?: string | null
-          requirement?: string | null
-          score?: number
-          source?: string | null
-          status?: string
-          timeline?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "leads_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
@@ -2869,11 +2614,11 @@ export type Database = {
           buyer_name: string | null
           calc_params: Json | null
           cashier_id: string
+          client_created_at: string
+          client_ref: string | null
           comp_by: string | null
           comp_kind: string | null
           comp_reason: string | null
-          client_created_at: string
-          client_ref: string | null
           created_at: string
           currency_code: string
           customer_id: string | null
@@ -2921,11 +2666,11 @@ export type Database = {
           buyer_name?: string | null
           calc_params?: Json | null
           cashier_id: string
-          comp_by: string | null
-          comp_kind: string | null
-          comp_reason: string | null
           client_created_at: string
           client_ref?: string | null
+          comp_by?: string | null
+          comp_kind?: string | null
+          comp_reason?: string | null
           created_at?: string
           currency_code: string
           customer_id?: string | null
@@ -2973,11 +2718,11 @@ export type Database = {
           buyer_name?: string | null
           calc_params?: Json | null
           cashier_id?: string
+          client_created_at?: string
+          client_ref?: string | null
           comp_by?: string | null
           comp_kind?: string | null
           comp_reason?: string | null
-          client_created_at?: string
-          client_ref?: string | null
           created_at?: string
           currency_code?: string
           customer_id?: string | null
@@ -3042,6 +2787,20 @@ export type Database = {
           {
             foreignKeyName: "orders_cashier_id_fkey"
             columns: ["cashier_id"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "orders_comp_by_fkey"
+            columns: ["comp_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_comp_by_fkey"
+            columns: ["comp_by"]
             isOneToOne: false
             referencedRelation: "v_current_user"
             referencedColumns: ["user_id"]
@@ -3857,53 +3616,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tax_groups"
             referencedColumns: ["restaurant_id", "id"]
-          },
-        ]
-      }
-      properties: {
-        Row: {
-          availability: string | null
-          bedrooms: number | null
-          business_id: string
-          created_at: string
-          details: string | null
-          id: string
-          location: string | null
-          price: string | null
-          project_name: string
-          property_type: string | null
-        }
-        Insert: {
-          availability?: string | null
-          bedrooms?: number | null
-          business_id: string
-          created_at?: string
-          details?: string | null
-          id?: string
-          location?: string | null
-          price?: string | null
-          project_name: string
-          property_type?: string | null
-        }
-        Update: {
-          availability?: string | null
-          bedrooms?: number | null
-          business_id?: string
-          created_at?: string
-          details?: string | null
-          id?: string
-          location?: string | null
-          price?: string | null
-          project_name?: string
-          property_type?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "properties_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
           },
         ]
       }
