@@ -3,6 +3,7 @@ import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { TablesForm } from "../settings-forms";
 import { NoAccess, SectionHead } from "../section-head";
+import { byTableNumber } from "@/lib/table-order";
 
 export default async function TableSettings() {
   const user = await requireUser();
@@ -24,7 +25,7 @@ export default async function TableSettings() {
       )}
       <TablesForm
         canEdit={can(user, "settings.manage")}
-        tables={(tables ?? []).map((t) => ({ id: t.id, number: t.table_number, seats: t.seats, busy: busy.has(t.id) }))}
+        tables={[...(tables ?? [])].sort(byTableNumber).map((t) => ({ id: t.id, number: t.table_number, seats: t.seats, busy: busy.has(t.id) }))}
       />
     </div>
   );

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { printedTickets, readDevicePrint, rememberPrinted } from "@/lib/device-print";
 import { timeOnly } from "@/lib/format";
-import { markPrinted, setTicketStatus } from "./actions";
+import { claimForPrint, markPrinted, setTicketStatus } from "./actions";
 import { playNewTicketSound, readSoundWanted, saveSoundWanted, soundReady, soundSupported, unlockSound, watchSound } from "./sound";
 import { DishName, Dual } from "../lang";
 
@@ -131,7 +131,16 @@ export function KitchenBoard({
         !done.has(t.id) &&
         Date.now() - new Date(t.createdAt).getTime() < 30 * 60000,
     );
-    if (fresh.length) setPrinting(fresh);
+    if (fresh.length === 0) return;
+    // Claim them first, so a counter printing the same KOT at that moment does not print it too.
+    busyPrinting.current = true;
+    claimForPrint(fresh.map((t) => t.id))
+      .then((claimed) => {
+        const mine = claimed === null ? fresh : fresh.filter((t) => claimed.includes(t.id));
+        if (mine.length) setPrinting(mine);
+        else busyPrinting.current = false;
+      })
+      .catch(() => setPrinting(fresh));
   }, [tickets, myStations]);
 
   useEffect(() => {

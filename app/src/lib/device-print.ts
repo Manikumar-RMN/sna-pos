@@ -3,18 +3,29 @@
  * the browser because each device has its own printer. Silent printing (no dialog)
  * needs Chrome started with --kiosk-printing, or the SNA Print Helper.
  */
-export type DevicePrint = { bills: boolean; stations: string[] };
+export type DevicePrint = {
+  bills: boolean;
+  stations: string[];
+  /** Print the kitchen ticket (KOT) here when KOT is pressed on this device's billing screen. On unless switched off. */
+  kotHere: boolean;
+};
 
 const KEY = "sna.print.v1";
 
 export function readDevicePrint(): DevicePrint {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return { bills: false, stations: [] };
+    if (!raw) return { bills: false, stations: [], kotHere: true };
     const v = JSON.parse(raw) as Partial<DevicePrint>;
-    return { bills: !!v.bills, stations: Array.isArray(v.stations) ? v.stations.filter((s) => typeof s === "string") : [] };
+    return {
+      bills: !!v.bills,
+      stations: Array.isArray(v.stations) ? v.stations.filter((s) => typeof s === "string") : [],
+      // Not chosen yet: a device that prints the kitchen's tickets from the Kitchen screen does not also
+      // print them at the KOT button; any other device does.
+      kotHere: typeof v.kotHere === "boolean" ? v.kotHere : !(Array.isArray(v.stations) && v.stations.length > 0),
+    };
   } catch {
-    return { bills: false, stations: [] };
+    return { bills: false, stations: [], kotHere: true };
   }
 }
 

@@ -1,6 +1,7 @@
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Bookings } from "./bookings";
+import { byTableNumber } from "@/lib/table-order";
 
 export default async function ReservationsPage() {
   const user = await requireUser();
@@ -26,7 +27,7 @@ export default async function ReservationsPage() {
       country={user.country_code}
       restaurant={user.trading_name}
       whatsapp
-      tables={(tables ?? []).map((t) => ({ id: t.id, number: t.table_number }))}
+      tables={[...(tables ?? [])].sort(byTableNumber).map((t) => ({ id: t.id, number: t.table_number }))}
       rows={(rows ?? []).map((r) => ({
         id: r.id,
         name: r.guest_name,

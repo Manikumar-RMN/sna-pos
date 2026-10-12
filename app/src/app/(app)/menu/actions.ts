@@ -33,14 +33,34 @@ export async function createCategory(_prev: MenuState, formData: FormData): Prom
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Enter a category name." };
+  // Optional: the main category this one goes inside (a sub-category).
+  const parentId = String(formData.get("parent_id") ?? "").trim() || null;
 
   const supabase = await createClient();
+  // New categories go to the end of the menu (the charges category stays last at 999).
+  const { data: last } = await supabase
+    .from("categories")
+    .select("display_order")
+    .is("deleted_at", null)
+    .lt("display_order", 999)
+    .order("display_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
   const { error } = await supabase.from("categories").insert({
     restaurant_id: restaurantId!,
     name,
+    display_order: Math.min((last?.display_order ?? 0) + 1, 998),
+    ...(parentId ? { parent_id: parentId } : {}),
   });
   if (error) {
-    return { error: error.code === "23505" ? "A category with that name already exists." : error.message };
+    return {
+      error:
+        error.code === "23505"
+          ? parentId
+            ? "That main category already has a sub-category with this name."
+            : "A category with that name already exists."
+          : error.message,
+    };
   }
   revalidatePath("/settings/menu");
   revalidatePath("/welcome");
@@ -55,9 +75,17 @@ export async function renameCategory(_prev: MenuState, formData: FormData): Prom
   const name = String(formData.get("name") ?? "").trim();
   if (!id || !name) return { error: "Enter a category name." };
 
+  // The form only carries "parent_id" when the category may move: "" = make it a main category.
+  const moves = formData.has("parent_id");
+  const parentId = String(formData.get("parent_id") ?? "").trim() || null;
+  if (moves && parentId === id) return { error: "A category cannot go inside itself." };
+
   const supabase = await createClient();
-  const { error } = await supabase.from("categories").update({ name }).eq("id", id);
-  if (error) return { error: error.message };
+  const { error } = await supabase
+    .from("categories")
+    .update(moves ? { name, parent_id: parentId } : { name })
+    .eq("id", id);
+  if (error) return { error: error.code === "23505" ? "There is already a category with this name in that place." : error.message };
   revalidatePath("/settings/menu");
   revalidatePath("/welcome");
   return { error: null, ok: true };
@@ -323,4 +351,70 @@ export async function deleteProduct(_prev: MenuState, formData: FormData): Promi
   revalidatePath("/settings/menu");
   revalidatePath("/welcome");
   return { error: null, ok: true };
+}
+
+/* ---------- upload a whole menu sheet ---------- */
+
+export type MenuImportResult =
+  | {
+      ok: true;
+      applied: boolean;
+      errors: { row: number; message: string }[];
+      newCategories: number;
+      newItems: number;
+      updatedItems: number;
+      unchangedItems: number;
+    }
+  | { ok: false; error: string };
+
+/**
+ * Checks (apply = false) or saves (apply = true) the rows of an uploaded menu sheet.
+ * The database checks every row first and saves nothing unless all of them are right.
+ */
+export async function importMenu(
+  rows: { row: number; category: string; sub_category: string; name: string; price: string; tax_group: string; veg: string; hsn: string; station: string; local_name: string }[],
+  apply: boolean,
+): Promise<MenuImportResult> {
+  const { denied } = await requireMenuManager();
+  if (denied) return { ok: false, error: denied };
+  if (!Array.isArray(rows) || rows.length === 0) return { ok: false, error: "The file has no menu rows." };
+  if (rows.length > 2000) return { ok: false, error: "Up to 2,000 rows can be uploaded at once. Split the file." };
+  const clean = rows.map((r) => ({
+    row: Number(r.row) || 0,
+    category: String(r.category ?? "").slice(0, 200),
+    sub_category: String(r.sub_category ?? "").slice(0, 200),
+    name: String(r.name ?? "").slice(0, 300),
+    price: String(r.price ?? "").slice(0, 40),
+    tax_group: String(r.tax_group ?? "").slice(0, 120),
+    veg: String(r.veg ?? "").slice(0, 20),
+    hsn: String(r.hsn ?? "").slice(0, 20),
+    station: String(r.station ?? "").slice(0, 60),
+    local_name: String(r.local_name ?? "").slice(0, 300),
+  }));
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("import_menu", { p_rows: clean, p_apply: apply });
+  if (error) return { ok: false, error: error.message };
+  const v = data as {
+    ok: boolean;
+    applied: boolean;
+    errors: { row: number; message: string }[];
+    new_categories: number;
+    new_items: number;
+    updated_items: number;
+    unchanged_items: number;
+  };
+  if (v.applied) {
+    revalidatePath("/settings/menu");
+    revalidatePath("/welcome");
+    revalidatePath("/pos");
+  }
+  return {
+    ok: true,
+    applied: !!v.applied,
+    errors: v.errors ?? [],
+    newCategories: v.new_categories ?? 0,
+    newItems: v.new_items ?? 0,
+    updatedItems: v.updated_items ?? 0,
+    unchangedItems: v.unchanged_items ?? 0,
+  };
 }

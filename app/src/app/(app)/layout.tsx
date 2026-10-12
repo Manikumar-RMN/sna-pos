@@ -14,6 +14,8 @@ import { Dual, LangProvider } from "./lang";
 import { getLicence, licenceDate } from "@/lib/licence";
 import { LicenceGate, LicenceNotice } from "./licence-notice";
 import { SNA_CONTACT_EMAIL } from "@/lib/sna-contact";
+import { AccountDate } from "./account-date";
+import { readAccountDate } from "./account-date-action";
 
 /** SNA POS mark: a steaming bowl on a saffron plate. */
 function Mark({ size = 48 }: { size?: number }) {
@@ -71,6 +73,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // Several outlets: a picker in the header decides which outlet you are working in.
   const outlets =
     user.outlet_count > 1 ? ((await (await createClient()).rpc("my_outlets")).data as unknown as OutletInfo | null) : null;
+  // The business date the next bill goes on, shown at the top right.
+  const accountDate = await readAccountDate();
 
   const actions = (onGreen: boolean) =>
     isCounter ? (
@@ -144,7 +148,10 @@ export default async function AppLayout({ children }: Readonly<{ children: React
                 </div>
               </div>
             </Link>
-            <div className="ml-auto flex items-center gap-2">{actions(true)}</div>
+            <div className="ml-auto flex items-center gap-2">
+              <AccountDate initial={accountDate} onGreen />
+              {actions(true)}
+            </div>
           </div>
           <NavLinks links={links} />
         </header>
@@ -158,7 +165,10 @@ export default async function AppLayout({ children }: Readonly<{ children: React
               {isCounter ? ` · ${user.device_name}` : ""}
             </div>
           </div>
-          <div className="ml-auto flex items-center gap-3">{actions(false)}</div>
+          <div className="ml-auto flex items-center gap-3">
+            <AccountDate initial={accountDate} onGreen={false} />
+            {actions(false)}
+          </div>
         </header>
 
         <main className="px-4 py-5 md:px-1 md:py-3">

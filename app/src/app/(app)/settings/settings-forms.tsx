@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addTable,
+  addTables,
   removeTable,
   savePackingCharge,
   saveSettings,
@@ -591,7 +592,15 @@ function GroupEditor({
 export function TablesForm({ tables, canEdit }: { tables: { id: string; number: string; seats: number; busy: boolean }[]; canEdit: boolean }) {
   const [num, setNum] = useState("");
   const [seats, setSeats] = useState("4");
+  const [many, setMany] = useState(false);
+  const [pre, setPre] = useState("");
+  const [from, setFrom] = useState("1");
+  const [to, setTo] = useState("10");
+  const [manySeats, setManySeats] = useState("4");
   const { pending, msg, run } = useRunner();
+  const fromN = Number(from);
+  const toN = Number(to);
+  const count = Number.isInteger(fromN) && Number.isInteger(toN) && toN >= fromN ? toN - fromN + 1 : 0;
   return (
     <section className="card p-5">
       <h2 className="text-base font-bold">Tables</h2>
@@ -606,7 +615,7 @@ export function TablesForm({ tables, canEdit }: { tables: { id: string; number: 
         )}
         {tables.map((t) => (
           <span key={t.id} className="flex max-w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: t.busy ? "var(--color-warn)" : "var(--color-line)" }}>
-            <b>T{t.number}</b>
+            <b>{/^[0-9]+$/.test(t.number) ? `T${t.number}` : t.number}</b>
             <span style={{ color: "var(--color-ink-3)" }}>{t.seats} seats</span>
             {canEdit && (
               <ConfirmButton
@@ -629,6 +638,50 @@ export function TablesForm({ tables, canEdit }: { tables: { id: string; number: 
           <button className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} disabled={pending || !num.trim()} onClick={() => run(() => addTable(num, Number(seats)), () => setNum(""))}>
             Add table
           </button>
+          <button className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} aria-expanded={many} onClick={() => setMany((v) => !v)}>
+            Add many tables
+          </button>
+        </div>
+      )}
+      {canEdit && many && (
+        <div className="mt-3 rounded-xl border p-3" style={{ borderColor: "var(--color-line)" }}>
+          <div className="text-sm font-bold">Add many tables at once</div>
+          <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-3)" }}>
+            For example from 1 to 20 makes tables 1 to 20. Letters in front are optional: &ldquo;A&rdquo; from 1 to 10 makes A1 to A10 (for a
+            second hall or the AC section). Tables that already exist are left as they are.
+          </p>
+          <div className="mt-2 flex flex-wrap items-end gap-2">
+            <label className="text-xs font-semibold">
+              Letters in front
+              <input className="field mt-1 h-11 w-24 text-sm uppercase" maxLength={6} placeholder="None" value={pre} onChange={(e) => setPre(e.target.value.toUpperCase())} />
+            </label>
+            <label className="text-xs font-semibold">
+              From
+              <input className="field mt-1 h-11 w-20 text-sm" inputMode="numeric" value={from} onChange={(e) => setFrom(e.target.value.replace(/[^0-9]/g, ""))} />
+            </label>
+            <label className="text-xs font-semibold">
+              To
+              <input className="field mt-1 h-11 w-20 text-sm" inputMode="numeric" value={to} onChange={(e) => setTo(e.target.value.replace(/[^0-9]/g, ""))} />
+            </label>
+            <label className="text-xs font-semibold">
+              Seats each
+              <input className="field mt-1 h-11 w-20 text-sm" inputMode="numeric" value={manySeats} onChange={(e) => setManySeats(e.target.value.replace(/[^0-9]/g, ""))} />
+            </label>
+            <button
+              className="btn btn-primary text-sm"
+              disabled={pending || count === 0 || count > 100}
+              onClick={() => run(() => addTables(pre, fromN, toN, Number(manySeats)), () => setMany(false))}
+            >
+              {count > 100 ? "Up to 100 at a time" : count > 0 ? `Add ${count} ${count === 1 ? "table" : "tables"}` : "Add tables"}
+            </button>
+          </div>
+          {count > 0 && count <= 100 && (
+            <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
+              Tables {pre.trim()}
+              {fromN} to {pre.trim()}
+              {toN}
+            </p>
+          )}
         </div>
       )}
       <Msg msg={msg} />

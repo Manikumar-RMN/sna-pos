@@ -19,7 +19,21 @@ import {
 } from "./actions";
 import { ConfirmButton } from "../settings/confirm-button";
 
-type Category = { id: string; name: string; display_order: number };
+type Category = { id: string; name: string; display_order: number; parent_id?: string | null };
+type TreeCategory = Category & { depth: 0 | 1; label: string; childCount: number };
+
+/** Main categories in their order, each followed by its sub-categories. */
+function categoryTree(categories: Category[]): TreeCategory[] {
+  const ids = new Set(categories.map((c) => c.id));
+  const mains = categories.filter((c) => !c.parent_id || !ids.has(c.parent_id));
+  const out: TreeCategory[] = [];
+  for (const m of mains) {
+    const kids = categories.filter((c) => c.parent_id === m.id);
+    out.push({ ...m, depth: 0, label: m.name, childCount: kids.length });
+    for (const k of kids) out.push({ ...k, depth: 1, label: `${m.name} › ${k.name}`, childCount: 0 });
+  }
+  return out;
+}
 type Product = {
   id: string;
   name: string;
@@ -85,6 +99,8 @@ export function MenuManager({
   const [addingIn, setAddingIn] = useState<string | null>(null); // category id
 
   const byCategory = (catId: string) => products.filter((p) => p.category_id === catId);
+  const tree = categoryTree(categories);
+  const mains = tree.filter((c) => c.depth === 0);
   const uncategorised = products.filter((p) => !categories.some((c) => c.id === p.category_id));
   const groupNames = (productId: string) =>
     (productGroups[productId] ?? [])
@@ -126,13 +142,13 @@ export function MenuManager({
         </div>
       )}
 
-      {categories.map((cat) => (
-        <div key={cat.id} className="card overflow-hidden">
+      {tree.map((cat) => (
+        <div key={cat.id} className={cat.depth === 1 ? "card ml-5 overflow-hidden sm:ml-8" : "card overflow-hidden"} style={cat.depth === 1 ? { borderLeft: "4px solid var(--color-brand-soft)" } : undefined}>
           <div
-            className="flex items-center justify-between gap-3 px-4 py-3"
+            className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
             style={{ borderBottom: "1px solid var(--color-line)" }}
           >
-            <CategoryHeader cat={cat} itemCount={byCategory(cat.id).length} />
+            <CategoryHeader cat={cat} itemCount={byCategory(cat.id).length} mains={mains} />
             <button
               className="btn"
               style={{ background: "var(--color-brand-soft)", color: "var(--color-brand)", minHeight: 40, padding: "0 12px" }}
@@ -173,14 +189,14 @@ export function MenuManager({
         </div>
       )}
 
-      <AddCategoryCard />
+      <AddCategoryCard mains={mains} />
 
       <OptionGroupsCard groups={optionGroups} currency={currency} />
 
       {addingIn && (
         <ProductModal
           title="Add item"
-          categories={categories}
+          categories={tree}
           taxGroups={taxGroups}
           defaultCategory={addingIn}
           optionGroups={optionGroups}
@@ -194,7 +210,7 @@ export function MenuManager({
       {editing && (
         <ProductModal
           title="Edit item"
-          categories={categories}
+          categories={tree}
           taxGroups={taxGroups}
           product={editing}
           optionGroups={optionGroups}
@@ -208,16 +224,58 @@ export function MenuManager({
   );
 }
 
-function CategoryHeader({ cat, itemCount }: { cat: Category; itemCount: number }) {
+function CategoryHeader({ cat, itemCount, mains }: { cat: TreeCategory; itemCount: number; mains: TreeCategory[] }) {
   const [renaming, setRenaming] = useState(false);
+  const [addingSub, setAddingSub] = useState(false);
   const [renameState, renameAction, renaming2] = useActionState(renameCategory, initial);
   const [delState, delAction, deleting] = useActionState(deleteCategory, initial);
+  const [subState, subAction, addingSub2] = useActionState(createCategory, initial);
+  // A category with sub-categories stays a main category; the others can be put inside one.
+  const parents = mains.filter((m) => m.id !== cat.id);
+
+  useEffect(() => {
+    if (subState.ok) setAddingSub(false);
+  }, [subState]);
+
+  if (addingSub) {
+    return (
+      <form action={subAction} className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="parent_id" value={cat.id} />
+        <span className="text-sm font-bold">{cat.name} ›</span>
+        <input name="name" placeholder="Sub-category, e.g. Hot drinks" className="field" style={{ minHeight: 40, maxWidth: 240 }} autoFocus required />
+        <button type="submit" className="btn btn-primary" style={{ minHeight: 40, padding: "0 12px" }} disabled={addingSub2}>
+          {addingSub2 ? "Adding…" : "Add"}
+        </button>
+        <button type="button" className="btn" style={{ minHeight: 40, padding: "0 10px" }} onClick={() => setAddingSub(false)}>
+          Cancel
+        </button>
+        {subState.error && (
+          <span className="text-xs" style={{ color: "var(--color-bad)" }}>
+            {subState.error}
+          </span>
+        )}
+      </form>
+    );
+  }
 
   if (renaming) {
     return (
-      <form action={renameAction} className="flex items-center gap-2" onSubmit={() => setRenaming(false)}>
+      <form action={renameAction} className="flex flex-wrap items-center gap-2" onSubmit={() => setRenaming(false)}>
         <input type="hidden" name="id" value={cat.id} />
-        <input name="name" defaultValue={cat.name} className="field" style={{ minHeight: 40 }} autoFocus />
+        <input name="name" defaultValue={cat.name} className="field" style={{ minHeight: 40, maxWidth: 240 }} autoFocus />
+        {cat.childCount === 0 && parents.length > 0 && (
+          <label className="flex items-center gap-1.5 text-xs font-semibold">
+            Inside
+            <select name="parent_id" defaultValue={cat.parent_id ?? ""} className="field" style={{ minHeight: 40, maxWidth: 200 }}>
+              <option value="">— none (main category) —</option>
+              {parents.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <button type="submit" className="btn btn-primary" style={{ minHeight: 40, padding: "0 12px" }} disabled={renaming2}>
           Save
         </button>
@@ -230,14 +288,20 @@ function CategoryHeader({ cat, itemCount }: { cat: Category; itemCount: number }
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
-      <span className="text-sm font-bold">{cat.name}</span>
+      <span className="text-sm font-bold">{cat.label}</span>
       <span className="text-xs tabular-nums" style={{ color: "var(--color-ink-3)" }}>
         {itemCount} item{itemCount === 1 ? "" : "s"}
+        {cat.childCount > 0 ? ` · ${cat.childCount} sub-categor${cat.childCount === 1 ? "y" : "ies"}` : ""}
       </span>
       <button className="text-xs underline" style={{ color: "var(--color-ink-3)" }} onClick={() => setRenaming(true)}>
-        rename
+        {cat.depth === 0 && cat.childCount > 0 ? "rename" : "rename / move"}
       </button>
-      {itemCount === 0 && (
+      {cat.depth === 0 && (
+        <button className="text-xs font-semibold underline" style={{ color: "var(--color-brand)" }} onClick={() => setAddingSub(true)}>
+          + sub-category
+        </button>
+      )}
+      {itemCount === 0 && cat.childCount === 0 && (
         <ConfirmButton
           className="text-xs underline"
           question={`Delete the category ${cat.name}?`}
@@ -389,16 +453,29 @@ function ProductRow({
   );
 }
 
-function AddCategoryCard() {
+function AddCategoryCard({ mains }: { mains: TreeCategory[] }) {
   const [state, action, pending] = useActionState(createCategory, initial);
   return (
-    <form action={action} className="card flex items-center gap-2 p-4">
+    <form action={action} className="card flex flex-wrap items-center gap-2 p-4">
       <input
         name="name"
         placeholder="New category (e.g. Tiffin)"
         className="field"
         style={{ maxWidth: 280 }}
       />
+      {mains.length > 0 && (
+        <label className="flex items-center gap-1.5 text-xs font-semibold">
+          Inside
+          <select name="parent_id" defaultValue="" className="field" style={{ maxWidth: 220 }} aria-label="Put the new category inside a main category (optional)">
+            <option value="">— none (main category) —</option>
+            {mains.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <button type="submit" className="btn btn-primary" style={{ minHeight: 44, padding: "0 16px" }} disabled={pending}>
         {pending ? "Adding…" : "Add category"}
       </button>
@@ -478,8 +555,8 @@ function ProductModal({
           <div>
             <label className="mb-1.5 block text-sm font-semibold">Category</label>
             <select name="category_id" defaultValue={product?.category_id ?? defaultCategory ?? ""} className="field" required>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+              {categoryTree(categories).map((c) => (
+                <option key={c.id} value={c.id}>{c.label}</option>
               ))}
             </select>
           </div>

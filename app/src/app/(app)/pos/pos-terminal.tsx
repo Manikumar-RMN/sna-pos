@@ -137,6 +137,7 @@ export function PosTerminal({
   customerDisplay = null,
   tableOrdersWaiting = 0,
   licenceLockAt = null,
+  categoryParents = {},
 }: {
   currency: string;
   canDiscount: boolean;
@@ -163,6 +164,8 @@ export function PosTerminal({
   tableOrdersWaiting?: number;
   /** The moment this restaurant becomes read-only (licence end), or null. Used when billing without internet. */
   licenceLockAt?: string | null;
+  /** Sub-category id → its main category. Main categories are not listed. */
+  categoryParents?: Record<string, { id: string; name: string }>;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -170,6 +173,8 @@ export function PosTerminal({
   const [search, setSearch] = useState("");
   /** Category tab; null = All. Not remembered between visits. */
   const [tab, setTab] = useState<string | null>(null);
+  /** Sub-category tab inside the chosen main category; null = all of it. */
+  const [subTab, setSubTab] = useState<string | null>(null);
   const [orderType, setOrderType] = useState<OrderType>("dine_in");
   const [tableId, setTableId] = useState<string | null>(null);
   /** The cashier chose to start a second bill on a table that already has an open one. */
@@ -231,34 +236,54 @@ export function PosTerminal({
   const packingQty = packRule?.per === "item" ? Math.max(1, Math.ceil(lines.reduce((s, l) => s + l.qty, 0))) : 1;
   const packingAmount = packRule ? Math.round(packRule.price * packingQty * 100) / 100 : 0;
 
-  // Category tabs, in menu order. The packing charge is not sold from the menu.
+  // Category tabs, in menu order: main categories; a sub-category's dishes come under its main one.
+  // The packing charge is not sold from the menu.
   const tabs = useMemo(() => {
     const out: { id: string; name: string }[] = [];
-    for (const x of menu) if (x.id !== packingId && !out.some((c) => c.id === x.category_id)) out.push({ id: x.category_id, name: x.category_name });
+    for (const x of menu) {
+      if (x.id === packingId) continue;
+      const m = categoryParents[x.category_id] ?? { id: x.category_id, name: x.category_name };
+      if (!out.some((c) => c.id === m.id)) out.push(m);
+    }
     return out;
-  }, [menu, packingId]);
+  }, [menu, packingId, categoryParents]);
   const activeTab = tab !== null && tabs.some((c) => c.id === tab) ? tab : null;
+  // The chosen main category's sub-categories (only those with dishes on sale).
+  const subTabs = useMemo(() => {
+    if (activeTab === null) return [];
+    const out: { id: string; name: string }[] = [];
+    for (const x of menu)
+      if (x.id !== packingId && categoryParents[x.category_id]?.id === activeTab && !out.some((c) => c.id === x.category_id))
+        out.push({ id: x.category_id, name: x.category_name });
+    return out;
+  }, [menu, packingId, categoryParents, activeTab]);
+  const activeSub = subTab !== null && subTabs.some((c) => c.id === subTab) ? subTab : null;
   const searching = search.trim() !== "";
 
   const categories = useMemo(() => {
-    // A search looks in every category; otherwise the chosen tab decides.
+    // A search looks in every category; otherwise the chosen tab (and sub-category tab) decides.
     const q = search.trim().toLowerCase();
-    const filtered = menu.filter(
-      (x) =>
-        x.id !== packingId &&
-        (q ? x.name.toLowerCase().includes(q) || (x.short_name ?? "").toLowerCase().includes(q) : activeTab === null || x.category_id === activeTab),
-    );
+    const filtered = menu.filter((x) => {
+      if (x.id === packingId) return false;
+      if (q) return x.name.toLowerCase().includes(q) || (x.short_name ?? "").toLowerCase().includes(q);
+      if (activeTab === null) return true;
+      const main = categoryParents[x.category_id]?.id ?? x.category_id;
+      return main === activeTab && (activeSub === null || x.category_id === activeSub);
+    });
     const groups: { id: string; name: string; items: MenuItem[] }[] = [];
     for (const x of filtered) {
       let g = groups.find((y) => y.id === x.category_id);
       if (!g) {
-        g = { id: x.category_id, name: x.category_name, items: [] };
+        const parent = categoryParents[x.category_id];
+        // Inside its own main category the sub-category's name is enough.
+        const name = parent && activeTab !== parent.id ? `${parent.name} › ${x.category_name}` : x.category_name;
+        g = { id: x.category_id, name, items: [] };
         groups.push(g);
       }
       g.items.push(x);
     }
     return groups;
-  }, [menu, search, activeTab, packingId]);
+  }, [menu, search, activeTab, activeSub, packingId, categoryParents]);
 
   const qtyInCart = (productId: string) => lines.filter((l) => l.item.id === productId).reduce((s, l) => s + l.qty, 0);
   // The same list goes to the live total and to the saved bill, so the two always agree.
@@ -717,7 +742,9 @@ export function PosTerminal({
       }
       // Saved. The screen is locked until it has moved on to the bill; the id is kept on purpose, so that even
       // a tap that slipped through would be answered with this same bill and not make another.
-      const next = mode === "split" ? `/bills/${res.orderId}?pay=split` : `/pos/receipt/${res.orderId}${mode === "pay" ? "?print=1" : ""}`;
+      // KOT (saved unpaid): print the kitchen ticket and go on to the next order; the bill is paid later.
+      const next =
+        mode === "split" ? `/bills/${res.orderId}?pay=split` : mode === "unpaid" ? `/pos/kot/${res.orderId}` : `/pos/receipt/${res.orderId}?print=1`;
       savedRef.current = true;
       setMaybeSaved(false);
       setSaved(next);
@@ -758,8 +785,9 @@ export function PosTerminal({
       if (!res.ok) return setError(res.error);
       // Added. Locked until the bill opens; the id is kept so that a tap that slipped through adds nothing twice.
       savedRef.current = true;
-      setSaved(`/bills/${addTo.id}`);
-      router.push(`/bills/${addTo.id}`);
+      // The added items go to the kitchen: print their KOT here, then back to the bill.
+      setSaved(`/pos/kot/${addTo.id}?then=bill`);
+      router.push(`/pos/kot/${addTo.id}?then=bill`);
     });
   }
 
@@ -814,7 +842,7 @@ export function PosTerminal({
           </a>
         )}
         <input className="field mb-3" placeholder="Search the menu…" value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
-        {tabs.length > 1 && (
+        {(tabs.length > 1 || Object.keys(categoryParents).length > 0) && (
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Menu categories">
             {[{ id: null as string | null, name: "All" }, ...tabs].map((c) => {
               // While a search is typed it looks everywhere, so no tab is shown as chosen.
@@ -826,6 +854,7 @@ export function PosTerminal({
                   aria-pressed={on}
                   onClick={() => {
                     setTab(c.id);
+                    setSubTab(null);
                     setSearch("");
                   }}
                   className="min-h-[44px] shrink-0 whitespace-nowrap rounded-full border px-4 text-sm font-semibold"
@@ -833,6 +862,29 @@ export function PosTerminal({
                     borderColor: on ? "var(--color-brand)" : "var(--color-line)",
                     background: on ? "var(--color-brand)" : "var(--color-surface)",
                     color: on ? "#fff" : "var(--color-ink-2)",
+                  }}
+                >
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {!searching && subTabs.length > 0 && (
+          <div className="-mt-2 mb-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Sub-categories">
+            {[{ id: null as string | null, name: `All ${tabs.find((t) => t.id === activeTab)?.name ?? ""}`.trim() }, ...subTabs].map((c) => {
+              const on = activeSub === c.id;
+              return (
+                <button
+                  key={c.id ?? "all-sub"}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setSubTab(c.id)}
+                  className="min-h-[44px] shrink-0 whitespace-nowrap rounded-xl border px-3.5 text-sm font-semibold"
+                  style={{
+                    borderColor: on ? "var(--color-brand)" : "var(--color-line)",
+                    background: on ? "var(--color-brand-soft)" : "var(--color-surface)",
+                    color: on ? "var(--color-brand-strong, var(--color-brand))" : "var(--color-ink-2)",
                   }}
                 >
                   {c.name}
@@ -1163,13 +1215,13 @@ export function PosTerminal({
                 </p>
               )}
               {error && !saved && <ErrorBox text={error} />}
-              {saved && <SavedBox text="Added. Opening the bill…" slow={savedSlow} onOpen={() => router.push(saved)} />}
+              {saved && <SavedBox text="Added and sent to the kitchen. Printing the KOT…" slow={savedSlow} onOpen={() => router.push(saved)} />}
               <div className="mt-3 flex gap-2">
                 <button onClick={() => router.push(`/bills/${addTo.id}`)} disabled={pending} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                   Back to bill
                 </button>
                 <button onClick={submitAdd} disabled={pending || lines.length === 0 || offline || !!saved} className="btn btn-primary flex-1">
-                  {pending ? "Adding…" : `Add ${lines.reduce((s, l) => s + l.qty, 0) || ""} to bill`}
+                  {pending ? "Adding…" : `KOT · add ${lines.reduce((s, l) => s + l.qty, 0) || ""} to bill`}
                 </button>
               </div>
             </div>
@@ -1290,7 +1342,7 @@ export function PosTerminal({
                 <ErrorBox text="The connection dropped while saving, so this bill may already be saved. Look in Bills before you save it again. To bill offline now, press the button again." />
               )}
               {error && !saved && <ErrorBox text={error} />}
-              {saved && <SavedBox text="Saved. Opening the bill…" slow={savedSlow} onOpen={() => router.push(saved)} onNext={startNextBill} />}
+              {saved && <SavedBox text={saved.startsWith("/pos/kot/") ? "Sent to the kitchen. Printing the KOT…" : "Saved. Opening the bill…"} slow={savedSlow} onOpen={() => router.push(saved)} onNext={startNextBill} />}
               {needSeparate && lines.length > 0 && (
                 <p className="mt-3 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
                   Table {chosenTable?.number} already has an open bill. Add to it, or tick &ldquo;Start a separate bill for this table&rdquo; above.
@@ -1303,8 +1355,14 @@ export function PosTerminal({
                 </button>
                 {canPay ? (
                   <>
-                    <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote || needSeparate || !!saved} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
-                      Save unpaid
+                    <button
+                      onClick={() => submit("unpaid")}
+                      disabled={pending || quoting || !quote || needSeparate || !!saved}
+                      className="btn border px-4 text-base font-bold"
+                      style={{ borderColor: "var(--color-brand)", background: "var(--color-surface)", color: "var(--color-brand-strong, var(--color-brand))" }}
+                      title="Send the order to the kitchen and print the KOT. The bill stays open: print it and take the payment later."
+                    >
+                      KOT
                     </button>
                     <button onClick={() => submit("pay")} disabled={pending || quoting || !quote || needSeparate || !!saved} className="btn btn-pay flex-1 text-base">
                       {pending ? "Saving…" : <Dual text="Charge" />}
@@ -1312,8 +1370,13 @@ export function PosTerminal({
                     </button>
                   </>
                 ) : (
-                  <button onClick={() => submit("unpaid")} disabled={pending || quoting || !quote || needSeparate || !!saved} className="btn btn-primary flex-1 text-base">
-                    {pending ? "Saving…" : <Dual text="Send to kitchen" />}
+                  <button
+                    onClick={() => submit("unpaid")}
+                    disabled={pending || quoting || !quote || needSeparate || !!saved}
+                    className="btn btn-primary flex-1 text-base"
+                    title="Send the order to the kitchen and print the KOT. The cashier takes the payment later."
+                  >
+                    {pending ? "Saving…" : "KOT"}
                   </button>
                 )}
               </div>

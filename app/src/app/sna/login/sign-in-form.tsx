@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { signInToConsole, type ConsoleSignInState } from "./actions";
+import { PasswordInput } from "@/components/password-input";
 
 const initial: ConsoleSignInState = { error: null };
 
@@ -20,7 +21,7 @@ export function ConsoleSignIn() {
         <label htmlFor="sna-password" className="mb-1 block text-sm font-semibold">
           Password
         </label>
-        <input id="sna-password" name="password" type="password" className="field" autoComplete="current-password" required />
+        <PasswordInput id="sna-password" name="password" className="field" autoComplete="current-password" required />
       </div>
       {state.error && (
         <p role="alert" className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>

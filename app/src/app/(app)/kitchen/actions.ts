@@ -21,3 +21,15 @@ export async function markPrinted(ids: string[]): Promise<{ ok: boolean }> {
   const { error } = await supabase.rpc("mark_tickets_printed", { p_ids: ids });
   return { ok: !error };
 }
+
+/**
+ * Claims tickets for printing on this device: marks them printed and returns the ones nobody had
+ * printed yet. Null when the claim could not be made (then the caller prints as before).
+ */
+export async function claimForPrint(ids: string[]): Promise<string[] | null> {
+  if (!ids.length) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("claim_tickets_for_print", { p_ids: ids });
+  if (error || !Array.isArray(data)) return null;
+  return data as string[];
+}

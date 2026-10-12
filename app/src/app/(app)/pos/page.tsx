@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getLicence } from "@/lib/licence";
 import { OpenShiftForm } from "../shift/shift-panel";
 import { PosTerminal, type AddTo, type OptionGroup, type PackingRule } from "./pos-terminal";
+import { byTableNumber } from "@/lib/table-order";
 
 export default async function PosPage({ searchParams }: { searchParams: Promise<{ add?: string }> }) {
   const user = await requireUser();
@@ -191,7 +192,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       taxName={country?.tax_system_name ?? "tax"}
       menu={items}
       paymentMethods={methods ?? []}
-      tables={(tables ?? []).map((t) => ({
+      tables={[...(tables ?? [])].sort(byTableNumber).map((t) => ({
         id: t.id,
         number: t.table_number,
         busy: openByTable.has(t.id),
@@ -203,6 +204,18 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       customerDisplay={has(user, "customer_display") ? user.trading_name : null}
       tableOrdersWaiting={tableOrdersWaiting}
       licenceLockAt={(await getLicence()).lock_at ?? null}
+      categoryParents={await subCategoryParents()}
     />
   );
+}
+
+/** Sub-category id → its main category, for the billing screen's category tabs. */
+async function subCategoryParents(): Promise<Record<string, { id: string; name: string }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("categories").select("id, name, parent_id").is("deleted_at", null);
+  if (error || !data) return {};
+  const names = new Map(data.map((c) => [c.id, c.name]));
+  const out: Record<string, { id: string; name: string }> = {};
+  for (const c of data) if (c.parent_id && names.has(c.parent_id)) out[c.id] = { id: c.parent_id, name: names.get(c.parent_id)! };
+  return out;
 }

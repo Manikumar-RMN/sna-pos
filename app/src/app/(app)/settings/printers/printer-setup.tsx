@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { readDevicePrint, saveDevicePrint, type DevicePrint } from "@/lib/device-print";
 
 export function PrinterSetup({ stations }: { stations: string[] }) {
-  const [v, setV] = useState<DevicePrint>({ bills: false, stations: [] });
+  const [v, setV] = useState<DevicePrint>({ bills: false, stations: [], kotHere: true });
   const [saved, setSaved] = useState(false);
   useEffect(() => setV(readDevicePrint()), []);
 
@@ -24,6 +24,15 @@ export function PrinterSetup({ stations }: { stations: string[] }) {
             <b>Customer bills</b>, straight after payment
             <span className="block text-xs" style={{ color: "var(--color-ink-3)" }}>
               For the counter. The bill can always be printed again from Bills.
+            </span>
+          </span>
+        </label>
+        <label className="mt-4 flex items-start gap-3 text-sm">
+          <input type="checkbox" className="mt-0.5 h-5 w-5" checked={v.kotHere} onChange={(e) => update({ ...v, kotHere: e.target.checked })} />
+          <span>
+            <b>KOT</b>, when the KOT button is pressed on this device
+            <span className="block text-xs" style={{ color: "var(--color-ink-3)" }}>
+              For a counter that hands the ticket to the kitchen. Switch it off if the kitchen has its own printer with the Kitchen screen open.
             </span>
           </span>
         </label>

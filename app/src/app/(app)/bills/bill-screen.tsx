@@ -9,6 +9,7 @@ import { BillActions } from "./bill-actions";
 import { WhatsAppShare } from "./whatsapp-share";
 import { LoyaltyPanel } from "./loyalty-panel";
 import { GuestDetails } from "./guest-details";
+import { byTableNumber } from "@/lib/table-order";
 
 /** One bill: printable receipt, its history, and the actions the user may take. */
 export async function BillScreen({ orderId, from, splitPay = false }: { orderId: string; from: "pos" | "bills"; splitPay?: boolean }) {
@@ -156,7 +157,7 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
         hasDiscount={bill.hasDiscount}
         hasPayments={r.payments.length > 0}
         tableId={bill.tableId}
-        tables={(tables ?? []).map((t) => ({ id: t.id, number: t.table_number, busy: busyTables.has(t.id) }))}
+        tables={[...(tables ?? [])].sort(byTableNumber).map((t) => ({ id: t.id, number: t.table_number, busy: busyTables.has(t.id) }))}
         otherBills={(openBills ?? []).map((o) => ({
           id: o.id,
           billNumber: o.bill_number,

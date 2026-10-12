@@ -1,6 +1,7 @@
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { MenuManager, type OptionGroupView } from "../../menu/menu-manager";
+import { MenuUpload } from "./menu-upload";
 
 export default async function MenuPage() {
   const user = await requireUser();
@@ -9,7 +10,7 @@ export default async function MenuPage() {
   // RLS scopes all of these to the signed-in user's restaurant.
   const [{ data: categories }, { data: products }, { data: taxGroups }, { data: groups }, { data: optItems }, { data: links }] =
     await Promise.all([
-      supabase.from("categories").select("id, name, display_order").is("deleted_at", null).order("display_order").order("name"),
+      supabase.from("categories").select("id, name, display_order, parent_id").is("deleted_at", null).order("display_order").order("name"),
       supabase
         .from("products")
         .select("id, name, price, category_id, tax_group_id, is_veg, is_available, kitchen_station, name_local, hsn_code, is_charge")
@@ -39,6 +40,16 @@ export default async function MenuPage() {
       <p className="mt-1 mb-6 text-sm" style={{ color: "var(--color-ink-3)" }}>
         The dishes and prices your restaurant sells. These appear on the billing screen.
       </p>
+
+      {can(user, "menu.manage") && (
+        <MenuUpload
+          taxGroups={taxGroups ?? []}
+          categories={categories ?? []}
+          products={(products ?? []).map((p) => ({ ...p, price: Number(p.price) }))}
+          showHsn={user.country_code === "IN"}
+          showStations={has(user, "kitchen_stations")}
+        />
+      )}
 
       <MenuManager
         canManage={can(user, "menu.manage")}

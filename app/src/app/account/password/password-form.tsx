@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { changePassword, type PasswordState } from "./actions";
+import { PasswordInput } from "@/components/password-input";
 
 const initial: PasswordState = { error: null };
 
@@ -14,11 +15,11 @@ export function PasswordForm({ allowCancel, toConsole = false }: { allowCancel: 
       <label className="mb-1.5 block text-sm font-semibold" htmlFor="password">
         New password
       </label>
-      <input id="password" name="password" type="password" autoComplete="new-password" required minLength={8} className="field mb-4" />
+      <PasswordInput id="password" name="password" autoComplete="new-password" required minLength={8} className="field" wrapperClassName="mb-4" />
       <label className="mb-1.5 block text-sm font-semibold" htmlFor="confirm">
         Type it again
       </label>
-      <input id="confirm" name="confirm" type="password" autoComplete="new-password" required minLength={8} className="field mb-5" />
+      <PasswordInput id="confirm" name="confirm" autoComplete="new-password" required minLength={8} className="field" wrapperClassName="mb-5" />
       {state.error && (
         <p className="mb-4 rounded-lg px-3 py-2 text-sm" role="alert" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
           {state.error}

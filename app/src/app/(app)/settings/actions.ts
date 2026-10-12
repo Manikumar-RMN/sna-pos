@@ -113,13 +113,59 @@ export async function addTable(tableNumber: string, seats: number): Promise<Resu
   // Tables belong to the outlet you are working in.
   const branch = { id: user.branch_id };
 
-  const { data: existing } = await supabase.from("dining_tables").select("id, is_active").eq("table_number", num).maybeSingle();
+  const { data: existing } = await supabase.from("dining_tables").select("id, is_active").eq("branch_id", branch.id).eq("table_number", num).maybeSingle();
   if (existing?.is_active) return { ok: false, error: `Table ${num} already exists.` };
   const { error } = existing
     ? await supabase.from("dining_tables").update({ is_active: true, seats }).eq("id", existing.id)
     : await supabase.from("dining_tables").insert({ restaurant_id: user.restaurant_id, branch_id: branch.id, table_number: num, seats });
   if (error) return { ok: false, error: error.message };
   return done(`Table ${num} added.`);
+}
+
+/**
+ * Adds a run of tables in one go: from 1 to 20 gives tables 1, 2 … 20; with letters in front
+ * ("A") it gives A1 … A20. Tables that already exist are left as they are; removed ones come back.
+ */
+export async function addTables(prefix: string, from: number, to: number, seats: number): Promise<Result> {
+  const user = await getCurrentUser();
+  if (!user || !can(user, "settings.manage")) return { ok: false, error: "Only an owner can change tables." };
+  const pre = prefix.trim();
+  if (pre.length > 6 || /[^A-Za-z0-9 -]/.test(pre)) return { ok: false, error: "Use up to 6 letters or digits in front of the number." };
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to > 999) return { ok: false, error: "Enter table numbers from 1 to 999." };
+  if (to < from) return { ok: false, error: "The last table number must be the same as or after the first." };
+  if (to - from + 1 > 100) return { ok: false, error: "Add up to 100 tables at a time." };
+  if (!(seats > 0 && seats < 100)) return { ok: false, error: "Enter the number of seats." };
+
+  const supabase = await createClient();
+  const branchId = user.branch_id;
+  const wanted = Array.from({ length: to - from + 1 }, (_, i) => `${pre}${from + i}`);
+  const { data: existing, error: readError } = await supabase
+    .from("dining_tables")
+    .select("id, table_number, is_active")
+    .eq("branch_id", branchId)
+    .in("table_number", wanted);
+  if (readError) return { ok: false, error: readError.message };
+  const byNumber = new Map((existing ?? []).map((t) => [t.table_number, t]));
+  const toAdd = wanted.filter((n) => !byNumber.has(n));
+  const toRestore = (existing ?? []).filter((t) => !t.is_active).map((t) => t.id);
+  const already = (existing ?? []).filter((t) => t.is_active).length;
+
+  if (toAdd.length > 0) {
+    const { error } = await supabase
+      .from("dining_tables")
+      .insert(toAdd.map((n) => ({ restaurant_id: user.restaurant_id, branch_id: branchId, table_number: n, seats })));
+    if (error) return { ok: false, error: error.message };
+  }
+  if (toRestore.length > 0) {
+    const { error } = await supabase.from("dining_tables").update({ is_active: true, seats }).in("id", toRestore);
+    if (error) return { ok: false, error: error.message };
+  }
+  const made = toAdd.length + toRestore.length;
+  if (made === 0) return done(`Tables ${wanted[0]} to ${wanted[wanted.length - 1]} are all there already.`);
+  return done(
+    `${made} ${made === 1 ? "table" : "tables"} added (${wanted[0]} to ${wanted[wanted.length - 1]}).` +
+      (already > 0 ? ` ${already} already existed and were left as they are.` : ""),
+  );
 }
 
 export async function removeTable(id: string): Promise<Result> {

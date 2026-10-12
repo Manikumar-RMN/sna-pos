@@ -1009,6 +1009,7 @@ export type Database = {
           image_url: string | null
           is_active: boolean
           name: string
+          parent_id: string | null
           restaurant_id: string
           updated_at: string
         }
@@ -1020,6 +1021,7 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           name: string
+          parent_id?: string | null
           restaurant_id: string
           updated_at?: string
         }
@@ -1031,6 +1033,7 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           name?: string
+          parent_id?: string | null
           restaurant_id?: string
           updated_at?: string
         }
@@ -5920,6 +5923,10 @@ export type Database = {
       }
       my_account_state: { Args: never; Returns: string }
       my_device_state: { Args: never; Returns: Json }
+      account_date: { Args: never; Returns: Json }
+      claim_tickets_for_print: { Args: { p_ids: string[] }; Returns: string[] }
+      send_to_kitchen: { Args: { p_order: string }; Returns: Json }
+      import_menu: { Args: { p_apply?: boolean; p_rows: Json }; Returns: Json }
       my_licence: { Args: never; Returns: Json }
       my_outlets: { Args: never; Returns: Json }
       my_plan: { Args: never; Returns: Json }

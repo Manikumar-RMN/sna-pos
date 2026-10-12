@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { authenticate, type AuthState } from "./actions";
 import { SNA_CONTACT_EMAIL } from "@/lib/sna-contact";
+import { PasswordInput } from "@/components/password-input";
 
 const initial: AuthState = { error: null, notice: null };
 
@@ -204,16 +205,16 @@ export default function LoginPage() {
             <label className="mb-1.5 block text-sm font-bold" htmlFor="password">
               Password
             </label>
-            <input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               autoComplete={isSignup ? "new-password" : "current-password"}
               required
               minLength={isSignup ? 8 : undefined}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={isSignup ? "field mb-4" : "field mb-2"}
+              className="field"
+              wrapperClassName={isSignup ? "mb-4" : "mb-2"}
               placeholder={isSignup ? "At least 8 characters" : "Your password"}
             />
 
@@ -222,15 +223,15 @@ export default function LoginPage() {
                 <label className="mb-1.5 block text-sm font-bold" htmlFor="confirm">
                   Type the password again
                 </label>
-                <input
+                <PasswordInput
                   id="confirm"
                   name="confirm"
-                  type="password"
                   autoComplete="new-password"
                   required
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
-                  className="field mb-2"
+                  className="field"
+                  wrapperClassName="mb-2"
                   placeholder="Same password"
                   aria-invalid={mismatch}
                 />
