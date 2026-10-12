@@ -6,7 +6,8 @@ import { guestOrderStatus, placeGuestOrder } from "../actions";
 
 type Option = { id: string; name: string; price_delta: number };
 type Group = { id: string; name: string; min: number; max: number; options: Option[] };
-type Item = { id: string; name: string; name_local: string | null; is_veg: boolean | null; price: number; option_groups: Group[] };
+/** `sub`: the sub-category the dish sits in (shown as a heading), or null for the main category itself. */
+type Item = { id: string; name: string; name_local: string | null; is_veg: boolean | null; price: number; option_groups: Group[]; sub?: string | null };
 export type GuestMenu = {
   restaurant: string;
   outlet: string;
@@ -126,8 +127,14 @@ export function GuestOrder({ token, menu }: { token: string; menu: GuestMenu }) 
       </nav>
 
       <ul className="space-y-2 px-4">
-        {items.map((it) => (
-          <li key={it.id} className="card flex items-center justify-between gap-3 p-3">
+        {items.map((it, i) => (
+          <li key={it.id} className="list-none">
+            {(it.sub ?? null) !== (i > 0 ? (items[i - 1].sub ?? null) : null) && it.sub && (
+              <h2 className="px-1 pb-1 pt-3 text-sm font-bold uppercase tracking-wide" style={{ color: "var(--color-ink-3)" }}>
+                {it.sub}
+              </h2>
+            )}
+            <div className="card flex items-center justify-between gap-3 p-3">
             <div className="min-w-0">
               <div className="font-semibold">
                 {it.is_veg !== null && (
@@ -148,6 +155,7 @@ export function GuestOrder({ token, menu }: { token: string; menu: GuestMenu }) 
             >
               Add
             </button>
+            </div>
           </li>
         ))}
       </ul>
