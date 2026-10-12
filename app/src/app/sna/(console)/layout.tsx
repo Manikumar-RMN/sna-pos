@@ -39,6 +39,7 @@ export default async function SnaLayout({ children }: Readonly<{ children: React
           { href: "/sna/staff", label: "SNA staff" },
         ]
       : []),
+    { href: "/sna/help", label: "Help" },
   ];
 
   return (

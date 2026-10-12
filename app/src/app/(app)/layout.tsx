@@ -58,6 +58,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     { href: "/timesheets", label: "Timesheets", show: has(user, "timesheets") },
     // Menu, users and security profiles live inside Settings.
     { href: "/settings", label: "Settings", show: true },
+    { href: "/help", label: "Help", show: true },
   ]
     .filter((l) => l.show)
     .map(({ href, label }) => ({ href, label }));
