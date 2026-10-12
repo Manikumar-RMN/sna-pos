@@ -23,7 +23,8 @@ export type SnapItem = {
 export type Snapshot = {
   taken_at: string;
   device_key: string;
-  series: { prefix: string; fy: string | null; next_seq: number; branch_code: string };
+  /** branch_code is the outlet's bill prefix; key changes when the prefix changes (numbers start again from 1). */
+  series: { prefix: string; fy: string | null; next_seq: number; branch_code: string; key?: string | null };
   rights: { discount: boolean; pay: boolean };
   menu: SnapItem[];
   methods: { id: string; name: string; kind: string; ask_reference: boolean; upi_id: string | null }[];
@@ -122,8 +123,10 @@ export const readSnapshot = () => get<Snapshot>(K_SNAP);
 export function saveSnapshot(s: Snapshot) {
   put(K_SNAP, s);
   // Never go backwards: keep the higher of the server's and this device's next number.
-  const local = get<{ fy: string | null; next: number }>(K_SEQ);
-  if (!local || local.fy !== s.series.fy || local.next < s.series.next_seq) put(K_SEQ, { fy: s.series.fy, next: s.series.next_seq });
+  const local = get<{ fy: string | null; next: number; key?: string | null }>(K_SEQ);
+  const key = s.series.key ?? null;
+  if (!local || local.fy !== s.series.fy || (local.key ?? null) !== key || local.next < s.series.next_seq)
+    put(K_SEQ, { fy: s.series.fy, next: s.series.next_seq, key });
 }
 export const readQueue = () => get<OfflineBill[]>(K_QUEUE) ?? [];
 export const writeQueue = (q: OfflineBill[]) => put(K_QUEUE, q);
@@ -155,11 +158,13 @@ export function cashDue(snap: Snapshot, total: number, isCash: boolean) {
   return roundCash(Math.round(total * 100), snap.settings.cash_rounding) / 100;
 }
 
-/** Takes the next offline bill number for this device, e.g. MN-X01-2627-0007. */
+/** Takes the next offline bill number for this device, e.g. BILL26-X1-0007. */
 export function takeNumber(snap: Snapshot): { seq: number; number: string } {
-  const cur = get<{ fy: string | null; next: number }>(K_SEQ) ?? { fy: snap.series.fy, next: snap.series.next_seq };
+  const key = snap.series.key ?? null;
+  const saved = get<{ fy: string | null; next: number; key?: string | null }>(K_SEQ);
+  const cur = saved && (saved.key ?? null) === key ? saved : { fy: snap.series.fy, next: snap.series.next_seq };
   const seq = Math.max(cur.next, snap.series.next_seq);
-  put(K_SEQ, { fy: snap.series.fy, next: seq + 1 });
+  put(K_SEQ, { fy: snap.series.fy, next: seq + 1, key });
   const s = snap.series;
   return { seq, number: `${s.branch_code}-${s.prefix}-${s.fy ? `${s.fy}-` : ""}${String(seq).padStart(4, "0")}` };
 }

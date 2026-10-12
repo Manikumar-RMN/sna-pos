@@ -23,6 +23,17 @@ function done(message: string): Result {
   return { ok: true, message };
 }
 
+/** The outlet's bill prefix (Settings → Bill layout). The database checks the rights and the format. */
+export async function setBillPrefix(prefix: string): Promise<Result> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_bill_prefix", { p_prefix: prefix.trim() });
+  if (error) return { ok: false, error: error.message.replace(/\s*\([a-z]+\.[a-z_]+\)/, "") };
+  const r = (data ?? {}) as { changed?: boolean; next_number?: string };
+  if (!r.changed) return { ok: true, message: "Nothing changed." };
+  revalidatePath("/settings/bill");
+  return { ok: true, message: `Saved. The next bill will be ${r.next_number ?? ""}.` };
+}
+
 /** Restaurant, branch, receipt, service charge and rounding. The database validates each value. */
 export async function saveSettings(settings: Record<string, string | boolean | number>): Promise<Result> {
   const supabase = await createClient();

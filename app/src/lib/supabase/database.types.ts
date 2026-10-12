@@ -5832,6 +5832,7 @@ export type Database = {
         Args: { p_name?: string; p_order: string; p_phone: string }
         Returns: Json
       }
+      bill_prefix_info: { Args: never; Returns: Json }
       cancel_goods_receipt: {
         Args: { p_id: string; p_reason: string }
         Returns: Json
@@ -6204,6 +6205,7 @@ export type Database = {
         Args: { p_gstin: string; p_name: string; p_order_id: string }
         Returns: Json
       }
+      set_bill_prefix: { Args: { p_prefix: string }; Returns: Json }
       set_central_kitchen: {
         Args: { p_branch: string; p_on: boolean }
         Returns: undefined

@@ -6,6 +6,7 @@ import { billFormat } from "@/lib/bill-format";
 import type { ReceiptData } from "@/app/(app)/pos/receipt-view";
 import { NoAccess, SectionHead } from "../section-head";
 import { BillLayout } from "./bill-layout";
+import { BillNumbers, type BillPrefixInfo } from "./bill-numbers";
 
 /** Sample prices are written for rupees; this keeps them believable in other currencies. */
 const PRICE_SCALE: Record<string, number> = { IDR: 250, VND: 300, KRW: 20, JPY: 2, AED: 0.2, SGD: 0.1, MYR: 0.1 };
@@ -21,7 +22,7 @@ export default async function BillLayoutSettings({ searchParams }: { searchParam
 
   const supabase = await createClient();
   const isIndia = user.country_code === "IN";
-  const [{ data: rest }, { data: branch }, { data: bs }, { data: country }, { data: upiMethod }] = await Promise.all([
+  const [{ data: rest }, { data: branch }, { data: bs }, { data: country }, { data: upiMethod }, { data: prefixInfo }] = await Promise.all([
     supabase.from("restaurants").select("legal_name, trading_name, tax_registration_no, fssai_no, sac_code, logo_url").limit(1).maybeSingle(),
     supabase.from("branches").select("name, address_line1, address_line2, city, phone").eq("id", user.branch_id).maybeSingle(),
     supabase.from("branch_settings").select("receipt_header, receipt_footer, bill_format").eq("branch_id", user.branch_id).maybeSingle(),
@@ -29,6 +30,7 @@ export default async function BillLayoutSettings({ searchParams }: { searchParam
     isIndia
       ? supabase.from("payment_methods").select("upi_id").eq("kind", "upi").eq("is_active", true).not("upi_id", "is", null).limit(1).maybeSingle()
       : Promise.resolve({ data: null }),
+    supabase.rpc("bill_prefix_info"),
   ]);
 
   // A made-up takeaway bill, under the restaurant's real name, address and tax details.
@@ -55,7 +57,7 @@ export default async function BillLayoutSettings({ searchParams }: { searchParam
     branchName: branch?.name ?? user.branch_name,
     address: [branch?.address_line1, branch?.address_line2, branch?.city].filter(Boolean).join(", ") || null,
     phone: branch?.phone ?? null,
-    billNumber: "SAMPLE-0042",
+    billNumber: (prefixInfo as BillPrefixInfo | null)?.next_number ?? "SAMPLE-0042",
     orderType: "takeaway",
     tableNumber: null,
     createdAt: new Date().toISOString(),
@@ -100,12 +102,13 @@ export default async function BillLayoutSettings({ searchParams }: { searchParam
   return (
     <div>
       <SectionHead title="Bill layout">
-        How the printed bill and the kitchen ticket look. The heading and footer lines of the bill are typed in{" "}
+        Bill numbers, and how the printed bill and the kitchen ticket look. The heading and footer lines of the bill are typed in{" "}
         <Link href="/settings/company" className="font-semibold underline" style={{ color: "var(--color-brand)" }}>
           Company
         </Link>
         .
       </SectionHead>
+      {prefixInfo && <BillNumbers info={prefixInfo as unknown as BillPrefixInfo} isIndia={isIndia} />}
       <BillLayout
         initialFormat={billFormat(bs?.bill_format)}
         initialLogo={rest?.logo_url || null}

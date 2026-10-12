@@ -131,7 +131,7 @@ export function NewClientForm({ countries, canSell }: { countries: Country[]; ca
           <Field label="First outlet" htmlFor="nc-branch">
             <input id="nc-branch" className="field" value={f.branchName} maxLength={120} required onChange={(e) => set({ branchName: e.target.value })} />
           </Field>
-          <Field label="Outlet code" htmlFor="nc-code" hint="2 or 3 letters or digits. It starts every bill number, e.g. MN-C1-2627-0001 (GST allows 16 characters).">
+          <Field label="Outlet code" htmlFor="nc-code" hint="2 or 3 letters or digits, a short name for the outlet. Bills start as MN26-0001; the owner can set their own bill prefix in Settings → Bill layout.">
             <input id="nc-code" className="field uppercase" value={f.branchCode} maxLength={3} required pattern="[A-Za-z0-9]{2,3}" onChange={(e) => set({ branchCode: e.target.value })} />
           </Field>
         </div>
