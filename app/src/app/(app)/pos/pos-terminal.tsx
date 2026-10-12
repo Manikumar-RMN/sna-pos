@@ -146,6 +146,8 @@ export function PosTerminal({
   tableOrdersWaiting = 0,
   licenceLockAt = null,
   categoryParents = {},
+  orderTypes = [],
+  startType,
 }: {
   currency: string;
   canDiscount: boolean;
@@ -173,6 +175,10 @@ export function PosTerminal({
   /** The moment this restaurant becomes read-only (licence end), or null. Used when billing without internet. */
   licenceLockAt?: string | null;
   /** Sub-category id → its main category. Main categories are not listed. */
+  /** Kinds of bill this outlet uses; empty means all three. */
+  orderTypes?: OrderType[];
+  /** The kind of bill the screen starts on. */
+  startType?: string | null;
   categoryParents?: Record<string, { id: string; name: string }>;
 }) {
   const router = useRouter();
@@ -183,7 +189,11 @@ export function PosTerminal({
   const [tab, setTab] = useState<string | null>(null);
   /** Sub-category tab inside the chosen main category; null = all of it. */
   const [subTab, setSubTab] = useState<string | null>(null);
-  const [orderType, setOrderType] = useState<OrderType>("dine_in");
+  // The kinds of bill this outlet uses (Settings → Service charge); the screen starts on the outlet's choice.
+  const kinds: OrderType[] = orderTypes.length ? orderTypes : ["dine_in", "takeaway", "delivery"];
+  const [orderType, setOrderType] = useState<OrderType>(() =>
+    startType && kinds.includes(startType as OrderType) ? (startType as OrderType) : kinds[0],
+  );
   const [tableId, setTableId] = useState<string | null>(null);
   /** The cashier chose to start a second bill on a table that already has an open one. */
   const [separateBill, setSeparateBill] = useState(false);
@@ -1004,7 +1014,7 @@ export function PosTerminal({
               </span>
             ) : (
               <div className="flex overflow-hidden rounded-lg border" style={{ borderColor: "var(--color-line)" }}>
-                {(["dine_in", "takeaway", "delivery"] as const).map((t) => (
+                {kinds.map((t) => (
                   <button
                     key={t}
                     onClick={() => chooseOrderType(t)}

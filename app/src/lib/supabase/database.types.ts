@@ -762,6 +762,7 @@ export type Database = {
           cash_rounding_mode: string
           day_cutoff: string
           default_order_type: string
+          order_types: string[]
           packing_delivery: boolean
           packing_per: string
           packing_product_id: string | null
@@ -785,6 +786,7 @@ export type Database = {
           cash_rounding_mode?: string
           day_cutoff?: string
           default_order_type?: string
+          order_types?: string[]
           packing_delivery?: boolean
           packing_per?: string
           packing_product_id?: string | null
@@ -808,6 +810,7 @@ export type Database = {
           cash_rounding_mode?: string
           day_cutoff?: string
           default_order_type?: string
+          order_types?: string[]
           packing_delivery?: boolean
           packing_per?: string
           packing_product_id?: string | null
@@ -4392,6 +4395,7 @@ export type Database = {
       restaurants: {
         Row: {
           backup_phone: string | null
+          business_type: string
           client_code: string
           contact_email: string | null
           contact_phone: string | null
@@ -4414,6 +4418,7 @@ export type Database = {
         }
         Insert: {
           backup_phone?: string | null
+          business_type?: string
           client_code?: string
           contact_email?: string | null
           contact_phone?: string | null
@@ -4436,6 +4441,7 @@ export type Database = {
         }
         Update: {
           backup_phone?: string | null
+          business_type?: string
           client_code?: string
           contact_email?: string | null
           contact_phone?: string | null
@@ -6317,6 +6323,12 @@ export type Database = {
       }
       price_rules_list: { Args: never; Returns: Json }
       save_price_rule: { Args: { p: Json }; Returns: string }
+      set_business_type: { Args: { p_apply?: boolean; p_type: string }; Returns: Json }
+      set_order_types: { Args: { p_default: string; p_types: string[] }; Returns: undefined }
+      sna_set_business_type: {
+        Args: { p_apply?: boolean; p_restaurant: string; p_type: string }
+        Returns: Json
+      }
       set_bill_prefix: { Args: { p_prefix: string }; Returns: Json }
       set_central_kitchen: {
         Args: { p_branch: string; p_on: boolean }

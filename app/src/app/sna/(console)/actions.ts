@@ -19,6 +19,13 @@ export async function setEdition(restaurantId: string, edition: "basic" | "profe
   return done(edition === "professional" ? "Upgraded to Professional." : "Moved to Basic.");
 }
 
+export async function setBusinessType(restaurantId: string, type: string, apply: boolean): Promise<SnaResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("sna_set_business_type", { p_restaurant: restaurantId, p_type: type, p_apply: apply });
+  if (error) return { ok: false, error: error.message };
+  return done(apply ? "Business type saved and its starting settings put on every outlet." : "Business type saved.");
+}
+
 export async function setModule(restaurantId: string, module: string, on: boolean, note: string): Promise<SnaResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("sna_set_module", { p_restaurant: restaurantId, p_module: module, p_on: on, p_note: note || undefined });

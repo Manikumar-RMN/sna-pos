@@ -48,7 +48,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     // Shifts are optional: when they are off, the first bill opens the drawer automatically.
     supabase
       .from("branch_settings")
-      .select("shifts_enabled, packing_product_id, packing_per, packing_takeaway, packing_delivery")
+      .select("shifts_enabled, packing_product_id, packing_per, packing_takeaway, packing_delivery, order_types, default_order_type")
       .eq("branch_id", user.branch_id)
       .maybeSingle()
       .then(async (bs) => ({
@@ -204,6 +204,8 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
 
   return (
     <PosTerminal
+      orderTypes={(settings?.order_types ?? []).filter((t): t is "dine_in" | "takeaway" | "delivery" => t === "dine_in" || t === "takeaway" || t === "delivery")}
+      startType={settings?.default_order_type}
       key={addTo?.id ?? "new"}
       currency={user.currency_code}
       canDiscount={can(user, "order.discount")}

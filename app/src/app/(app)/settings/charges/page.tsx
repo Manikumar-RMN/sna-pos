@@ -2,6 +2,7 @@ import { can, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ChargesForm, PackingForm, TokensForm } from "../settings-forms";
 import { NoAccess, SectionHead } from "../section-head";
+import { OrderTypesCard } from "./order-types";
 
 export default async function ChargeSettings() {
   const user = await requireUser();
@@ -12,7 +13,7 @@ export default async function ChargeSettings() {
     supabase
       .from("branch_settings")
       .select(
-        "cash_rounding_mode, service_charge_percent, service_charge_label, service_charge_taxable, service_charge_default_on, rounding_cash_only, token_numbers, packing_product_id, packing_per, packing_takeaway, packing_delivery",
+        "order_types, default_order_type, cash_rounding_mode, service_charge_percent, service_charge_label, service_charge_taxable, service_charge_default_on, rounding_cash_only, token_numbers, packing_product_id, packing_per, packing_takeaway, packing_delivery",
       )
       .eq("branch_id", user.branch_id)
       .maybeSingle(),
@@ -40,6 +41,7 @@ export default async function ChargeSettings() {
   return (
     <div className="space-y-4">
       <SectionHead title="Service charge">The service charge, how totals are rounded, the packing charge and token numbers.</SectionHead>
+      <OrderTypesCard initial={bs?.order_types ?? []} initialStart={bs?.default_order_type ?? "dine_in"} canEdit={canEdit} />
       <ChargesForm
         canEdit={canEdit}
         taxName={taxName}

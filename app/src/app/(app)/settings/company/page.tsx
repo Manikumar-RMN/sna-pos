@@ -4,13 +4,14 @@ import { BusinessForm } from "../settings-forms";
 import { NoAccess, SectionHead } from "../section-head";
 import { cookies } from "next/headers";
 import { LanguageForm } from "./language-form";
+import { BusinessTypeCard } from "./business-type";
 
 export default async function CompanySettings() {
   const user = await requireUser();
   if (!can(user, "settings.manage") && !can(user, "tax.manage")) return <NoAccess />;
   const supabase = await createClient();
   const [{ data: rest }, { data: branch }, { data: bs }, { data: country }] = await Promise.all([
-    supabase.from("restaurants").select("legal_name, trading_name, tax_registration_no, contact_phone, fssai_no, sac_code").limit(1).maybeSingle(),
+    supabase.from("restaurants").select("legal_name, trading_name, tax_registration_no, contact_phone, fssai_no, sac_code, business_type").limit(1).maybeSingle(),
     supabase.from("branches").select("name, address_line1, address_line2, city, state_or_region, postal_code, phone").eq("id", user.branch_id).maybeSingle(),
     supabase.from("branch_settings").select("receipt_header, receipt_footer, auto_print_kot").limit(1).maybeSingle(),
     supabase.from("countries").select("tax_id_label, compliance_note").eq("code", user.country_code).maybeSingle(),
@@ -25,6 +26,7 @@ export default async function CompanySettings() {
           <b>Before you go live:</b> {country.compliance_note}
         </div>
       )}
+      <BusinessTypeCard initial={rest?.business_type ?? "restaurant"} canEdit={can(user, "settings.manage")} />
       <BusinessForm
         canEdit={can(user, "settings.manage")}
         taxIdLabel={country?.tax_id_label ?? "Tax number"}

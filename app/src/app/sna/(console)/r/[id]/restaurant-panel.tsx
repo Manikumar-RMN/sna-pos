@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { money } from "@/lib/format";
-import { addOutletRequest, createOutlet, setEdition, setModule } from "../../actions";
+import { addOutletRequest, createOutlet, setBusinessType, setEdition, setModule } from "../../actions";
+import { BUSINESS_TYPES } from "@/lib/business-types";
 import { RequestRow, requestLabel, type SnaRequest } from "../../request-row";
 import { eventLabel } from "../../crm";
 
@@ -14,6 +15,7 @@ export type SnaRestaurant = {
   country_code: string;
   currency: string;
   edition: "basic" | "professional";
+  business_type?: string;
   timezone: string;
   created_at: string;
   contact_email: string | null;
@@ -33,6 +35,8 @@ export function RestaurantPanel({ r, role }: { r: SnaRestaurant; role: string })
   const sales = role === "admin" || role === "sales";
   const builder = role === "admin" || role === "implementer";
   const pro = r.edition === "professional";
+  const [btype, setBtype] = useState(r.business_type ?? "restaurant");
+  const [bapply, setBapply] = useState(true);
 
   function run(p: Promise<{ ok: boolean; message?: string; error?: string }>) {
     start(async () => {
@@ -73,6 +77,29 @@ export function RestaurantPanel({ r, role }: { r: SnaRestaurant; role: string })
               )}
             </>
           )}
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <h2 className="font-display text-lg font-bold">Type of business</h2>
+        <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+          Sets the client&rsquo;s starting settings (kinds of bill, token numbers). The owner can change it in Settings → Company.
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <select className="field h-10 w-64" value={btype} onChange={(e) => setBtype(e.target.value)} disabled={pending} aria-label="Type of business">
+            {BUSINESS_TYPES.map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="h-4 w-4" checked={bapply} onChange={(e) => setBapply(e.target.checked)} />
+            Put its starting settings on every outlet
+          </label>
+          <button className="btn btn-primary h-10 min-h-0 px-4 text-sm" disabled={pending} onClick={() => run(setBusinessType(r.id, btype, bapply))}>
+            Save
+          </button>
         </div>
       </div>
 
