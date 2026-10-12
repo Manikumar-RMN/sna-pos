@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { readDevicePrint } from "@/lib/device-print";
+import { billLines, sendToRawbt } from "@/lib/rawbt";
 import { money, orderTypeLabel } from "@/lib/format";
 import { billFormat, billTextPx, paperWidth, type BillFormat } from "@/lib/bill-format";
 import { UpiQr } from "../upi-qr";
@@ -93,10 +94,19 @@ export function ReceiptView({
     url.searchParams.delete("print");
     window.history.replaceState(null, "", url.toString());
     if (readDevicePrint().bills && (data.state === "paid" || data.state === "part-paid")) {
-      const t = setTimeout(() => window.print(), 300);
+      const t = setTimeout(() => printBill(), 300);
       return () => clearTimeout(t);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.state]);
+
+  /** Prints the bill the way this device is set up to (Settings → Printers). */
+  function printBill() {
+    if (readDevicePrint().method === "rawbt") {
+      const { lines, width } = billLines(data);
+      sendToRawbt(lines, width);
+    } else window.print();
+  }
   const whenStr = new Date(data.createdAt).toLocaleString("en-IN", {
     timeZone: data.timezone,
     day: "2-digit",
@@ -126,7 +136,7 @@ export function ReceiptView({
         <Link href={backHref} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
           ← {backLabel}
         </Link>
-        <button onClick={() => window.print()} className="btn btn-primary h-10 px-4 text-sm">
+        <button onClick={printBill} className="btn btn-primary h-10 px-4 text-sm">
           Print
         </button>
       </div>

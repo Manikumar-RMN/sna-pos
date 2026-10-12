@@ -4,6 +4,8 @@ import { useState } from "react";
 import { money, orderTypeLabel } from "@/lib/format";
 import { billFormat, billTextPx, paperWidth } from "@/lib/bill-format";
 import type { OfflineBill, Snapshot } from "@/lib/offline";
+import { readDevicePrint } from "@/lib/device-print";
+import { offlineBillLines, offlineKotLines, sendToRawbt } from "@/lib/rawbt";
 
 /** Bill and kitchen tickets for a bill made offline, printed from this device. */
 export function OfflineReceipt({ bill, snap, onDone }: { bill: OfflineBill; snap: Snapshot; onDone: () => void }) {
@@ -23,6 +25,11 @@ export function OfflineReceipt({ bill, snap, onDone }: { bill: OfflineBill; snap
   const kotItemPx = f.kot_text === "large" ? 19 : 15;
   const kotNotePx = f.kot_text === "large" ? 17 : 13;
   const print = (t: "bill" | "kot") => {
+    if (readDevicePrint().method === "rawbt") {
+      const { lines, width } = t === "bill" ? offlineBillLines(bill, snap) : offlineKotLines(bill, snap);
+      sendToRawbt(lines, width);
+      return;
+    }
     setTarget(t);
     setTimeout(() => window.print(), 50);
   };

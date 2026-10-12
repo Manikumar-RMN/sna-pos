@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { readDevicePrint, saveDevicePrint, type DevicePrint } from "@/lib/device-print";
+import { lr, sendToRawbt } from "@/lib/rawbt";
 
-export function PrinterSetup({ stations }: { stations: string[] }) {
-  const [v, setV] = useState<DevicePrint>({ bills: false, stations: [], kotHere: true });
+export function PrinterSetup({ stations, paper }: { stations: string[]; paper: "58" | "80" }) {
+  const [v, setV] = useState<DevicePrint>({ bills: false, stations: [], kotHere: true, method: "browser" });
   const [saved, setSaved] = useState(false);
   useEffect(() => setV(readDevicePrint()), []);
 
@@ -14,8 +15,77 @@ export function PrinterSetup({ stations }: { stations: string[] }) {
     setSaved(true);
   }
 
+  function rawbtTest() {
+    const w = paper === "58" ? 32 : 48;
+    sendToRawbt(
+      [
+        { text: "SNA POS", align: "center", big: true },
+        { text: "RawBT test print", align: "center" },
+        { rule: true },
+        { text: lr("2 x Masala Dosa", "180.00", w) },
+        { text: lr("TOTAL", "Rs.180.00", Math.floor(w / 2)), big: true },
+        { rule: true },
+        { text: `${paper} mm paper, ${w} characters a line`, align: "center" },
+        { cut: true },
+      ],
+      w,
+    );
+  }
+
   return (
     <div className="space-y-4">
+      <section className="card p-5">
+        <h2 className="text-base font-bold">How this device prints</h2>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="How this device prints">
+          {(
+            [
+              ["browser", "Print window (computer)", "Windows or Mac with a receipt printer driver. Uses the browser's print."],
+              ["rawbt", "RawBT app (Android)", "Android tablet or phone with a Bluetooth, USB or Wi-Fi receipt printer."],
+            ] as const
+          ).map(([key, label, hint]) => {
+            const on = v.method === key;
+            return (
+              <label
+                key={key}
+                className="flex items-start gap-3 rounded-2xl border px-3.5 py-2.5 text-sm"
+                style={on ? { borderColor: "var(--color-brand)", background: "var(--color-brand-soft)" } : { borderColor: "var(--color-line)" }}
+              >
+                <input type="radio" name="print_method" className="mt-0.5 h-5 w-5 shrink-0" checked={on} onChange={() => update({ ...v, method: key })} />
+                <span>
+                  <span className="block font-semibold">{label}</span>
+                  <span className="block text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                    {hint}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        {v.method === "rawbt" && (
+          <div className="mt-4 rounded-xl p-3 text-sm" style={{ background: "var(--color-ground)" }}>
+            <ol className="list-decimal space-y-1.5 pl-5" style={{ color: "var(--color-ink-2)" }}>
+              <li>
+                Install <b>RawBT</b> from the Google Play Store on this tablet or phone.
+              </li>
+              <li>Open RawBT, choose the printer (pair Bluetooth printers in Android settings first) and print its own test page.</li>
+              <li>
+                Come back here and press <b>Test print with RawBT</b>. The first time, Android asks which app to use: choose RawBT and{" "}
+                <b>Always</b>.
+              </li>
+            </ol>
+            <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
+              Bills and KOTs print in the printer&rsquo;s own letters, {paper === "58" ? "32" : "48"} to a line ({paper} mm paper, Settings → Bill layout).
+              Names in Tamil or other scripts are left out; the English name prints. Android opens RawBT only just after a tap, so if a bill or KOT
+              does not print by itself, press <b>Print</b> on the same screen. On the Kitchen screen, new tickets wait for one tap on{" "}
+              <b>Print new tickets</b>.
+            </p>
+            <button className="btn btn-primary mt-3 px-4 text-sm" onClick={rawbtTest}>
+              Test print with RawBT
+            </button>
+          </div>
+        )}
+      </section>
+
       <section className="card p-5">
         <h2 className="text-base font-bold">This device prints</h2>
         <label className="mt-4 flex items-start gap-3 text-sm">

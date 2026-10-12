@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { readDevicePrint, rememberPrinted } from "@/lib/device-print";
 import { claimTickets, loadKot } from "./actions";
+import { kotLines, sendToRawbt } from "@/lib/rawbt";
 
 export type KotSlip = {
   id: string;
@@ -115,7 +116,15 @@ export function KotPrinter({
     if (printing.length === 0) return;
     let alive = true;
     const t = window.setTimeout(async () => {
-      await printAndWait();
+      if (readDevicePrint().method === "rawbt") {
+        // The RawBT app prints; give it a moment to take the job.
+        const { lines, width } = kotLines(
+          printing.map((s) => ({ ...s, bill: billNumber, where, token })),
+          { paper: printMm === 58 ? "58" : "80", timezone, large: largePrint },
+        );
+        sendToRawbt(lines, width);
+        await new Promise((r) => window.setTimeout(r, 1500));
+      } else await printAndWait();
       if (!alive) return;
       rememberPrinted(printing.map((s) => s.id));
       setPrintedHere(printing);
@@ -127,6 +136,7 @@ export function KotPrinter({
       alive = false;
       window.clearTimeout(t);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [printing]);
 
   useEffect(() => {

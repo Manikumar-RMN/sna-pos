@@ -8,6 +8,8 @@ export type DevicePrint = {
   stations: string[];
   /** Print the kitchen ticket (KOT) here when KOT is pressed on this device's billing screen. On unless switched off. */
   kotHere: boolean;
+  /** How this device prints: the browser's print window, or the RawBT app (Android, Bluetooth/USB printer). */
+  method: "browser" | "rawbt";
 };
 
 const KEY = "sna.print.v1";
@@ -15,7 +17,7 @@ const KEY = "sna.print.v1";
 export function readDevicePrint(): DevicePrint {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return { bills: false, stations: [], kotHere: true };
+    if (!raw) return { bills: false, stations: [], kotHere: true, method: "browser" };
     const v = JSON.parse(raw) as Partial<DevicePrint>;
     return {
       bills: !!v.bills,
@@ -23,9 +25,10 @@ export function readDevicePrint(): DevicePrint {
       // Not chosen yet: a device that prints the kitchen's tickets from the Kitchen screen does not also
       // print them at the KOT button; any other device does.
       kotHere: typeof v.kotHere === "boolean" ? v.kotHere : !(Array.isArray(v.stations) && v.stations.length > 0),
+      method: v.method === "rawbt" ? "rawbt" : "browser",
     };
   } catch {
-    return { bills: false, stations: [], kotHere: true };
+    return { bills: false, stations: [], kotHere: true, method: "browser" };
   }
 }
 

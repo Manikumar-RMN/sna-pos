@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { printedTickets, readDevicePrint, rememberPrinted } from "@/lib/device-print";
+import { kotLines, sendToRawbt } from "@/lib/rawbt";
 import { timeOnly } from "@/lib/format";
 import { claimForPrint, markPrinted, setTicketStatus } from "./actions";
 import { playNewTicketSound, readSoundWanted, saveSoundWanted, soundReady, soundSupported, unlockSound, watchSound } from "./sound";
@@ -58,6 +59,9 @@ export function KitchenBoard({
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [myStations, setMyStations] = useState<string[]>([]);
+  /** This device prints through the RawBT app: new tickets wait for one tap (Android opens apps only after a tap). */
+  const [rawbt, setRawbt] = useState(false);
+  const [toPrint, setToPrint] = useState<Ticket[]>([]);
   const [filter, setFilter] = useState<string>("All");
   const [printing, setPrinting] = useState<Ticket[]>([]);
   const busyPrinting = useRef(false);
@@ -73,6 +77,7 @@ export function KitchenBoard({
   useEffect(() => {
     const d = readDevicePrint();
     setMyStations(d.stations);
+    setRawbt(d.method === "rawbt");
     if (d.stations.length === 1) setFilter(d.stations[0]);
   }, []);
 
@@ -131,6 +136,10 @@ export function KitchenBoard({
         !done.has(t.id) &&
         Date.now() - new Date(t.createdAt).getTime() < 30 * 60000,
     );
+    if (rawbt) {
+      setToPrint(fresh);
+      return;
+    }
     if (fresh.length === 0) return;
     // Claim them first, so a counter printing the same KOT at that moment does not print it too.
     busyPrinting.current = true;
@@ -141,7 +150,27 @@ export function KitchenBoard({
         else busyPrinting.current = false;
       })
       .catch(() => setPrinting(fresh));
-  }, [tickets, myStations]);
+  }, [tickets, myStations, rawbt]);
+
+  /** RawBT: the cook taps once; the tickets are claimed (so no other device prints them) and printed. */
+  function printWaiting() {
+    const list = toPrint;
+    if (list.length === 0) return;
+    busyPrinting.current = true;
+    claimForPrint(list.map((t) => t.id))
+      .then((claimed) => (claimed === null ? list : list.filter((t) => claimed.includes(t.id))))
+      .catch(() => list)
+      .then((mine) => {
+        if (mine.length) {
+          const { lines, width } = kotLines(mine, { paper: printMm === 58 ? "58" : "80", timezone, large: largePrint });
+          sendToRawbt(lines, width);
+          rememberPrinted(mine.map((t) => t.id));
+        }
+        setToPrint([]);
+        busyPrinting.current = false;
+        router.refresh();
+      });
+  }
 
   useEffect(() => {
     if (printing.length === 0) return;
@@ -240,6 +269,11 @@ export function KitchenBoard({
           </div>
         ))}
       </div>
+      {rawbt && toPrint.length > 0 && (
+        <button className="btn btn-primary mb-3 w-full text-base" onClick={printWaiting}>
+          Print {toPrint.length} new {toPrint.length === 1 ? "ticket" : "tickets"}
+        </button>
+      )}
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
         {stations.length > 1 &&
           ["All", ...stations].map((s) => (
