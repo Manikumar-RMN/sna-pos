@@ -6338,6 +6338,17 @@ export type Database = {
         Args: { p_apply?: boolean; p_restaurant: string; p_type: string }
         Returns: Json
       }
+      pre_order_advance: {
+        Args: { p_amount: number; p_id: string; p_method: string; p_reference?: string }
+        Returns: Json
+      }
+      pre_order_bill: { Args: { p_id: string }; Returns: Json }
+      pre_order_cancel: {
+        Args: { p_id: string; p_reason: string; p_refund_method?: string }
+        Returns: Json
+      }
+      pre_order_save: { Args: { p: Json }; Returns: Json }
+      pre_orders_list: { Args: { p_status?: string }; Returns: Json }
       set_bill_prefix: { Args: { p_prefix: string }; Returns: Json }
       set_central_kitchen: {
         Args: { p_branch: string; p_on: boolean }

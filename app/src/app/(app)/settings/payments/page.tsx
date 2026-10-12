@@ -10,7 +10,7 @@ export default async function PaymentSettings() {
   const { data: methods } = await supabase
     .from("payment_methods")
     .select("id, name, kind, is_active, ask_reference, upi_id, collection_mode")
-    .not("kind", "in", "(gift_card,loyalty)")
+    .not("kind", "in", "(gift_card,loyalty,advance)")
     .order("display_order");
 
   return (
