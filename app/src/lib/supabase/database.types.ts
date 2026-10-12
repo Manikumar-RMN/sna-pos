@@ -619,6 +619,68 @@ export type Database = {
           },
         ]
       }
+      bill_series: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_current: boolean
+          next_seq: number
+          prefix: string
+          restaurant_id: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_current?: boolean
+          next_seq?: number
+          prefix: string
+          restaurant_id: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_current?: boolean
+          next_seq?: number
+          prefix?: string
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bill_series_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_series_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "bill_series_restaurant_id_branch_id_fkey"
+            columns: ["restaurant_id", "branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "bill_series_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branch_prices: {
         Row: {
           branch_id: string
@@ -2245,6 +2307,7 @@ export type Database = {
           next_seq: number
           prefix: string
           restaurant_id: string
+          series_key: string | null
         }
         Insert: {
           branch_id: string
@@ -2256,6 +2319,7 @@ export type Database = {
           next_seq?: number
           prefix: string
           restaurant_id: string
+          series_key?: string | null
         }
         Update: {
           branch_id?: string
@@ -2267,6 +2331,7 @@ export type Database = {
           next_seq?: number
           prefix?: string
           restaurant_id?: string
+          series_key?: string | null
         }
         Relationships: [
           {
@@ -3600,6 +3665,20 @@ export type Database = {
             columns: ["restaurant_id", "category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "products_parent_same_rest"
+            columns: ["restaurant_id", "parent_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "products_parent_same_rest"
+            columns: ["restaurant_id", "parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_menu"
             referencedColumns: ["restaurant_id", "id"]
           },
           {
@@ -5778,6 +5857,20 @@ export type Database = {
             columns: ["restaurant_id", "category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "products_parent_same_rest"
+            columns: ["restaurant_id", "parent_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["restaurant_id", "id"]
+          },
+          {
+            foreignKeyName: "products_parent_same_rest"
+            columns: ["restaurant_id", "parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_menu"
             referencedColumns: ["restaurant_id", "id"]
           },
           {
