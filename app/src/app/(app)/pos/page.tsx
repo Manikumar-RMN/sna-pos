@@ -34,10 +34,11 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     { data: links },
     { data: optGroups },
     { data: optItems },
+    { data: sizeRows },
   ] = await Promise.all([
     supabase
       .from("v_menu")
-      .select("id, name, short_name, price, category_id, category_name, category_order, is_veg, display_order, is_available, name_local")
+      .select("id, name, short_name, price, category_id, category_name, category_order, is_veg, display_order, is_available, name_local, parent_id, variant_name")
       .eq("is_available", true)
       .order("category_order")
       .order("display_order")
@@ -67,6 +68,8 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     supabase.from("product_modifier_groups").select("product_id, modifier_group_id"),
     supabase.from("modifier_groups").select("id, name, min_select, max_select, is_required, is_active").eq("is_active", true),
     supabase.from("modifier_items").select("id, modifier_group_id, name, price_delta, display_order").eq("is_active", true).order("display_order").order("name"),
+    // Dishes that have sizes (even sold-out ones): such a dish is sold only through one of its sizes.
+    supabase.from("products").select("parent_id").not("parent_id", "is", null).is("deleted_at", null),
   ]);
 
   if (!shift) {
@@ -125,8 +128,17 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       .filter((g): g is OptionGroup => !!g && g.options.length > 0)
       .sort((a, b) => b.min - a.min || a.name.localeCompare(b.name));
 
-  const items = (menu ?? [])
-    .filter((x) => x.id && x.name && x.category_id)
+  const hasSizes = new Set((sizeRows ?? []).map((r) => r.parent_id as string));
+  const live = (menu ?? []).filter((x) => x.id && x.name && x.category_id);
+  // The sizes on sale for each dish, cheapest first.
+  const sizesFor = (dishId: string) =>
+    live
+      .filter((x) => x.parent_id === dishId)
+      .map((x) => ({ id: x.id as string, name: (x.variant_name ?? x.name) as string, price: Number(x.price) }))
+      .sort((a, b) => a.price - b.price || a.name.localeCompare(b.name));
+  const items = live
+    // A dish with sizes, all of them sold out, is not on sale.
+    .filter((x) => !hasSizes.has(x.id as string) || sizesFor(x.id as string).length > 0)
     .map((x) => ({
       id: x.id as string,
       name: x.name as string,
@@ -137,6 +149,10 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       is_veg: x.is_veg,
       groups: groupsFor(x.id as string),
       name_local: x.name_local,
+      /** Set on a size: the dish it belongs to. Sizes are not shown as cards of their own. */
+      variantOf: (x.parent_id as string | null) ?? null,
+      /** Set on a dish that has sizes: tapping it asks which size. */
+      variants: hasSizes.has(x.id as string) ? sizesFor(x.id as string) : undefined,
     }));
 
   // The packing charge is an ordinary menu item. If it is not on today's menu (e.g. marked unavailable), there is no packing charge.

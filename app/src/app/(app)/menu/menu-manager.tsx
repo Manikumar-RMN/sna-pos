@@ -13,6 +13,8 @@ import {
   deleteCategory,
   createProduct,
   updateProduct,
+  addSize,
+  updateSize,
   toggleAvailability,
   deleteProduct,
   type MenuState,
@@ -48,6 +50,9 @@ type Product = {
   hsn_code?: string | null;
   /** The packing charge: a charge, not a dish. Its amount and on/off are set in Settings → Service charge, not here. */
   is_charge?: boolean;
+  /** A size of another dish (its "parent"): Small, Large, Half, Full… */
+  parent_id?: string | null;
+  variant_name?: string | null;
 };
 type TaxGroup = { id: string; name: string };
 export type OptionGroupView = {
@@ -97,11 +102,17 @@ export function MenuManager({
 }) {
   const [editing, setEditing] = useState<Product | null>(null);
   const [addingIn, setAddingIn] = useState<string | null>(null); // category id
+  const [sizingId, setSizingId] = useState<string | null>(null); // dish whose sizes are open
 
-  const byCategory = (catId: string) => products.filter((p) => p.category_id === catId);
+  // Sizes are listed under their dish, not as dishes of their own.
+  const dishes = products.filter((p) => !p.parent_id);
+  const sizesOf = (id: string) =>
+    products.filter((p) => p.parent_id === id).sort((a, b) => a.price - b.price || (a.variant_name ?? "").localeCompare(b.variant_name ?? ""));
+  const byCategory = (catId: string) => dishes.filter((p) => p.category_id === catId);
   const tree = categoryTree(categories);
   const mains = tree.filter((c) => c.depth === 0);
-  const uncategorised = products.filter((p) => !categories.some((c) => c.id === p.category_id));
+  const uncategorised = dishes.filter((p) => !categories.some((c) => c.id === p.category_id));
+  const sizingDish = sizingId ? dishes.find((p) => p.id === sizingId) ?? null : null;
   const groupNames = (productId: string) =>
     (productGroups[productId] ?? [])
       .map((g) => optionGroups.find((x) => x.id === g)?.name)
@@ -122,7 +133,14 @@ export function MenuManager({
               <div className="text-sm" style={{ color: "var(--color-ink-3)" }}>
                 {byCategory(c.id).length === 0
                   ? "No items"
-                  : byCategory(c.id).map((p) => `${p.name} — ${money(currency, p.price)}`).join(" · ")}
+                  : byCategory(c.id)
+                      .map((p) => {
+                        const sz = sizesOf(p.id);
+                        return sz.length
+                          ? `${p.name} — ${sz.map((x) => `${x.variant_name} ${money(currency, x.price)}`).join(", ")}`
+                          : `${p.name} — ${money(currency, p.price)}`;
+                      })
+                      .join(" · ")}
               </div>
             </div>
           ))}
@@ -170,6 +188,8 @@ export function MenuManager({
                   product={p}
                   currency={currency}
                   optionNames={groupNames(p.id)}
+                  sizes={sizesOf(p.id)}
+                  onSizes={() => setSizingId(p.id)}
                   onEdit={() => setEditing(p)}
                 />
               ))
@@ -184,7 +204,7 @@ export function MenuManager({
             Other items
           </div>
           {uncategorised.map((p) => (
-            <ProductRow key={p.id} product={p} currency={currency} optionNames={groupNames(p.id)} onEdit={() => setEditing(p)} />
+            <ProductRow key={p.id} product={p} currency={currency} optionNames={groupNames(p.id)} sizes={sizesOf(p.id)} onSizes={() => setSizingId(p.id)} onEdit={() => setEditing(p)} />
           ))}
         </div>
       )}
@@ -206,6 +226,8 @@ export function MenuManager({
           onClose={() => setAddingIn(null)}
         />
       )}
+
+      {sizingDish && <SizesModal dish={sizingDish} sizes={sizesOf(sizingDish.id)} currency={currency} onClose={() => setSizingId(null)} />}
 
       {editing && (
         <ProductModal
@@ -329,11 +351,15 @@ function ProductRow({
   product,
   currency,
   optionNames,
+  sizes,
+  onSizes,
   onEdit,
 }: {
   product: Product;
   currency: string;
   optionNames: string;
+  sizes: Product[];
+  onSizes: () => void;
   onEdit: () => void;
 }) {
   const [availState, availAction, toggling] = useActionState(toggleAvailability, initial);
@@ -401,13 +427,29 @@ function ProductRow({
             </span>
           )}
         </div>
+        {sizes.length > 0 && (
+          <div className="truncate text-[11px]" style={{ color: "var(--color-ink-2)" }}>
+            Sizes: {sizes.map((z) => `${z.variant_name} ${money(currency, z.price)}${z.is_available ? "" : " (sold out)"}`).join(" · ")}
+          </div>
+        )}
         {optionNames && (
           <div className="truncate text-[11px]" style={{ color: "var(--color-ink-3)" }}>
             Options: {optionNames}
           </div>
         )}
       </div>
-      <div className="tabular-nums text-sm font-semibold">{money(currency, product.price)}</div>
+      <div className="tabular-nums text-sm font-semibold">
+        {sizes.length > 0 ? `from ${money(currency, Math.min(...sizes.map((z) => z.price)))}` : money(currency, product.price)}
+      </div>
+
+      <button
+        className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+        style={{ borderColor: "var(--color-line)", color: sizes.length ? "var(--color-brand)" : undefined }}
+        onClick={onSizes}
+        title="Sizes such as Small / Large or Half / Full, each with its own price"
+      >
+        {sizes.length ? `Sizes (${sizes.length})` : "Sizes"}
+      </button>
 
       <form action={availAction}>
         <input type="hidden" name="id" value={product.id} />
@@ -432,7 +474,7 @@ function ProductRow({
       </button>
 
       <ConfirmButton
-        question={`Delete ${product.name}?`}
+        question={sizes.length ? `Delete ${product.name} and its ${sizes.length} sizes?` : `Delete ${product.name}?`}
         yesLabel="Yes, delete"
         disabled={deleting}
         onConfirm={() => {
@@ -447,6 +489,137 @@ function ProductRow({
       {(availState.error || delState.error) && (
         <span className="text-xs" style={{ color: "var(--color-bad)" }}>
           {availState.error || delState.error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** The sizes of one dish: each has its own name and price; add, rename, re-price, mark sold out or delete. */
+function SizesModal({ dish, sizes, currency, onClose }: { dish: Product; sizes: Product[]; currency: string; onClose: () => void }) {
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const add = () =>
+    start(async () => {
+      const r = await addSize(dish.id, name, price);
+      setError(r.error);
+      if (!r.error) {
+        setName("");
+        setPrice("");
+      }
+    });
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(10,8,20,.55)", display: "grid", placeItems: "center", padding: 16, zIndex: 50 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="card" role="dialog" aria-modal="true" aria-label={`Sizes of ${dish.name}`} style={{ width: "100%", maxWidth: 520, padding: 18, background: "var(--color-surface)", maxHeight: "90vh", overflowY: "auto" }}>
+        <h3 className="text-lg font-bold">Sizes of {dish.name}</h3>
+        <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+          For dishes sold in more than one size — Small / Medium / Large, Half / Full, 250 g / 500 g, 30 ml / 60 ml.
+          Each size has its own price. On the billing screen, tapping {dish.name} asks which size. Sizes share the dish&rsquo;s
+          category, tax, veg mark, kitchen station and options. Once a dish has sizes, its own price is not used.
+        </p>
+
+        <div className="mt-4 space-y-2">
+          {sizes.length === 0 && (
+            <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
+              No sizes yet. Add the first one below.
+            </p>
+          )}
+          {sizes.map((z) => (
+            <SizeRow key={`${z.id}-${z.variant_name}-${z.price}-${z.is_available}`} size={z} currency={currency} />
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-xl border p-3" style={{ borderColor: "var(--color-line)" }}>
+          <div className="mb-2 text-sm font-semibold">Add a size</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input className="field" style={{ maxWidth: 200 }} placeholder="Size, e.g. Large" maxLength={30} value={name} onChange={(e) => setName(e.target.value)} aria-label="Size name" />
+            <input className="field" style={{ maxWidth: 120 }} placeholder="Price" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} aria-label="Price of this size" onKeyDown={(e) => e.key === "Enter" && add()} />
+            <button className="btn btn-primary" style={{ minHeight: 40 }} disabled={pending} onClick={add}>
+              {pending ? "Adding…" : "Add size"}
+            </button>
+          </div>
+          {error && (
+            <p className="mt-2 text-xs" role="alert" style={{ color: "var(--color-bad)" }}>
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <button className="btn" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SizeRow({ size, currency }: { size: Product; currency: string }) {
+  const [name, setName] = useState(size.variant_name ?? "");
+  const [price, setPrice] = useState(String(size.price));
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const [availState, availAction, toggling] = useActionState(toggleAvailability, initial);
+  const [delState, delAction, deleting] = useActionState(deleteProduct, initial);
+  const changed = name.trim() !== (size.variant_name ?? "") || Number(price) !== size.price;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border p-2" style={{ borderColor: "var(--color-line)" }}>
+      <input className="field" style={{ maxWidth: 170 }} maxLength={30} value={name} onChange={(e) => setName(e.target.value)} aria-label="Size name" />
+      <input className="field" style={{ maxWidth: 100 }} inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} aria-label={`Price (${money(currency, size.price)})`} />
+      {changed && (
+        <button
+          className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+          style={{ borderColor: "var(--color-brand)", color: "var(--color-brand)" }}
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const r = await updateSize(size.id, name, price);
+              setError(r.error);
+            })
+          }
+        >
+          {pending ? "Saving…" : "Save"}
+        </button>
+      )}
+      <form action={availAction}>
+        <input type="hidden" name="id" value={size.id} />
+        <input type="hidden" name="available" value={size.is_available ? "false" : "true"} />
+        <button type="submit" className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--color-line)", color: "var(--color-ink-2)" }} disabled={toggling}>
+          {size.is_available ? "In stock" : "Sold out"}
+        </button>
+      </form>
+      <ConfirmButton
+        question={`Delete the size ${size.variant_name}?`}
+        yesLabel="Yes, delete"
+        disabled={deleting}
+        onConfirm={() => {
+          const fd = new FormData();
+          fd.set("id", size.id);
+          startTransition(() => delAction(fd));
+        }}
+      >
+        Delete
+      </ConfirmButton>
+      {(error || availState.error || delState.error) && (
+        <span className="w-full text-xs" style={{ color: "var(--color-bad)" }}>
+          {error || availState.error || delState.error}
         </span>
       )}
     </div>

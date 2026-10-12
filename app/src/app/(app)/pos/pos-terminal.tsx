@@ -28,6 +28,10 @@ type MenuItem = {
   groups: OptionGroup[];
   /** Dish name in the restaurant's second language. */
   name_local?: string | null;
+  /** Set on a size (Small, Large, Half…): the dish it belongs to. Sizes are not shown as cards of their own. */
+  variantOf?: string | null;
+  /** Set on a dish sold in sizes: the sizes on sale, cheapest first. Tapping the dish asks which one. */
+  variants?: { id: string; name: string; price: number }[];
 };
 type PaymentMethod = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type Table = { id: string; number: string; busy: boolean; /** Unpaid and part-paid bills on this table, oldest first. */ openBills: { id: string; billNumber: string }[] };
@@ -194,6 +198,7 @@ export function PosTerminal({
   const [senior, setSenior] = useState<Senior | null>(null);
   const [seniorOpen, setSeniorOpen] = useState(false);
   const [picking, setPicking] = useState<MenuItem | null>(null);
+  const [sizing, setSizing] = useState<MenuItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   // "This bill may already be saved": kept apart from the ordinary message, which the next price check wipes.
   // It stays until the bill is saved, cleared or made offline.
@@ -264,7 +269,7 @@ export function PosTerminal({
     // A search looks in every category; otherwise the chosen tab (and sub-category tab) decides.
     const q = search.trim().toLowerCase();
     const filtered = menu.filter((x) => {
-      if (x.id === packingId) return false;
+      if (x.id === packingId || x.variantOf) return false;
       if (q) return x.name.toLowerCase().includes(q) || (x.short_name ?? "").toLowerCase().includes(q);
       if (activeTab === null) return true;
       const main = categoryParents[x.category_id]?.id ?? x.category_id;
@@ -510,6 +515,14 @@ export function PosTerminal({
     // Saved and on the way to the bill: taps now would only be lost.
     if (savedRef.current) return;
     setError(null);
+    // A dish sold in sizes: ask which size first, then carry on with that size.
+    if (item.variants) {
+      if (item.variants.length === 1) {
+        const only = menu.find((x) => x.id === item.variants![0].id);
+        if (only) tapItem(only);
+      } else if (item.variants.length > 1) setSizing(item);
+      return;
+    }
     if (item.groups.length > 0) setPicking(item);
     else addLine(item, []);
   }
@@ -906,7 +919,7 @@ export function PosTerminal({
               </h2>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {cat.items.map((item) => {
-                  const inCart = qtyInCart(item.id);
+                  const inCart = item.variants ? item.variants.reduce((s, v) => s + qtyInCart(v.id), 0) : qtyInCart(item.id);
                   return (
                     <button
                       key={item.id}
@@ -924,8 +937,13 @@ export function PosTerminal({
                         <DishName name={item.name} local={item.name_local} />
                       </span>
                       <span className="text-sm" style={{ color: "var(--color-ink-2)" }}>
-                        {m(item.price)}
-                        {item.groups.length > 0 && (
+                        {item.variants?.length ? `from ${m(item.variants[0].price)}` : m(item.price)}
+                        {item.variants && item.variants.length > 1 && (
+                          <span className="ml-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                            · {item.variants.length} sizes
+                          </span>
+                        )}
+                        {!item.variants && item.groups.length > 0 && (
                           <span className="ml-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
                             · options
                           </span>
@@ -1423,6 +1441,20 @@ export function PosTerminal({
         />
       )}
 
+      {sizing && (
+        <SizePicker
+          item={sizing}
+          currency={currency}
+          inCart={qtyInCart}
+          onCancel={() => setSizing(null)}
+          onPick={(id) => {
+            setSizing(null);
+            const size = menu.find((x) => x.id === id);
+            if (size) tapItem(size);
+          }}
+        />
+      )}
+
       {picking && (
         <OptionPicker
           item={picking}
@@ -1434,6 +1466,72 @@ export function PosTerminal({
           }}
         />
       )}
+    </div>
+  );
+}
+
+/** Which size of a dish: one tap adds it (or opens its options). */
+function SizePicker({
+  item,
+  currency,
+  inCart,
+  onCancel,
+  onPick,
+}: {
+  item: MenuItem;
+  currency: string;
+  inCart: (id: string) => number;
+  onCancel: () => void;
+  onPick: (id: string) => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center p-4"
+      style={{ background: "rgba(10,8,20,.55)" }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
+    >
+      <div className="card w-full max-w-md p-5" style={{ background: "var(--color-surface)" }} role="dialog" aria-label={`Size of ${item.name}`}>
+        <h3 className="text-lg font-bold">{item.name}</h3>
+        <p className="mt-0.5 text-sm" style={{ color: "var(--color-ink-3)" }}>
+          Choose a size
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {(item.variants ?? []).map((v, i) => {
+            const n = inCart(v.id);
+            return (
+              <button
+                key={v.id}
+                autoFocus={i === 0}
+                onClick={() => onPick(v.id)}
+                className="tap relative flex min-h-16 flex-col items-start justify-center rounded-xl border px-3 py-2.5 text-left"
+                style={{ borderColor: n ? "var(--color-brand)" : "var(--color-line)" }}
+              >
+                <span className="text-sm font-semibold">{v.name}</span>
+                <span className="text-sm" style={{ color: "var(--color-ink-2)" }}>
+                  {money(v.price, currency)}
+                </span>
+                {n > 0 && (
+                  <span className="absolute right-2 top-2 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-bold text-white" style={{ background: "var(--color-brand)" }}>
+                    {n}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-4 flex justify-end">
+          <button className="btn" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

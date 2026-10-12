@@ -3526,12 +3526,14 @@ export type Database = {
           kitchen_station: string | null
           name: string
           name_local: string | null
+          parent_id: string | null
           price: number
           restaurant_id: string
           short_name: string | null
           sku: string | null
           tax_group_id: string
           updated_at: string
+          variant_name: string | null
         }
         Insert: {
           barcode?: string | null
@@ -3550,12 +3552,14 @@ export type Database = {
           kitchen_station?: string | null
           name: string
           name_local?: string | null
+          parent_id?: string | null
           price: number
           restaurant_id: string
           short_name?: string | null
           sku?: string | null
           tax_group_id: string
           updated_at?: string
+          variant_name?: string | null
         }
         Update: {
           barcode?: string | null
@@ -3574,12 +3578,14 @@ export type Database = {
           kitchen_station?: string | null
           name?: string
           name_local?: string | null
+          parent_id?: string | null
           price?: number
           restaurant_id?: string
           short_name?: string | null
           sku?: string | null
           tax_group_id?: string
           updated_at?: string
+          variant_name?: string | null
         }
         Relationships: [
           {
@@ -5750,12 +5756,14 @@ export type Database = {
           menu_price: number | null
           name: string | null
           name_local: string | null
+          parent_id: string | null
           price: number | null
           restaurant_id: string | null
           short_name: string | null
           tax_group_id: string | null
           tax_group_name: string | null
           tax_rate: number | null
+          variant_name: string | null
         }
         Relationships: [
           {

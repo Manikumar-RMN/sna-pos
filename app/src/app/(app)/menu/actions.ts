@@ -235,10 +235,80 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
     })
     .eq("id", id);
   if (error) return { error: error.message };
+  // The dish's sizes share its tax group, veg mark, kitchen station and HSN code.
+  const { error: sizeError } = await supabase
+    .from("products")
+    .update({
+      tax_group_id: taxGroupId,
+      is_veg: isVeg,
+      kitchen_station: station,
+      ...(hsn.value !== undefined ? { hsn_code: hsn.value } : {}),
+    })
+    .eq("parent_id", id)
+    .is("deleted_at", null);
+  if (sizeError) return { error: sizeError.message };
   const linkError = await linkOptionGroups(id, restaurantId!, formData);
   if (linkError) return { error: linkError };
   revalidatePath("/settings/menu");
   revalidatePath("/welcome");
+  revalidatePath("/pos");
+  return { error: null, ok: true };
+}
+
+/* ---------- sizes (variants) ---------- */
+
+/**
+ * Adds a size to a dish (Small, Large, Half, Full…). The size is a dish of its own named
+ * "<dish> (<size>)" with its own price; it takes the dish's category, tax group, veg mark,
+ * kitchen station, HSN code and options. The database names it and keeps it with its dish.
+ */
+export async function addSize(parentId: string, sizeName: string, rawPrice: string): Promise<MenuState> {
+  const { restaurantId, denied } = await requireMenuManager();
+  if (denied) return { error: denied };
+  const name = sizeName.trim().slice(0, 30);
+  const price = parseRupees(rawPrice);
+  if (!name) return { error: "Enter the size, for example Large or Half." };
+  if (price === null || rawPrice.trim() === "") return { error: "Enter the price for this size." };
+  const supabase = await createClient();
+  const { data: parent, error: readError } = await supabase
+    .from("products")
+    .select("id, name, category_id, tax_group_id, is_veg, kitchen_station, hsn_code, parent_id")
+    .eq("id", parentId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (readError) return { error: readError.message };
+  if (!parent) return { error: "That dish was not found." };
+  if (parent.parent_id) return { error: "A size cannot have sizes of its own." };
+  const { error } = await supabase.from("products").insert({
+    restaurant_id: restaurantId!,
+    category_id: parent.category_id,
+    tax_group_id: parent.tax_group_id,
+    is_veg: parent.is_veg,
+    kitchen_station: parent.kitchen_station,
+    hsn_code: parent.hsn_code,
+    name: `${parent.name} (${name})`,
+    price,
+    parent_id: parent.id,
+    variant_name: name,
+  });
+  if (error) return { error: /duplicate|unique/i.test(error.message) ? `${parent.name} already has the size ${name}.` : error.message };
+  revalidatePath("/settings/menu");
+  revalidatePath("/pos");
+  return { error: null, ok: true };
+}
+
+/** Renames a size or changes its price. */
+export async function updateSize(id: string, sizeName: string, rawPrice: string): Promise<MenuState> {
+  const { denied } = await requireMenuManager();
+  if (denied) return { error: denied };
+  const name = sizeName.trim().slice(0, 30);
+  const price = parseRupees(rawPrice);
+  if (!name) return { error: "Enter the size." };
+  if (price === null || rawPrice.trim() === "") return { error: "Enter the price for this size." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("products").update({ variant_name: name, price }).eq("id", id).not("parent_id", "is", null);
+  if (error) return { error: /duplicate|unique/i.test(error.message) ? `This dish already has the size ${name}.` : error.message };
+  revalidatePath("/settings/menu");
   revalidatePath("/pos");
   return { error: null, ok: true };
 }
@@ -332,6 +402,7 @@ export async function toggleAvailability(_prev: MenuState, formData: FormData): 
   if (error) return { error: error.message };
   revalidatePath("/settings/menu");
   revalidatePath("/welcome");
+  revalidatePath("/pos");
   return { error: null, ok: true };
 }
 
@@ -350,6 +421,7 @@ export async function deleteProduct(_prev: MenuState, formData: FormData): Promi
   if (error) return { error: error.message };
   revalidatePath("/settings/menu");
   revalidatePath("/welcome");
+  revalidatePath("/pos");
   return { error: null, ok: true };
 }
 

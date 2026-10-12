@@ -13,7 +13,7 @@ export default async function MenuPage() {
       supabase.from("categories").select("id, name, display_order, parent_id").is("deleted_at", null).order("display_order").order("name"),
       supabase
         .from("products")
-        .select("id, name, price, category_id, tax_group_id, is_veg, is_available, kitchen_station, name_local, hsn_code, is_charge")
+        .select("id, name, price, category_id, tax_group_id, is_veg, is_available, kitchen_station, name_local, hsn_code, is_charge, parent_id, variant_name")
         .is("deleted_at", null)
         .order("name"),
       supabase.from("tax_groups").select("id, name").eq("is_active", true).order("name"),
