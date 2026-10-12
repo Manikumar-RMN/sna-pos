@@ -2560,6 +2560,7 @@ export type Database = {
           tax_comps: Json | null
           tax_included: number
           unit_price: number
+          unit: string | null
         }
         Insert: {
           cancel_reason?: string | null
@@ -2588,6 +2589,7 @@ export type Database = {
           tax_comps?: Json | null
           tax_included?: number
           unit_price: number
+          unit?: string | null
         }
         Update: {
           cancel_reason?: string | null
@@ -2616,6 +2618,7 @@ export type Database = {
           tax_comps?: Json | null
           tax_included?: number
           unit_price?: number
+          unit?: string | null
         }
         Relationships: [
           {
@@ -3605,6 +3608,7 @@ export type Database = {
           price: number
           restaurant_id: string
           short_name: string | null
+          sold_by: string
           sku: string | null
           tax_group_id: string
           updated_at: string
@@ -3632,6 +3636,7 @@ export type Database = {
           price: number
           restaurant_id: string
           short_name?: string | null
+          sold_by?: string
           sku?: string | null
           tax_group_id: string
           updated_at?: string
@@ -3659,6 +3664,7 @@ export type Database = {
           price?: number
           restaurant_id?: string
           short_name?: string | null
+          sold_by?: string
           sku?: string | null
           tax_group_id?: string
           updated_at?: string

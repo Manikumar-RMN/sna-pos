@@ -153,6 +153,9 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
   const isCombo = formData.get("is_combo") === "on";
   const station = String(formData.get("kitchen_station") ?? "").trim().slice(0, 30) || null;
   const nameLocal = String(formData.get("name_local") ?? "").trim().slice(0, 120) || null;
+  const soldBy = formData.get("sold_by") === "weight" ? "weight" : "unit";
+  const barcode = String(formData.get("barcode") ?? "").replace(/\s/g, "").slice(0, 20) || null;
+  if (barcode && !/^[0-9A-Za-z-]{1,20}$/.test(barcode)) return { error: "The item code can have only letters, digits and -." };
 
   if (!name) return { error: "Enter an item name." };
   if (!categoryId) return { error: "Choose a category." };
@@ -174,11 +177,13 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
       is_combo: isCombo,
       kitchen_station: station,
       name_local: nameLocal,
+      sold_by: soldBy,
+      barcode,
       ...(hsn.value !== undefined ? { hsn_code: hsn.value } : {}),
     })
     .select("id")
     .single();
-  if (error) return { error: error.message };
+  if (error) return { error: /products_barcode_uq/.test(error.message) ? "Another dish already has that item code." : error.message };
   const linkError = await linkOptionGroups(created.id, restaurantId!, formData);
   if (linkError) return { error: linkError };
   revalidatePath("/settings/menu");
@@ -214,6 +219,9 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
   const isCombo = formData.get("is_combo") === "on";
   const station = String(formData.get("kitchen_station") ?? "").trim().slice(0, 30) || null;
   const nameLocal = String(formData.get("name_local") ?? "").trim().slice(0, 120) || null;
+  const soldBy = formData.get("sold_by") === "weight" ? "weight" : "unit";
+  const barcode = String(formData.get("barcode") ?? "").replace(/\s/g, "").slice(0, 20) || null;
+  if (barcode && !/^[0-9A-Za-z-]{1,20}$/.test(barcode)) return { error: "The item code can have only letters, digits and -." };
 
   if (!id) return { error: "Missing item." };
   if (!name) return { error: "Enter an item name." };
@@ -229,6 +237,8 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
     .update({
       name,
       name_local: nameLocal,
+      sold_by: soldBy,
+      barcode,
       category_id: categoryId,
       tax_group_id: taxGroupId,
       price,
@@ -238,7 +248,7 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
       ...(hsn.value !== undefined ? { hsn_code: hsn.value } : {}),
     })
     .eq("id", id);
-  if (error) return { error: error.message };
+  if (error) return { error: /products_barcode_uq/.test(error.message) ? "Another dish already has that item code." : error.message };
   // The dish's sizes share its tax group, veg mark, kitchen station and HSN code.
   const { error: sizeError } = await supabase
     .from("products")

@@ -186,7 +186,8 @@ export function billLines(data: ReceiptData): { lines: Line[]; width: number } {
   for (const it of data.items) {
     const name = plain(it.name) || "Item";
     const opt = it.options ? plain(it.options) : "";
-    const qtyRate = f.rate ? `${it.qty} x ${it.unitPrice.toFixed(2)}` : `x ${it.qty}`;
+    const q = it.unit ? `${it.qty.toFixed(3)}${it.unit}` : `${it.qty}`;
+    const qtyRate = f.rate ? `${q} x ${it.unitPrice.toFixed(2)}` : `x ${q}`;
     const amt = it.amount.toFixed(2).padStart(amtW);
     if (name.length + 1 + qtyRate.length + amt.length + 1 <= W) {
       L.push({ text: name + " ".repeat(W - name.length - qtyRate.length - amt.length) + qtyRate + amt });

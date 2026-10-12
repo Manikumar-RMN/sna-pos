@@ -36,7 +36,27 @@ export type MenuItem = {
   isCombo?: boolean;
   /** Set while an offer (happy hour) lowers the price: the normal price, shown struck through. */
   listPrice?: number;
+  /** Sold by weight: the price is per kg and the quantity is the weight in kg. */
+  byWeight?: boolean;
+  /** Item code for the barcode scanner and weighing-scale labels. */
+  barcode?: string;
 };
+
+/**
+ * A weighing-scale label: 13 digits starting with 2 — prefix (2 digits), item code (5), weight in grams (5), check digit.
+ * Returns the item code and the weight in kg, or null when the code is not such a label.
+ */
+export function parseScaleLabel(code: string): { itemCode: string; kg: number } | null {
+  if (!/^2\d{12}$/.test(code)) return null;
+  const grams = Number(code.slice(7, 12));
+  if (!grams) return null;
+  return { itemCode: code.slice(2, 7), kg: Math.round(grams) / 1000 };
+}
+
+/** "0.350 kg" for weighed items, "2" for pieces. */
+export function qtyText(qty: number, byWeight?: boolean) {
+  return byWeight ? `${qty.toFixed(3)} kg` : String(qty);
+}
 type PaymentMethod = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type Table = { id: string; number: string; busy: boolean; /** Unpaid and part-paid bills on this table, oldest first. */ openBills: { id: string; billNumber: string }[] };
 type OrderType = "dine_in" | "takeaway" | "delivery";
@@ -213,6 +233,7 @@ export function PosTerminal({
   const [seniorOpen, setSeniorOpen] = useState(false);
   const [picking, setPicking] = useState<MenuItem | null>(null);
   const [sizing, setSizing] = useState<MenuItem | null>(null);
+  const [weighing, setWeighing] = useState<{ item: MenuItem; key?: string; kg?: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   // "This bill may already be saved": kept apart from the ordinary message, which the next price check wipes.
   // It stays until the bill is saved, cleared or made offline.
@@ -252,7 +273,7 @@ export function PosTerminal({
   const packingDefault = !addTo && !!packRule && ((orderType === "takeaway" && packRule.takeaway) || (orderType === "delivery" && packRule.delivery));
   const packingTicked = !!packRule && (packingChoice ?? packingDefault);
   // Per item: one for every item on the bill.
-  const packingQty = packRule?.per === "item" ? Math.max(1, Math.ceil(lines.reduce((s, l) => s + l.qty, 0))) : 1;
+  const packingQty = packRule?.per === "item" ? Math.max(1, Math.ceil(lines.reduce((s, l) => s + (l.item.byWeight ? 1 : l.qty), 0))) : 1;
   const packingAmount = packRule ? Math.round(packRule.price * packingQty * 100) / 100 : 0;
 
   // Category tabs, in menu order: main categories; a sub-category's dishes come under its main one.
@@ -304,7 +325,9 @@ export function PosTerminal({
     return groups;
   }, [menu, search, activeTab, activeSub, packingId, categoryParents]);
 
-  const qtyInCart = (productId: string) => lines.filter((l) => l.item.id === productId).reduce((s, l) => s + l.qty, 0);
+  /** Items in the cart; a weighed line counts as one. */
+  const itemCount = lines.reduce((s, l) => s + (l.item.byWeight ? 1 : l.qty), 0);
+  const qtyInCart = (productId: string) => lines.filter((l) => l.item.id === productId).reduce((s, l) => s + (l.item.byWeight ? 1 : l.qty), 0);
   // The same list goes to the live total and to the saved bill, so the two always agree.
   // The packing charge, when ticked, is one more item at the end: no note, no options, never held.
   const itemsPayload = () => {
@@ -537,8 +560,44 @@ export function PosTerminal({
       } else if (item.variants.length > 1) setSizing(item);
       return;
     }
+    // Sold by weight: ask for the weight (a scale label brings it already).
+    if (item.byWeight) {
+      setWeighing({ item });
+      return;
+    }
     if (item.groups.length > 0) setPicking(item);
     else addLine(item, []);
+  }
+  /** A weighed line: each weighing is its own line. */
+  function addWeighed(item: MenuItem, kg: number, key?: string) {
+    if (savedRef.current) return;
+    const q = Math.round(kg * 1000) / 1000;
+    if (!(q >= 0.005)) return;
+    setCart((c) => {
+      if (key && c[key]) return { ...c, [key]: { ...c[key], qty: q } };
+      const k = `${lineKey(item.id, [])}#w${Date.now()}`;
+      return { ...c, [k]: { key: k, item, options: [], qty: q, note: "" } };
+    });
+  }
+  /** The barcode scanner types the code and Enter into the search box. */
+  function scan(code: string): boolean {
+    const c = code.trim();
+    if (!c) return false;
+    const label = parseScaleLabel(c);
+    if (label) {
+      const item = menu.find((x) => x.barcode && x.barcode.replace(/^0+/, "") === label.itemCode.replace(/^0+/, ""));
+      if (item) {
+        if (item.byWeight) addWeighed(item, label.kg);
+        else tapItem(item);
+        return true;
+      }
+    }
+    const item = menu.find((x) => x.barcode && x.barcode === c);
+    if (item) {
+      tapItem(item);
+      return true;
+    }
+    return false;
   }
   function addLine(item: MenuItem, options: ChosenOption[]) {
     const base = lineKey(item.id, options);
@@ -868,7 +927,20 @@ export function PosTerminal({
             <span>Review →</span>
           </a>
         )}
-        <input className="field mb-3" placeholder="Search the menu…" value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
+        <input
+          className="field mb-3"
+          placeholder="Search the menu or scan a barcode…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            // A barcode scanner types the code and presses Enter.
+            if (e.key === "Enter" && scan(search)) {
+              e.preventDefault();
+              setSearch("");
+            }
+          }}
+          autoComplete="off"
+        />
         {(tabs.length > 1 || Object.keys(categoryParents).length > 0) && (
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Menu categories">
             {[{ id: null as string | null, name: "All" }, ...tabs].map((c) => {
@@ -957,6 +1029,7 @@ export function PosTerminal({
                           </s>
                         )}
                         {item.variants?.length ? `from ${m(item.variants[0].price)}` : m(item.price)}
+                        {item.byWeight && "/kg"}
                         {item.variants && item.variants.length > 1 && (
                           <span className="ml-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
                             · {item.variants.length} sizes
@@ -998,7 +1071,7 @@ export function PosTerminal({
           onClick={() => document.getElementById("cart")?.scrollIntoView({ behavior: "smooth" })}
         >
           <span>
-            View order · {lines.reduce((s, l) => s + l.qty, 0)} item{lines.reduce((s, l) => s + l.qty, 0) === 1 ? "" : "s"}
+            View order · {itemCount} item{itemCount === 1 ? "" : "s"}
           </span>
           <span>{quote ? m(due) : m(addSubtotal)}</span>
         </button>
@@ -1143,13 +1216,26 @@ export function PosTerminal({
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => step(l.key, -1)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`One less ${l.item.name}`}>
-                        −
-                      </button>
-                      <span className="w-5 text-center text-sm font-semibold">{l.qty}</span>
-                      <button onClick={() => step(l.key, 1)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`One more ${l.item.name}`}>
-                        +
-                      </button>
+                      {l.item.byWeight ? (
+                        <>
+                          <button onClick={() => setWeighing({ item: l.item, key: l.key, kg: l.qty })} className="rounded-md border px-2 py-1 text-sm font-semibold" style={{ borderColor: "var(--color-line)" }} aria-label={`Change the weight of ${l.item.name}`}>
+                            {qtyText(l.qty, true)}
+                          </button>
+                          <button onClick={() => step(l.key, -l.qty)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`Remove ${l.item.name}`}>
+                            ✕
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => step(l.key, -1)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`One less ${l.item.name}`}>
+                            −
+                          </button>
+                          <span className="w-5 text-center text-sm font-semibold">{l.qty}</span>
+                          <button onClick={() => step(l.key, 1)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`One more ${l.item.name}`}>
+                            +
+                          </button>
+                        </>
+                      )}
                     </div>
                     <div className="w-20 text-right text-sm font-semibold">{m(Math.round(unitPrice(l) * l.qty * 100) / 100)}</div>
                   </div>
@@ -1263,7 +1349,7 @@ export function PosTerminal({
                   Back to bill
                 </button>
                 <button onClick={submitAdd} disabled={pending || lines.length === 0 || offline || !!saved} className="btn btn-primary flex-1">
-                  {pending ? "Adding…" : `KOT · add ${lines.reduce((s, l) => s + l.qty, 0) || ""} to bill`}
+                  {pending ? "Adding…" : `KOT · add ${itemCount || ""} to bill`}
                 </button>
               </div>
             </div>
@@ -1465,6 +1551,19 @@ export function PosTerminal({
         />
       )}
 
+      {weighing && (
+        <WeightPicker
+          item={weighing.item}
+          currency={currency}
+          initialKg={weighing.kg}
+          onCancel={() => setWeighing(null)}
+          onDone={(kg) => {
+            addWeighed(weighing.item, kg, weighing.key);
+            setWeighing(null);
+          }}
+        />
+      )}
+
       {sizing && (
         <SizePicker
           item={sizing}
@@ -1490,6 +1589,63 @@ export function PosTerminal({
           }}
         />
       )}
+    </div>
+  );
+}
+
+/** The weight of a dish sold by weight: type grams or kg, or tap a common weight. */
+export function WeightPicker({
+  item,
+  currency,
+  initialKg,
+  onCancel,
+  onDone,
+}: {
+  item: MenuItem;
+  currency: string;
+  initialKg?: number;
+  onCancel: () => void;
+  onDone: (kg: number) => void;
+}) {
+  const [grams, setGrams] = useState(initialKg ? String(Math.round(initialKg * 1000)) : "");
+  const kg = Number(grams) / 1000;
+  const ok = Number.isFinite(kg) && kg >= 0.005 && kg <= 999;
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center p-4" style={{ background: "rgba(10,8,20,.55)" }} onClick={(e) => e.target === e.currentTarget && onCancel()}>
+      <div className="card w-full max-w-sm p-5" style={{ background: "var(--color-surface)" }} role="dialog" aria-label={`Weight of ${item.name}`}>
+        <h3 className="text-lg font-bold">{item.name}</h3>
+        <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
+          {money(item.price, currency)} per kg
+        </p>
+        <label className="mt-4 block text-sm font-semibold">
+          Weight in grams
+          <input
+            className="field mt-1.5 text-lg"
+            inputMode="numeric"
+            autoFocus
+            value={grams}
+            onChange={(e) => setGrams(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+            onKeyDown={(e) => e.key === "Enter" && ok && onDone(kg)}
+            placeholder="350"
+          />
+        </label>
+        <div className="mt-2 grid grid-cols-4 gap-1.5">
+          {[100, 250, 500, 1000].map((g) => (
+            <button key={g} className="rounded-lg border py-2 text-sm font-semibold" style={{ borderColor: "var(--color-line)" }} onClick={() => setGrams(String(g))}>
+              {g >= 1000 ? `${g / 1000} kg` : `${g} g`}
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 text-sm font-semibold">{ok ? `${kg.toFixed(3)} kg = ${money(Math.round(item.price * kg * 100) / 100, currency)}` : " "}</p>
+        <div className="mt-4 flex gap-2">
+          <button className="btn" style={{ flex: "none", padding: "0 16px" }} onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" style={{ flex: 1 }} disabled={!ok} onClick={() => onDone(kg)}>
+            {initialKg ? "Change weight" : "Add"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

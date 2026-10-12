@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import { DishName } from "../lang";
 import { addToBill, placeOrder, type CartItem } from "../pos/actions";
-import { OptionPicker, SizePicker, type ChosenOption, type MenuItem } from "../pos/pos-terminal";
+import { OptionPicker, SizePicker, WeightPicker, qtyText, type ChosenOption, type MenuItem } from "../pos/pos-terminal";
 
 export type CaptainTable = {
   id: string;
@@ -206,6 +206,7 @@ function OrderView({
   const [tab, setTab] = useState<string | null>(null);
   const [sizing, setSizing] = useState<MenuItem | null>(null);
   const [picking, setPicking] = useState<MenuItem | null>(null);
+  const [weighing, setWeighing] = useState<MenuItem | null>(null);
   const [showCart, setShowCart] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -231,10 +232,10 @@ function OrderView({
     });
   }, [menu, search, activeTab, categoryParents]);
 
-  const count = cart.reduce((s, l) => s + l.qty, 0);
+  const count = cart.reduce((s, l) => s + (l.item.byWeight ? 1 : l.qty), 0);
   const total = cart.reduce((s, l) => s + l.qty * (l.item.price + l.options.reduce((a, o) => a + o.price, 0)), 0);
   const qtyOf = (item: MenuItem) =>
-    cart.filter((l) => l.item.id === item.id || (item.variants ?? []).some((v) => v.id === l.item.id)).reduce((s, l) => s + l.qty, 0);
+    cart.filter((l) => l.item.id === item.id || (item.variants ?? []).some((v) => v.id === l.item.id)).reduce((s, l) => s + (l.item.byWeight ? 1 : l.qty), 0);
 
   function add(item: MenuItem, options: ChosenOption[]) {
     const key = `${item.id}|${options.map((o) => o.id).sort().join(",")}`;
@@ -253,6 +254,7 @@ function OrderView({
       } else if (item.variants.length > 1) setSizing(item);
       return;
     }
+    if (item.byWeight) return setWeighing(item);
     if (item.groups.length > 0) setPicking(item);
     else add(item, []);
   }
@@ -395,13 +397,24 @@ function OrderView({
                         </div>
                       )}
                     </div>
-                    <button className="btn" style={{ flex: "none", minHeight: 36, padding: "0 12px" }} onClick={() => setCart((c) => c.flatMap((x) => (x === l ? (x.qty > 1 ? [{ ...x, qty: x.qty - 1 }] : []) : [x])))} aria-label="One less">
-                      −
-                    </button>
-                    <span className="w-6 text-center text-sm font-bold">{l.qty}</span>
-                    <button className="btn" style={{ flex: "none", minHeight: 36, padding: "0 12px" }} onClick={() => setCart((c) => c.map((x) => (x === l ? { ...x, qty: x.qty + 1 } : x)))} aria-label="One more">
-                      +
-                    </button>
+                    {l.item.byWeight ? (
+                      <>
+                        <span className="text-sm font-bold">{qtyText(l.qty, true)}</span>
+                        <button className="btn" style={{ flex: "none", minHeight: 36, padding: "0 12px" }} onClick={() => setCart((c) => c.filter((x) => x !== l))} aria-label="Remove">
+                          ✕
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button className="btn" style={{ flex: "none", minHeight: 36, padding: "0 12px" }} onClick={() => setCart((c) => c.flatMap((x) => (x === l ? (x.qty > 1 ? [{ ...x, qty: x.qty - 1 }] : []) : [x])))} aria-label="One less">
+                          −
+                        </button>
+                        <span className="w-6 text-center text-sm font-bold">{l.qty}</span>
+                        <button className="btn" style={{ flex: "none", minHeight: 36, padding: "0 12px" }} onClick={() => setCart((c) => c.map((x) => (x === l ? { ...x, qty: x.qty + 1 } : x)))} aria-label="One more">
+                          +
+                        </button>
+                      </>
+                    )}
                   </div>
                   <input
                     className="field mt-2 h-9 text-xs"
@@ -430,6 +443,18 @@ function OrderView({
             setSizing(null);
             const size = menu.find((x) => x.id === id);
             if (size) tap(size);
+          }}
+        />
+      )}
+      {weighing && (
+        <WeightPicker
+          item={weighing}
+          currency={currency}
+          onCancel={() => setWeighing(null)}
+          onDone={(kg) => {
+            const w = weighing;
+            setCart((c) => [...c, { key: `${w.id}|w${Date.now()}`, item: w, options: [], qty: Math.round(kg * 1000) / 1000, note: "" }]);
+            setWeighing(null);
           }}
         />
       )}

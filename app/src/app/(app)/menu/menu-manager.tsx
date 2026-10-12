@@ -55,6 +55,10 @@ type Product = {
   variant_name?: string | null;
   /** A combo / meal deal: its options are other dishes. */
   is_combo?: boolean;
+  /** "weight": price is per kg and the bill takes the weight. */
+  sold_by?: string;
+  /** Item code / barcode; for weighed items, the code the scale prints in its label. */
+  barcode?: string | null;
 };
 type TaxGroup = { id: string; name: string };
 export type OptionGroupView = {
@@ -456,6 +460,7 @@ function ProductRow({
       </div>
       <div className="tabular-nums text-sm font-semibold">
         {sizes.length > 0 ? `from ${money(currency, Math.min(...sizes.map((z) => z.price)))}` : money(currency, product.price)}
+        {product.sold_by === "weight" && <span className="text-xs font-normal"> /kg</span>}
       </div>
 
       <button
@@ -818,6 +823,26 @@ function ProductModal({
             </p>
           </div>
         )}
+
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold">Sold by</label>
+            <select name="sold_by" defaultValue={product?.sold_by === "weight" ? "weight" : "unit"} className="field">
+              <option value="unit">Piece / plate</option>
+              <option value="weight">Weight (price per kg)</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold">
+              Item code <span className="font-normal" style={{ color: "var(--color-ink-3)" }}>(optional)</span>
+            </label>
+            <input name="barcode" defaultValue={product?.barcode ?? ""} className="field" maxLength={20} placeholder="Barcode or scale code" />
+          </div>
+        </div>
+        <p className="-mt-2 mb-4 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+          Sold by weight: the price above is per kg and the bill asks for the weight. Item code: scanning it adds this dish; for a weighing
+          scale, use the item (PLU) code set in the scale, e.g. 00123.
+        </p>
 
         <label className="mb-4 flex items-start gap-2 text-sm">
           <input type="checkbox" name="is_combo" defaultChecked={!!product?.is_combo} className="mt-0.5 h-4 w-4" />

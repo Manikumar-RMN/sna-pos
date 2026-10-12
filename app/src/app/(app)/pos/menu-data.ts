@@ -7,7 +7,7 @@ import type { MenuItem, OptionGroup } from "./pos-terminal";
  */
 export async function loadMenu(): Promise<MenuItem[]> {
   const supabase = await createClient();
-  const [{ data: menu }, { data: links }, { data: optGroups }, { data: optItems }, { data: sizeRows }] = await Promise.all([
+  const [{ data: menu }, { data: links }, { data: optGroups }, { data: optItems }, { data: sizeRows }, { data: coded }] = await Promise.all([
     supabase
       .from("v_menu")
       .select("id, name, short_name, price, category_id, category_name, category_order, is_veg, display_order, is_available, name_local, parent_id, variant_name, is_combo, list_price")
@@ -20,7 +20,10 @@ export async function loadMenu(): Promise<MenuItem[]> {
     supabase.from("modifier_items").select("id, modifier_group_id, name, price_delta, display_order, product_id").eq("is_active", true).order("display_order").order("name"),
     // Dishes that have sizes (even sold-out ones): such a dish is sold only through one of its sizes.
     supabase.from("products").select("parent_id").not("parent_id", "is", null).is("deleted_at", null),
+    // Dishes sold by weight, and item codes for the barcode scanner / weighing-scale labels.
+    supabase.from("products").select("id, sold_by, barcode").is("deleted_at", null).or("sold_by.eq.weight,barcode.not.is.null"),
   ]);
+  const codeOf = new Map((coded ?? []).map((p) => [p.id, p]));
 
   const onSale = new Set((menu ?? []).map((x) => x.id as string));
   // Option groups per menu item, in the order the kitchen expects: required choices first.
@@ -77,6 +80,10 @@ export async function loadMenu(): Promise<MenuItem[]> {
         isCombo: !!x.is_combo,
         /** The normal price while a happy hour / offer lowers it now. */
         listPrice: x.list_price != null && Number(x.list_price) > Number(x.price) ? Number(x.list_price) : undefined,
+        /** Sold by weight: price is per kg; the bill asks for the weight. */
+        byWeight: codeOf.get(x.id as string)?.sold_by === "weight" || undefined,
+        /** Item code: scanning it (or a scale label carrying it) adds this dish. */
+        barcode: codeOf.get(x.id as string)?.barcode ?? undefined,
       }))
   );
 }
