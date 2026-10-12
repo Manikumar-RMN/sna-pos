@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -369,6 +369,44 @@ export type Database = {
           },
         ]
       }
+      ai_employees: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          name: string
+          role: string
+          status: string
+          system_prompt: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          name: string
+          role?: string
+          status?: string
+          system_prompt?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          role?: string
+          status?: string
+          system_prompt?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_employees_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_calls: {
         Row: {
           action: string
@@ -452,6 +490,54 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointments: {
+        Row: {
+          appointment_type: string
+          business_id: string
+          created_at: string
+          id: string
+          lead_id: string | null
+          notes: string | null
+          scheduled_at: string
+          status: string
+        }
+        Insert: {
+          appointment_type?: string
+          business_id: string
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          scheduled_at: string
+          status?: string
+        }
+        Update: {
+          appointment_type?: string
+          business_id?: string
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          scheduled_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
@@ -938,6 +1024,30 @@ export type Database = {
           },
         ]
       }
+      businesses: {
+        Row: {
+          city: string | null
+          created_at: string
+          id: string
+          industry: string
+          name: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          industry?: string
+          name: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          industry?: string
+          name?: string
+        }
+        Relationships: []
+      }
       cash_movements: {
         Row: {
           amount: number
@@ -1038,6 +1148,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "categories_parent_same_rest"
+            columns: ["restaurant_id", "parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["restaurant_id", "id"]
+          },
           {
             foreignKeyName: "categories_restaurant_id_fkey"
             columns: ["restaurant_id"]
@@ -1827,6 +1944,54 @@ export type Database = {
           },
         ]
       }
+      interactions: {
+        Row: {
+          business_id: string
+          channel: string
+          created_at: string
+          direction: string | null
+          id: string
+          lead_id: string | null
+          outcome: string | null
+          summary: string | null
+        }
+        Insert: {
+          business_id: string
+          channel: string
+          created_at?: string
+          direction?: string | null
+          id?: string
+          lead_id?: string | null
+          outcome?: string | null
+          summary?: string | null
+        }
+        Update: {
+          business_id?: string
+          channel?: string
+          created_at?: string
+          direction?: string | null
+          id?: string
+          lead_id?: string | null
+          outcome?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interactions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kitchen_ticket_items: {
         Row: {
           id: string
@@ -1951,6 +2116,103 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_items: {
+        Row: {
+          active: boolean
+          business_id: string
+          category: string
+          content: string
+          created_at: string
+          id: string
+          title: string
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          category: string
+          content: string
+          created_at?: string
+          id?: string
+          title: string
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_items_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          budget: string | null
+          business_id: string
+          created_at: string
+          id: string
+          name: string
+          next_action: string | null
+          notes: string | null
+          phone: string | null
+          requirement: string | null
+          score: number
+          source: string | null
+          status: string
+          timeline: string | null
+          updated_at: string
+        }
+        Insert: {
+          budget?: string | null
+          business_id: string
+          created_at?: string
+          id?: string
+          name: string
+          next_action?: string | null
+          notes?: string | null
+          phone?: string | null
+          requirement?: string | null
+          score?: number
+          source?: string | null
+          status?: string
+          timeline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          budget?: string | null
+          business_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          next_action?: string | null
+          notes?: string | null
+          phone?: string | null
+          requirement?: string | null
+          score?: number
+          source?: string | null
+          status?: string
+          timeline?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
@@ -3586,6 +3848,53 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tax_groups"
             referencedColumns: ["restaurant_id", "id"]
+          },
+        ]
+      }
+      properties: {
+        Row: {
+          availability: string | null
+          bedrooms: number | null
+          business_id: string
+          created_at: string
+          details: string | null
+          id: string
+          location: string | null
+          price: string | null
+          project_name: string
+          property_type: string | null
+        }
+        Insert: {
+          availability?: string | null
+          bedrooms?: number | null
+          business_id: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          location?: string | null
+          price?: string | null
+          project_name: string
+          property_type?: string | null
+        }
+        Update: {
+          availability?: string | null
+          bedrooms?: number | null
+          business_id?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          location?: string | null
+          price?: string | null
+          project_name?: string
+          property_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "properties_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5768,6 +6077,7 @@ export type Database = {
     }
     Functions: {
       accept_qr_order: { Args: { p_id: string }; Returns: Json }
+      account_date: { Args: never; Returns: Json }
       accounting_journal: {
         Args: { p_from: string; p_to: string }
         Returns: Json
@@ -5816,6 +6126,7 @@ export type Database = {
         Returns: Json
       }
       claim_staff_invite: { Args: { p_code: string }; Returns: string }
+      claim_tickets_for_print: { Args: { p_ids: string[] }; Returns: string[] }
       clear_pin_lockout: { Args: { p_device_id: string }; Returns: undefined }
       clear_staff_pin: { Args: { p_user_id: string }; Returns: undefined }
       clock_in: { Args: never; Returns: Json }
@@ -5879,6 +6190,7 @@ export type Database = {
       }
       gift_card_lookup: { Args: { p_code: string }; Returns: Json }
       gst_register: { Args: { p_from: string; p_to: string }; Returns: Json }
+      import_menu: { Args: { p_apply?: boolean; p_rows: Json }; Returns: Json }
       invite_staff: {
         Args: {
           p_email: string
@@ -5923,10 +6235,6 @@ export type Database = {
       }
       my_account_state: { Args: never; Returns: string }
       my_device_state: { Args: never; Returns: Json }
-      account_date: { Args: never; Returns: Json }
-      claim_tickets_for_print: { Args: { p_ids: string[] }; Returns: string[] }
-      send_to_kitchen: { Args: { p_order: string }; Returns: Json }
-      import_menu: { Args: { p_apply?: boolean; p_rows: Json }; Returns: Json }
       my_licence: { Args: never; Returns: Json }
       my_outlets: { Args: never; Returns: Json }
       my_plan: { Args: never; Returns: Json }
@@ -6165,6 +6473,7 @@ export type Database = {
         Returns: string
       }
       send_report_now: { Args: { p_id: string }; Returns: Json }
+      send_to_kitchen: { Args: { p_order: string }; Returns: Json }
       session_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       set_bill_customer: {
         Args: { p_gstin: string; p_name: string; p_order_id: string }
