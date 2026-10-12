@@ -38,7 +38,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   ] = await Promise.all([
     supabase
       .from("v_menu")
-      .select("id, name, short_name, price, category_id, category_name, category_order, is_veg, display_order, is_available, name_local, parent_id, variant_name, is_combo")
+      .select("id, name, short_name, price, category_id, category_name, category_order, is_veg, display_order, is_available, name_local, parent_id, variant_name, is_combo, list_price")
       .eq("is_available", true)
       .order("category_order")
       .order("display_order")
@@ -157,6 +157,8 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       variants: hasSizes.has(x.id as string) ? sizesFor(x.id as string) : undefined,
       /** A combo / meal deal: shown with a "combo" mark. */
       isCombo: !!x.is_combo,
+      /** The normal price while a happy hour / offer lowers it now. */
+      listPrice: x.list_price != null && Number(x.list_price) > Number(x.price) ? Number(x.list_price) : undefined,
     }));
 
   // The packing charge is an ordinary menu item. If it is not on today's menu (e.g. marked unavailable), there is no packing charge.

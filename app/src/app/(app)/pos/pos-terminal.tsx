@@ -34,6 +34,8 @@ type MenuItem = {
   variants?: { id: string; name: string; price: number }[];
   /** A combo / meal deal (its choices are other dishes). */
   isCombo?: boolean;
+  /** Set while an offer (happy hour) lowers the price: the normal price, shown struck through. */
+  listPrice?: number;
 };
 type PaymentMethod = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type Table = { id: string; number: string; busy: boolean; /** Unpaid and part-paid bills on this table, oldest first. */ openBills: { id: string; billNumber: string }[] };
@@ -939,6 +941,11 @@ export function PosTerminal({
                         <DishName name={item.name} local={item.name_local} />
                       </span>
                       <span className="text-sm" style={{ color: "var(--color-ink-2)" }}>
+                        {item.listPrice != null && !item.variants?.length && (
+                          <s className="mr-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                            {m(item.listPrice)}
+                          </s>
+                        )}
                         {item.variants?.length ? `from ${m(item.variants[0].price)}` : m(item.price)}
                         {item.variants && item.variants.length > 1 && (
                           <span className="ml-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>

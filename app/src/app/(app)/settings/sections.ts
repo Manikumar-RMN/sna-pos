@@ -21,6 +21,7 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
     { href: "/settings/counters", label: "Counter tablets", hint: "Shared tablets with PIN", show: setup },
     { href: "/settings/printers", label: "Printers", hint: "What this device prints", show: true },
     { href: "/settings/menu", label: "Menu", hint: "Dishes, prices, add-ons", show: true },
+    { href: "/settings/offers", label: "Happy hours and offers", hint: "Lower prices by day and time", show: can(user, "menu.manage") },
     { href: "/settings/users", label: "Users", hint: "People, PINs, passwords", show: true },
     { href: "/settings/security", label: "Security profiles", hint: "What each role can do", show: can(user, "user.manage") },
     { href: "/settings/outlets", label: "Outlets", hint: "Prices per outlet, who works where", show: user.outlet_count > 1 || has(user, "multi_outlet") },

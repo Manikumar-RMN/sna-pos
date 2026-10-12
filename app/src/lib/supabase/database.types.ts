@@ -5839,6 +5839,7 @@ export type Database = {
           is_combo: boolean | null
           is_price_inclusive: boolean | null
           is_veg: boolean | null
+          list_price: number | null
           menu_price: number | null
           name: string | null
           name_local: string | null
@@ -6012,6 +6013,7 @@ export type Database = {
       current_shift: { Args: never; Returns: Json }
       day_report: { Args: { p_day_id: string }; Returns: Json }
       day_status: { Args: never; Returns: Json }
+      delete_price_rule: { Args: { p_id: string }; Returns: undefined }
       delete_role: { Args: { p_role_id: string }; Returns: undefined }
       fire_held_items: { Args: { p_order_id: string }; Returns: Json }
       fix_time_entry: {
@@ -6313,6 +6315,8 @@ export type Database = {
         Args: { p_gstin: string; p_name: string; p_order_id: string }
         Returns: Json
       }
+      price_rules_list: { Args: never; Returns: Json }
+      save_price_rule: { Args: { p: Json }; Returns: string }
       set_bill_prefix: { Args: { p_prefix: string }; Returns: Json }
       set_central_kitchen: {
         Args: { p_branch: string; p_on: boolean }
