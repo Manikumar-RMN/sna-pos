@@ -1,10 +1,19 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { addKiosk, removeKiosk } from "./kiosk-actions";
+import { addKiosk, removeKiosk, setKioskAuto } from "./kiosk-actions";
 
 /** Self-order kiosks: a tablet at the counter where guests order for takeaway and pay at the counter. */
-export function Kiosks({ kiosks, origin }: { kiosks: { id: string; name: string; token: string }[]; origin: string }) {
+export function Kiosks({
+  kiosks,
+  origin,
+  staff,
+}: {
+  kiosks: { id: string; name: string; token: string; auto_user: string | null }[];
+  origin: string;
+  /** Staff logins (email sign-in) allowed to take orders: a kiosk can bill as one of them. */
+  staff: { id: string; name: string }[];
+}) {
   const [name, setName] = useState(`Kiosk ${kiosks.length + 1}`);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
@@ -15,7 +24,8 @@ export function Kiosks({ kiosks, origin }: { kiosks: { id: string; name: string;
       <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
         Put a tablet at the counter and open its link in the browser (full screen). Guests choose dishes and send the order; it appears on the
         Table orders screen, and accepting it makes a takeaway bill and the kitchen ticket. The kiosk then shows the guest&rsquo;s bill and token number
-        to pay at the counter, and clears itself for the next guest.
+        to pay at the counter, and clears itself for the next guest. Choose &ldquo;Bill at once as …&rdquo; to skip the staff tap: the bill and
+        kitchen ticket are made the moment the guest orders (if anything stops it, the order waits on Table orders as usual).
       </p>
       <div className="mt-3 space-y-2">
         {kiosks.map((k) => {
@@ -36,6 +46,21 @@ export function Kiosks({ kiosks, origin }: { kiosks: { id: string; name: string;
               <a className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--color-line)" }} href={url} target="_blank" rel="noreferrer">
                 Open
               </a>
+              <select
+                className="field w-56"
+                value={k.auto_user ?? ""}
+                disabled={pending}
+                aria-label={`How ${k.name} orders become bills`}
+                onChange={(e) => {
+                  const v = e.target.value || null;
+                  start(async () => setError((await setKioskAuto(k.id, v)).error));
+                }}
+              >
+                <option value="">Staff accept each order</option>
+                {staff.map((u) => (
+                  <option key={u.id} value={u.id}>Bill at once as {u.name}</option>
+                ))}
+              </select>
               <button
                 className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
                 style={{ borderColor: "var(--color-line)", color: "var(--color-bad)" }}

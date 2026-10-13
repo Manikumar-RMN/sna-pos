@@ -2,6 +2,7 @@ import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { UpgradeNote } from "../upgrade-note";
 import { OnlineOrders, type OnlineOrder } from "./online-orders";
+import type { Channel } from "./actions";
 
 /** Orders from Swiggy, Zomato or the restaurant's website, waiting to be accepted. */
 export default async function OnlineOrdersPage() {
@@ -15,6 +16,18 @@ export default async function OnlineOrdersPage() {
     );
   }
   const supabase = await createClient();
-  const { data } = await supabase.rpc("online_orders_list");
-  return <OnlineOrders currency={user.currency_code} canAccept={can(user, "order.create")} orders={(data ?? []) as unknown as OnlineOrder[]} />;
+  const canSettings = can(user, "settings.manage");
+  const [{ data }, { data: channels }] = await Promise.all([
+    supabase.rpc("online_orders_list"),
+    canSettings ? supabase.rpc("online_channels_list") : Promise.resolve({ data: [] }),
+  ]);
+  return (
+    <OnlineOrders
+      currency={user.currency_code}
+      canAccept={can(user, "order.create")}
+      canSettings={canSettings}
+      channels={(channels ?? []) as unknown as Channel[]}
+      orders={(data ?? []) as unknown as OnlineOrder[]}
+    />
+  );
 }

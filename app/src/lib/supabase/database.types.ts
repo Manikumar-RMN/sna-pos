@@ -1598,6 +1598,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_kiosk: boolean
+          kiosk_user_id: string | null
           qr_token: string | null
           restaurant_id: string
           seats: number
@@ -1611,6 +1612,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_kiosk?: boolean
+          kiosk_user_id?: string | null
           qr_token?: string | null
           restaurant_id: string
           seats?: number
@@ -1624,6 +1626,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_kiosk?: boolean
+          kiosk_user_id?: string | null
           qr_token?: string | null
           restaurant_id?: string
           seats?: number
@@ -2576,6 +2579,7 @@ export type Database = {
           fy: string | null
           id: string
           last_sync_at: string | null
+          liquor_next_seq: number
           next_seq: number
           prefix: string
           restaurant_id: string
@@ -2588,6 +2592,7 @@ export type Database = {
           fy?: string | null
           id?: string
           last_sync_at?: string | null
+          liquor_next_seq?: number
           next_seq?: number
           prefix: string
           restaurant_id: string
@@ -2600,6 +2605,7 @@ export type Database = {
           fy?: string | null
           id?: string
           last_sync_at?: string | null
+          liquor_next_seq?: number
           next_seq?: number
           prefix?: string
           restaurant_id?: string
@@ -2622,6 +2628,30 @@ export type Database = {
           },
         ]
       }
+      online_channels: {
+        Row: {
+          callback_url: string | null
+          channel: string
+          restaurant_id: string
+          secret: string
+          updated_at: string
+        }
+        Insert: {
+          callback_url?: string | null
+          channel: string
+          restaurant_id: string
+          secret: string
+          updated_at?: string
+        }
+        Update: {
+          callback_url?: string | null
+          channel?: string
+          restaurant_id?: string
+          secret?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       online_orders: {
         Row: {
           address: string | null
@@ -2639,6 +2669,7 @@ export type Database = {
           order_id: string | null
           paid_online: boolean
           partner_total: number | null
+          ready_at: string | null
           reject_reason: string | null
           restaurant_id: string
           status: string
@@ -2659,6 +2690,7 @@ export type Database = {
           order_id?: string | null
           paid_online?: boolean
           partner_total?: number | null
+          ready_at?: string | null
           reject_reason?: string | null
           restaurant_id: string
           status?: string
@@ -2679,6 +2711,7 @@ export type Database = {
           order_id?: string | null
           paid_online?: boolean
           partner_total?: number | null
+          ready_at?: string | null
           reject_reason?: string | null
           restaurant_id?: string
           status?: string
@@ -6943,6 +6976,7 @@ export type Database = {
       kiosk_add: { Args: { p_name: string }; Returns: Json }
       kiosk_list: { Args: never; Returns: Json }
       kiosk_remove: { Args: { p_id: string }; Returns: undefined }
+      kiosk_set_auto: { Args: { p_id: string; p_user: string }; Returns: undefined }
       liquor_prefix_info: { Args: never; Returns: Json }
       login_staff: {
         Args: { p_client_code: string; p_password: string; p_username: string }
@@ -6967,7 +7001,11 @@ export type Database = {
       my_outlets: { Args: never; Returns: Json }
       my_plan: { Args: never; Returns: Json }
       offline_snapshot: { Args: { p_device_key: string }; Returns: Json }
+      online_channel_save: { Args: { p_channel: string; p_new_secret?: boolean; p_url: string }; Returns: Json }
+      online_channels_list: { Args: never; Returns: Json }
       online_order_accept: { Args: { p_id: string }; Returns: Json }
+      online_order_callback: { Args: { p_event: string; p_id: string }; Returns: Json }
+      online_order_mark_ready: { Args: { p_id: string }; Returns: undefined }
       online_order_receive: { Args: { p: Json; p_key: string }; Returns: Json }
       online_order_reject: {
         Args: { p_id: string; p_reason: string }

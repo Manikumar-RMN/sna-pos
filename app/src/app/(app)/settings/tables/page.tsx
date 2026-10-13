@@ -17,7 +17,13 @@ export default async function TableSettings() {
   ]);
   const busy = new Set((openTabs ?? []).map((o) => o.dining_table_id));
   const showKiosks = has(user, "qr_ordering") && can(user, "settings.manage");
-  const kiosks = showKiosks ? (((await supabase.rpc("kiosk_list")).data ?? []) as unknown as { id: string; name: string; token: string }[]) : [];
+  const kiosks = showKiosks ? (((await supabase.rpc("kiosk_list")).data ?? []) as unknown as { id: string; name: string; token: string; auto_user: string | null }[]) : [];
+  // Staff who sign in with email: a kiosk can make bills as one of them (the database checks they may take orders).
+  const staff = showKiosks
+    ? ((await supabase.from("users").select("id, full_name").eq("is_active", true).is("deleted_at", null).not("auth_user_id", "is", null).order("full_name")).data ?? []).map(
+        (u) => ({ id: u.id, name: u.full_name }),
+      )
+    : [];
   const h = await headers();
   const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
 
@@ -33,7 +39,7 @@ export default async function TableSettings() {
         canEdit={can(user, "settings.manage")}
         tables={[...(tables ?? [])].sort(byTableNumber).map((t) => ({ id: t.id, number: t.table_number, seats: t.seats, busy: busy.has(t.id) }))}
       />
-      {showKiosks && <Kiosks kiosks={kiosks} origin={origin} />}
+      {showKiosks && <Kiosks kiosks={kiosks} origin={origin} staff={staff} />}
     </div>
   );
 }

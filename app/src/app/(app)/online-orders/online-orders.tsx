@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
-import { acceptOnline, rejectOnline } from "./actions";
+import { acceptOnline, markOnlineReady, rejectOnline, saveChannel, type Channel } from "./actions";
 
 export type OnlineOrder = {
   id: string;
@@ -21,13 +21,27 @@ export type OnlineOrder = {
   reject_reason: string | null;
   bill_number: string | null;
   order_id: string | null;
+  ready_at: string | null;
   items: { name: string; qty: number; note: string | null }[];
 };
 
-export function OnlineOrders({ currency, canAccept, orders }: { currency: string; canAccept: boolean; orders: OnlineOrder[] }) {
+export function OnlineOrders({
+  currency,
+  canAccept,
+  canSettings,
+  channels,
+  orders,
+}: {
+  currency: string;
+  canAccept: boolean;
+  canSettings: boolean;
+  channels: Channel[];
+  orders: OnlineOrder[];
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<{ id: string; reason: string } | null>(null);
   const waiting = orders.filter((o) => o.status === "pending");
   const done = orders.filter((o) => o.status !== "pending");
@@ -68,6 +82,7 @@ export function OnlineOrders({ currency, canAccept, orders }: { currency: string
         </p>
       </div>
       {error && <p className="text-sm" role="alert" style={{ color: "var(--color-bad)" }}>{error}</p>}
+      {note && <p className="text-sm" role="status" style={{ color: "var(--color-ok)" }}>{note}</p>}
 
       <section className="space-y-3">
         <h2 className="text-sm font-bold">Waiting ({waiting.length})</h2>
@@ -105,6 +120,7 @@ export function OnlineOrders({ currency, canAccept, orders }: { currency: string
                     start(async () => {
                       const r = await acceptOnline(o.id);
                       setError(r.ok ? null : r.error);
+                      setNote(r.ok ? `Bill ${r.bill} made and sent to the kitchen.${r.partner ? ` ${r.partner}` : ""}` : null);
                     })
                   }
                 >
@@ -120,6 +136,7 @@ export function OnlineOrders({ currency, canAccept, orders }: { currency: string
                         start(async () => {
                           const r = await rejectOnline(o.id, rejecting.reason);
                           setError(r.ok ? null : r.error);
+                          setNote(r.ok ? `Order rejected.${r.partner ? ` ${r.partner}` : ""}` : null);
                           if (r.ok) setRejecting(null);
                         })
                       }
@@ -147,7 +164,24 @@ export function OnlineOrders({ currency, canAccept, orders }: { currency: string
                 <span>
                   {label(o.channel)} #{o.external_ref} · {o.customer_name ?? ""}
                 </span>
-                <span>
+                <span className="flex items-center gap-2">
+                  {o.status === "accepted" && o.order_id && canAccept && !o.ready_at && (
+                    <button
+                      className="btn btn-pay"
+                      style={{ minHeight: 36 }}
+                      disabled={pending}
+                      onClick={() =>
+                        start(async () => {
+                          const r = await markOnlineReady(o.id);
+                          setError(r.ok ? null : r.error);
+                          setNote(r.ok ? `Marked ready.${r.partner ? ` ${r.partner}` : ""}` : null);
+                        })
+                      }
+                    >
+                      Ready
+                    </button>
+                  )}
+                  {o.status === "accepted" && o.ready_at && <span className="text-xs font-semibold" style={{ color: "var(--color-ok)" }}>Ready</span>}
                   {o.status === "accepted" && o.order_id ? (
                     <Link className="font-semibold underline" href={`/bills/${o.order_id}`}>{o.bill_number}</Link>
                   ) : (
@@ -159,6 +193,8 @@ export function OnlineOrders({ currency, canAccept, orders }: { currency: string
           </div>
         </section>
       )}
+
+      {canSettings && <PartnerAddresses channels={channels} />}
 
       <details className="card p-4 text-sm">
         <summary className="cursor-pointer font-semibold">For your online-ordering partner (technical)</summary>
@@ -180,7 +216,65 @@ Authorization: Bearer snapi_…
         <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
           Dish ids come from GET /api/v1/menu, or use the item code set on each dish. The bill uses your menu prices.
         </p>
+        <p className="mt-2" style={{ color: "var(--color-ink-2)" }}>
+          When you accept, reject or mark an order ready, SNA POS sends the partner&rsquo;s address (set below for each channel) a POST like
+          <code className="mx-1 rounded px-1 text-xs" style={{ background: "var(--color-ground)" }}>{`{"event":"ready","channel":"swiggy","order_id":"SW-123456","bill_number":"…","reason":null,"at":"…"}`}</code>
+          with the header <b>X-SNA-Signature</b>: the hex HMAC-SHA256 of the body using the channel&rsquo;s secret.
+        </p>
       </details>
     </div>
+  );
+}
+
+/** Owner: the partner's address for each channel, and the shared secret (shown once). */
+function PartnerAddresses({ channels }: { channels: Channel[] }) {
+  const [form, setForm] = useState({ channel: channels[0]?.channel ?? "swiggy", url: channels[0]?.url ?? "" });
+  const [secret, setSecret] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, start] = useTransition();
+  const known = channels.some((c) => c.channel === form.channel.trim().toLowerCase());
+  const save = (newSecret: boolean) =>
+    start(async () => {
+      const r = await saveChannel(form.channel, form.url, newSecret);
+      if (!r.ok) return setMsg({ ok: false, text: r.error });
+      setSecret(r.secret);
+      setMsg({ ok: true, text: "Saved." });
+    });
+  return (
+    <section className="card p-4 text-sm">
+      <h2 className="font-bold">Partner addresses (tell the partner what happened)</h2>
+      <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+        Your online-ordering partner gives you an https address for updates. Enter it for each channel. The first time, SNA POS makes a secret:
+        give it to the partner so they can check each update really came from you.
+      </p>
+      {channels.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {channels.map((c) => (
+            <li key={c.channel}>
+              <button className="underline" onClick={() => setForm({ channel: c.channel, url: c.url ?? "" })}>{c.channel}</button>
+              <span className="ml-2 text-xs" style={{ color: "var(--color-ink-3)" }}>{c.url ?? "no address"}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <input className="field w-32" value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })} placeholder="swiggy" aria-label="Channel" />
+        <input className="field w-80 max-w-full" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://partner.example.com/sna" aria-label="Partner address" />
+        <button className="btn btn-primary" disabled={pending || !form.channel.trim()} onClick={() => save(false)}>
+          Save
+        </button>
+        {known && (
+          <button className="btn border" style={{ borderColor: "var(--color-line)" }} disabled={pending} onClick={() => save(true)}>
+            Make a new secret
+          </button>
+        )}
+      </div>
+      {msg && <p className="mt-2 text-xs" role="status" style={{ color: msg.ok ? "var(--color-ok)" : "var(--color-bad)" }}>{msg.text}</p>}
+      {secret && (
+        <p className="mt-2 rounded-lg p-2 text-xs" style={{ background: "var(--color-warn-soft)" }}>
+          Secret for the partner (shown only now — copy it): <code className="break-all font-bold">{secret}</code>
+        </p>
+      )}
+    </section>
   );
 }

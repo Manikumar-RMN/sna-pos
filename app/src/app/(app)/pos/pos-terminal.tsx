@@ -745,7 +745,7 @@ export function PosTerminal({
     const guest =
       orderType === "dine_in" ? null : { name: guestName.trim(), phone: guestPhone.trim(), address: orderType === "delivery" ? guestAddress.trim() : "" };
     if (guest?.phone && guest.phone.replace(/\D/g, "").length < 7) return setError("That phone number looks too short.");
-    const { seq, number } = takeNumber(snap);
+    const { seq, number } = takeNumber(snap, lines.some((l) => l.item.liquor));
     const bill: OfflineBill = {
       client_id: crypto.randomUUID(),
       device_key: snap.device_key,

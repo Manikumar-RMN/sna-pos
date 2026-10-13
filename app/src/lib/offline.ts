@@ -24,7 +24,16 @@ export type Snapshot = {
   taken_at: string;
   device_key: string;
   /** branch_code is the outlet's bill prefix; key changes when the prefix changes (numbers start again from 1). */
-  series: { prefix: string; fy: string | null; next_seq: number; branch_code: string; key?: string | null };
+  series: {
+    prefix: string;
+    fy: string | null;
+    next_seq: number;
+    branch_code: string;
+    key?: string | null;
+    /** Bars: the liquor bill prefix (liquor bills have their own numbers) and this device's next liquor number. */
+    liquor_code?: string | null;
+    liquor_next_seq?: number;
+  };
   rights: { discount: boolean; pay: boolean };
   menu: SnapItem[];
   methods: { id: string; name: string; kind: string; ask_reference: boolean; upi_id: string | null }[];
@@ -87,6 +96,7 @@ const K_DEVICE = "sna.device.v1";
 const K_SNAP = "sna.offline.snapshot.v1";
 const K_QUEUE = "sna.offline.queue.v1";
 const K_SEQ = "sna.offline.seq.v1";
+const K_LSEQ = "sna.offline.liquor-seq.v1";
 
 function get<T>(k: string): T | null {
   try {
@@ -127,6 +137,11 @@ export function saveSnapshot(s: Snapshot) {
   const key = s.series.key ?? null;
   if (!local || local.fy !== s.series.fy || (local.key ?? null) !== key || local.next < s.series.next_seq)
     put(K_SEQ, { fy: s.series.fy, next: s.series.next_seq, key });
+  if (s.series.liquor_code) {
+    const lq = get<{ code: string; next: number }>(K_LSEQ);
+    const n = s.series.liquor_next_seq ?? 1;
+    if (!lq || lq.code !== s.series.liquor_code || lq.next < n) put(K_LSEQ, { code: s.series.liquor_code, next: n });
+  }
 }
 export const readQueue = () => get<OfflineBill[]>(K_QUEUE) ?? [];
 export const writeQueue = (q: OfflineBill[]) => put(K_QUEUE, q);
@@ -159,7 +174,15 @@ export function cashDue(snap: Snapshot, total: number, isCash: boolean) {
 }
 
 /** Takes the next offline bill number for this device, e.g. BILL26-X1-0007. */
-export function takeNumber(snap: Snapshot): { seq: number; number: string } {
+export function takeNumber(snap: Snapshot, liquor = false): { seq: number; number: string } {
+  // Bars: a liquor bill takes the next number of the liquor series, e.g. BAR26-X1-0001.
+  if (liquor && snap.series.liquor_code) {
+    const code = snap.series.liquor_code;
+    const lq = get<{ code: string; next: number }>(K_LSEQ);
+    const seq = Math.max(lq && lq.code === code ? lq.next : 1, snap.series.liquor_next_seq ?? 1);
+    put(K_LSEQ, { code, next: seq + 1 });
+    return { seq, number: `${code}-${snap.series.prefix}-${String(seq).padStart(4, "0")}` };
+  }
   const key = snap.series.key ?? null;
   const saved = get<{ fy: string | null; next: number; key?: string | null }>(K_SEQ);
   const cur = saved && (saved.key ?? null) === key ? saved : { fy: snap.series.fy, next: snap.series.next_seq };
