@@ -103,3 +103,17 @@ export async function subCategoryParents(): Promise<Record<string, { id: string;
   for (const c of data) if (c.parent_id && names.has(c.parent_id)) out[c.id] = { id: c.parent_id, name: names.get(c.parent_id)! };
   return out;
 }
+
+/** Category id (main or sub) → its brand, when the restaurant runs several brands or stalls. */
+export async function categoryBrands(): Promise<Record<string, { id: string; name: string }>> {
+  const supabase = await createClient();
+  const [{ data: cats }, { data: brands }] = await Promise.all([
+    supabase.from("categories").select("id, brand_id").is("deleted_at", null).not("brand_id", "is", null),
+    supabase.from("brands").select("id, name").eq("is_active", true),
+  ]);
+  if (!cats || !brands || brands.length === 0) return {};
+  const names = new Map(brands.map((b) => [b.id, b.name]));
+  const out: Record<string, { id: string; name: string }> = {};
+  for (const c of cats) if (c.brand_id && names.has(c.brand_id)) out[c.id] = { id: c.brand_id, name: names.get(c.brand_id)! };
+  return out;
+}

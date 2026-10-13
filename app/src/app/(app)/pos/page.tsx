@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getLicence } from "@/lib/licence";
 import { OpenShiftForm } from "../shift/shift-panel";
 import { PosTerminal, type AddTo, type PackingRule } from "./pos-terminal";
-import { loadMenu, subCategoryParents } from "./menu-data";
+import { loadMenu, subCategoryParents, categoryBrands } from "./menu-data";
 import { byTableNumber } from "@/lib/table-order";
 
 export default async function PosPage({ searchParams }: { searchParams: Promise<{ add?: string }> }) {
@@ -159,6 +159,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
       tableOrdersWaiting={tableOrdersWaiting}
       licenceLockAt={(await getLicence()).lock_at ?? null}
       categoryParents={await subCategoryParents()}
+      categoryBrands={await categoryBrands()}
     />
   );
 }

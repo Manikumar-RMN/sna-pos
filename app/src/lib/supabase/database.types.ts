@@ -940,6 +940,42 @@ export type Database = {
           },
         ]
       }
+      brands: {
+        Row: {
+          commission_percent: number
+          created_at: string
+          display_order: number
+          gstin: string | null
+          id: string
+          is_active: boolean
+          legal_name: string | null
+          name: string
+          restaurant_id: string
+        }
+        Insert: {
+          commission_percent?: number
+          created_at?: string
+          display_order?: number
+          gstin?: string | null
+          id?: string
+          is_active?: boolean
+          legal_name?: string | null
+          name: string
+          restaurant_id: string
+        }
+        Update: {
+          commission_percent?: number
+          created_at?: string
+          display_order?: number
+          gstin?: string | null
+          id?: string
+          is_active?: boolean
+          legal_name?: string | null
+          name?: string
+          restaurant_id?: string
+        }
+        Relationships: []
+      }
       business_days: {
         Row: {
           branch_id: string
@@ -1067,6 +1103,7 @@ export type Database = {
       }
       categories: {
         Row: {
+          brand_id: string | null
           created_at: string
           deleted_at: string | null
           display_order: number
@@ -1079,6 +1116,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          brand_id?: string | null
           created_at?: string
           deleted_at?: string | null
           display_order?: number
@@ -1091,6 +1129,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand_id?: string | null
           created_at?: string
           deleted_at?: string | null
           display_order?: number
@@ -2540,6 +2579,7 @@ export type Database = {
       }
       order_items: {
         Row: {
+          brand_id: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -2565,10 +2605,11 @@ export type Database = {
           service_charge: number
           tax_comps: Json | null
           tax_included: number
-          unit_price: number
           unit: string | null
+          unit_price: number
         }
         Insert: {
+          brand_id?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -2594,10 +2635,11 @@ export type Database = {
           service_charge?: number
           tax_comps?: Json | null
           tax_included?: number
-          unit_price: number
           unit?: string | null
+          unit_price: number
         }
         Update: {
+          brand_id?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -2623,8 +2665,8 @@ export type Database = {
           service_charge?: number
           tax_comps?: Json | null
           tax_included?: number
-          unit_price?: number
           unit?: string | null
+          unit_price?: number
         }
         Relationships: [
           {
@@ -5966,6 +6008,8 @@ export type Database = {
         Returns: Json
       }
       bill_prefix_info: { Args: never; Returns: Json }
+      brand_save: { Args: { p_active?: boolean; p_commission?: number; p_gstin?: string; p_id: string; p_legal_name?: string; p_name: string }; Returns: string }
+      brand_settlement: { Args: { p_from: string; p_to: string }; Returns: Json }
       cancel_goods_receipt: {
         Args: { p_id: string; p_reason: string }
         Returns: Json
@@ -5976,6 +6020,7 @@ export type Database = {
         Returns: Json
       }
       cancel_plan_request: { Args: { p_id: string }; Returns: undefined }
+      category_set_brand: { Args: { p_brand: string; p_category: string }; Returns: undefined }
       change_payment_method: {
         Args: { p_method_id: string; p_payment_id: string; p_reason: string }
         Returns: Json
@@ -6044,6 +6089,7 @@ export type Database = {
         Args: { p_id: string; p_in: string; p_out: string; p_reason: string }
         Returns: undefined
       }
+      gift_card_history: { Args: { p_code: string }; Returns: Json }
       gift_card_lookup: { Args: { p_code: string }; Returns: Json }
       gst_register: { Args: { p_from: string; p_to: string }; Returns: Json }
       import_menu: { Args: { p_apply?: boolean; p_rows: Json }; Returns: Json }
@@ -6105,6 +6151,7 @@ export type Database = {
         Returns: Json
       }
       password_changed: { Args: never; Returns: undefined }
+      pay_back_gift_card: { Args: { p_code: string }; Returns: Json }
       pay_order: {
         Args: {
           p_amount?: number
@@ -6638,6 +6685,7 @@ export type Database = {
       stock_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       sync_offline_bill: { Args: { p_bill: Json }; Returns: Json }
       table_qr_codes: { Args: never; Returns: Json }
+      top_up_gift_card: { Args: { p_amount: number; p_code: string; p_method_id: string }; Returns: Json }
       transfer_stock: {
         Args: {
           p_ingredient_id: string

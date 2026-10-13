@@ -37,3 +37,34 @@ export async function saveLoyaltyRules(spendPerPoint: number, pointValue: number
   revalidatePath("/loyalty");
   return { ok: true as const, message: "Loyalty rules saved." };
 }
+
+/** Adds money to a gift / prepaid card. */
+export async function topUpGiftCard(code: string, amount: number, methodId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("top_up_gift_card", { p_code: code, p_amount: amount, p_method_id: methodId });
+  if (error) return { ok: false as const, error: error.message };
+  revalidatePath("/loyalty");
+  const d = data as { code: string; added: number; balance: number };
+  return { ok: true as const, code: d.code, added: Number(d.added), balance: Number(d.balance) };
+}
+
+/** Pays the card's unused balance back in cash and empties it. */
+export async function payBackGiftCard(code: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("pay_back_gift_card", { p_code: code });
+  if (error) return { ok: false as const, error: error.message };
+  revalidatePath("/loyalty");
+  const d = data as { code: string; paid_back: number };
+  return { ok: true as const, code: d.code, paidBack: Number(d.paid_back) };
+}
+
+export type CardEntry = { at: string; kind: "issue" | "redeem" | "topup" | "payback"; amount: number; bill: string | null };
+
+/** A card's history, newest first. */
+export async function giftCardHistory(code: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("gift_card_history", { p_code: code });
+  if (error) return { ok: false as const, error: error.message };
+  const d = data as { code: string; balance: number; entries: CardEntry[] };
+  return { ok: true as const, code: d.code, balance: Number(d.balance), entries: d.entries };
+}

@@ -11,7 +11,7 @@ export default async function LoyaltyPage() {
   const supabase = await createClient();
   const [{ data: rules }, { data: methods }, { data: cards }, { data: ledger }, { data: led }] = await Promise.all([
     supabase.from("loyalty_settings").select("spend_per_point, point_value, min_redeem").maybeSingle(),
-    supabase.from("payment_methods").select("id, name").eq("is_active", true).not("kind", "in", "(gift_card,loyalty)").order("display_order"),
+    supabase.from("payment_methods").select("id, name").eq("is_active", true).not("kind", "in", "(gift_card,loyalty,advance,account)").order("display_order"),
     supabase.from("gift_cards").select("id, code, value, expires_on, created_at, customers!gift_cards_customer_id_fkey(name, phone)").order("created_at", { ascending: false }).limit(50),
     supabase.from("gift_card_ledger").select("gift_card_id, amount"),
     supabase.from("loyalty_ledger").select("customer_id, points, customers!loyalty_ledger_customer_id_fkey(name, phone)"),
@@ -45,7 +45,7 @@ export default async function LoyaltyPage() {
         />
       )}
 
-      {can(user, "payment.take") && <GiftCardDesk currency={user.currency_code} methods={methods ?? []} />}
+      {can(user, "payment.take") && <GiftCardDesk currency={user.currency_code} methods={methods ?? []} canPayBack={can(user, "order.refund")} />}
 
       <section className="card p-4">
         <h2 className="mb-2 text-sm font-bold">Gift cards sold (last 50) · unused balance {m(liability)}</h2>

@@ -168,6 +168,7 @@ export function PosTerminal({
   tableOrdersWaiting = 0,
   licenceLockAt = null,
   categoryParents = {},
+  categoryBrands = {},
   orderTypes = [],
   startType,
 }: {
@@ -202,6 +203,8 @@ export function PosTerminal({
   /** The kind of bill the screen starts on. */
   startType?: string | null;
   categoryParents?: Record<string, { id: string; name: string }>;
+  /** Cloud kitchen / food court: category id → brand. The billing screen can show one brand at a time. */
+  categoryBrands?: Record<string, { id: string; name: string }>;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -278,34 +281,50 @@ export function PosTerminal({
   const packingQty = packRule?.per === "item" ? Math.max(1, Math.ceil(lines.reduce((s, l) => s + (l.item.byWeight ? 1 : l.qty), 0))) : 1;
   const packingAmount = packRule ? Math.round(packRule.price * packingQty * 100) / 100 : 0;
 
+  // Brands / stalls on this menu, in menu order; choosing one shows only its dishes.
+  const brandTabs = useMemo(() => {
+    const out: { id: string; name: string }[] = [];
+    for (const x of menu) {
+      const b = categoryBrands[x.category_id];
+      if (b && !out.some((y) => y.id === b.id)) out.push(b);
+    }
+    return out;
+  }, [menu, categoryBrands]);
+  const [brand, setBrand] = useState<string | null>(null);
+  const activeBrand = brand !== null && brandTabs.some((b) => b.id === brand) ? brand : null;
+  const brandMenu = useMemo(
+    () => (activeBrand === null ? menu : menu.filter((x) => categoryBrands[x.category_id]?.id === activeBrand)),
+    [menu, activeBrand, categoryBrands],
+  );
+
   // Category tabs, in menu order: main categories; a sub-category's dishes come under its main one.
   // The packing charge is not sold from the menu.
   const tabs = useMemo(() => {
     const out: { id: string; name: string }[] = [];
-    for (const x of menu) {
+    for (const x of brandMenu) {
       if (x.id === packingId) continue;
       const m = categoryParents[x.category_id] ?? { id: x.category_id, name: x.category_name };
       if (!out.some((c) => c.id === m.id)) out.push(m);
     }
     return out;
-  }, [menu, packingId, categoryParents]);
+  }, [brandMenu, packingId, categoryParents]);
   const activeTab = tab !== null && tabs.some((c) => c.id === tab) ? tab : null;
   // The chosen main category's sub-categories (only those with dishes on sale).
   const subTabs = useMemo(() => {
     if (activeTab === null) return [];
     const out: { id: string; name: string }[] = [];
-    for (const x of menu)
+    for (const x of brandMenu)
       if (x.id !== packingId && categoryParents[x.category_id]?.id === activeTab && !out.some((c) => c.id === x.category_id))
         out.push({ id: x.category_id, name: x.category_name });
     return out;
-  }, [menu, packingId, categoryParents, activeTab]);
+  }, [brandMenu, packingId, categoryParents, activeTab]);
   const activeSub = subTab !== null && subTabs.some((c) => c.id === subTab) ? subTab : null;
   const searching = search.trim() !== "";
 
   const categories = useMemo(() => {
     // A search looks in every category; otherwise the chosen tab (and sub-category tab) decides.
     const q = search.trim().toLowerCase();
-    const filtered = menu.filter((x) => {
+    const filtered = brandMenu.filter((x) => {
       if (x.id === packingId || x.variantOf) return false;
       if (q) return x.name.toLowerCase().includes(q) || (x.short_name ?? "").toLowerCase().includes(q);
       if (activeTab === null) return true;
@@ -325,7 +344,7 @@ export function PosTerminal({
       g.items.push(x);
     }
     return groups;
-  }, [menu, search, activeTab, activeSub, packingId, categoryParents]);
+  }, [brandMenu, search, activeTab, activeSub, packingId, categoryParents]);
 
   /** Items in the cart; a weighed line counts as one. */
   const itemCount = lines.reduce((s, l) => s + (l.item.byWeight ? 1 : l.qty), 0);
@@ -943,6 +962,33 @@ export function PosTerminal({
           }}
           autoComplete="off"
         />
+        {brandTabs.length > 1 && (
+          <div className="mb-3 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Brands">
+            {[{ id: null as string | null, name: "All brands" }, ...brandTabs].map((b) => {
+              const on = activeBrand === b.id;
+              return (
+                <button
+                  key={b.id ?? "all"}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => {
+                    setBrand(b.id);
+                    setTab(null);
+                    setSubTab(null);
+                  }}
+                  className="min-h-[40px] shrink-0 whitespace-nowrap rounded-lg border px-3 text-sm font-bold"
+                  style={{
+                    borderColor: on ? "var(--color-ink)" : "var(--color-line)",
+                    background: on ? "var(--color-ink)" : "var(--color-surface)",
+                    color: on ? "var(--color-surface)" : "var(--color-ink-2)",
+                  }}
+                >
+                  {b.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {(tabs.length > 1 || Object.keys(categoryParents).length > 0) && (
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Menu categories">
             {[{ id: null as string | null, name: "All" }, ...tabs].map((c) => {
