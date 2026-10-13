@@ -37,7 +37,7 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
     supabase.from("payment_methods").select("id, name, kind, ask_reference, upi_id").eq("is_active", true).not("kind", "in", "(gift_card,loyalty)").order("display_order"),
     supabase.from("shifts").select("id").eq("status", "open").limit(1).maybeSingle(),
     open
-      ? supabase.from("dining_tables").select("id, table_number").eq("is_active", true).order("table_number")
+      ? supabase.from("dining_tables").select("id, table_number").eq("is_active", true).eq("is_kiosk", false).order("table_number")
       : Promise.resolve({ data: [] as { id: string; table_number: string }[] }),
     open
       ? supabase

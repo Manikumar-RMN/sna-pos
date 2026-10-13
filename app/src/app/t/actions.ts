@@ -26,5 +26,5 @@ export async function placeGuestOrder(token: string, lines: GuestLine[], name: s
 export async function guestOrderStatus(id: string, key: string) {
   const supabase = await createClient();
   const { data } = await supabase.rpc("qr_order_status", { p_request: id, p_key: key });
-  return (data as { status: "pending" | "accepted" | "rejected"; reason: string | null } | null) ?? null;
+  return (data as { status: "pending" | "accepted" | "rejected"; reason: string | null; bill_number?: string | null; token_no?: number | null } | null) ?? null;
 }

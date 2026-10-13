@@ -46,7 +46,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
         settings: bs.data,
         data: bs.data?.shifts_enabled ? (await supabase.from("shifts").select("id").eq("status", "open").limit(1).maybeSingle()).data : { id: "auto" },
       })),
-    supabase.from("dining_tables").select("id, table_number").eq("is_active", true).order("table_number"),
+    supabase.from("dining_tables").select("id, table_number").eq("is_active", true).eq("is_kiosk", false).order("table_number"),
     supabase
       .from("orders")
       .select("id, bill_number, dining_table_id")

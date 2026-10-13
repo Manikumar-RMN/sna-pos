@@ -880,7 +880,9 @@ export type Database = {
           name: string
           phone: string | null
           postal_code: string | null
+          region: string | null
           restaurant_id: string
+          royalty_percent: number
           state_or_region: string | null
           timezone: string
           updated_at: string
@@ -899,7 +901,9 @@ export type Database = {
           name: string
           phone?: string | null
           postal_code?: string | null
+          region?: string | null
           restaurant_id: string
+          royalty_percent?: number
           state_or_region?: string | null
           timezone: string
           updated_at?: string
@@ -918,7 +922,9 @@ export type Database = {
           name?: string
           phone?: string | null
           postal_code?: string | null
+          region?: string | null
           restaurant_id?: string
+          royalty_percent?: number
           state_or_region?: string | null
           timezone?: string
           updated_at?: string
@@ -1435,6 +1441,7 @@ export type Database = {
           floor_id: string | null
           id: string
           is_active: boolean
+          is_kiosk: boolean
           qr_token: string | null
           restaurant_id: string
           seats: number
@@ -1447,6 +1454,7 @@ export type Database = {
           floor_id?: string | null
           id?: string
           is_active?: boolean
+          is_kiosk?: boolean
           qr_token?: string | null
           restaurant_id: string
           seats?: number
@@ -1459,6 +1467,7 @@ export type Database = {
           floor_id?: string | null
           id?: string
           is_active?: boolean
+          is_kiosk?: boolean
           qr_token?: string | null
           restaurant_id?: string
           seats?: number
@@ -2428,6 +2437,69 @@ export type Database = {
           },
         ]
       }
+      online_orders: {
+        Row: {
+          address: string | null
+          branch_id: string
+          channel: string
+          created_at: string
+          customer_name: string | null
+          customer_phone: string | null
+          decided_at: string | null
+          decided_by: string | null
+          external_ref: string
+          id: string
+          items: Json
+          note: string | null
+          order_id: string | null
+          paid_online: boolean
+          partner_total: number | null
+          reject_reason: string | null
+          restaurant_id: string
+          status: string
+        }
+        Insert: {
+          address?: string | null
+          branch_id: string
+          channel: string
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          external_ref: string
+          id?: string
+          items: Json
+          note?: string | null
+          order_id?: string | null
+          paid_online?: boolean
+          partner_total?: number | null
+          reject_reason?: string | null
+          restaurant_id: string
+          status?: string
+        }
+        Update: {
+          address?: string | null
+          branch_id?: string
+          channel?: string
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          external_ref?: string
+          id?: string
+          items?: Json
+          note?: string | null
+          order_id?: string | null
+          paid_online?: boolean
+          partner_total?: number | null
+          reject_reason?: string | null
+          restaurant_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       order_discounts: {
         Row: {
           amount: number
@@ -2763,6 +2835,7 @@ export type Database = {
           buyer_name: string | null
           calc_params: Json | null
           cashier_id: string
+          channel: string | null
           client_created_at: string
           client_ref: string | null
           comp_by: string | null
@@ -2821,6 +2894,7 @@ export type Database = {
           buyer_name?: string | null
           calc_params?: Json | null
           cashier_id: string
+          channel?: string | null
           client_created_at: string
           client_ref?: string | null
           comp_by?: string | null
@@ -2879,6 +2953,7 @@ export type Database = {
           buyer_name?: string | null
           calc_params?: Json | null
           cashier_id?: string
+          channel?: string | null
           client_created_at?: string
           client_ref?: string | null
           comp_by?: string | null
@@ -6096,6 +6171,7 @@ export type Database = {
       }
       cancel_plan_request: { Args: { p_id: string }; Returns: undefined }
       category_set_brand: { Args: { p_brand: string; p_category: string }; Returns: undefined }
+      chain_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       change_payment_method: {
         Args: { p_method_id: string; p_payment_id: string; p_reason: string }
         Returns: Json
@@ -6199,6 +6275,9 @@ export type Database = {
         }
         Returns: Json
       }
+      kiosk_add: { Args: { p_name: string }; Returns: Json }
+      kiosk_list: { Args: never; Returns: Json }
+      kiosk_remove: { Args: { p_id: string }; Returns: undefined }
       liquor_prefix_info: { Args: never; Returns: Json }
       login_staff: {
         Args: { p_client_code: string; p_password: string; p_username: string }
@@ -6223,11 +6302,16 @@ export type Database = {
       my_outlets: { Args: never; Returns: Json }
       my_plan: { Args: never; Returns: Json }
       offline_snapshot: { Args: { p_device_key: string }; Returns: Json }
+      online_order_accept: { Args: { p_id: string }; Returns: Json }
+      online_order_receive: { Args: { p: Json; p_key: string }; Returns: Json }
+      online_order_reject: { Args: { p_id: string; p_reason: string }; Returns: undefined }
+      online_orders_list: { Args: never; Returns: Json }
       open_shift: { Args: { p_opening_float?: number }; Returns: string }
       outlet_comparison: {
         Args: { p_from: string; p_to: string }
         Returns: Json
       }
+      outlet_set_region: { Args: { p_branch: string; p_region: string; p_royalty?: number }; Returns: undefined }
       password_changed: { Args: never; Returns: undefined }
       pay_back_gift_card: { Args: { p_code: string }; Returns: Json }
       pay_order: {
@@ -6328,6 +6412,7 @@ export type Database = {
         Returns: Json
       }
       regenerate_invite: { Args: { p_user_id: string }; Returns: Json }
+      region_set_price: { Args: { p_price: number; p_product: string; p_region: string }; Returns: Json }
       register_counter_device: {
         Args: { p_auth_user_id: string; p_name: string }
         Returns: string

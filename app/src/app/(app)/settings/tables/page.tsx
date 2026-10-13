@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { Kiosks } from "./kiosks";
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { TablesForm } from "../settings-forms";
@@ -10,10 +12,14 @@ export default async function TableSettings() {
   if (!can(user, "settings.manage") && !can(user, "tax.manage")) return <NoAccess />;
   const supabase = await createClient();
   const [{ data: tables }, { data: openTabs }] = await Promise.all([
-    supabase.from("dining_tables").select("id, table_number, seats").eq("is_active", true).order("table_number"),
+    supabase.from("dining_tables").select("id, table_number, seats").eq("is_active", true).eq("is_kiosk", false).order("table_number"),
     supabase.from("orders").select("dining_table_id").in("payment_status", ["unpaid", "partial"]).neq("status", "voided").not("dining_table_id", "is", null),
   ]);
   const busy = new Set((openTabs ?? []).map((o) => o.dining_table_id));
+  const showKiosks = has(user, "qr_ordering") && can(user, "settings.manage");
+  const kiosks = showKiosks ? (((await supabase.rpc("kiosk_list")).data ?? []) as unknown as { id: string; name: string; token: string }[]) : [];
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
 
   return (
     <div>
@@ -27,6 +33,7 @@ export default async function TableSettings() {
         canEdit={can(user, "settings.manage")}
         tables={[...(tables ?? [])].sort(byTableNumber).map((t) => ({ id: t.id, number: t.table_number, seats: t.seats, busy: busy.has(t.id) }))}
       />
+      {showKiosks && <Kiosks kiosks={kiosks} origin={origin} />}
     </div>
   );
 }

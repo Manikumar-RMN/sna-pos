@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { UpgradeNote } from "../../upgrade-note";
 import { SectionHead } from "../section-head";
 import { OutletsEditor } from "./outlets-editor";
+import { ChainTools } from "./chain";
 
 export default async function OutletsSettings() {
   const user = await requireUser();
@@ -17,7 +18,7 @@ export default async function OutletsSettings() {
   }
   const supabase = await createClient();
   const [{ data: branches }, { data: products }, { data: prices }, { data: users }, { data: links }] = await Promise.all([
-    supabase.from("branches").select("id, name, code, city, is_central_kitchen").is("deleted_at", null).order("created_at"),
+    supabase.from("branches").select("id, name, code, city, is_central_kitchen, region, royalty_percent").is("deleted_at", null).order("created_at"),
     supabase.from("products").select("id, name, price, is_available, categories(name)").is("deleted_at", null).order("name"),
     supabase.from("branch_prices").select("branch_id, product_id, price, is_available"),
     supabase.from("users").select("id, full_name, is_active, roles(name)").is("deleted_at", null).order("full_name"),
@@ -51,6 +52,15 @@ export default async function OutletsSettings() {
         overrides={(prices ?? []).map((x) => ({ branch: x.branch_id, product: x.product_id, price: x.price == null ? null : Number(x.price), available: x.is_available }))}
         people={(users ?? []).map((u) => ({ id: u.id, name: u.full_name, role: (u.roles as unknown as { name: string } | null)?.name ?? "", active: u.is_active }))}
         access={(links ?? []).map((l) => ({ user: l.user_id, branch: l.branch_id }))}
+      />
+      <ChainTools
+        outlets={outlets.map((b) => ({ id: b.id, name: b.name, region: b.region, royalty: Number(b.royalty_percent ?? 0) }))}
+        products={(products ?? []).map((p) => ({ id: p.id, name: p.name, price: Number(p.price) }))}
+        currency={user.currency_code}
+        canSettings={can(user, "settings.manage")}
+        canPrice={can(user, "menu.price_change")}
+        canReport={can(user, "report.view_sales")}
+        today={new Intl.DateTimeFormat("en-CA", { timeZone: user.timezone || "Asia/Kolkata" }).format(new Date())}
       />
     </div>
   );

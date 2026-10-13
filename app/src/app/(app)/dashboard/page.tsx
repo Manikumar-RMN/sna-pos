@@ -20,7 +20,7 @@ export default async function DashboardPage() {
     supabase.from("products").select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase.from("users").select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase.from("shifts").select("id", { count: "exact", head: true }),
-    supabase.from("dining_tables").select("id", { count: "exact", head: true }).eq("is_active", true),
+    supabase.from("dining_tables").select("id", { count: "exact", head: true }).eq("is_active", true).eq("is_kiosk", false),
     supabase.from("branch_settings").select("shifts_enabled").eq("branch_id", user.branch_id).maybeSingle(),
     supabase.from("orders").select("id", { count: "exact", head: true }),
     supabase.from("countries").select("tax_id_label").eq("code", user.country_code).maybeSingle(),

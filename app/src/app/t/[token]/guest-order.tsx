@@ -13,10 +13,12 @@ export type GuestMenu = {
   outlet: string;
   currency: string;
   table: string;
+  /** A self-order kiosk at the counter, not a table: one guest after another, takeaway, pay at the counter. */
+  kiosk?: boolean;
   categories: { id: string; name: string; items: Item[] }[];
 };
 type Line = { key: string; item: Item; qty: number; options: Option[] };
-type Sent = { id: string; key: string; total: number; status: "pending" | "accepted" | "rejected"; reason?: string | null };
+type Sent = { id: string; key: string; total: number; status: "pending" | "accepted" | "rejected"; reason?: string | null; bill?: string | null; tokenNo?: number | null; at?: number };
 
 const unit = (l: { item: Item; options: Option[] }) => Number(l.item.price) + l.options.reduce((s, o) => s + Number(o.price_delta), 0);
 
@@ -45,13 +47,26 @@ export function GuestOrder({ token, menu }: { token: string; menu: GuestMenu }) 
         sent.map(async (s) => {
           if (s.status !== "pending") return s;
           const r = await guestOrderStatus(s.id, s.key);
-          return r ? { ...s, status: r.status, reason: r.reason } : s;
+          return r ? { ...s, status: r.status, reason: r.reason, bill: r.bill_number, tokenNo: r.token_no } : s;
         }),
       );
       setSent(next);
     }, 5000);
     return () => clearInterval(t);
   }, [sent]);
+
+  // Kiosk: the screen clears itself for the next guest — 90 seconds after the order is confirmed (or 3 minutes after sending).
+  useEffect(() => {
+    if (!menu.kiosk || sent.length === 0) return;
+    const last = sent[0];
+    const wait = last.status === "pending" ? 180000 : 90000;
+    const t = setTimeout(() => {
+      setSent([]);
+      setName("");
+      setCat(menu.categories[0]?.id ?? "");
+    }, wait);
+    return () => clearTimeout(t);
+  }, [sent, menu]);
 
   function add(item: Item, options: Option[]) {
     const key = item.id + "|" + options.map((o) => o.id).sort().join(",");
@@ -78,7 +93,7 @@ export function GuestOrder({ token, menu }: { token: string; menu: GuestMenu }) 
         note,
       );
       if (!r.ok) return setError(r.error);
-      setSent((s) => [{ id: r.id, key: r.key, total: r.total, status: "pending" }, ...s]);
+      setSent((s) => (menu.kiosk ? [{ id: r.id, key: r.key, total: r.total, status: "pending" }] : [{ id: r.id, key: r.key, total: r.total, status: "pending" }, ...s]));
       setCart({});
       setNote("");
       setCartOpen(false);
@@ -90,11 +105,33 @@ export function GuestOrder({ token, menu }: { token: string; menu: GuestMenu }) 
       <header className="px-4 pb-3 pt-4 text-white" style={{ background: "var(--color-brand)" }}>
         <div className="font-display text-xl font-bold">{menu.restaurant}</div>
         <div className="text-sm opacity-85">
-          Table {menu.table} · {menu.outlet}
+          {menu.kiosk ? `Order here · ${menu.outlet}` : `Table ${menu.table} · ${menu.outlet}`}
         </div>
       </header>
 
-      {sent.map((s) => (
+      {menu.kiosk && sent[0] && (
+        <div role="status" className="mx-4 mt-3 rounded-2xl px-4 py-5 text-center" style={{ background: sent[0].status === "rejected" ? "var(--color-bad-soft)" : sent[0].status === "accepted" ? "var(--color-ok-soft)" : "var(--color-warn-soft)" }}>
+          {sent[0].status === "pending" && (
+            <>
+              <div className="text-lg font-bold">Order sent</div>
+              <div className="mt-1 text-sm">Please wait a moment while the counter confirms it. Total {m(sent[0].total)}.</div>
+            </>
+          )}
+          {sent[0].status === "accepted" && (
+            <>
+              <div className="text-sm font-semibold">Your number</div>
+              <div className="font-display text-5xl font-bold tabular-nums">{sent[0].tokenNo ?? sent[0].bill?.split("-").pop() ?? ""}</div>
+              <div className="mt-1 text-sm">Bill {sent[0].bill} · please pay {m(sent[0].total)} at the counter. We&rsquo;ll call your number when it&rsquo;s ready.</div>
+            </>
+          )}
+          {sent[0].status === "rejected" && <div className="text-sm font-semibold">Order not accepted{sent[0].reason ? `: ${sent[0].reason}` : ""}. Please ask at the counter.</div>}
+          <button className="btn mt-3" onClick={() => { setSent([]); setName(""); }}>
+            Start a new order
+          </button>
+        </div>
+      )}
+
+      {!menu.kiosk && sent.map((s) => (
         <div
           key={s.id}
           role="status"

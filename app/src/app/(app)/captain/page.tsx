@@ -18,7 +18,7 @@ export default async function CaptainPage() {
   const supabase = await createClient();
   const [{ data: bs }, { data: tables }, { data: open }, items, parents] = await Promise.all([
     supabase.from("branch_settings").select("shifts_enabled, packing_product_id").eq("branch_id", user.branch_id).maybeSingle(),
-    supabase.from("dining_tables").select("id, table_number, seats").eq("is_active", true),
+    supabase.from("dining_tables").select("id, table_number, seats").eq("is_active", true).eq("is_kiosk", false),
     supabase
       .from("orders")
       .select("id, bill_number, dining_table_id, grand_total, created_at, covers")

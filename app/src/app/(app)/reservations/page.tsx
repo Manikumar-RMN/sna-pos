@@ -18,7 +18,7 @@ export default async function ReservationsPage() {
       .order("reserved_for", { ascending: true, nullsFirst: false })
       .order("created_at")
       .limit(200),
-    supabase.from("dining_tables").select("id, table_number").eq("is_active", true).order("table_number"),
+    supabase.from("dining_tables").select("id, table_number").eq("is_active", true).eq("is_kiosk", false).order("table_number"),
   ]);
   return (
     <Bookings

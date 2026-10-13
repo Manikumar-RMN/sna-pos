@@ -32,7 +32,7 @@ export default async function WelcomeGuide({ searchParams }: { searchParams: Pro
   const [branch, products, tables, staff, country, orders] = await Promise.all([
     supabase.from("branches").select("address_line1").eq("id", user.branch_id).maybeSingle(),
     supabase.from("products").select("id", { count: "exact", head: true }).is("deleted_at", null),
-    supabase.from("dining_tables").select("id", { count: "exact", head: true }).eq("is_active", true),
+    supabase.from("dining_tables").select("id", { count: "exact", head: true }).eq("is_active", true).eq("is_kiosk", false),
     supabase.from("users").select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase.from("countries").select("name, tax_system_name").eq("code", user.country_code).maybeSingle(),
     supabase.from("orders").select("id", { count: "exact", head: true }),
