@@ -8,10 +8,10 @@ const clean = (m: string) => m.replace(/^.*?ERROR:\s*/i, "").trim();
 export async function saveAccount(id: string | null, name: string, phone: string, limit: number | null, company: string): Promise<{ error: string | null }> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("account_save", {
-    p_customer: id ?? undefined,
+    p_customer: (id ?? null) as string,
     p_name: name,
     p_phone: phone,
-    p_limit: limit ?? undefined,
+    p_limit: (limit ?? null) as number,
     p_company: company || undefined,
   });
   if (error) return { error: clean(error.message) };
