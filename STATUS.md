@@ -59,6 +59,12 @@ competitor's restaurant POS site — **not to be copied in design, copy or brand
 - 23 Sep 2026: **Design system resolved** — two competing themes reduced to one.
 - 23 Sep 2026: **Billing screen PRD written**, replacing the bullet-list UX spec.
 - 23 Sep 2026: Name applied throughout as **SNA POS**.
+- 13 Oct 2026: **Live database captured in git** — `supabase/schema/03_live_baseline.sql`
+  (100 tables, 331 functions, RLS, policies, grants). Loaded into a fresh Postgres
+  and the object counts match live. The numbered migrations in `supabase/migrations/`
+  are still incomplete (46 of ~111 files); this file is the source of truth until
+  they are backfilled. It holds no data and no secrets: `app.secrets.pin_pepper` and
+  the vault secrets `push_secret` / `push_url` must be recreated by hand on a rebuild.
 - 23 Sep 2026: **SNA POS Agent designed** — `sna-pos/agent-architecture.md`. Four
   agent jobs defined, with a hard line between what deterministic code owns (money)
   and what the agent owns (language, suggestions, analysis).
