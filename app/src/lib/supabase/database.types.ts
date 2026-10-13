@@ -1270,8 +1270,10 @@ export type Database = {
       }
       customers: {
         Row: {
+          account_company: string | null
           consent_given_at: string | null
           created_at: string
+          credit_limit: number | null
           date_of_birth: string | null
           deleted_at: string | null
           email: string | null
@@ -1285,8 +1287,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_company?: string | null
           consent_given_at?: string | null
           created_at?: string
+          credit_limit?: number | null
           date_of_birth?: string | null
           deleted_at?: string | null
           email?: string | null
@@ -1300,8 +1304,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_company?: string | null
           consent_given_at?: string | null
           created_at?: string
+          credit_limit?: number | null
           date_of_birth?: string | null
           deleted_at?: string | null
           email?: string | null
@@ -6359,6 +6365,23 @@ export type Database = {
       batch_stock: { Args: never; Returns: Json }
       batch_write_off: { Args: { p_batch: string }; Returns: number }
       batches_list: { Args: never; Returns: Json }
+      account_charge: {
+        Args: { p_customer: string; p_note?: string; p_order: string }
+        Returns: Json
+      }
+      account_save: {
+        Args: { p_company?: string; p_customer?: string; p_limit?: number; p_name: string; p_phone: string }
+        Returns: string
+      }
+      account_settle: {
+        Args: { p_amount: number; p_customer: string; p_method: string; p_note?: string }
+        Returns: Json
+      }
+      account_statement: {
+        Args: { p_customer: string; p_from: string; p_to: string }
+        Returns: Json
+      }
+      accounts_list: { Args: never; Returns: Json }
       set_bill_prefix: { Args: { p_prefix: string }; Returns: Json }
       set_central_kitchen: {
         Args: { p_branch: string; p_on: boolean }

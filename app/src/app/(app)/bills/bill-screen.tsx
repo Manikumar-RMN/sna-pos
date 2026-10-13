@@ -9,6 +9,7 @@ import { BillActions } from "./bill-actions";
 import { WhatsAppShare } from "./whatsapp-share";
 import { LoyaltyPanel } from "./loyalty-panel";
 import { GuestDetails } from "./guest-details";
+import { AccountPanel } from "./account-panel";
 import { byTableNumber } from "@/lib/table-order";
 
 /** One bill: printable receipt, its history, and the actions the user may take. */
@@ -51,6 +52,9 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
       ? supabase.from("orders").select("id, bill_number").eq("id", bill.mergedInto).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
+
+  // Customer accounts (pay later), for "Charge to account" on an unpaid bill.
+  const { data: accounts } = open && can(user, "payment.take") ? await supabase.rpc("accounts_list") : { data: null };
 
   const busyTables = new Set((openBills ?? []).map((o) => o.dining_table_id).filter(Boolean));
 
@@ -117,6 +121,14 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
 
       {has(user, "loyalty") && r.state !== "voided" && (
         <LoyaltyPanel orderId={bill.id} open={open} canPay={can(user, "payment.take")} currency={r.currency} guest={guest} />
+      )}
+
+      {open && accounts && (
+        <AccountPanel
+          orderId={bill.id}
+          currency={r.currency}
+          accounts={accounts as unknown as { id: string; name: string; phone: string | null; company: string | null; limit: number | null; balance: number }[]}
+        />
       )}
 
       {has(user, "whatsapp") && r.state !== "voided" && (
