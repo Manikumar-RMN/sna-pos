@@ -42,6 +42,8 @@ export type MenuItem = {
   barcode?: string;
   /** Counted in batches: how many are left today at this outlet. */
   left?: number;
+  /** Bars: liquor goes only on separate liquor bills (its own numbers and VAT). */
+  liquor?: boolean;
 };
 
 /**
@@ -263,6 +265,8 @@ export function PosTerminal({
 
   const m = (n: number) => money(n, currency);
   const lines = Object.values(cart);
+  // Bars: liquor and food may not share a bill.
+  const mixedLiquor = lines.some((l) => l.item.liquor) && lines.some((l) => !l.item.liquor);
   const isCash = paymentMethods.find((p) => p.id === methodId)?.kind === "cash";
   const askRef = !!paymentMethods.find((p) => p.id === methodId)?.ask_reference;
   const discountAmt = Math.max(0, Number(discount) || 0);
@@ -801,6 +805,7 @@ export function PosTerminal({
     if (savedRef.current || offlineBill || sending.current) return;
     setError(null);
     if (lines.length === 0) return setError("Add at least one item.");
+    if (mixedLiquor) return setError("Liquor and food go on separate bills. Remove the food or the drinks, save this bill, then bill the rest.");
     if (!quote || quoting) return setError("Please wait a moment — the total is being checked.");
     if (needSeparate) return setError(`Table ${chosenTable?.number ?? ""} already has an open bill. Add to it, or tick “Start a separate bill for this table”.`);
     if (offline) return submitOffline(mode);
@@ -1247,6 +1252,11 @@ export function PosTerminal({
           )}
 
           <div className="flex-1 overflow-y-auto px-4 py-2">
+            {mixedLiquor && (
+              <p className="mb-2 rounded-lg px-3 py-2 text-xs font-semibold" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+                This order has liquor and food. They go on separate bills: remove one kind, save, then bill the other.
+              </p>
+            )}
             {lines.length === 0 ? (
               <p className="py-6 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
                 No items yet.

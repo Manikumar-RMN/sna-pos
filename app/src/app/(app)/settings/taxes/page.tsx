@@ -4,6 +4,7 @@ import { todayIn } from "@/lib/format";
 import { TaxForm, type TaxGroupView } from "../settings-forms";
 import type { TaxComponent } from "../actions";
 import { NoAccess, SectionHead } from "../section-head";
+import { LiquorCard } from "./liquor-card";
 
 export default async function TaxSettings() {
   const user = await requireUser();
@@ -11,7 +12,7 @@ export default async function TaxSettings() {
   const supabase = await createClient();
   const today = todayIn(user.timezone);
   const [{ data: groups }, { data: rates }, { data: products }, { data: country }] = await Promise.all([
-    supabase.from("tax_groups").select("id, name, is_price_inclusive").eq("is_active", true).order("name"),
+    supabase.from("tax_groups").select("id, name, is_price_inclusive, separate_bill").eq("is_active", true).order("name"),
     supabase
       .from("tax_rates")
       .select("id, tax_group_id, valid_from, valid_to, tax_rate_components!tax_rate_components_tax_rate_id_fkey(name, rate, is_compound, applies_when, display_order)")
@@ -50,6 +51,9 @@ export default async function TaxSettings() {
         taxName={taxName}
         pricesInclude={(groups ?? []).some((g) => g.is_price_inclusive)}
       />
+      {user.country_code === "IN" && (groups ?? []).length > 0 && (
+        <LiquorCard canEdit={can(user, "tax.manage")} groups={(groups ?? []).map((g) => ({ id: g.id, name: g.name, separate_bill: !!g.separate_bill }))} />
+      )}
     </div>
   );
 }

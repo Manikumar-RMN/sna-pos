@@ -7,10 +7,10 @@ import type { MenuItem, OptionGroup } from "./pos-terminal";
  */
 export async function loadMenu(): Promise<MenuItem[]> {
   const supabase = await createClient();
-  const [{ data: menu }, { data: links }, { data: optGroups }, { data: optItems }, { data: sizeRows }, { data: coded }, { data: batchLeft }] = await Promise.all([
+  const [{ data: menu }, { data: links }, { data: optGroups }, { data: optItems }, { data: sizeRows }, { data: coded }, { data: batchLeft }, { data: liquorGroups }] = await Promise.all([
     supabase
       .from("v_menu")
-      .select("id, name, short_name, price, category_id, category_name, category_order, is_veg, display_order, is_available, name_local, parent_id, variant_name, is_combo, list_price")
+      .select("id, name, short_name, price, category_id, category_name, category_order, is_veg, display_order, is_available, name_local, parent_id, variant_name, is_combo, list_price, tax_group_id")
       .eq("is_available", true)
       .order("category_order")
       .order("display_order")
@@ -24,7 +24,10 @@ export async function loadMenu(): Promise<MenuItem[]> {
     supabase.from("products").select("id, sold_by, barcode").is("deleted_at", null).or("sold_by.eq.weight,barcode.not.is.null"),
     // Dishes counted in batches: how many are left today at this outlet.
     supabase.rpc("batch_stock"),
+    // Bars: tax groups whose dishes go on separate liquor bills.
+    supabase.from("tax_groups").select("id").eq("separate_bill", true),
   ]);
+  const liquorIds = new Set((liquorGroups ?? []).map((g) => g.id));
   const left = (batchLeft ?? {}) as Record<string, number>;
   const codeOf = new Map((coded ?? []).map((p) => [p.id, p]));
 
@@ -89,6 +92,8 @@ export async function loadMenu(): Promise<MenuItem[]> {
         barcode: codeOf.get(x.id as string)?.barcode ?? undefined,
         /** Counted in batches: how many are left today. */
         left: (x.id as string) in left ? Number(left[x.id as string]) : undefined,
+        /** Bars: liquor, billed only on separate liquor bills. */
+        liquor: (x.tax_group_id != null && liquorIds.has(x.tax_group_id as string)) || undefined,
       }))
   );
 }

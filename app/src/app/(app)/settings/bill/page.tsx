@@ -7,6 +7,7 @@ import type { ReceiptData } from "@/app/(app)/pos/receipt-view";
 import { NoAccess, SectionHead } from "../section-head";
 import { BillLayout } from "./bill-layout";
 import { BillNumbers, type BillPrefixInfo } from "./bill-numbers";
+import { LiquorNumbers, type LiquorPrefixInfo } from "./liquor-numbers";
 
 /** Sample prices are written for rupees; this keeps them believable in other currencies. */
 const PRICE_SCALE: Record<string, number> = { IDR: 250, VND: 300, KRW: 20, JPY: 2, AED: 0.2, SGD: 0.1, MYR: 0.1 };
@@ -22,7 +23,7 @@ export default async function BillLayoutSettings({ searchParams }: { searchParam
 
   const supabase = await createClient();
   const isIndia = user.country_code === "IN";
-  const [{ data: rest }, { data: branch }, { data: bs }, { data: country }, { data: upiMethod }, { data: prefixInfo }] = await Promise.all([
+  const [{ data: rest }, { data: branch }, { data: bs }, { data: country }, { data: upiMethod }, { data: prefixInfo }, { data: liquorInfo }] = await Promise.all([
     supabase.from("restaurants").select("legal_name, trading_name, tax_registration_no, fssai_no, sac_code, logo_url").limit(1).maybeSingle(),
     supabase.from("branches").select("name, address_line1, address_line2, city, phone").eq("id", user.branch_id).maybeSingle(),
     supabase.from("branch_settings").select("receipt_header, receipt_footer, bill_format").eq("branch_id", user.branch_id).maybeSingle(),
@@ -31,6 +32,7 @@ export default async function BillLayoutSettings({ searchParams }: { searchParam
       ? supabase.from("payment_methods").select("upi_id").eq("kind", "upi").eq("is_active", true).not("upi_id", "is", null).limit(1).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.rpc("bill_prefix_info"),
+    supabase.rpc("liquor_prefix_info"),
   ]);
 
   // A made-up takeaway bill, under the restaurant's real name, address and tax details.
@@ -109,6 +111,7 @@ export default async function BillLayoutSettings({ searchParams }: { searchParam
         .
       </SectionHead>
       {prefixInfo && <BillNumbers info={prefixInfo as unknown as BillPrefixInfo} isIndia={isIndia} />}
+      {liquorInfo && (liquorInfo as unknown as LiquorPrefixInfo).uses_liquor && <LiquorNumbers info={liquorInfo as unknown as LiquorPrefixInfo} />}
       <BillLayout
         initialFormat={billFormat(bs?.bill_format)}
         initialLogo={rest?.logo_url || null}
