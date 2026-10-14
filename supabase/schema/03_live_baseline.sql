@@ -1,7 +1,7 @@
 -- =====================================================================
 -- SNA POS: live database baseline
 -- Snapshot of project lrtoktmfspnypkgrvnzg (SNA POS, Supabase, Postgres 17)
--- taken 2026-10-13 from the catalog (table grants refreshed 2026-10-14 after migration 113; sync_offline_bill and audit_to_alert refreshed after migration 114) (pg_get_functiondef, pg_get_constraintdef,
+-- taken 2026-10-13 from the catalog (table grants refreshed 2026-10-14 after migration 113; sync_offline_bill and audit_to_alert refreshed after migration 114; v_menu and app.menu_price after 115) (pg_get_functiondef, pg_get_constraintdef,
 -- pg_get_indexdef, pg_get_triggerdef, pg_get_viewdef, aclexplode).
 --
 -- WHAT THIS IS
@@ -4553,6 +4553,15 @@ begin
     'reopen_count', d.reopen_count);
 end $function$
 ;
+
+CREATE OR REPLACE FUNCTION app.menu_price(p_product uuid, p_price numeric)
+ returns numeric
+ language sql
+ stable security definer
+ set search_path to 'public', 'pg_temp'
+as $function$
+  select app.rule_price(app.current_restaurant_id(), app.current_branch_id(), p_product, p_price, now())
+$function$;
 
 -- ---------------------------------------------------------------------
 -- Functions: public schema
@@ -13441,14 +13450,14 @@ CREATE OR REPLACE VIEW public.v_current_user AS
      JOIN restaurants res ON res.id = u.restaurant_id
   WHERE u.id = app.current_user_id();
 
-CREATE OR REPLACE VIEW public.v_menu WITH (security_invoker=true) AS
+CREATE OR REPLACE VIEW public.v_menu with (security_invoker = true) as
  SELECT p.id,
     p.restaurant_id,
     p.category_id,
     p.tax_group_id,
     p.name,
     p.short_name,
-    app.rule_price(p.restaurant_id, ( SELECT app.current_branch_id() AS current_branch_id), p.id, COALESCE(bp.price, p.price), now())::numeric(14,2) AS price,
+    app.menu_price(p.id, COALESCE(bp.price, p.price))::numeric(14,2) AS price,
     p.is_veg,
     p.is_available AND COALESCE(bp.is_available, true) AS is_available,
     p.display_order,
@@ -14512,6 +14521,8 @@ GRANT EXECUTE ON FUNCTION update_staff(uuid,uuid,boolean) TO service_role;
 REVOKE ALL ON FUNCTION void_order(uuid,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION void_order(uuid,text) TO authenticated;
 GRANT EXECUTE ON FUNCTION void_order(uuid,text) TO service_role;
+REVOKE ALL ON FUNCTION app.menu_price(uuid, numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION app.menu_price(uuid, numeric) TO authenticated;
 
 -- ---------------------------------------------------------------------
 -- For reference only: default privileges found live (Supabase sets these; not re-created here)

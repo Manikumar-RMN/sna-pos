@@ -64,8 +64,8 @@ competitor's restaurant POS site — **not to be copied in design, copy or brand
   offline, and a sweep of all 44 screens). **Bug found:** since migration 094 (13 Oct) the billing screen, Pre-orders and the Captain app
   show an EMPTY MENU for every signed-in user on the live database ("There is nothing to sell yet"): 094 revoked execute on
   `app.rule_price` from signed-in users but rebuilt the menu view, which runs with their rights, to call it. Confirmed on live
-  (`permission denied for function rule_price`). **Migration 115** (written, tested, NOT yet on live) adds a tenant-scoped
-  `app.menu_price` wrapper and points the view at it; `rule_price` itself stays locked. Apply 115 first: billing is down without it.
+  (`permission denied for function rule_price`). **Migration 115** (applied to live on 14 Oct 2026 with the owner's go-ahead; verified: a restaurant user now reads 4 menu rows with prices, where the same query failed before) adds a tenant-scoped
+  `app.menu_price` wrapper and points the view at it; `rule_price` itself stays locked. Still to confirm by a person: the billing screen in the deployed app shows the menu.
 - 14 Oct 2026: **Offline sync hardened and the money path tested end to end.** 61 end-to-end tests (`npm run test:e2e` in `app/`,
   see `app/e2e/README.md`) run the real database functions as owner / manager / cashier on a throw-away PostgreSQL built from the
   migrations: tenancy, billing, shift and day close, concurrency, offline. They found that the offline-sync function trusted the
