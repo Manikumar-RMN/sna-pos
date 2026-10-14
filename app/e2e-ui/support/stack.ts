@@ -60,9 +60,10 @@ export async function startStack(): Promise<Stack | null> {
     const anonKey = sign({ role: "anon", iss: "sna-e2e", iat: 1, exp: 4102444800 }, SECRET);
     const appEnv = { NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${PORTS.gateway}`, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: anonKey, NEXT_PUBLIC_SITE_URL: `http://127.0.0.1:${PORTS.app}`, NEXT_DIST_DIR: ".next-e2e", NEXT_TELEMETRY_DISABLED: "1" };
     if (!process.env.E2E_SKIP_BUILD || !existsSync(join(APP, ".next-e2e"))) {
-      execFileSync("npx", ["next", "build"], { cwd: APP, env: env(appEnv), stdio: "pipe", timeout: 600000 });
+      execFileSync(process.execPath, [join(APP, "node_modules/next/dist/bin/next"), "build"], { cwd: APP, env: env(appEnv), stdio: "pipe", timeout: 600000 });
     }
-    const app = spawn("npx", ["next", "start", "-p", String(PORTS.app), "-H", "127.0.0.1"], { cwd: APP, env: env(appEnv), stdio: ["ignore", openSync(join(logs, "app.log"), "w"), openSync(join(logs, "app.log"), "a")] });
+    // run Next directly (not through npx), so killing this process really stops the server
+    const app = spawn(process.execPath, [join(APP, "node_modules/next/dist/bin/next"), "start", "-p", String(PORTS.app), "-H", "127.0.0.1"], { cwd: APP, env: env(appEnv), stdio: ["ignore", openSync(join(logs, "app.log"), "w"), openSync(join(logs, "app.log"), "a")] });
     procs.push(app);
     await waitFor(`http://127.0.0.1:${PORTS.app}/login`, "the app", 120000, join(logs, "app.log"));
     return { cluster, baseUrl: `http://127.0.0.1:${PORTS.app}`, anonKey, stop };
