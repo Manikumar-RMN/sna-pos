@@ -2,11 +2,11 @@
 
 `NNN_name.sql`, applied in file-name order. Files 001-111 are the 112 entries in the live database's own history
 (Supabase project `lrtoktmfspnypkgrvnzg`); `086a_` sits between 086 and 087 because it was applied between them.
-112 and 113 were applied/recorded on live on 14 Oct 2026 (the history table holds a one-line summary for them; the full text is here).
+112, 113 and 114 were applied/recorded on live on 14 Oct 2026 (the history table holds a one-line summary for them; the full text is here).
 
-**These files rebuild the live database.** Run `supabase/verify/verify_rebuild.sh`: it replays 001-113 (114 is not applied to live yet; `verify_rebuild.sh 114` shows it differs from the baseline in exactly those two functions) on a
+**These files rebuild the live database.** Run `supabase/verify/verify_rebuild.sh`: it replays 001-114 on a
 throw-away PostgreSQL and compares the result object by object with `supabase/schema/03_live_baseline.sql`
-(checked on 14 Oct 2026 through 113: identical, 3,088 objects). Run it after adding any migration, and re-export the baseline
+(checked on 14 Oct 2026 through 114: identical, 3,088 objects). Run it after adding any migration, and re-export the baseline
 when the live database changes.
 
 ## What is and is not rebuilt
@@ -145,5 +145,5 @@ when the live database changes.
 | `110_kiosk_auto_accept.sql` | 20261013045223 | already in git; same code as what ran (comments or begin/commit may differ) |
 | `111_offline_liquor_bills.sql` | 20261013045224 | already in git; same code as what ran (comments or begin/commit may differ) |
 | `112_whole_number_check_for_piece_items.sql` | 20261014110330 | change was already live; recorded on 14 Oct 2026 |
-| `114_offline_sync_enforce_prices_discounts_and_report.sql` | not applied | written and tested (`app/e2e`); changes `sync_offline_bill` and `audit_to_alert` only |
+| `114_offline_sync_enforce_prices_discounts_and_report.sql` | 20261014112036 | applied to live on 14 Oct 2026; changes `sync_offline_bill` and `audit_to_alert` only |
 | `113_revoke_direct_writes_on_money_tables.sql` | 20261014110331 | applied to live on 14 Oct 2026 |

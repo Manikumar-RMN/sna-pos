@@ -1,7 +1,7 @@
 -- =====================================================================
 -- SNA POS: live database baseline
 -- Snapshot of project lrtoktmfspnypkgrvnzg (SNA POS, Supabase, Postgres 17)
--- taken 2026-10-13 from the catalog (table grants refreshed 2026-10-14 after migration 113) (pg_get_functiondef, pg_get_constraintdef,
+-- taken 2026-10-13 from the catalog (table grants refreshed 2026-10-14 after migration 113; sync_offline_bill and audit_to_alert refreshed after migration 114) (pg_get_functiondef, pg_get_constraintdef,
 -- pg_get_indexdef, pg_get_triggerdef, pg_get_viewdef, aclexplode).
 --
 -- WHAT THIS IS
@@ -1442,7 +1442,7 @@ AS $function$
 declare v_title text; v_body text; v_who text; v_outlet text; v_cur text; n jsonb := coalesce(new.new_value, '{}'::jsonb); o jsonb := coalesce(new.old_value, '{}'::jsonb); v_bill text;
 begin
   if new.restaurant_id is null or new.action not in ('order.void', 'credit_note.issue', 'day.close', 'day.reopen', 'shift.close', 'order.adjust',
-      'order.cancel_item', 'payment.change_mode', 'approval.granted', 'menu.price_or_tax_changed') then
+      'order.cancel_item', 'payment.change_mode', 'approval.granted', 'menu.price_or_tax_changed', 'order.offline_flagged') then
     return new;
   end if;
   if not app.feature_on(new.restaurant_id, 'owner_app') then return new; end if;
@@ -1462,6 +1462,7 @@ begin
     when 'order.cancel_item' then 'Item cancelled'
     when 'payment.change_mode' then 'Payment mode changed'
     when 'approval.granted' then 'Manager PIN used'
+    when 'order.offline_flagged' then 'Offline bill needs a look'
     else 'Price changed' end;
   v_body := concat_ws(' · ',
     case new.action
@@ -1474,6 +1475,7 @@ begin
       when 'order.cancel_item' then concat('Bill ', n->>'bill_number', ': ', n->>'qty', ' × ', n->>'item', ' — ', n->>'reason')
       when 'payment.change_mode' then concat('Bill ', n->>'bill_number', ': ', o->>'method', ' → ', n->>'method', ' — ', n->>'reason')
       when 'approval.granted' then concat(n->>'approver', ' approved ', n->>'permission')
+      when 'order.offline_flagged' then concat('Bill ', n->>'bill_number', ': ', n->>'summary')
       else concat(n->>'name', ': ', o->>'price', ' → ', n->>'price') end,
     v_who, v_outlet);
   insert into public.owner_alerts (restaurant_id, branch_id, kind, title, body) values (new.restaurant_id, new.branch_id, new.action, v_title, left(v_body, 300));
@@ -11171,6 +11173,7 @@ declare
   v_opts jsonb; v_text text; v_delta numeric; v_price numeric; v_disc numeric; v_sc boolean; bs record; v_c jsonb;
   v_order uuid := gen_random_uuid(); v_ids uuid[]; v_method uuid; v_kind text; v_amount numeric(14,2); v_round numeric(14,2) := 0;
   v_tendered numeric; v_currency char(3); v_rmode text; v_device uuid;
+  v_snap timestamptz; v_bp numeric; v_hsnap numeric; v_srv numeric; v_ok boolean; v_claim timestamptz; v_summary text;
 begin
   v_ref := (p_bill->>'client_id')::uuid;
   if v_ref is null then raise exception 'Offline bill without an id.'; end if;
@@ -11198,7 +11201,16 @@ begin
   if exists (select 1 from public.orders where branch_id = v_branch and bill_number = v_no) then
     raise exception 'Bill number % is already used.', v_no;
   end if;
-  v_at := least(coalesce((p_bill->>'created_at')::timestamptz, now()), now());
+  v_claim := coalesce((p_bill->>'created_at')::timestamptz, now());
+  v_at := least(v_claim, now());
+  -- A till clock that runs ahead is clamped to now (as before) and now reported, so the owner can have the clock fixed.
+  if v_claim > now() + interval '5 minutes' then
+    v_flags := v_flags || jsonb_build_object('flag', 'device_clock_ahead', 'till_time', v_claim, 'server_time', now());
+  end if;
+  -- When the till last copied the menu: its prices were right at that moment even if the owner changed them since.
+  -- Only believed if it is no older than 14 days before the bill, so an old time cannot be used to reach old, cheap prices.
+  begin v_snap := nullif(p_bill->>'snapshot_at', '')::timestamptz; exception when others then v_snap := null; end;
+  if v_snap is not null and (v_snap > v_at or v_snap < v_at - interval '14 days') then v_snap := null; end if;
   if v_at < now() - interval '7 days' then v_flags := v_flags || jsonb_build_object('flag', 'older_than_7_days'); end if;
 
   select s.id into v_shift from public.shifts s where s.branch_id = v_branch and s.status = 'open' order by s.opened_at desc limit 1; if v_shift is null then v_shift := app.auto_shift(v_branch); end if;
@@ -11223,10 +11235,22 @@ begin
     if v_hist is null then
       select price into v_hist from public.product_price_history where product_id = v_prod.id order by valid_from limit 1;
     end if;
-    if v_hist is null or (v_price <> v_hist + v_delta and v_price <> v_prod.price + v_delta and v_price <> coalesce((select bp.price from public.branch_prices bp where bp.branch_id = v_branch and bp.product_id = v_prod.id), -1) + v_delta
-        -- a happy-hour price that applied when the bill was made offline is not a price change
-        and v_price <> app.rule_price(v_rest, v_branch, v_prod.id, coalesce((select bp.price from public.branch_prices bp where bp.branch_id = v_branch and bp.product_id = v_prod.id), v_prod.price), v_at) + v_delta) then
-      v_flags := v_flags || jsonb_build_object('flag', 'price', 'item', v_prod.name, 'offline_price', v_price, 'menu_price', coalesce(v_hist, v_prod.price) + v_delta);
+    v_bp := (select bp.price from public.branch_prices bp where bp.branch_id = v_branch and bp.product_id = v_prod.id);
+    -- the price this menu really had when the bill was made (happy-hour rules included)
+    v_srv := app.rule_price(v_rest, v_branch, v_prod.id, coalesce(v_bp, v_hist, v_prod.price), v_at) + v_delta;
+    v_ok := v_price = v_srv or v_price = coalesce(v_hist, v_prod.price) + v_delta or v_price = v_prod.price + v_delta
+            or (v_bp is not null and v_price = v_bp + v_delta);
+    if not v_ok and v_snap is not null then
+      select price into v_hsnap from public.product_price_history
+       where product_id = v_prod.id and valid_from <= v_snap and (valid_to is null or valid_to > v_snap) order by valid_from desc limit 1;
+      if v_hsnap is not null then
+        v_ok := v_price = v_hsnap + v_delta or v_price = app.rule_price(v_rest, v_branch, v_prod.id, coalesce(v_bp, v_hsnap), v_snap) + v_delta;
+      end if;
+    end if;
+    if not v_ok then
+      -- Not a price this menu has ever had: it is NOT trusted. The bill is recorded at the real price, and the owner is told.
+      v_flags := v_flags || jsonb_build_object('flag', 'price_corrected', 'item', v_prod.name, 'offline_price', v_price, 'menu_price', v_srv);
+      v_price := v_srv;
     end if;
     select g2.is_price_inclusive into v_incl from public.tax_groups g2 where g2.id = v_prod.tax_group_id;
     select tr.id into v_rate from public.tax_rates tr where tr.tax_group_id = v_prod.tax_group_id
@@ -11242,8 +11266,11 @@ begin
   if i = 0 then raise exception 'Offline bill % has no items.', v_no; end if;
 
   v_disc := round(coalesce((p_bill->>'discount')::numeric, 0), 2);
+  if v_disc < 0 then v_disc := 0; end if;
   if v_disc > 0 and not app.allowed('order.discount') then
-    v_flags := v_flags || jsonb_build_object('flag', 'discount_without_right', 'amount', v_disc);
+    -- Online, a discount needs a manager. Offline nobody can approve it, so without the right it is not honoured here.
+    v_flags := v_flags || jsonb_build_object('flag', 'discount_removed', 'amount', v_disc);
+    v_disc := 0;
   end if;
   select coalesce(s.service_charge_percent, 0) pct, coalesce(s.service_charge_taxable, false) tx,
          coalesce(s.cash_rounding_mode, 'none') rmode, coalesce(s.rounding_cash_only, false) rcash
@@ -11269,12 +11296,12 @@ begin
   end if;
   if p_bill ? 'grand_total' and round((p_bill->>'grand_total')::numeric, 2) <> (v_c->>'grand_total')::numeric then
     v_flags := v_flags || jsonb_build_object('flag', 'total_differs', 'printed', (p_bill->>'grand_total')::numeric, 'recorded', (v_c->>'grand_total')::numeric);
-    update public.orders set offline_flags = v_flags where id = v_order;
   end if;
 
   v_method := (p_bill->>'method_id')::uuid;
   select kind into v_kind from public.payment_methods where id = v_method and restaurant_id = v_rest;
   if not found then
+    v_flags := v_flags || jsonb_build_object('flag', 'method_unknown', 'sent', p_bill->>'method_id');
     select id, kind into v_method, v_kind from public.payment_methods where restaurant_id = v_rest and kind = 'cash' limit 1;
   end if;
   v_amount := (v_c->>'grand_total')::numeric;
@@ -11299,6 +11326,20 @@ begin
     update public.offline_series set liquor_next_seq = greatest(liquor_next_seq, v_seq + 1), last_sync_at = now() where id = ser.id;
   else
   update public.offline_series set next_seq = greatest(next_seq, v_seq + 1), last_sync_at = now() where id = ser.id;
+  end if;
+  if jsonb_array_length(v_flags) > 0 then
+    update public.orders set offline_flags = v_flags where id = v_order;
+    select string_agg(case f->>'flag'
+             when 'price_corrected' then 'price of ' || (f->>'item') || ' corrected ' || (f->>'offline_price') || ' -> ' || (f->>'menu_price')
+             when 'discount_removed' then 'discount ' || (f->>'amount') || ' removed (no right to give it)'
+             when 'method_unknown' then 'unknown payment method, recorded as cash'
+             when 'total_differs' then 'till total ' || (f->>'printed') || ' but bill ' || (f->>'recorded')
+             when 'device_clock_ahead' then 'till clock was ahead'
+             when 'older_than_7_days' then 'bill is over 7 days old'
+             else f->>'flag' end, '; ') into v_summary
+      from jsonb_array_elements(v_flags) f;
+    perform app.audit('order.offline_flagged', 'orders', v_order,
+      jsonb_build_object('bill_number', v_no, 'summary', v_summary, 'flags', v_flags));
   end if;
   perform app.audit('order.offline_sync', 'orders', v_order,
     jsonb_build_object('bill_number', v_no, 'grand_total', (v_c->>'grand_total')::numeric, 'made_at', v_at, 'flags', v_flags));
