@@ -3421,6 +3421,35 @@ begin
 end $function$
 ;
 
+CREATE OR REPLACE FUNCTION app.return_on_void()
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to 'public', 'pg_temp'
+as $function$
+declare r record;
+begin
+  if new.status <> 'voided' or old.status = 'voided' then return new; end if;
+  -- gift card money this bill used goes back to the same card
+  for r in select l.gift_card_id, -sum(l.amount) as used
+             from public.gift_card_ledger l
+            where l.order_id = new.id and l.kind in ('redeem', 'void')
+            group by l.gift_card_id having -sum(l.amount) > 0 loop
+    insert into public.gift_card_ledger (restaurant_id, gift_card_id, order_id, amount, kind, created_by)
+    values (new.restaurant_id, r.gift_card_id, new.id, r.used, 'void', new.voided_by);
+  end loop;
+  -- points: what the bill earned is taken back, what was spent on it is returned
+  for r in select l.customer_id, sum(l.points) as net
+             from public.loyalty_ledger l
+            where l.order_id = new.id
+            group by l.customer_id having sum(l.points) <> 0 loop
+    insert into public.loyalty_ledger (restaurant_id, customer_id, order_id, points, kind, note, created_by)
+    values (new.restaurant_id, r.customer_id, new.id, -r.net, 'adjust', 'Bill ' || new.bill_number || ' voided', new.voided_by);
+  end loop;
+  return new;
+end $function$
+;
+
 CREATE OR REPLACE FUNCTION app.round_cash(p_amount numeric, p_mode text)
  RETURNS numeric
  LANGUAGE sql
@@ -6628,6 +6657,7 @@ begin
 
   select pm.kind into v_kind from public.payment_methods pm where pm.id = p_method_id and pm.restaurant_id = o.restaurant_id and pm.is_active;
   if not found then raise exception 'Choose how the money is given back.'; end if;
+  if v_kind in ('gift_card', 'loyalty', 'advance') then raise exception 'Money cannot be given back to a gift card, points or an advance. Choose cash, UPI, card or another payment mode.'; end if;
   select id into v_shift from public.shifts where branch_id = o.branch_id and status = 'open' limit 1; if v_shift is null then v_shift := app.auto_shift(o.branch_id); end if;
   if v_kind = 'cash' and v_shift is null then raise exception 'Open a shift before giving cash back.'; end if;
 
@@ -7762,6 +7792,7 @@ declare
   v_user uuid := app.require_permission('order.create');
   v_rest uuid := app.current_restaurant_id();
   r public.pre_orders; v_res jsonb; o public.orders; v_held numeric(14,2); v_apply numeric(14,2); v_shift uuid; v_method uuid;
+  v_extra numeric(14,2); v_give numeric(14,2); a record; v_kind text; v_drawer boolean;
 begin
   select * into r from public.pre_orders where id = p_id and restaurant_id = v_rest for update;
   if not found then raise exception 'Pre-order not found.'; end if;
@@ -7784,10 +7815,34 @@ begin
            shift_id = coalesce(o.shift_id, v_shift)
      where id = o.id;
   end if;
+  -- An advance above the bill: the extra is handed back, by the way it came in (newest advance first), and written down.
+  v_extra := v_held - v_apply;
+  if v_extra > 0 then
+    select id into v_shift from public.shifts where branch_id = o.branch_id and status = 'open' limit 1;
+    if v_shift is null then v_shift := app.auto_shift(o.branch_id); end if;
+    for a in select p.payment_method_id, sum(case when p.kind = 'advance' then p.amount else -p.amount end) as net
+               from public.pre_order_payments p where p.pre_order_id = r.id group by p.payment_method_id
+             having sum(case when p.kind = 'advance' then p.amount else -p.amount end) > 0
+              order by max(p.created_at) desc, p.payment_method_id loop
+      exit when v_extra <= 0;
+      v_give := least(a.net, v_extra);
+      select kind, affects_cash_drawer into v_kind, v_drawer from public.payment_methods where id = a.payment_method_id;
+      if (v_kind = 'cash' or coalesce(v_drawer, false)) and v_shift is null then
+        raise exception 'Open a shift first: the advance is more than the bill, and % has to be handed back from the till.', v_extra;
+      end if;
+      insert into public.pre_order_payments (restaurant_id, pre_order_id, kind, payment_method_id, amount, shift_id, created_by)
+      values (v_rest, r.id, 'refund', a.payment_method_id, v_give, v_shift, v_user);
+      if v_kind = 'cash' or coalesce(v_drawer, false) then
+        insert into public.cash_movements (restaurant_id, shift_id, direction, amount, reason, recorded_by)
+        values (v_rest, v_shift, 'out', v_give, 'Pre-order PO-' || r.number || ' advance above the bill handed back', v_user);
+      end if;
+      v_extra := v_extra - v_give;
+    end loop;
+  end if;
   update public.pre_orders set status = 'billed', order_id = o.id, updated_at = now() where id = r.id;
   perform app.audit('preorder.bill', 'pre_orders', r.id, jsonb_build_object('number', r.number, 'bill', o.bill_number, 'advance_applied', v_apply), null);
   return jsonb_build_object('order_id', o.id, 'bill_number', o.bill_number, 'total', o.grand_total, 'advance_applied', v_apply,
-                            'balance', o.grand_total - v_apply, 'advance_left_over', v_held - v_apply);
+                            'balance', o.grand_total - v_apply, 'advance_left_over', v_held - v_apply, 'advance_handed_back', v_held - v_apply - v_extra);
 end $function$
 ;
 
@@ -8038,7 +8093,7 @@ begin
                  jsonb_agg(jsonb_build_object(
                    'id', p.id, 'name', p.name, 'name_local', p.name_local, 'is_veg', p.is_veg,
                    'sub', case when c.parent_id is not null then c.name end,
-                   'price', coalesce(bp.price, p.price),
+                   'price', app.rule_price(t.restaurant_id, t.branch_id, p.id, coalesce(bp.price, p.price), now()),
                    'option_groups', coalesce((
                      select jsonb_agg(jsonb_build_object(
                               'id', mg.id, 'name', mg.name,
@@ -9281,6 +9336,7 @@ begin
   perform app.require_feature('reservations');
   if coalesce(trim(p_name), '') = '' then raise exception 'Enter the guest''s name.'; end if;
   if coalesce(p_party, 0) < 1 then raise exception 'Enter how many people.'; end if;
+  if p_party > 200 then raise exception 'A booking can be for at most 200 people.'; end if;
   if p_table is not null and not exists (select 1 from public.dining_tables where id = p_table and restaurant_id = v_rest and branch_id = v_branch and is_active) then
     raise exception 'That table does not exist.';
   end if;
@@ -9882,6 +9938,10 @@ AS $function$
 begin
   perform app.require_permission('order.create');
   if p_status not in ('seated', 'cancelled', 'no_show', 'booked', 'waiting') then raise exception 'Unknown status.'; end if;
+  if p_table is not null and not exists (select 1 from public.dining_tables
+        where id = p_table and restaurant_id = app.current_restaurant_id() and is_active) then
+    raise exception 'That table does not exist.';
+  end if;
   update public.reservations set status = p_status, updated_at = now(),
          dining_table_id = coalesce(p_table, dining_table_id),
          seated_at = case when p_status = 'seated' then now() else seated_at end
@@ -12150,7 +12210,7 @@ ALTER TABLE ONLY public.dining_tables ADD CONSTRAINT dining_tables_status_check 
 ALTER TABLE ONLY public.floors ADD CONSTRAINT floors_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.floors ADD CONSTRAINT floors_rest_id_uq UNIQUE (restaurant_id, id);
 ALTER TABLE ONLY public.gift_card_ledger ADD CONSTRAINT gift_card_ledger_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.gift_card_ledger ADD CONSTRAINT gift_card_ledger_kind_check CHECK ((kind = ANY (ARRAY['issue'::text, 'redeem'::text, 'topup'::text, 'payback'::text])));
+ALTER TABLE ONLY public.gift_card_ledger ADD CONSTRAINT gift_card_ledger_kind_check CHECK ((kind = ANY (ARRAY['issue'::text, 'redeem'::text, 'topup'::text, 'payback'::text, 'void'::text])));
 ALTER TABLE ONLY public.gift_cards ADD CONSTRAINT gift_cards_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.gift_cards ADD CONSTRAINT gift_cards_restaurant_id_code_key UNIQUE (restaurant_id, code);
 ALTER TABLE ONLY public.gift_cards ADD CONSTRAINT gift_cards_value_check CHECK ((value > (0)::numeric));
@@ -12877,6 +12937,7 @@ CREATE TRIGGER trg_order_business_date BEFORE INSERT ON public.orders FOR EACH R
 CREATE TRIGGER trg_order_liquor BEFORE INSERT ON public.orders FOR EACH ROW EXECUTE FUNCTION app.trg_order_liquor();
 CREATE TRIGGER trg_order_session BEFORE INSERT ON public.orders FOR EACH ROW EXECUTE FUNCTION app.set_order_session();
 CREATE TRIGGER trg_protect_completed_orders BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION app.protect_completed_orders();
+CREATE TRIGGER trg_return_on_void AFTER UPDATE OF status ON public.orders FOR EACH ROW WHEN (((new.status = 'voided'::text) AND (old.status IS DISTINCT FROM 'voided'::text))) EXECUTE FUNCTION app.return_on_void();
 CREATE TRIGGER trg_stock_on_void AFTER UPDATE OF status ON public.orders FOR EACH ROW EXECUTE FUNCTION app.stock_on_void();
 CREATE TRIGGER trg_push_alert AFTER INSERT ON public.owner_alerts FOR EACH ROW EXECUTE FUNCTION app.push_alert();
 CREATE TRIGGER trg_guard_closed_day_pay BEFORE INSERT ON public.payments FOR EACH ROW EXECUTE FUNCTION app.guard_closed_day();
@@ -13897,6 +13958,7 @@ REVOKE ALL ON FUNCTION app.report_target(uuid,time without time zone,timestamp w
 REVOKE ALL ON FUNCTION app.require_feature(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.require_permission(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION app.require_permission(text) TO authenticated;
+REVOKE ALL ON FUNCTION app.return_on_void() FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.round_cash(numeric,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION app.round_cash(numeric,text) TO authenticated;
 REVOKE ALL ON FUNCTION app.rule_price(uuid,uuid,uuid,numeric,timestamp with time zone) FROM PUBLIC;

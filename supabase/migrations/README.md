@@ -145,7 +145,7 @@ when the live database changes.
 | `110_kiosk_auto_accept.sql` | 20261013045223 | already in git; same code as what ran (comments or begin/commit may differ) |
 | `111_offline_liquor_bills.sql` | 20261013045224 | already in git; same code as what ran (comments or begin/commit may differ) |
 | `112_whole_number_check_for_piece_items.sql` | 20261014110330 | change was already live; recorded on 14 Oct 2026 |
-| `116_voids_return_cards_points_preorder_leftover_and_small_fixes.sql` | not applied yet | written and tested on 15 Oct 2026; waits for the owner's go-ahead (voids return gift-card money and points, pre-order advance above the bill is handed back, guest menu shows offer prices, reservation table check) |
+| `116_voids_return_cards_points_preorder_leftover_and_small_fixes.sql` | 20261015130000 | applied to live on 15 Oct 2026 (statement by statement; history row holds a one-line summary); voids return gift-card money and points, pre-order advance above the bill is handed back, guest menu shows offer prices, reservation table check |
 | `115_fix_menu_view_permission.sql` | 20261014122317 | applied to live on 14 Oct 2026; fixes the empty billing menu (v_menu / rule_price) |
 | `114_offline_sync_enforce_prices_discounts_and_report.sql` | 20261014112036 | applied to live on 14 Oct 2026; changes `sync_offline_bill` and `audit_to_alert` only |
 | `113_revoke_direct_writes_on_money_tables.sql` | 20261014110331 | applied to live on 14 Oct 2026 |
