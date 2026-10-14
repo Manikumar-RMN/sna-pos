@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { can, getCurrentUser } from "@/lib/auth";
 
+import { friendlyDbError } from "@/lib/db-error";
 function clean(message: string) {
   return message.replace(/^.*?ERROR:\s*/i, "").trim();
 }
@@ -23,7 +24,7 @@ export async function saveBrand(b: BrandInput): Promise<{ error: string | null }
     p_gstin: b.gstin || undefined,
     p_active: b.active,
   });
-  if (error) return { error: clean(error.message) };
+  if (error) return { error: clean(friendlyDbError(error)) };
   revalidatePath("/settings/brands");
   revalidatePath("/pos");
   return { error: null };
@@ -33,7 +34,7 @@ export async function saveBrand(b: BrandInput): Promise<{ error: string | null }
 export async function setCategoryBrand(categoryId: string, brandId: string | null): Promise<{ error: string | null }> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("category_set_brand", { p_category: categoryId, p_brand: (brandId ?? null) as string });
-  if (error) return { error: clean(error.message) };
+  if (error) return { error: clean(friendlyDbError(error)) };
   revalidatePath("/settings/brands");
   revalidatePath("/pos");
   return { error: null };
@@ -57,6 +58,6 @@ export type SettlementRow = {
 export async function brandSettlement(from: string, to: string): Promise<{ error: string | null; rows: SettlementRow[] }> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("brand_settlement", { p_from: from, p_to: to });
-  if (error) return { error: clean(error.message), rows: [] };
+  if (error) return { error: clean(friendlyDbError(error)), rows: [] };
   return { error: null, rows: ((data as { brands: SettlementRow[] }).brands ?? []).map((r) => ({ ...r, sales: Number(r.sales), tax: Number(r.tax), billed: Number(r.billed), commission: Number(r.commission), payable: Number(r.payable), qty: Number(r.qty) })) };
 }

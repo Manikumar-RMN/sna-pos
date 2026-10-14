@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { can, getCurrentUser } from "@/lib/auth";
 
+import { friendlyDbError } from "@/lib/db-error";
 export type OfferInput = {
   id: string | null;
   name: string;
@@ -31,7 +32,7 @@ export async function saveOffer(input: OfferInput): Promise<{ error: string | nu
   if (!input.name.trim()) return { error: "Give the offer a name, for example Happy hour." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("save_price_rule", { p: JSON.parse(JSON.stringify(input)) });
-  if (error) return { error: clean(error.message) };
+  if (error) return { error: clean(friendlyDbError(error)) };
   revalidatePath("/settings/offers");
   revalidatePath("/pos");
   return { error: null };
@@ -42,7 +43,7 @@ export async function deleteOffer(id: string): Promise<{ error: string | null }>
   if (!user || !can(user, "menu.manage")) return { error: "Changing offers needs the “Manage menu” permission." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("delete_price_rule", { p_id: id });
-  if (error) return { error: clean(error.message) };
+  if (error) return { error: clean(friendlyDbError(error)) };
   revalidatePath("/settings/offers");
   revalidatePath("/pos");
   return { error: null };

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+import { friendlyDbError } from "@/lib/db-error";
 export type PlanResult = { ok: true; message: string } | { ok: false; error: string };
 
 /** Owner asks SNA for an upgrade, an add-on module or a new outlet. SNA decides in its console. */
@@ -21,7 +22,7 @@ export async function requestPlanChange(input: {
     p_outlet_city: input.outletCity ?? undefined,
     p_note: input.note ?? undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/plan");
   return { ok: true, message: "Sent to the SNA team. You will see it switched on here once they approve." };
 }
@@ -29,7 +30,7 @@ export async function requestPlanChange(input: {
 export async function cancelPlanRequest(id: string): Promise<PlanResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("cancel_plan_request", { p_id: id });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/plan");
   return { ok: true, message: "Request cancelled." };
 }

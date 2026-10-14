@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { KotSlip } from "./kot-printer";
 
+import { friendlyDbError } from "@/lib/db-error";
 /**
  * KOT pressed: makes sure the order's new items have kitchen tickets (also when the outlet's
  * automatic tickets are off), and returns the tickets of this round, the ones made in the
@@ -11,7 +12,7 @@ import type { KotSlip } from "./kot-printer";
 export async function loadKot(orderId: string): Promise<{ ok: true; slips: KotSlip[] } | { ok: false; error: string }> {
   const supabase = await createClient();
   const sent = await supabase.rpc("send_to_kitchen", { p_order: orderId });
-  if (sent.error) return { ok: false, error: sent.error.message };
+  if (sent.error) return { ok: false, error: friendlyDbError(sent.error) };
 
   const { data: tickets, error } = await supabase
     .from("kitchen_tickets")
@@ -19,7 +20,7 @@ export async function loadKot(orderId: string): Promise<{ ok: true; slips: KotSl
     .eq("order_id", orderId)
     .neq("status", "cancelled")
     .order("created_at");
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   const all = tickets ?? [];
   if (all.length === 0) return { ok: true, slips: [] };
   const newest = Math.max(...all.map((t) => Date.parse(t.created_at)));

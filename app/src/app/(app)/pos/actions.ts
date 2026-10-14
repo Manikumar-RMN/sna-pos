@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { can, getCurrentUser } from "@/lib/auth";
 import type { Json } from "@/lib/supabase/database.types";
 
+import { friendlyDbError } from "@/lib/db-error";
 export type Senior = { kind: "senior" | "pwd"; count: number; diners: number; name: string; id_no: string };
 
 export type CartItem = { product_id: string; qty: number; note?: string; options?: string[]; hold?: boolean };
@@ -79,7 +80,7 @@ export async function quoteOrder(input: CartInput): Promise<{ ok: true; quote: Q
   if (!input.items.length) return { ok: false, error: "empty" };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("quote_order", cartArgs(input));
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return { ok: true, quote: data as unknown as Quote };
 }
 
@@ -116,7 +117,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     p_client_ref: input.client_ref && /^[0-9a-f-]{36}$/i.test(input.client_ref) ? input.client_ref : undefined,
     p_extra: hasGuest || covers ? { ...(hasGuest ? guest : {}), ...(covers ? { covers } : {}) } : undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
 
   const res = data as unknown as { order_id: string; bill_number: string; token_no?: number | null };
   if (!res?.order_id) return { ok: false, error: "The bill could not be saved. Please try again." };
@@ -137,7 +138,7 @@ export async function addToBill(orderId: string, items: CartItem[], clientRef?: 
     p_items: itemsJson(items),
     p_client_ref: clientRef && /^[0-9a-f-]{36}$/i.test(clientRef) ? clientRef : undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/bills");
   revalidatePath(`/bills/${orderId}`);
   revalidatePath("/kitchen");
@@ -150,7 +151,7 @@ export async function getOfflineSnapshot(deviceKey: string): Promise<{ ok: true;
   if (!/^[0-9a-f-]{36}$/i.test(deviceKey)) return { ok: false, error: "Bad device key." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("offline_snapshot", { p_device_key: deviceKey });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return { ok: true, snapshot: data };
 }
 
@@ -183,7 +184,7 @@ function isRefusal(code: string | undefined) {
 export async function syncOfflineBill(bill: unknown, opts?: { skipGuest?: boolean }): Promise<SyncResult> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("sync_offline_bill", { p_bill: bill as Json });
-  if (error) return { ok: false, error: error.message, refused: isRefusal(error.code) };
+  if (error) return { ok: false, error: friendlyDbError(error), refused: isRefusal(error.code) };
   const res = (data ?? {}) as { ok?: boolean; reason?: string; order_id?: unknown; repeat?: unknown };
   if (res.ok === false) return { ok: false, waiting: true, error: res.reason };
   revalidatePath("/bills");

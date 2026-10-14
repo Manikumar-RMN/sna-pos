@@ -11,6 +11,7 @@ import { can, getCurrentUser } from "@/lib/auth";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { billFormat, DEFAULT_BILL_FORMAT, type BillFormat } from "@/lib/bill-format";
 
+import { friendlyDbError } from "@/lib/db-error";
 export type Result = { ok: true; message?: string } | { ok: false; error: string };
 
 export type TaxComponent = { name: string; rate: number; compound: boolean; applies_when: "always" | "intra_region" | "inter_region" };
@@ -27,7 +28,7 @@ function done(message: string): Result {
 export async function setBillPrefix(prefix: string): Promise<Result> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("set_bill_prefix", { p_prefix: prefix.trim() });
-  if (error) return { ok: false, error: error.message.replace(/\s*\([a-z]+\.[a-z_]+\)/, "") };
+  if (error) return { ok: false, error: friendlyDbError(error).replace(/\s*\([a-z]+\.[a-z_]+\)/, "") };
   const r = (data ?? {}) as { changed?: boolean; next_number?: string };
   if (!r.changed) return { ok: true, message: "Nothing changed." };
   revalidatePath("/settings/bill");
@@ -38,7 +39,7 @@ export async function setBillPrefix(prefix: string): Promise<Result> {
 export async function saveSettings(settings: Record<string, string | boolean | number>): Promise<Result> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_settings", { p_settings: settings as unknown as Json });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return done("Settings saved.");
 }
 
@@ -61,7 +62,7 @@ export async function saveBillLayout(format: BillFormat, logo?: string): Promise
   if (logo !== undefined) settings.logo = logo;
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_settings", { p_settings: settings });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return done("Bill layout saved.");
 }
 
@@ -89,7 +90,7 @@ export async function savePackingCharge(input: {
     p_takeaway: input.takeaway,
     p_delivery: input.delivery,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   const on = !!(data as { on?: boolean } | null)?.on;
   return done(on ? "Packing charge saved. New takeaway and delivery bills get it from now on." : "Packing charge switched off.");
 }
@@ -103,14 +104,14 @@ export async function saveTaxGroup(groupId: string | null, name: string, compone
     p_name: name,
     p_components: components as unknown as Json,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return done("Tax saved. New bills use it from now on; past bills keep the tax they were charged.");
 }
 
 export async function setPricesIncludeTax(inclusive: boolean): Promise<Result> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_prices_include_tax", { p_inclusive: inclusive });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return done(inclusive ? "Menu prices now include tax." : "Tax is now added on top of menu prices.");
 }
 
@@ -129,7 +130,7 @@ export async function addTable(tableNumber: string, seats: number): Promise<Resu
   const { error } = existing
     ? await supabase.from("dining_tables").update({ is_active: true, seats }).eq("id", existing.id)
     : await supabase.from("dining_tables").insert({ restaurant_id: user.restaurant_id, branch_id: branch.id, table_number: num, seats });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return done(`Table ${num} added.`);
 }
 
@@ -165,11 +166,11 @@ export async function addTables(prefix: string, from: number, to: number, seats:
     const { error } = await supabase
       .from("dining_tables")
       .insert(toAdd.map((n) => ({ restaurant_id: user.restaurant_id, branch_id: branchId, table_number: n, seats })));
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: friendlyDbError(error) };
   }
   if (toRestore.length > 0) {
     const { error } = await supabase.from("dining_tables").update({ is_active: true, seats }).in("id", toRestore);
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: friendlyDbError(error) };
   }
   const made = toAdd.length + toRestore.length;
   if (made === 0) return done(`Tables ${wanted[0]} to ${wanted[wanted.length - 1]} are all there already.`);
@@ -189,7 +190,7 @@ export async function removeTable(id: string): Promise<Result> {
     .neq("status", "voided");
   if ((count ?? 0) > 0) return { ok: false, error: "This table has an unpaid bill. Settle it first." };
   const { error } = await supabase.from("dining_tables").update({ is_active: false }).eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return done("Table removed.");
 }
 
@@ -202,7 +203,7 @@ export async function setPaymentMethod(id: string, active: boolean): Promise<Res
     if ((count ?? 0) <= 1) return { ok: false, error: "Keep at least one payment method switched on." };
   }
   const { error } = await supabase.from("payment_methods").update({ is_active: active }).eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return done(active ? "Payment method switched on." : "Payment method switched off.");
 }
 
@@ -239,7 +240,7 @@ export async function savePaymentOptions(
     p_ask_reference: askReference,
     p_upi_id: upi || undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return done(id ? "Payment method saved." : `${finalName} added.`);
 }
 
@@ -300,7 +301,7 @@ export async function setUpThisTabletAsCounter(name: string): Promise<Result> {
 export async function removeCounter(deviceId: string): Promise<Result> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("remove_counter_device", { p_device_id: deviceId });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return done("Counter removed. That tablet can no longer be unlocked.");
 }
 
@@ -308,7 +309,7 @@ export async function removeCounter(deviceId: string): Promise<Result> {
 export async function clearCounterLock(deviceId: string): Promise<Result> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("clear_pin_lockout", { p_device_id: deviceId });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return done("PIN lock cleared. Staff can unlock that tablet again.");
 }
 
@@ -317,7 +318,7 @@ export async function setSecondLanguage(lang: string): Promise<Result> {
   if (lang !== "" && !isLang(lang)) return { ok: false, error: "Unknown language." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_second_language", { p_lang: lang });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   return done(lang ? "Second language saved." : "Second language switched off.");
 }
 
@@ -338,7 +339,7 @@ export async function setDeviceLanguage(lang: string): Promise<Result> {
 export async function resetTableQr(tableId: string): Promise<Result> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("reset_table_qr", { p_table: tableId });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/tables/qr");
   return { ok: true, message: "New QR code made." };
 }
@@ -347,7 +348,7 @@ export async function resetTableQr(tableId: string): Promise<Result> {
 export async function createApiKey(name: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_api_key", { p_name: name });
-  if (error) return { ok: false as const, error: error.message };
+  if (error) return { ok: false as const, error: friendlyDbError(error) };
   revalidatePath("/settings/api");
   return { ok: true as const, key: (data as { key: string }).key };
 }
@@ -355,7 +356,7 @@ export async function createApiKey(name: string) {
 export async function revokeApiKey(id: string): Promise<Result> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("revoke_api_key", { p_id: id });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/api");
   return { ok: true, message: "Key removed." };
 }
@@ -365,7 +366,7 @@ export async function saveDaySettings(shiftsEnabled: boolean, cutoff: string): P
   if (!/^\d{2}:\d{2}$/.test(cutoff)) return { ok: false, error: "Choose the time the day ends." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("save_day_settings", { p_shifts_enabled: shiftsEnabled, p_cutoff: cutoff });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/shift");
   return done(shiftsEnabled ? "Saved. Cashiers now open a shift before billing." : "Saved. Billing starts without opening a shift.");
 }
@@ -386,7 +387,7 @@ export async function saveSessions(
     p_branch: outletId as unknown as string,
     p_sessions: rows.map((r) => ({ name: r.name, start: r.start, end: r.end, days: r.days })) as unknown as Json,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/day");
   return { ok: true, message: "Sessions saved. New bills use these times." };
 }

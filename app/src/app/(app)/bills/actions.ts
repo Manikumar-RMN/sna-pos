@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 
+import { friendlyDbError } from "@/lib/db-error";
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
 
 /**
@@ -41,7 +42,7 @@ export async function payBill(input: {
     p_reference: input.reference?.trim() ? input.reference.trim().slice(0, 60) : undefined,
     p_client_ref: input.clientRef && /^[0-9a-f-]{36}$/i.test(input.clientRef) ? input.clientRef : undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.orderId);
   const res = (data ?? {}) as { change?: number; balance?: number; paid?: boolean; repeat?: boolean };
   if (res.repeat) return { ok: true, message: "This payment was already recorded." };
@@ -66,7 +67,7 @@ export async function adjustBill(input: {
     p_discount_reason: input.reason?.trim() || undefined,
     p_service_charge: input.serviceCharge ?? undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.orderId);
   const res = (data ?? {}) as { changed?: boolean; grand_total?: number };
   if (res.changed === false) return { ok: true, message: "Nothing changed." };
@@ -82,7 +83,7 @@ export async function makeComplimentary(input: { orderId: string; kind: "complim
   if (reason.length < 3) return { ok: false, error: "Write a short reason (for example the guest's name or the staff member's name)." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("make_complimentary", { p_order_id: input.orderId, p_kind: input.kind, p_reason: reason.slice(0, 200) });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.orderId);
   return { ok: true, message: input.kind === "complimentary" ? "Bill made complimentary. It is closed at 0.00." : "Bill made a staff meal. It is closed at 0.00." };
 }
@@ -97,7 +98,7 @@ export async function changePaymentMode(input: { orderId: string; paymentId: str
     p_method_id: input.methodId,
     p_reason: reason,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.orderId);
   const res = (data ?? {}) as { from?: string; to?: string };
   return { ok: true, message: `Payment changed from ${res.from ?? "—"} to ${res.to ?? "—"}.` };
@@ -124,7 +125,7 @@ export async function issueCreditNote(input: {
     p_reason: reason,
     p_client_ref: input.clientRef && /^[0-9a-f-]{36}$/i.test(input.clientRef) ? input.clientRef : undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.orderId);
   revalidatePath("/shift");
   const res = (data ?? {}) as { number?: string; amount?: number; repeat?: boolean };
@@ -142,7 +143,7 @@ export async function setGuestDetails(input: { orderId: string; name: string; ph
     // Only delivery bills carry an address; for other bills the database leaves it alone.
     p_address: input.address != null ? input.address.trim() : undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.orderId);
   return { ok: true, message: "Guest details saved." };
 }
@@ -155,7 +156,7 @@ export async function setBillCustomer(input: { orderId: string; taxId: string; n
     p_gstin: input.taxId.trim(),
     p_name: input.name.trim(),
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.orderId);
   return { ok: true, message: input.taxId.trim() ? "Customer tax details added to the bill." : "Customer tax details removed." };
 }
@@ -164,7 +165,7 @@ export async function setBillCustomer(input: { orderId: string; taxId: string; n
 export async function fireHeld(orderId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("fire_held_items", { p_order_id: orderId });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(orderId);
   return { ok: true, message: `${(data as { sent?: number } | null)?.sent ?? 0} held item(s) sent to the kitchen.` };
 }
@@ -175,7 +176,7 @@ export async function cancelItem(input: { orderId: string; itemId: string; qty: 
   if (!(input.qty > 0)) return { ok: false, error: "Enter how many to cancel." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("cancel_order_item", { p_order_item_id: input.itemId, p_qty: input.qty, p_reason: reason });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.orderId);
   return { ok: true, message: "Item cancelled. The bill total has been worked out again." };
 }
@@ -184,7 +185,7 @@ export async function moveTable(input: { orderId: string; tableId: string }): Pr
   if (!input.tableId) return { ok: false, error: "Choose a table." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("move_order_table", { p_order_id: input.orderId, p_table_id: input.tableId });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.orderId);
   return { ok: true, message: `Moved to table ${(data as { table?: string } | null)?.table ?? ""}.` };
 }
@@ -193,7 +194,7 @@ export async function mergeBills(input: { targetId: string; sourceId: string }):
   if (!input.sourceId) return { ok: false, error: "Choose the bill to merge in." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("merge_orders", { p_target_id: input.targetId, p_source_id: input.sourceId });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.targetId);
   revalidatePath(`/bills/${input.sourceId}`);
   return { ok: true, message: `Bill ${(data as { merged_from?: string } | null)?.merged_from ?? ""} merged into this bill.` };
@@ -213,7 +214,7 @@ export async function splitBill(input: {
     p_items: items as unknown as Json,
     p_client_ref: input.clientRef && /^[0-9a-f-]{36}$/i.test(input.clientRef) ? input.clientRef : undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.orderId);
   const res = data as { order_id: string; bill_number: string };
   return { ok: true, newOrderId: res.order_id, message: `New bill ${res.bill_number} made.` };
@@ -224,7 +225,7 @@ export async function voidBill(input: { orderId: string; reason: string }): Prom
   if (reason.length < 3) return { ok: false, error: "Write a short reason for the void." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("void_order", { p_order_id: input.orderId, p_reason: reason });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.orderId);
   return { ok: true, message: "Bill voided." };
 }
@@ -233,7 +234,7 @@ export async function voidBill(input: { orderId: string; reason: string }): Prom
 export async function shareBillLink(orderId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("share_bill", { p_order: orderId });
-  if (error) return { ok: false as const, error: error.message };
+  if (error) return { ok: false as const, error: friendlyDbError(error) };
   const d = data as { token: string; phone: string | null };
   const h = await headers();
   const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
@@ -244,7 +245,7 @@ export async function shareBillLink(orderId: string) {
 export async function attachCustomer(orderId: string, phone: string, name: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("attach_customer", { p_order: orderId, p_phone: phone, p_name: name });
-  if (error) return { ok: false as const, error: error.message };
+  if (error) return { ok: false as const, error: friendlyDbError(error) };
   revalidatePath(`/bills/${orderId}`);
   const d = data as { name: string; phone: string; points: number };
   return { ok: true as const, name: d.name, phone: d.phone, points: Number(d.points) };
@@ -253,7 +254,7 @@ export async function attachCustomer(orderId: string, phone: string, name: strin
 export async function redeemPoints(orderId: string, points: number) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("redeem_points", { p_order: orderId, p_points: points });
-  if (error) return { ok: false as const, error: error.message };
+  if (error) return { ok: false as const, error: friendlyDbError(error) };
   revalidatePath(`/bills/${orderId}`);
   const d = data as { points_used: number; amount: number };
   return { ok: true as const, message: `${d.points_used} points used (${d.amount}).` };
@@ -262,7 +263,7 @@ export async function redeemPoints(orderId: string, points: number) {
 export async function redeemGiftCard(orderId: string, code: string, amount: number | null) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("redeem_gift_card", { p_order: orderId, p_code: code, p_amount: amount ?? undefined });
-  if (error) return { ok: false as const, error: error.message };
+  if (error) return { ok: false as const, error: friendlyDbError(error) };
   revalidatePath(`/bills/${orderId}`);
   const d = data as { card: string; used: number; card_balance: number };
   return { ok: true as const, message: `${d.used} taken from gift card ${d.card}. Left on the card: ${d.card_balance}.` };
