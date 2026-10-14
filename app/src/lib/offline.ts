@@ -80,6 +80,9 @@ export type OfflineBill = {
   guest?: { name: string; phone: string; address: string } | null;
   /** How often sending the guest details has failed after the bill itself was saved on the server. */
   guest_tries?: number;
+  /** How often the server has refused this bill itself (see offline-queue.ts), and its last reason. */
+  sync_tries?: number;
+  sync_error?: string;
   items: OfflineItem[];
   discount: number;
   service_charge: boolean;
@@ -90,11 +93,14 @@ export type OfflineBill = {
   grand_total: number;
   due: number;
   calc: CalcResult;
+  /** When the menu copy this bill was priced from was taken (Snapshot.taken_at). Missing on bills queued by an older version. */
+  snapshot_at?: string;
 };
 
 const K_DEVICE = "sna.device.v1";
 const K_SNAP = "sna.offline.snapshot.v1";
 const K_QUEUE = "sna.offline.queue.v1";
+const K_STUCK = "sna.offline.stuck.v1";
 const K_SEQ = "sna.offline.seq.v1";
 const K_LSEQ = "sna.offline.liquor-seq.v1";
 
@@ -145,6 +151,9 @@ export function saveSnapshot(s: Snapshot) {
 }
 export const readQueue = () => get<OfflineBill[]>(K_QUEUE) ?? [];
 export const writeQueue = (q: OfflineBill[]) => put(K_QUEUE, q);
+/** Bills the server refused for good reasons of their own. Kept on this device, never deleted, until someone deals with them. */
+export const readStuck = () => get<OfflineBill[]>(K_STUCK) ?? [];
+export const writeStuck = (q: OfflineBill[]) => put(K_STUCK, q);
 
 /** Works out the bill exactly as the server does. */
 export function offlineQuote(

@@ -64,7 +64,7 @@ export function GiftCardDesk({ currency, methods, canPayBack = false }: { curren
     const h = await giftCardHistory(c);
     setCard(h.ok ? { code: h.code, balance: h.balance, entries: h.entries } : null);
   };
-  const kindLabel: Record<CardEntry["kind"], string> = { issue: "Sold", topup: "Topped up", redeem: "Paid bill", payback: "Paid back" };
+  const kindLabel: Record<CardEntry["kind"], string> = { issue: "Sold", topup: "Topped up", redeem: "Paid bill", payback: "Paid back", void: "Bill voided, money returned" };
   const [pending, start] = useTransition();
   const m = (n: number) => money(n, currency);
   return (

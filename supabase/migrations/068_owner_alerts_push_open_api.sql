@@ -1,8 +1,9 @@
--- 068: owner alerts (with phone push), and the open API (read-only v1 with API keys).
+-- Recovered from the live database's own migration history (supabase_migrations.schema_migrations):
+-- version 20260928145020, name '068_owner_alerts_push_open_api'. This is the SQL that actually ran.
+-- The text previously in git under this number differed from what ran (see git history before the commit that added this header).
 
 create extension if not exists pg_net;
 
--- ---------- Owner alerts ----------
 create table if not exists public.owner_alerts (
   id uuid primary key default gen_random_uuid(),
   restaurant_id uuid not null references public.restaurants(id),
@@ -52,7 +53,6 @@ language sql security definer set search_path = public, pg_temp as $$
   delete from public.push_subscriptions where endpoint = p_endpoint and user_id = app.current_user_id();
 $$;
 
--- Audit events worth telling the owner about become alerts.
 create or replace function app.audit_to_alert() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_title text; v_body text; v_who text; v_outlet text; v_cur text; n jsonb := coalesce(new.new_value, '{}'::jsonb); o jsonb := coalesce(new.old_value, '{}'::jsonb); v_bill text;
@@ -98,7 +98,6 @@ end $$;
 drop trigger if exists trg_audit_to_alert on public.audit_logs;
 create trigger trg_audit_to_alert after insert on public.audit_logs for each row execute function app.audit_to_alert();
 
--- Each new alert is pushed to the phones of owners/managers who turned alerts on (sent by the app's /api/push).
 create or replace function app.push_alert() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_subs jsonb; v_url text; v_secret text;
@@ -119,12 +118,11 @@ begin
     timeout_milliseconds := 5000);
   return new;
 exception when others then
-  return new;  -- an alert must never block the bill that caused it
+  return new;
 end $$;
 drop trigger if exists trg_push_alert on public.owner_alerts;
 create trigger trg_push_alert after insert on public.owner_alerts for each row execute function app.push_alert();
 
--- The push sender reports phones that are gone (uninstalled app / alerts blocked) so they are removed.
 create or replace function public.push_gone(p_secret text, p_endpoints text[]) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin
@@ -134,7 +132,6 @@ begin
   delete from public.push_subscriptions where endpoint = any(p_endpoints);
 end $$;
 
--- ---------- Open API ----------
 create table if not exists public.api_keys (
   id uuid primary key default gen_random_uuid(),
   restaurant_id uuid not null references public.restaurants(id),
@@ -163,7 +160,6 @@ grant select on public.api_keys to authenticated;
 alter table public.api_calls enable row level security;
 revoke all on public.api_calls from anon, authenticated;
 
--- Makes a key; the full key is shown once and only its fingerprint is kept.
 create or replace function public.create_api_key(p_name text) returns jsonb
 language plpgsql security definer set search_path = public, extensions, pg_temp as $$
 declare v_key text := 'snapi_' || replace(replace(app.new_token(30), '-', 'x'), '_', 'y'); v_id uuid;
@@ -190,7 +186,6 @@ begin
   perform app.audit('api_key.revoke', 'api_keys', p_id, '{}'::jsonb, null);
 end $$;
 
--- Read-only API v1. Actions: menu, orders, sales, stock. Dates are business dates (YYYY-MM-DD), at most 31 days.
 create or replace function public.api_v1(p_key text, p_action text, p_params jsonb default '{}'::jsonb) returns jsonb
 language plpgsql volatile security definer set search_path = public, extensions, pg_temp as $$
 declare k public.api_keys%rowtype; v_rest uuid; v_from date; v_to date; v_calls int;
@@ -273,13 +268,3 @@ revoke all on function public.save_push_subscription(text, text, text), public.r
 grant execute on function public.save_push_subscription(text, text, text), public.remove_push_subscription(text),
   public.create_api_key(text), public.revoke_api_key(uuid) to authenticated;
 grant execute on function public.push_gone(text, text[]), public.api_v1(text, text, jsonb) to anon, authenticated;
-
--- (069) push_gone refuses when no secret is stored yet:
-create or replace function public.push_gone(p_secret text, p_endpoints text[]) returns void
-language plpgsql security definer set search_path = public, pg_temp as $$
-declare v text;
-begin
-  select decrypted_secret into v from vault.decrypted_secrets where name = 'push_secret';
-  if v is null or p_secret is null or p_secret is distinct from v then raise exception 'Not allowed.'; end if;
-  delete from public.push_subscriptions where endpoint = any(p_endpoints);
-end $$;

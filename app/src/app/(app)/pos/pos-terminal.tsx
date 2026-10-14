@@ -790,6 +790,8 @@ export function PosTerminal({
       grand_total: calc.grand_total,
       due: dueNow,
       calc,
+      // When this till last copied the menu: lets the server accept prices that were right then.
+      snapshot_at: snap.taken_at,
     };
     const q = readQueue();
     if (!writeQueue([...q, bill])) return setError("This device's storage is full, so the bill could not be saved. Free some space.");

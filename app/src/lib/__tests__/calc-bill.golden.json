@@ -1,0 +1,1070 @@
+{
+ "source": "Results of the live database function app.calc_bill (project lrtoktmfspnypkgrvnzg) on 2026-10-13 for these exact inputs.",
+ "cases": [
+  {
+   "case": 1,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 629.95,
+      "qty": 9,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 2,
+      "price": 259.27,
+      "qty": 2,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 28,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 516.11,
+      "qty": 2.361,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 5,
+        "compound": true
+       },
+       {
+        "name": "T1",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 4,
+      "price": 859.53,
+      "qty": 6,
+      "inclusive": false,
+      "comps": []
+     }
+    ],
+    "discount": 7003.55,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "nearest_0_05"
+   },
+   "expected": {
+    "grand_total": 5560.25,
+    "tax_total": 128.2,
+    "service_charge": 0,
+    "discount": 7003.55,
+    "senior_discount": 0,
+    "rounding": -0.01
+   }
+  },
+  {
+   "case": 2,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 411.8,
+      "qty": 8,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 12,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 323.05,
+      "qty": 2,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 18,
+        "compound": true
+       },
+       {
+        "name": "T1",
+        "rate": 18,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 2067.7,
+    "sc_percent": 0,
+    "sc_taxable": false,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 1872.8,
+    "tax_total": 353.02,
+    "service_charge": 0,
+    "discount": 2067.7,
+    "senior_discount": 0,
+    "rounding": 0
+   }
+  },
+  {
+   "case": 3,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 475.92,
+      "qty": 9,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 18,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 18,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 101.96,
+      "qty": 1,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 18,
+        "compound": true
+       },
+       {
+        "name": "T1",
+        "rate": 12,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 0,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 4385.24,
+    "tax_total": 1157.33,
+    "service_charge": 0,
+    "discount": 0,
+    "senior_discount": 0,
+    "rounding": 0
+   }
+  },
+  {
+   "case": 4,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 82.37,
+      "qty": 6,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 18,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 900.05,
+      "qty": 1,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 18,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 460.51,
+      "qty": 3,
+      "inclusive": true,
+      "comps": []
+     },
+     {
+      "key": 4,
+      "price": 378.33,
+      "qty": 7,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 28,
+        "compound": true
+       },
+       {
+        "name": "T1",
+        "rate": 18,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 1560.09,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "nearest_1"
+   },
+   "expected": {
+    "grand_total": 4732,
+    "tax_total": 1057.86,
+    "service_charge": 0,
+    "discount": 1560.09,
+    "senior_discount": 0,
+    "rounding": 0.14
+   }
+  },
+  {
+   "case": 5,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 603.23,
+      "qty": 2,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 2.5,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 407.09,
+      "qty": 4,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 12,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 280.05,
+      "qty": 1,
+      "inclusive": true,
+      "comps": []
+     },
+     {
+      "key": 4,
+      "price": 499.05,
+      "qty": 2,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 5,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 2.5,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 32.05,
+    "sc_percent": 10,
+    "sc_taxable": false,
+    "rounding": "nearest_1"
+   },
+   "expected": {
+    "grand_total": 4754,
+    "tax_total": 297.36,
+    "service_charge": 405.18,
+    "discount": 32.05,
+    "senior_discount": 0,
+    "rounding": -0.26
+   }
+  },
+  {
+   "case": 6,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 353.05,
+      "qty": 7,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 2.5,
+        "compound": true
+       },
+       {
+        "name": "T1",
+        "rate": 12,
+        "compound": true
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 660.43,
+      "qty": 1.98,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 5,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 218.61,
+      "qty": 9,
+      "inclusive": false,
+      "comps": []
+     }
+    ],
+    "discount": 0,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 5811.87,
+    "tax_total": 383.99,
+    "service_charge": 0,
+    "discount": 0,
+    "senior_discount": 0,
+    "rounding": 0
+   }
+  },
+  {
+   "case": 7,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 135.1,
+      "qty": 7,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 5,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 617.13,
+      "qty": 5,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 3,
+      "price": 854.09,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 18,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 2535.75,
+    "sc_percent": 10,
+    "sc_taxable": false,
+    "rounding": "nearest_0_05"
+   },
+   "expected": {
+    "grand_total": 2653,
+    "tax_total": 129.8,
+    "service_charge": 229.39,
+    "discount": 2535.75,
+    "senior_discount": 0,
+    "rounding": -0.02
+   }
+  },
+  {
+   "case": 9,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 140.05,
+      "qty": 5,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 28,
+        "compound": true
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 331.05,
+      "qty": 4,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 698.15,
+      "qty": 1.467,
+      "inclusive": true,
+      "comps": []
+     },
+     {
+      "key": 4,
+      "price": 748.05,
+      "qty": 6,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 5,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 18,
+        "compound": true
+       }
+      ]
+     }
+    ],
+    "discount": 0,
+    "sc_percent": 0,
+    "sc_taxable": false,
+    "rounding": "nearest_1"
+   },
+   "expected": {
+    "grand_total": 7537,
+    "tax_total": 1220.97,
+    "service_charge": 0,
+    "discount": 0,
+    "senior_discount": 0,
+    "rounding": 0.06
+   }
+  },
+  {
+   "case": 10,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 374.05,
+      "qty": 8,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 28,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 257.59,
+      "qty": 5,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 9,
+        "compound": true
+       },
+       {
+        "name": "T1",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 445.71,
+      "qty": 8,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 28,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 28,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 4,
+      "price": 588.09,
+      "qty": 1.696,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 3623.22,
+    "sc_percent": 10,
+    "sc_taxable": false,
+    "rounding": "nearest_1"
+   },
+   "expected": {
+    "grand_total": 7072,
+    "tax_total": 1754.91,
+    "service_charge": 483.39,
+    "discount": 3623.22,
+    "senior_discount": 0,
+    "rounding": -0.11
+   }
+  },
+  {
+   "case": 12,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 877.05,
+      "qty": 5,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 5,
+        "compound": true
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 245.17,
+      "qty": 1.41,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 28,
+        "compound": true
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 536.97,
+      "qty": 8,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 4,
+      "price": 791.43,
+      "qty": 2,
+      "inclusive": true,
+      "comps": []
+     }
+    ],
+    "discount": 3276.34,
+    "sc_percent": 10,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 8306.84,
+    "tax_total": 240.3,
+    "service_charge": 733.32,
+    "discount": 3276.34,
+    "senior_discount": 0,
+    "rounding": 0
+   }
+  },
+  {
+   "case": 14,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 259.05,
+      "qty": 8,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 5,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 28,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 377.41,
+      "qty": 7,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 12,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 18,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 871.05,
+      "qty": 4,
+      "inclusive": true,
+      "comps": []
+     },
+     {
+      "key": 4,
+      "price": 894.34,
+      "qty": 2,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 12,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 5046.22,
+    "sc_percent": 10,
+    "sc_taxable": true,
+    "rounding": "nearest_1"
+   },
+   "expected": {
+    "grand_total": 5807,
+    "tax_total": 808.25,
+    "service_charge": 454.45,
+    "discount": 5046.22,
+    "senior_discount": 0,
+    "rounding": -0.2
+   }
+  },
+  {
+   "case": 40,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 56.16,
+      "qty": 2,
+      "inclusive": true,
+      "comps": []
+     },
+     {
+      "key": 2,
+      "price": 833.55,
+      "qty": 8,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 5,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 28,
+        "compound": true
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 438.03,
+      "qty": 4,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 28,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 0,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "nearest_0_10",
+    "senior": {
+     "share": 0.5,
+     "rate": 20
+    }
+   },
+   "expected": {
+    "grand_total": 7242.1,
+    "tax_total": 1098.7,
+    "service_charge": 0,
+    "discount": 0,
+    "senior_discount": 682.6,
+    "rounding": -0.04
+   }
+  },
+  {
+   "case": 45,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 474.73,
+      "qty": 1.76,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 18,
+        "compound": true
+       },
+       {
+        "name": "T1",
+        "rate": 5,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 674.33,
+      "qty": 7,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 2.5,
+        "compound": true
+       },
+       {
+        "name": "T1",
+        "rate": 5,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 0,
+    "sc_percent": 10,
+    "sc_taxable": true,
+    "rounding": "nearest_0_10",
+    "senior": {
+     "share": 0.5,
+     "rate": 20
+    }
+   },
+   "expected": {
+    "grand_total": 5361.6,
+    "tax_total": 291.35,
+    "service_charge": 507.03,
+    "discount": 0,
+    "senior_discount": 507.03,
+    "rounding": -0.02
+   }
+  },
+  {
+   "case": 57,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 835.05,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 28,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 111.05,
+      "qty": 1.379,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 561.03,
+      "qty": 2,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 12,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 12,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 4,
+      "price": 805.05,
+      "qty": 8,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "T1",
+        "rate": 2.5,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 0,
+    "sc_percent": 0,
+    "sc_taxable": false,
+    "rounding": "nearest_1",
+    "senior": {
+     "share": 0.5,
+     "rate": 20
+    }
+   },
+   "expected": {
+    "grand_total": 7676,
+    "tax_total": 590,
+    "service_charge": 0,
+    "discount": 0,
+    "senior_discount": 787.38,
+    "rounding": -0.37
+   }
+  },
+  {
+   "case": 62,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 701.75,
+      "qty": 5,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 9,
+        "compound": true
+       },
+       {
+        "name": "T1",
+        "rate": 28,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 96.69,
+      "qty": 6,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 18,
+        "compound": true
+       },
+       {
+        "name": "T1",
+        "rate": 9,
+        "compound": true
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 440.05,
+      "qty": 4,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 5,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 0,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "nearest_0_05"
+   },
+   "expected": {
+    "grand_total": 7401.4,
+    "tax_total": 1552.29,
+    "service_charge": 0,
+    "discount": 0,
+    "senior_discount": 0,
+    "rounding": 0.02
+   }
+  },
+  {
+   "case": 65,
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 58.53,
+      "qty": 2.232,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 28,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 106.05,
+      "qty": 3,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "T0",
+        "rate": 28,
+        "compound": true
+       },
+       {
+        "name": "T1",
+        "rate": 28,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 652.53,
+      "qty": 9,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 4,
+      "price": 305.53,
+      "qty": 5,
+      "inclusive": false,
+      "comps": []
+     }
+    ],
+    "discount": 3457.65,
+    "sc_percent": 10,
+    "sc_taxable": true,
+    "rounding": "nearest_0_05"
+   },
+   "expected": {
+    "grand_total": 4830.7,
+    "tax_total": 87.87,
+    "service_charge": 431.17,
+    "discount": 3457.65,
+    "senior_discount": 0,
+    "rounding": -0.01
+   }
+  }
+ ]
+}

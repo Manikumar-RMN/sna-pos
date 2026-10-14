@@ -1,11 +1,10 @@
--- 55: Editions (Basic / Professional), paid add-on modules, SNA staff console,
---     plan requests (upgrade, module, new outlet) and Basic limits.
+-- Recovered from the live database's own migration history (supabase_migrations.schema_migrations):
+-- version 20260928102247, name '055_editions_modules'. This is the SQL that actually ran.
+-- The text previously in git under this number differed from what ran (see git history before the commit that added this header).
 
--- ---------- catalogue ----------
 alter table public.restaurants
   add column if not exists edition text not null default 'basic'
   check (edition in ('basic', 'professional'));
--- Restaurants that exist today keep every feature they already use.
 update public.restaurants set edition = 'professional';
 
 create table public.modules (
@@ -33,7 +32,6 @@ insert into public.modules (key, name, description, kind, display_order) values
   ('owner_app',        'Owner mobile app',           'Sales, alerts and approvals on the owner''s phone',        'addon', 23),
   ('customer_display', 'Customer display',           'Second screen showing the order and total to the guest',   'addon', 24);
 
--- Monthly price per item ('basic', 'professional' or an add-on key) and currency.
 create table public.plan_prices (
   item text not null,
   currency_code char(3) not null,
@@ -54,7 +52,6 @@ create table public.restaurant_modules (
   primary key (restaurant_id, module_key)
 );
 
--- ---------- SNA staff ----------
 create table public.sna_staff (
   id uuid primary key default gen_random_uuid(),
   auth_user_id uuid not null unique references auth.users(id),
@@ -115,10 +112,8 @@ create policy tenant_read on public.restaurant_modules for select to authenticat
 create policy tenant_read on public.plan_requests for select to authenticated
   using (restaurant_id = (select app.current_restaurant_id()));
 
--- Outlets are only added by an SNA implementer.
 drop policy if exists perm_insert on public.branches;
 
--- ---------- helpers ----------
 create or replace function app.sna_staff_id() returns uuid
 language sql stable security definer set search_path = public, pg_temp as $$
   select s.id from public.sna_staff s where s.auth_user_id = auth.uid() and s.is_active
@@ -166,7 +161,6 @@ language sql security definer set search_path = public, pg_temp as $$
   values (p_restaurant, p_event, coalesce(p_details, '{}'::jsonb), app.sna_staff_id(), app.current_user_id())
 $$;
 
--- ---------- Basic limits ----------
 create or replace function app.basic_limits() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_ed text; v_n int;
@@ -201,7 +195,6 @@ create trigger trg_basic_limits before insert or update of is_active, deleted_at
 create trigger trg_basic_limits before insert or update of is_active on public.devices for each row execute function app.basic_limits();
 create trigger trg_basic_limits before insert or update of deleted_at on public.branches for each row execute function app.basic_limits();
 
--- ---------- gate Professional features inside existing functions ----------
 do $$
 declare r record; v_def text;
 begin
@@ -222,21 +215,18 @@ begin
     execute v_def;
   end loop;
 
-  -- Basic: every item goes to one "Kitchen" ticket.
   v_def := pg_get_functiondef('app.create_kitchen_ticket(uuid,uuid[])'::regprocedure);
   v_def := replace(v_def, 'coalesce(nullif(trim(p.kitchen_station), ''''), ''Kitchen'')',
     'case when app.feature_on(o.restaurant_id, ''kitchen_stations'') then coalesce(nullif(trim(p.kitchen_station), ''''), ''Kitchen'') else ''Kitchen'' end');
   execute v_def;
 
-  -- Basic: items cannot be held (hold / fire is Professional).
   v_def := pg_get_functiondef('app.bill_input(uuid,uuid,jsonb,numeric,boolean,jsonb)'::regprocedure);
   v_def := replace(v_def, '''held'', coalesce((v_item->>''hold'')::boolean, false)',
     '''held'', coalesce((v_item->>''hold'')::boolean, false) and app.feature_on(p_restaurant, ''courses'')');
   execute v_def;
 end $$;
 
--- ---------- current user view: edition and features ----------
-create or replace view public.v_current_user with (security_invoker = false) as
+create or replace view public.v_current_user as
  select u.id as user_id, u.restaurant_id, u.full_name, u.email, u.employee_code,
         r.id as role_id, r.name as role_name, res.trading_name, res.country_code, res.currency_code, res.timezone,
         (select coalesce(array_agg(rp.permission_key order by rp.permission_key), '{}'::text[])
@@ -252,7 +242,6 @@ create or replace view public.v_current_user with (security_invoker = false) as
    join public.restaurants res on res.id = u.restaurant_id
   where u.id = app.current_user_id();
 
--- ---------- restaurant side ----------
 create or replace function public.my_plan() returns jsonb
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare v_r public.restaurants%rowtype;
@@ -317,7 +306,6 @@ begin
   perform app.log_plan(app.current_restaurant_id(), 'request.cancelled', jsonb_build_object('request', p_id));
 end $$;
 
--- ---------- SNA console ----------
 create or replace function public.sna_me() returns jsonb
 language sql stable security definer set search_path = public, pg_temp as $$
   select jsonb_build_object('id', s.id, 'full_name', s.full_name, 'email', s.email, 'role', s.role)
@@ -445,7 +433,6 @@ begin
   end if;
   update public.plan_requests set status = 'approved', decided_by = app.sna_staff_id(), decided_at = now(), decision_note = left(p_note, 300) where id = p_id;
   perform app.log_plan(q.restaurant_id, 'request.approved', jsonb_build_object('request', p_id, 'kind', q.kind, 'note', p_note));
-  -- Upgrade and module requests take effect at once; an outlet waits for the implementer.
   if q.kind = 'upgrade' then perform public.sna_set_edition(q.restaurant_id, 'professional', p_note);
   elsif q.kind = 'module' then perform public.sna_set_module(q.restaurant_id, q.module_key, true, p_note);
   end if;
@@ -480,7 +467,6 @@ begin
   if not found then
     insert into public.branch_settings (branch_id, restaurant_id) values (v_id, q.restaurant_id);
   end if;
-  -- Owners can work in every outlet.
   insert into public.user_branches (user_id, branch_id, restaurant_id)
   select u.id, v_id, q.restaurant_id from public.users u join public.roles r on r.id = u.role_id
    where u.restaurant_id = q.restaurant_id and r.name = 'Owner' and r.is_system and u.deleted_at is null
@@ -517,7 +503,7 @@ create or replace function public.sna_save_staff(p_email text, p_full_name text,
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_auth uuid; v_id uuid; v_me uuid;
 begin
-  v_me := app.sna_require(array[]::text[]);  -- admin only
+  v_me := app.sna_require(array[]::text[]);
   if p_role not in ('admin', 'sales', 'implementer', 'support') then raise exception 'Choose a role.'; end if;
   if coalesce(trim(p_full_name), '') = '' then raise exception 'Enter the name.'; end if;
   select id into v_auth from auth.users where lower(email) = lower(trim(p_email));
@@ -537,7 +523,7 @@ end $$;
 create or replace function public.sna_set_price(p_item text, p_currency text, p_price numeric) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin
-  perform app.sna_require(array[]::text[]);  -- admin only
+  perform app.sna_require(array[]::text[]);
   if p_item not in ('basic', 'professional') and not exists (select 1 from public.modules where key = p_item and kind = 'addon') then
     raise exception 'Unknown plan item.';
   end if;
@@ -560,7 +546,6 @@ grant execute on function public.my_plan(), public.request_plan_change(text,text
 revoke all on function app.feature_on(uuid,text), app.require_feature(text), app.sna_require(text[]), app.sna_staff_id(),
   app.log_plan(uuid,text,jsonb), app.monthly_charge(uuid), app.basic_limits() from public, anon;
 
--- First SNA admin: the Founder's account (the owner of the first restaurant).
 insert into public.sna_staff (auth_user_id, full_name, email, role)
 select u.auth_user_id, u.full_name, coalesce(u.email::text, au.email), 'admin'
   from public.users u join public.roles r on r.id = u.role_id and r.name = 'Owner' and r.is_system

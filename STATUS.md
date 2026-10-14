@@ -59,6 +59,48 @@ competitor's restaurant POS site — **not to be copied in design, copy or brand
 - 23 Sep 2026: **Design system resolved** — two competing themes reduced to one.
 - 23 Sep 2026: **Billing screen PRD written**, replacing the bullet-list UX spec.
 - 23 Sep 2026: Name applied throughout as **SNA POS**.
+- 14 Oct 2026: **Browser end-to-end tests, and a live bug they found.** `npm run test:ui` (in `app/`, see `app/e2e-ui/README.md`) runs
+  the real app in real Chromium against real PostgREST and a PostgreSQL built from the migrations: 71 tests (login, billing, manager,
+  offline, and a sweep of all 44 screens). **Bug found:** since migration 094 (13 Oct) the billing screen, Pre-orders and the Captain app
+  show an EMPTY MENU for every signed-in user on the live database ("There is nothing to sell yet"): 094 revoked execute on
+  `app.rule_price` from signed-in users but rebuilt the menu view, which runs with their rights, to call it. Confirmed on live
+  (`permission denied for function rule_price`). **Migration 115** (applied to live on 14 Oct 2026 with the owner's go-ahead; verified: a restaurant user now reads 4 menu rows with prices, where the same query failed before) adds a tenant-scoped
+  `app.menu_price` wrapper and points the view at it; `rule_price` itself stays locked. Still to confirm by a person: the billing screen in the deployed app shows the menu.
+- 14 Oct 2026: **Offline sync hardened and the money path tested end to end.** 61 end-to-end tests (`npm run test:e2e` in `app/`,
+  see `app/e2e/README.md`) run the real database functions as owner / manager / cashier on a throw-away PostgreSQL built from the
+  migrations: tenancy, billing, shift and day close, concurrency, offline. They found that the offline-sync function trusted the
+  till: a price of 1.00 for a dosa was recorded as 1.00, a cashier's discount was accepted, and the notes it wrote were never seen
+  (the app never showed `offline_flags`; owner alerts ignored offline bills). **Migration 114** (applied to live on 14 Oct 2026 with the owner's go-ahead; verified)
+  corrects unknown prices to the real price, removes a discount without the right, reports unknown payment methods and a till clock
+  that runs ahead, and turns every flagged bill into an owner alert; the bill screen now shows the notes to managers, and the till
+  sends `snapshot_at` so a price change made while it was offline is not a false alarm. It changes exactly two functions
+  (`sync_offline_bill`, `audit_to_alert`). Live check after applying: history lists 114, both functions replaced, execute rights unchanged (signed-in yes, anonymous no), 331 functions, order and payment rows unchanged.
+  Not yet confirmed: a real offline bill from a real till in the app (smoke test).
+  Correction to an earlier note: the business day is always the open one, never taken from the till's clock, so an offline bill
+  cannot land in a closed day.
+- 14 Oct 2026: **Migrations 112 and 113 are on live** (run by the owner in the SQL editor; verified by the assistant).
+  History table lists both; 20 tables remain writable for signed-in users (was 48), 0 write rights left on the 28 money,
+  audit and permission tables, SELECT kept, trigger from 112 present, order/payment rows unchanged. Baseline grants refreshed;
+  `supabase/verify/verify_rebuild.sh` (001-113) is identical to live. Still to do by the owner: one real bill / payment / void
+  in the app as a smoke test, and save the PIN pepper (`supabase/RECOVERY.md` step 0).
+- 14 Oct 2026: **Review fixes.** (1) A bill the server refuses no longer blocks the offline queue:
+  after 3 refusals it moves to a "stuck" list on the device (visible banner, Save a copy, Try again).
+  (2) First automated tests (26): the bill calculator against 16 results from the live database function,
+  5,000 random bills, and the queue rules. Run `npm test` in `app/`. (3) Removed the unused `refundBill`
+  action. (4) Migration 113 (was 112) applied to live on 14 Oct: revokes direct write rights on the money,
+  audit and permission tables; tested on a scratch copy built from the baseline.
+  (5) **Migration history restored in git.** 67 missing files recovered from the live database's own history,
+  7 files replaced where git differed from what ran (066 was an empty stub), 112 added for a function and trigger
+  that were changed directly in the database. `supabase/verify/verify_rebuild.sh` replays 001-112 on a scratch
+  PostgreSQL and compares with the baseline: identical (3,088 objects). Global reference data (countries, currencies,
+  modules, permissions) is reproduced by the migrations. Migration 112 is now recorded in Supabase's history table.
+  The renumbered grants migration is now 113.
+  Still open: the offline sync function trusts the device's prices, discount and clock (it only flags).
+- 13 Oct 2026: **Live database captured in git** — `supabase/schema/03_live_baseline.sql`
+  (100 tables, 331 functions, RLS, policies, grants). Loaded into a fresh Postgres
+  and the object counts match live. The numbered migrations in `supabase/migrations/`
+  were incomplete when this was written; they were restored on 14 Oct (see below). It holds no data and no secrets: `app.secrets.pin_pepper` and
+  the vault secrets `push_secret` / `push_url` must be recreated by hand on a rebuild.
 - 23 Sep 2026: **SNA POS Agent designed** — `sna-pos/agent-architecture.md`. Four
   agent jobs defined, with a hard line between what deterministic code owns (money)
   and what the agent owns (language, suggestions, analysis).
@@ -202,3 +244,13 @@ competitor's restaurant POS site — **not to be copied in design, copy or brand
 - **Legal & Compliance Lead** → trademark search; confirm the competitor's site was
   used only as a market reference and nothing was copied; add an AI-processing
   disclosure to the privacy policy before the agent goes live.
+
+
+## Stock, purchases, loyalty, reservations, deliveries, pre-orders, QR and kiosk (checked with real actions)
+New database-level tests: `app/e2e/stock.e2e.test.ts` (27) and `app/e2e/extras.e2e.test.ts` (49); all 139 database tests pass.
+Stock and purchases passed everything. Seven real problems were found elsewhere and are fixed by **migration 116 (applied to live on 15 Oct 2026 with the owner's go-ahead; checked read-only: trigger, new ledger kind and all five changed functions are present, grants unchanged, orders/payments/products unchanged)**:
+voiding a bill paid with a gift card did not return the card's money; voiding did not return spent points or take back earned points; a pre-order advance larger than the bill was never handed back or recorded;
+the guest QR menu showed the plain price instead of the offer price; a booking could be seated at another restaurant's table; a huge party gave a raw database message; a credit note could be "paid" to a gift card. Live data checked: none of these had happened yet (no voided bills, gift cards, billed pre-orders or reservations).
+App changes: gift-card history labels the new "void" entry; Pre-orders tells the cashier how much to hand back.
+
+Rebuild check re-run through 116: identical (3,093 objects).

@@ -229,26 +229,6 @@ export async function voidBill(input: { orderId: string; reason: string }): Prom
   return { ok: true, message: "Bill voided." };
 }
 
-export async function refundBill(input: {
-  orderId: string;
-  amount: number;
-  reason: string;
-}): Promise<ActionResult> {
-  const reason = input.reason.trim();
-  if (reason.length < 3) return { ok: false, error: "Write a short reason for the refund." };
-  if (!(input.amount > 0)) return { ok: false, error: "Enter the amount to refund." };
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("refund_order", {
-    p_order_id: input.orderId,
-    p_amount: input.amount,
-    p_reason: reason,
-  });
-  if (error) return { ok: false, error: error.message };
-  revalidatePath(`/bills/${input.orderId}`);
-  revalidatePath("/bills");
-  return { ok: true, message: "Refund recorded." };
-}
-
 /** Makes the private e-bill link (once) and returns it with the customer's phone if the bill has one. */
 export async function shareBillLink(orderId: string) {
   const supabase = await createClient();

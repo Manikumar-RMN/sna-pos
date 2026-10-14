@@ -163,7 +163,14 @@ export type SyncResult = {
   guestPending?: boolean;
   /** The bill is saved, but the server would not take its guest details (or they were given up). */
   guestDropped?: boolean;
+  /** The server looked at this bill and said no (bad data, a number already used, an item gone). Retrying the same bill will not help; it must not hold up the bills behind it. */
+  refused?: boolean;
 };
+
+/** Postgres: P0001 is a deliberate `raise exception`; classes 22 (bad data) and 23 (constraint) are about this bill's own contents. */
+function isRefusal(code: string | undefined) {
+  return code === "P0001" || (!!code && /^2[23]/.test(code));
+}
 
 /**
  * Sends one offline bill. Safe to repeat: the server records each bill once, and answers a repeat with the
@@ -176,7 +183,7 @@ export type SyncResult = {
 export async function syncOfflineBill(bill: unknown, opts?: { skipGuest?: boolean }): Promise<SyncResult> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("sync_offline_bill", { p_bill: bill as Json });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: error.message, refused: isRefusal(error.code) };
   const res = (data ?? {}) as { ok?: boolean; reason?: string; order_id?: unknown; repeat?: unknown };
   if (res.ok === false) return { ok: false, waiting: true, error: res.reason };
   revalidatePath("/bills");
