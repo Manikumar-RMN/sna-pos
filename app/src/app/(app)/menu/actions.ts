@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { can, getCurrentUser } from "@/lib/auth";
 
+import { friendlyDbError } from "@/lib/db-error";
 export type MenuState = { error: string | null; ok?: boolean };
 
 /**
@@ -59,7 +60,7 @@ export async function createCategory(_prev: MenuState, formData: FormData): Prom
           ? parentId
             ? "That main category already has a sub-category with this name."
             : "A category with that name already exists."
-          : error.message,
+          : friendlyDbError(error),
     };
   }
   revalidatePath("/settings/menu");
@@ -85,7 +86,7 @@ export async function renameCategory(_prev: MenuState, formData: FormData): Prom
     .from("categories")
     .update(moves ? { name, parent_id: parentId } : { name })
     .eq("id", id);
-  if (error) return { error: error.code === "23505" ? "There is already a category with this name in that place." : error.message };
+  if (error) return { error: error.code === "23505" ? "There is already a category with this name in that place." : friendlyDbError(error) };
   revalidatePath("/settings/menu");
   revalidatePath("/welcome");
   return { error: null, ok: true };
@@ -115,7 +116,7 @@ export async function deleteCategory(_prev: MenuState, formData: FormData): Prom
     .from("categories")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyDbError(error) };
   revalidatePath("/settings/menu");
   revalidatePath("/welcome");
   return { error: null, ok: true };
@@ -185,7 +186,7 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
     })
     .select("id")
     .single();
-  if (error) return { error: /products_barcode_uq/.test(error.message) ? "Another dish already has that item code." : error.message };
+  if (error) return { error: /products_barcode_uq/.test(error.message) ? "Another dish already has that item code." : friendlyDbError(error) };
   const linkError = await linkOptionGroups(created.id, restaurantId!, formData);
   if (linkError) return { error: linkError };
   revalidatePath("/settings/menu");
@@ -205,7 +206,7 @@ async function linkOptionGroups(productId: string, restaurantId: string, formDat
   const { error } = await supabase
     .from("product_modifier_groups")
     .insert(groupIds.map((g) => ({ product_id: productId, modifier_group_id: g, restaurant_id: restaurantId })));
-  return error ? error.message : null;
+  return error ? friendlyDbError(error) : null;
 }
 
 export async function updateProduct(_prev: MenuState, formData: FormData): Promise<MenuState> {
@@ -252,7 +253,7 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
       ...(hsn.value !== undefined ? { hsn_code: hsn.value } : {}),
     })
     .eq("id", id);
-  if (error) return { error: /products_barcode_uq/.test(error.message) ? "Another dish already has that item code." : error.message };
+  if (error) return { error: /products_barcode_uq/.test(error.message) ? "Another dish already has that item code." : friendlyDbError(error) };
   // The dish's sizes share its tax group, veg mark, kitchen station and HSN code.
   const { error: sizeError } = await supabase
     .from("products")
@@ -309,7 +310,7 @@ export async function addSize(parentId: string, sizeName: string, rawPrice: stri
     parent_id: parent.id,
     variant_name: name,
   });
-  if (error) return { error: /duplicate|unique/i.test(error.message) ? `${parent.name} already has the size ${name}.` : error.message };
+  if (error) return { error: /duplicate|unique/i.test(error.message) ? `${parent.name} already has the size ${name}.` : friendlyDbError(error) };
   revalidatePath("/settings/menu");
   revalidatePath("/pos");
   return { error: null, ok: true };
@@ -325,7 +326,7 @@ export async function updateSize(id: string, sizeName: string, rawPrice: string)
   if (price === null || rawPrice.trim() === "") return { error: "Enter the price for this size." };
   const supabase = await createClient();
   const { error } = await supabase.from("products").update({ variant_name: name, price }).eq("id", id).not("parent_id", "is", null);
-  if (error) return { error: /duplicate|unique/i.test(error.message) ? `This dish already has the size ${name}.` : error.message };
+  if (error) return { error: /duplicate|unique/i.test(error.message) ? `This dish already has the size ${name}.` : friendlyDbError(error) };
   revalidatePath("/settings/menu");
   revalidatePath("/pos");
   return { error: null, ok: true };
@@ -364,14 +365,14 @@ export async function saveOptionGroup(
   let gid = groupId;
   if (gid) {
     const { error } = await supabase.from("modifier_groups").update(groupRow).eq("id", gid);
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyDbError(error) };
   } else {
     const { data, error } = await supabase
       .from("modifier_groups")
       .insert({ ...groupRow, restaurant_id: restaurantId! })
       .select("id")
       .single();
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyDbError(error) };
     gid = data.id;
   }
 
@@ -380,14 +381,14 @@ export async function saveOptionGroup(
   const retire = (existing ?? []).map((e) => e.id).filter((id) => !keep.has(id));
   if (retire.length) {
     const { error } = await supabase.from("modifier_items").update({ is_active: false }).in("id", retire);
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyDbError(error) };
   }
   for (const [i, o] of clean.entries()) {
     const row = { name: o.name, price_delta: Math.round(o.price * 100) / 100, display_order: i + 1, is_active: true, product_id: o.productId || null };
     const { error } = o.id
       ? await supabase.from("modifier_items").update(row).eq("id", o.id).eq("modifier_group_id", gid)
       : await supabase.from("modifier_items").insert({ ...row, restaurant_id: restaurantId!, modifier_group_id: gid });
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyDbError(error) };
   }
   revalidatePath("/settings/menu");
   revalidatePath("/welcome");
@@ -402,7 +403,7 @@ export async function removeOptionGroup(groupId: string): Promise<MenuState> {
   const { error: linkError } = await supabase.from("product_modifier_groups").delete().eq("modifier_group_id", groupId);
   if (linkError) return { error: linkError.message };
   const { error } = await supabase.from("modifier_groups").update({ is_active: false }).eq("id", groupId);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyDbError(error) };
   revalidatePath("/settings/menu");
   revalidatePath("/welcome");
   revalidatePath("/pos");
@@ -418,7 +419,7 @@ export async function toggleAvailability(_prev: MenuState, formData: FormData): 
 
   const supabase = await createClient();
   const { error } = await supabase.from("products").update({ is_available: makeAvailable }).eq("id", id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyDbError(error) };
   revalidatePath("/settings/menu");
   revalidatePath("/welcome");
   revalidatePath("/pos");
@@ -437,7 +438,7 @@ export async function deleteProduct(_prev: MenuState, formData: FormData): Promi
     .from("products")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyDbError(error) };
   revalidatePath("/settings/menu");
   revalidatePath("/welcome");
   revalidatePath("/pos");
@@ -484,7 +485,7 @@ export async function importMenu(
   }));
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("import_menu", { p_rows: clean, p_apply: apply });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   const v = data as {
     ok: boolean;
     applied: boolean;

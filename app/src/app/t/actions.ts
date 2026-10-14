@@ -1,13 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-error";
 import type { Json } from "@/lib/supabase/database.types";
 
 export type GuestLine = { product_id: string; qty: number; options: string[]; note: string };
-
-function clean(msg: string) {
-  return msg.replace(/^.*?ERROR:\s*/i, "").slice(0, 200);
-}
 
 /** Guest sends the order from the table QR. Staff accept it before it reaches the kitchen. */
 export async function placeGuestOrder(token: string, lines: GuestLine[], name: string, note: string) {
@@ -18,7 +15,7 @@ export async function placeGuestOrder(token: string, lines: GuestLine[], name: s
     p_guest_name: name,
     p_note: note,
   });
-  if (error) return { ok: false as const, error: clean(error.message) };
+  if (error) return { ok: false as const, error: friendlyDbError(error) };
   const d = data as { request_id: string; key: string; estimated_total: number };
   return { ok: true as const, id: d.request_id, key: d.key, total: Number(d.estimated_total) };
 }

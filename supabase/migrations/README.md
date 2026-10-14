@@ -4,9 +4,9 @@
 (Supabase project `lrtoktmfspnypkgrvnzg`); `086a_` sits between 086 and 087 because it was applied between them.
 112 to 115 were applied/recorded on live on 14 Oct 2026 (the history table holds a one-line summary for them; the full text is here).
 
-**These files rebuild the live database.** Run `supabase/verify/verify_rebuild.sh`: it replays 001-116 on a
+**These files rebuild the live database.** Run `supabase/verify/verify_rebuild.sh`: it replays 001-118 on a
 throw-away PostgreSQL and compares the result object by object with `supabase/schema/03_live_baseline.sql`
-(checked on 15 Oct 2026 through 116: identical, 3,093 objects). Run it after adding any migration, and re-export the baseline
+(checked on 15 Oct 2026 through 118: identical, 3,099 objects). Run it after adding any migration, and re-export the baseline
 when the live database changes.
 
 ## What is and is not rebuilt
@@ -145,6 +145,8 @@ when the live database changes.
 | `110_kiosk_auto_accept.sql` | 20261013045223 | already in git; same code as what ran (comments or begin/commit may differ) |
 | `111_offline_liquor_bills.sql` | 20261013045224 | already in git; same code as what ran (comments or begin/commit may differ) |
 | `112_whole_number_check_for_piece_items.sql` | 20261014110330 | change was already live; recorded on 14 Oct 2026 |
+| `118_company_timezone_setting_and_local_dates.sql` | 20261015150000 | applied to live on 15 Oct 2026 (in small steps; history row holds a one-line summary); Settings -> Company time zone, and tax-rate / batch / API / offline-menu dates follow the restaurant's date |
+| `117_gift_card_expiry_uses_restaurant_date.sql` | 20261015140000 | applied to live on 15 Oct 2026 (helper + 4 gift-card functions); expiry uses the restaurant's calendar date |
 | `116_voids_return_cards_points_preorder_leftover_and_small_fixes.sql` | 20261015130000 | applied to live on 15 Oct 2026 (statement by statement; history row holds a one-line summary); voids return gift-card money and points, pre-order advance above the bill is handed back, guest menu shows offer prices, reservation table check |
 | `115_fix_menu_view_permission.sql` | 20261014122317 | applied to live on 14 Oct 2026; fixes the empty billing menu (v_menu / rule_price) |
 | `114_offline_sync_enforce_prices_discounts_and_report.sql` | 20261014112036 | applied to live on 14 Oct 2026; changes `sync_offline_bill` and `audit_to_alert` only |

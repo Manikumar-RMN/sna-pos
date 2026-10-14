@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { money } from "@/lib/format";
 import { cancelPlanRequest, requestPlanChange } from "./actions";
 
+import { useTz } from "../../tz";
 type Module = { key: string; name: string; description: string; kind: "professional" | "addon"; on: boolean };
 type Request = {
   id: string;
@@ -32,6 +33,7 @@ const STATUS: Record<string, string> = {
 };
 
 export function PlanView({ plan, isOwner }: { plan: Plan; isOwner: boolean }) {
+  const tz = useTz();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [outletOpen, setOutletOpen] = useState(false);
@@ -191,7 +193,7 @@ export function PlanView({ plan, isOwner }: { plan: Plan; isOwner: boolean }) {
                   </span>
                   <span style={{ color: "var(--color-ink-3)" }}>
                     {" "}
-                    · {new Date(r.created_at).toLocaleDateString()} · {STATUS[r.status] ?? r.status}
+                    · {new Date(r.created_at).toLocaleDateString("en-IN", { timeZone: tz })} · {STATUS[r.status] ?? r.status}
                     {r.decision_note ? ` — ${r.decision_note}` : ""}
                   </span>
                 </div>

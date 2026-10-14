@@ -4,6 +4,7 @@ import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+import { friendlyDbError } from "@/lib/db-error";
 export type StaffResult =
   | { ok: true; message?: string; code?: string; name?: string; email?: string; pin?: string; tempPassword?: string }
   | { ok: false; error: string };
@@ -23,7 +24,7 @@ export async function inviteStaff(input: { name: string; email: string; roleId: 
     p_role_id: input.roleId,
     p_phone: input.phone.trim() || undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/users");
   revalidatePath("/welcome");
   const d = data as unknown as { invite_code: string };
@@ -33,7 +34,7 @@ export async function inviteStaff(input: { name: string; email: string; roleId: 
 export async function newInviteCode(userId: string, name: string, email: string): Promise<StaffResult> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("regenerate_invite", { p_user_id: userId });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/users");
   revalidatePath("/welcome");
   return { ok: true, code: (data as unknown as { invite_code: string }).invite_code, name, email };
@@ -42,7 +43,7 @@ export async function newInviteCode(userId: string, name: string, email: string)
 export async function cancelInvite(userId: string): Promise<StaffResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("cancel_invite", { p_user_id: userId });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/users");
   revalidatePath("/welcome");
   return { ok: true, message: "Invitation cancelled." };
@@ -51,7 +52,7 @@ export async function cancelInvite(userId: string): Promise<StaffResult> {
 export async function changeRole(userId: string, roleId: string): Promise<StaffResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_staff", { p_user_id: userId, p_role_id: roleId });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/users");
   revalidatePath("/welcome");
   return { ok: true, message: "Role changed. It applies the next time they open a screen." };
@@ -60,7 +61,7 @@ export async function changeRole(userId: string, roleId: string): Promise<StaffR
 export async function setActive(userId: string, active: boolean): Promise<StaffResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_staff", { p_user_id: userId, p_is_active: active });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/users");
   revalidatePath("/welcome");
   return { ok: true, message: active ? "Access switched back on." : "Access switched off. They can no longer sign in to this restaurant." };
@@ -76,7 +77,7 @@ export async function setActive(userId: string, active: boolean): Promise<StaffR
 export async function setPin(userId: string, name: string): Promise<StaffResult> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("set_staff_pin", { p_user_id: userId });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/users");
   revalidatePath("/welcome");
   const pin = (data as { pin?: string } | null)?.pin;
@@ -87,7 +88,7 @@ export async function setPin(userId: string, name: string): Promise<StaffResult>
 export async function removePin(userId: string): Promise<StaffResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("clear_staff_pin", { p_user_id: userId });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/users");
   revalidatePath("/welcome");
   return { ok: true, message: "PIN removed. They can no longer unlock a counter tablet." };
@@ -101,7 +102,7 @@ export async function addPinStaff(input: { name: string; roleId: string; phone: 
     p_role_id: input.roleId,
     p_phone: input.phone.trim() || undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/users");
   revalidatePath("/welcome");
   return { ok: true, pin: (data as { pin?: string } | null)?.pin, name: input.name.trim() };
@@ -123,7 +124,7 @@ export async function resetPassword(userId: string, name: string): Promise<Staff
   const temp = temporaryPassword();
   const supabase = await createClient();
   const { error } = await supabase.rpc("admin_reset_password", { p_user_id: userId, p_new_password: temp });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/users");
   revalidatePath("/welcome");
   return { ok: true, tempPassword: temp, name };

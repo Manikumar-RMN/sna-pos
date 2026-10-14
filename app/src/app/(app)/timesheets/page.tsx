@@ -2,15 +2,16 @@ import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ClockButton, EntryRow } from "./timesheet-parts";
 
+import { addDays, isYmd, localDayStartIso, todayIn } from "@/lib/format";
 export default async function TimesheetsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
   const user = await requireUser();
   if (!has(user, "timesheets")) {
     return <p className="card p-5 text-sm">Staff timesheets is part of the Professional edition. Ask for it in Settings → Plan and modules.</p>;
   }
   const sp = await searchParams;
-  const today = new Date().toISOString().slice(0, 10);
-  const from = /^\d{4}-\d{2}-\d{2}$/.test(sp.from ?? "") ? sp.from! : new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
-  const to = /^\d{4}-\d{2}-\d{2}$/.test(sp.to ?? "") ? sp.to! : today;
+  const today = todayIn(user.timezone);
+  const from = isYmd(sp.from) ? sp.from : addDays(today, -6);
+  const to = isYmd(sp.to) ? sp.to : today;
   const manager = can(user, "user.manage");
   const supabase = await createClient();
   const [{ data: mine }, { data: entries }] = await Promise.all([
@@ -18,8 +19,8 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
     supabase
       .from("time_entries")
       .select("id, user_id, clock_in, clock_out, edit_reason, users!time_entries_user_id_fkey(full_name)")
-      .gte("clock_in", `${from}T00:00:00`)
-      .lte("clock_in", `${to}T23:59:59`)
+      .gte("clock_in", localDayStartIso(from, user.timezone))
+      .lt("clock_in", localDayStartIso(addDays(to, 1), user.timezone))
       .order("clock_in", { ascending: false })
       .limit(500),
   ]);

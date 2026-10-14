@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+import { friendlyDbError } from "@/lib/db-error";
 type R<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 const clean = (m: string) => m.replace(/^.*?ERROR:\s*/i, "").trim();
 
@@ -33,7 +34,7 @@ async function tellPartner(id: string, event: "accepted" | "rejected" | "ready")
 export async function acceptOnline(id: string): Promise<R<{ bill: string; partner: string | null }>> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("online_order_accept", { p_id: id });
-  if (error) return { ok: false, error: clean(error.message) };
+  if (error) return { ok: false, error: clean(friendlyDbError(error)) };
   const partner = await tellPartner(id, "accepted");
   revalidatePath("/online-orders");
   return { ok: true, bill: (data as { bill_number: string }).bill_number, partner };
@@ -42,7 +43,7 @@ export async function acceptOnline(id: string): Promise<R<{ bill: string; partne
 export async function rejectOnline(id: string, reason: string): Promise<R<{ partner: string | null }>> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("online_order_reject", { p_id: id, p_reason: reason });
-  if (error) return { ok: false, error: clean(error.message) };
+  if (error) return { ok: false, error: clean(friendlyDbError(error)) };
   const partner = await tellPartner(id, "rejected");
   revalidatePath("/online-orders");
   return { ok: true, partner };
@@ -51,7 +52,7 @@ export async function rejectOnline(id: string, reason: string): Promise<R<{ part
 export async function markOnlineReady(id: string): Promise<R<{ partner: string | null }>> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("online_order_mark_ready", { p_id: id });
-  if (error) return { ok: false, error: clean(error.message) };
+  if (error) return { ok: false, error: clean(friendlyDbError(error)) };
   const partner = await tellPartner(id, "ready");
   revalidatePath("/online-orders");
   return { ok: true, partner };
@@ -63,7 +64,7 @@ export type Channel = { channel: string; url: string | null; updated_at: string 
 export async function saveChannel(channel: string, url: string, newSecret: boolean): Promise<R<{ secret: string | null }>> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("online_channel_save", { p_channel: channel, p_url: url, p_new_secret: newSecret });
-  if (error) return { ok: false, error: clean(error.message) };
+  if (error) return { ok: false, error: clean(friendlyDbError(error)) };
   revalidatePath("/online-orders");
   return { ok: true, secret: (data as { secret: string | null }).secret };
 }

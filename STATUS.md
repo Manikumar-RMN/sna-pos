@@ -254,3 +254,16 @@ the guest QR menu showed the plain price instead of the offer price; a booking c
 App changes: gift-card history labels the new "void" entry; Pre-orders tells the cashier how much to hand back.
 
 Rebuild check re-run through 116: identical (3,093 objects).
+
+## Two small gaps closed (15 Oct 2026)
+- Table-rule errors (negative cost, party of 500, wrong unit...) now show a plain sentence instead of the raw database text: `app/src/lib/db-error.ts`, used by the Stock, Purchases, Loyalty, Reservations, Deliveries, Pre-orders and guest-QR actions (4 unit tests).
+  Now used by every action file except sign-in/password screens and the public API (137 places). App code: needs deploying. Browser tests (71) still pass.
+- Gift-card expiry uses the restaurant's calendar date: **migration 117, applied to live** (3 time-zone tests; the Kiritimati one fails without it). Product batches (batch_add / batches_list...) still use the database date.
+- All 142 database tests and 32 unit tests pass; rebuild check through 117 identical (3,095 objects).
+
+## Time zone is the client's own setting (15 Oct 2026)
+- Settings -> Company now has a **Time zone** card (owner / settings right). It sets the restaurant and all outlets (`set_company_timezone`, **migration 118, applied to live**); refused while a shift is open; audited.
+- Every date follows it: tax-rate dates, product batches, API default day, offline menu (database), and in the app the timesheets (range and edit fields), accounts, batches, deliveries, online orders, gift-card history, API keys, plan screen, counters list. The app gets the zone from one place (`app/(app)/tz.tsx`).
+- Left on purpose: SNA console dates (SNA's own day), report-send housekeeping, the licence-notice "morning/afternoon" key (device clock, cosmetic).
+- Tests: 12 database, 5 browser, 4 unit tests for this; all suites pass (database 153, browser 76, unit 36). Rebuild check through 118 identical (3,099 objects).
+- App changes need deploying.

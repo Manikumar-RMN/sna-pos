@@ -5,15 +5,17 @@ import { useRouter } from "next/navigation";
 import { createApiKey, revokeApiKey } from "../actions";
 import { ConfirmButton } from "../confirm-button";
 
+import { useTz } from "../../tz";
 type Key = { id: string; name: string; prefix: string; created_at: string; last_used_at: string | null; revoked_at: string | null };
 
 export function ApiKeys({ keys }: { keys: Key[] }) {
+  const tz = useTz();
   const router = useRouter();
   const [name, setName] = useState("");
   const [fresh, setFresh] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const d = (s: string | null) => (s ? new Date(s).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "never");
+  const d = (s: string | null) => (s ? new Date(s).toLocaleString("en-IN", { timeZone: tz, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "never");
   return (
     <section className="card space-y-3 p-4">
       <div className="flex flex-wrap gap-2">

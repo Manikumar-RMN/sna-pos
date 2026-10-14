@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import { saveRider, settleRider, updateDelivery } from "./actions";
 
+import { useTz } from "../tz";
+import { timeOnly } from "@/lib/format";
 export type Delivery = {
   id: string;
   bill_number: string;
@@ -27,6 +29,7 @@ type Rider = { id: string; name: string; phone: string | null; is_active: boolea
 const minutes = (iso: string | null) => (iso ? Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000)) : 0);
 
 export function Deliveries({ currency, canSettle, deliveries, riders }: { currency: string; canSettle: boolean; deliveries: Delivery[]; riders: Rider[] }) {
+  const tz = useTz();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -76,7 +79,7 @@ export function Deliveries({ currency, canSettle, deliveries, riders }: { curren
       <div className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
         {d.status === "waiting" && `Waiting ${minutes(d.created_at)} min`}
         {d.status === "out" && `${d.rider} · out ${minutes(d.out_at)} min`}
-        {d.status === "delivered" && `${d.rider ?? ""} · delivered ${new Date(d.delivered_at ?? d.created_at).toLocaleTimeString("en-IN", { timeStyle: "short" })}`}
+        {d.status === "delivered" && `${d.rider ?? ""} · delivered ${timeOnly(d.delivered_at ?? d.created_at, tz)}`}
         {d.status === "returned" && `Returned${d.rider ? ` by ${d.rider}` : ""}`}
       </div>
       <div className="mt-2 flex flex-wrap gap-2">

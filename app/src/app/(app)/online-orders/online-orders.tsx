@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import { acceptOnline, markOnlineReady, rejectOnline, saveChannel, type Channel } from "./actions";
 
+import { useTz } from "../tz";
 export type OnlineOrder = {
   id: string;
   channel: string;
@@ -39,6 +40,7 @@ export function OnlineOrders({
   orders: OnlineOrder[];
 }) {
   const router = useRouter();
+  const tz = useTz();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -93,7 +95,7 @@ export function OnlineOrders({
               <div>
                 <span className="rounded-md px-2 py-0.5 text-xs font-bold text-white" style={{ background: "var(--color-brand)" }}>{label(o.channel)}</span>
                 <span className="ml-2 font-bold">#{o.external_ref}</span>
-                <span className="ml-2 text-xs" style={{ color: "var(--color-ink-3)" }}>{new Date(o.created_at).toLocaleTimeString("en-IN", { timeStyle: "short" })}</span>
+                <span className="ml-2 text-xs" style={{ color: "var(--color-ink-3)" }}>{new Date(o.created_at).toLocaleTimeString("en-IN", { timeZone: tz, timeStyle: "short" })}</span>
                 <div className="mt-1 text-sm">{[o.customer_name, o.customer_phone].filter(Boolean).join(" · ")}</div>
                 {o.address && <div className="text-xs" style={{ color: "var(--color-ink-2)" }}>{o.address}</div>}
               </div>

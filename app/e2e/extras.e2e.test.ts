@@ -621,3 +621,36 @@ describe.skipIf(!haveDb())("QR table ordering and kiosks: a guest with no login,
     await rpc(w.manager.auth, "accept_qr_order", [o.request_id]).then(async (r: any) => rpc(w.manager.auth, "pay_order", [r.order_id, w.methods.cash, 500]));
   });
 });
+
+describe.skipIf(!haveDb())("gift card expiry follows the restaurant's calendar, not the database's", () => {
+  let w: World;
+  beforeAll(async () => {
+    w = await makeWorld("gct");
+    await modules(w, "loyalty");
+    await rpc(w.cashier.auth, "open_shift", [0]);
+  });
+  afterAll(closePool);
+
+  const localToday = async (tz: string) => (await admin("select (now() at time zone $1)::date::text d", [tz]))[0].d as string;
+  const addDays = async (d: string, n: number) => (await admin("select ($1::date + $2::int)::text d", [d, n]))[0].d as string;
+
+  // At any moment these two zones cannot both share the database's (UTC) date, so one of them proves the point.
+  for (const tz of ["Pacific/Kiritimati", "Pacific/Pago_Pago", "Asia/Kolkata"]) {
+    it(`in ${tz}: a card valid for 30 days expires 30 days from the restaurant's today; the day it expires it still works, the next day it does not`, async () => {
+      await admin("update public.restaurants set timezone = $1 where id = $2", [tz, w.restaurantId]);
+      const today = await localToday(tz);
+      const c = await rpc(w.cashier.auth, "issue_gift_card", [100, w.methods.cash, null, null, 30]);
+      expect(c.expires_on).toBe(await addDays(today, 30));
+      // expires today (restaurant's date): still usable
+      await admin("update public.gift_cards set expires_on = $1 where code = $2 and restaurant_id = $3", [today, c.code, w.restaurantId]);
+      expect((await rpc(w.cashier.auth, "gift_card_lookup", [c.code])).expired).toBe(false);
+      const bill = await rpc(w.cashier.auth, "create_order", [items(w, { dosa: 1 }), "takeaway"]);
+      const r = await rpc(w.cashier.auth, "redeem_gift_card", [bill.order_id, c.code, null]);
+      expect(Number(r.used)).toBeGreaterThan(0);
+      await rpc(w.cashier.auth, "pay_order", [bill.order_id, w.methods.cash, 500]).catch(() => {});
+      // expired yesterday (restaurant's date)
+      await admin("update public.gift_cards set expires_on = $1 where code = $2 and restaurant_id = $3", [await addDays(today, -1), c.code, w.restaurantId]);
+      expect((await rpc(w.cashier.auth, "gift_card_lookup", [c.code])).expired).toBe(true);
+    });
+  }
+});
