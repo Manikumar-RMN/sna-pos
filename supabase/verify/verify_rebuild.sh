@@ -6,10 +6,10 @@
 # functions, grants, row level security). Nothing outside a temp folder is touched; no Supabase project is used.
 #
 # Needs: PostgreSQL server binaries (initdb, pg_ctl, psql) of version 16 or newer.
-# Usage: supabase/verify/verify_rebuild.sh [last-migration-number]     (default 115 = the last one applied live)
+# Usage: supabase/verify/verify_rebuild.sh [last-migration-number]     (default 117 = the last one applied live)
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"; SB="$(dirname "$HERE")"
-LAST="${1:-116}"; PORT=5496
+LAST="${1:-117}"; PORT=5496
 BIN="$(ls -d /usr/lib/postgresql/*/bin /opt/homebrew/opt/postgresql@*/bin /usr/local/opt/postgresql@*/bin 2>/dev/null | sort -V | tail -1)"
 [ -x "$BIN/initdb" ] || { echo "No PostgreSQL server binaries found (looked for initdb)."; exit 2; }
 WORK="$(mktemp -d /var/tmp/sna-verify.XXXXXX)"; chmod 755 "$WORK"

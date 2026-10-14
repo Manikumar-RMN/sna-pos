@@ -2792,6 +2792,16 @@ begin
 end $function$
 ;
 
+CREATE OR REPLACE FUNCTION app.local_today(p_restaurant uuid)
+ RETURNS date
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  select (now() at time zone coalesce(nullif(r.timezone, ''), 'UTC'))::date from public.restaurants r where r.id = p_restaurant
+$function$
+;
+
 CREATE OR REPLACE FUNCTION app.log_plan(p_restaurant uuid, p_event text, p_details jsonb)
  RETURNS void
  LANGUAGE sql
@@ -6275,7 +6285,7 @@ begin
   select * into g from public.gift_cards where restaurant_id = app.current_restaurant_id() and code = upper(trim(p_code));
   if not found then raise exception 'No gift card with that code.'; end if;
   return jsonb_build_object('code', g.code, 'value', g.value, 'balance', app.gift_balance(g.id), 'expires_on', g.expires_on,
-    'expired', g.expires_on is not null and g.expires_on < current_date);
+    'expired', g.expires_on is not null and g.expires_on < app.local_today(app.current_restaurant_id()));
 end $function$
 ;
 
@@ -6731,7 +6741,7 @@ begin
     end if;
   end if;
   insert into public.gift_cards (restaurant_id, code, value, expires_on, customer_id, sold_method_id, sold_branch_id, sold_shift_id, issued_by)
-  values (v_rest, v_code, round(p_value, 2), case when coalesce(p_valid_days, 0) > 0 then current_date + p_valid_days end,
+  values (v_rest, v_code, round(p_value, 2), case when coalesce(p_valid_days, 0) > 0 then app.local_today(v_rest) + p_valid_days end,
           v_cust, p_method_id, v_branch, v_shift, v_user)
   returning id into v_id;
   insert into public.gift_card_ledger (restaurant_id, gift_card_id, amount, kind, created_by) values (v_rest, v_id, round(p_value, 2), 'issue', v_user);
@@ -6741,7 +6751,7 @@ begin
   end if;
   perform app.audit('giftcard.issue', 'gift_cards', v_id, jsonb_build_object('code', v_code, 'value', p_value, 'method', v_kind), null);
   return jsonb_build_object('id', v_id, 'code', v_code, 'value', round(p_value, 2),
-    'expires_on', case when coalesce(p_valid_days, 0) > 0 then current_date + p_valid_days end);
+    'expires_on', case when coalesce(p_valid_days, 0) > 0 then app.local_today(v_rest) + p_valid_days end);
 end $function$
 ;
 
@@ -8358,7 +8368,7 @@ begin
   if not found then raise exception 'Bill not found.'; end if;
   select * into g from public.gift_cards where restaurant_id = o.restaurant_id and code = upper(trim(p_code)) for update;
   if not found then raise exception 'No gift card with that code.'; end if;
-  if g.expires_on is not null and g.expires_on < current_date then raise exception 'Gift card % expired on %.', g.code, g.expires_on; end if;
+  if g.expires_on is not null and g.expires_on < app.local_today(o.restaurant_id) then raise exception 'Gift card % expired on %.', g.code, g.expires_on; end if;
   v_bal := app.gift_balance(g.id);
   v_due := o.grand_total - app.order_covered(o.id);
   v_amt := round(least(coalesce(p_amount, v_due), v_bal, v_due), 2);
@@ -11468,8 +11478,8 @@ begin
   if v_shift is null then v_shift := app.auto_shift(v_branch); end if;
   if v_shift is null then raise exception 'Open a shift first.'; end if;
   insert into public.gift_card_ledger (restaurant_id, gift_card_id, amount, kind, created_by) values (v_rest, g.id, v_amt, 'topup', v_user);
-  if g.expires_on is not null and g.expires_on < current_date + 365 then
-    update public.gift_cards set expires_on = current_date + 365 where id = g.id;
+  if g.expires_on is not null and g.expires_on < app.local_today(v_rest) + 365 then
+    update public.gift_cards set expires_on = app.local_today(v_rest) + 365 where id = g.id;
   end if;
   if v_kind = 'cash' or coalesce(v_drawer, false) then
     insert into public.cash_movements (restaurant_id, shift_id, direction, amount, reason, recorded_by)
@@ -13932,6 +13942,7 @@ REVOKE ALL ON FUNCTION app.items_are_liquor(uuid,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.kiosk_auto_accept(uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.licence_locked(uuid,timestamp with time zone) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.licence_state(uuid,timestamp with time zone) FROM PUBLIC;
+REVOKE ALL ON FUNCTION app.local_today(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.log_plan(uuid,text,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.monthly_charge(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.new_invite_code() FROM PUBLIC;

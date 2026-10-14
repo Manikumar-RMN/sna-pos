@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-error";
 import type { Json } from "@/lib/supabase/database.types";
 import { isYmd } from "@/lib/format";
 import { amountCents, isPayMethod, isUuid, lineCents, type CleanLine, type Fail } from "./helpers";
@@ -47,7 +48,7 @@ export async function saveSupplier(id: string | null, input: SupplierInput): Pro
       is_active: !!input.isActive,
     },
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases");
   return { ok: true, message: id ? "Supplier saved." : `${input.name.trim()} added.` };
 }
@@ -74,7 +75,7 @@ export async function savePurchaseOrder(input: {
     p_notes: input.notes || undefined,
     p_place: !!input.place,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases");
   const r = (data ?? {}) as { number?: string };
   return { ok: true, message: input.place ? `Order ${r.number ?? ""} sent.` : `Order ${r.number ?? ""} saved as a draft.` };
@@ -85,7 +86,7 @@ export async function setPurchaseOrderStatus(id: string, action: "order" | "canc
   if (!isUuid(id)) return { ok: false, error: "Purchase order not found." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("set_purchase_order_status", { p_id: id, p_action: action });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases");
   const number = ((data ?? {}) as { number?: string }).number ?? "";
   return {
@@ -159,7 +160,7 @@ export async function receiveGoods(input: {
     p_payment: payment,
     p_client_ref: input.clientRef,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases");
   revalidatePath("/stock");
   if (payment) revalidatePath("/shift");
@@ -198,7 +199,7 @@ export async function paySupplier(input: {
     p_from_till: input.method === "cash" && !!input.fromTill,
     p_client_ref: input.clientRef,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases");
   revalidatePath("/shift");
   const r = (data ?? {}) as { amount?: number | string; balance?: number | string };
@@ -216,7 +217,7 @@ export async function undoSupplierPayment(paymentId: string, reason: string): Pr
   if (why.length < 3) return { ok: false, error: "Write a short reason for undoing the payment." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("undo_supplier_payment", { p_payment_id: paymentId, p_reason: why });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases");
   revalidatePath("/shift");
   const r = (data ?? {}) as { amount?: number | string; balance?: number | string; number?: string };
@@ -229,7 +230,7 @@ export async function cancelGoodsReceipt(id: string, reason: string): Promise<Ca
   if (why.length < 3) return { ok: false, error: "Write a short reason for cancelling the receipt." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("cancel_goods_receipt", { p_id: id, p_reason: why });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases");
   revalidatePath("/stock");
   const r = (data ?? {}) as { number?: string; cost_not_restored?: unknown };

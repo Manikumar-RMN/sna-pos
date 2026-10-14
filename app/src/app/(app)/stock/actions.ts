@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-error";
 import type { Json } from "@/lib/supabase/database.types";
 
 export type StockResult = { ok: true; message?: string } | { ok: false; error: string };
@@ -24,7 +25,7 @@ export async function saveIngredient(input: {
     p_reorder: input.reorder,
     p_category: (input.category ?? "").trim().slice(0, 40),
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/stock");
   return { ok: true, message: input.id ? "Ingredient saved." : `${input.name} added.` };
 }
@@ -32,7 +33,7 @@ export async function saveIngredient(input: {
 export async function saveRecipe(productId: string, lines: { ingredient_id: string; qty: number }[]): Promise<StockResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("save_recipe", { p_product_id: productId, p_lines: lines as unknown as Json });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/stock");
   return { ok: true, message: "Recipe saved. Sales now use up these ingredients." };
 }
@@ -46,7 +47,7 @@ export async function recordStock(input: { ingredientId: string; kind: "purchase
     p_unit_cost: input.unitCost ?? undefined,
     p_note: input.note || undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/stock");
   const r = (data ?? {}) as { stock?: number };
   return { ok: true, message: `Saved. Stock now ${Number(r.stock ?? 0).toFixed(2)}.` };

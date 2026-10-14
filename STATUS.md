@@ -254,3 +254,9 @@ the guest QR menu showed the plain price instead of the offer price; a booking c
 App changes: gift-card history labels the new "void" entry; Pre-orders tells the cashier how much to hand back.
 
 Rebuild check re-run through 116: identical (3,093 objects).
+
+## Two small gaps closed (15 Oct 2026)
+- Table-rule errors (negative cost, party of 500, wrong unit...) now show a plain sentence instead of the raw database text: `app/src/lib/db-error.ts`, used by the Stock, Purchases, Loyalty, Reservations, Deliveries, Pre-orders and guest-QR actions (4 unit tests).
+  Not yet applied to other screens (menu, settings, reports...). App code: needs deploying.
+- Gift-card expiry uses the restaurant's calendar date: **migration 117, applied to live** (3 time-zone tests; the Kiritimati one fails without it). Product batches (batch_add / batches_list...) still use the database date.
+- All 142 database tests and 32 unit tests pass; rebuild check through 117 identical (3,095 objects).
