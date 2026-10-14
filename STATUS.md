@@ -59,6 +59,11 @@ competitor's restaurant POS site — **not to be copied in design, copy or brand
 - 23 Sep 2026: **Design system resolved** — two competing themes reduced to one.
 - 23 Sep 2026: **Billing screen PRD written**, replacing the bullet-list UX spec.
 - 23 Sep 2026: Name applied throughout as **SNA POS**.
+- 14 Oct 2026: **Migrations 112/113 NOT yet on live.** Writes from the assistant's Supabase connection timed out
+  four times (reads work); live was checked after each and is unchanged (48 tables writable, history has no 112/113).
+  To finish: paste `supabase/apply_112_113_on_live.sql` into the Supabase SQL editor and run it once (transactional,
+  safe to repeat; tested on a scratch rebuild). Then confirm with the two check queries at the bottom of that file.
+  Also save the PIN pepper per `supabase/RECOVERY.md` step 0.
 - 14 Oct 2026: **Review fixes.** (1) A bill the server refuses no longer blocks the offline queue:
   after 3 refusals it moves to a "stuck" list on the device (visible banner, Save a copy, Try again).
   (2) First automated tests (26): the bill calculator against 16 results from the live database function,
