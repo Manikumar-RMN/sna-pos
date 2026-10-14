@@ -59,22 +59,22 @@ competitor's restaurant POS site — **not to be copied in design, copy or brand
 - 23 Sep 2026: **Design system resolved** — two competing themes reduced to one.
 - 23 Sep 2026: **Billing screen PRD written**, replacing the bullet-list UX spec.
 - 23 Sep 2026: Name applied throughout as **SNA POS**.
-- 14 Oct 2026: **Migrations 112/113 NOT yet on live.** Writes from the assistant's Supabase connection timed out
-  four times (reads work); live was checked after each and is unchanged (48 tables writable, history has no 112/113).
-  To finish: paste `supabase/apply_112_113_on_live.sql` into the Supabase SQL editor and run it once (transactional,
-  safe to repeat; tested on a scratch rebuild). Then confirm with the two check queries at the bottom of that file.
-  Also save the PIN pepper per `supabase/RECOVERY.md` step 0.
+- 14 Oct 2026: **Migrations 112 and 113 are on live** (run by the owner in the SQL editor; verified by the assistant).
+  History table lists both; 20 tables remain writable for signed-in users (was 48), 0 write rights left on the 28 money,
+  audit and permission tables, SELECT kept, trigger from 112 present, order/payment rows unchanged. Baseline grants refreshed;
+  `supabase/verify/verify_rebuild.sh` (001-113) is identical to live. Still to do by the owner: one real bill / payment / void
+  in the app as a smoke test, and save the PIN pepper (`supabase/RECOVERY.md` step 0).
 - 14 Oct 2026: **Review fixes.** (1) A bill the server refuses no longer blocks the offline queue:
   after 3 refusals it moves to a "stuck" list on the device (visible banner, Save a copy, Try again).
   (2) First automated tests (26): the bill calculator against 16 results from the live database function,
   5,000 random bills, and the queue rules. Run `npm test` in `app/`. (3) Removed the unused `refundBill`
-  action. (4) Migration 113 (was 112) written (NOT yet applied to live): revokes direct write rights on the money,
+  action. (4) Migration 113 (was 112) applied to live on 14 Oct: revokes direct write rights on the money,
   audit and permission tables; tested on a scratch copy built from the baseline.
   (5) **Migration history restored in git.** 67 missing files recovered from the live database's own history,
   7 files replaced where git differed from what ran (066 was an empty stub), 112 added for a function and trigger
   that were changed directly in the database. `supabase/verify/verify_rebuild.sh` replays 001-112 on a scratch
   PostgreSQL and compares with the baseline: identical (3,088 objects). Global reference data (countries, currencies,
-  modules, permissions) is reproduced by the migrations. Migration 112 was NOT recorded in Supabase's history table.
+  modules, permissions) is reproduced by the migrations. Migration 112 is now recorded in Supabase's history table.
   The renumbered grants migration is now 113.
   Still open: the offline sync function trusts the device's prices, discount and clock (it only flags).
 - 13 Oct 2026: **Live database captured in git** — `supabase/schema/03_live_baseline.sql`

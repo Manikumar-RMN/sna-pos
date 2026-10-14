@@ -26,8 +26,7 @@ The fingerprint cannot be turned back into the pepper.
 ## 2. Rebuild from git (new, empty project)
 
 1. Create a Supabase project. Enable the extensions `pg_net`, `pg_cron` and `supabase_vault` from the dashboard.
-2. Run `supabase/migrations/001` ... `112` in file-name order (or `supabase/schema/03_live_baseline.sql` alone). Do **not** run 113 on a
-   new project unless you want it; it is the grants change described in its header.
+2. Run `supabase/migrations/001` ... `113` in file-name order (or `supabase/schema/03_live_baseline.sql` alone).
 3. The migrations create a **new random** `pin_pepper`. A new, empty project has no staff yet, so nothing is lost. Set up
    the first restaurant, owner and staff as normal; their PINs are then made with the new pepper.
 4. Create the vault secrets: `select vault.create_secret('<value>', 'push_secret');` and the same for `push_url`.

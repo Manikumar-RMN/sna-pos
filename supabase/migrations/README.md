@@ -2,11 +2,11 @@
 
 `NNN_name.sql`, applied in file-name order. Files 001-111 are the 112 entries in the live database's own history
 (Supabase project `lrtoktmfspnypkgrvnzg`); `086a_` sits between 086 and 087 because it was applied between them.
-112 is already in effect live but is not recorded in that history table; 113 is not applied at all.
+112 and 113 were applied/recorded on live on 14 Oct 2026 (the history table holds a one-line summary for them; the full text is here).
 
-**These files rebuild the live database.** Run `supabase/verify/verify_rebuild.sh`: it replays 001-112 on a
+**These files rebuild the live database.** Run `supabase/verify/verify_rebuild.sh`: it replays 001-113 on a
 throw-away PostgreSQL and compares the result object by object with `supabase/schema/03_live_baseline.sql`
-(checked on 14 Oct 2026: identical, 3,088 objects). Run it after adding any migration, and re-export the baseline
+(checked on 14 Oct 2026 through 113: identical, 3,088 objects). Run it after adding any migration, and re-export the baseline
 when the live database changes.
 
 ## What is and is not rebuilt
@@ -23,7 +23,7 @@ when the live database changes.
 ## History notes
 
 - 112 was found live but in no migration (changed directly in the database); it is written here so a rebuild has it.
-- 113 revokes direct write rights on money and permission tables. NOT yet applied to live: run `supabase/apply_112_113_on_live.sql` in the Supabase SQL editor (it also records 112 and 113).
+- 113 revokes direct write rights on money and permission tables; applied to live on 14 Oct 2026.
 - 066 was an empty stub in git; the real file (clock-in/clock-out functions) is restored.
 - `086a_ai_employee_mvp_schema` created tables from another product by mistake; 088 removes them. Both are kept so history is true.
 - `070-074_optional_shifts_sessions_README.md` describes 070-074, which are now present as files.
@@ -144,5 +144,5 @@ when the live database changes.
 | `109_online_partner_updates.sql` | 20261013045222 | already in git; same code as what ran (comments or begin/commit may differ) |
 | `110_kiosk_auto_accept.sql` | 20261013045223 | already in git; same code as what ran (comments or begin/commit may differ) |
 | `111_offline_liquor_bills.sql` | 20261013045224 | already in git; same code as what ran (comments or begin/commit may differ) |
-| `112_whole_number_check_for_piece_items.sql` | not in history table | its change is already live (captured from the database) |
-| `113_revoke_direct_writes_on_money_tables.sql` | not applied | written, tested on a scratch copy |
+| `112_whole_number_check_for_piece_items.sql` | 20261014110330 | change was already live; recorded on 14 Oct 2026 |
+| `113_revoke_direct_writes_on_money_tables.sql` | 20261014110331 | applied to live on 14 Oct 2026 |
