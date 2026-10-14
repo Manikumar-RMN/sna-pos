@@ -59,6 +59,14 @@ competitor's restaurant POS site — **not to be copied in design, copy or brand
 - 23 Sep 2026: **Design system resolved** — two competing themes reduced to one.
 - 23 Sep 2026: **Billing screen PRD written**, replacing the bullet-list UX spec.
 - 23 Sep 2026: Name applied throughout as **SNA POS**.
+- 14 Oct 2026: **Review fixes.** (1) A bill the server refuses no longer blocks the offline queue:
+  after 3 refusals it moves to a "stuck" list on the device (visible banner, Save a copy, Try again).
+  (2) First automated tests (26): the bill calculator against 16 results from the live database function,
+  5,000 random bills, and the queue rules. Run `npm test` in `app/`. (3) Removed the unused `refundBill`
+  action. (4) Migration 112 written (NOT yet applied to live): revokes direct write rights on the money,
+  audit and permission tables; tested on a scratch copy built from the baseline.
+  Still open: the offline sync function trusts the device's prices, discount and clock (it only flags);
+  migrations 056, 058-060, 062, 067, 069 and 01-054 are not in git (see the baseline).
 - 13 Oct 2026: **Live database captured in git** — `supabase/schema/03_live_baseline.sql`
   (100 tables, 331 functions, RLS, policies, grants). Loaded into a fresh Postgres
   and the object counts match live. The numbered migrations in `supabase/migrations/`
