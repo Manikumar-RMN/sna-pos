@@ -253,4 +253,4 @@ voiding a bill paid with a gift card did not return the card's money; voiding di
 the guest QR menu showed the plain price instead of the offer price; a booking could be seated at another restaurant's table; a huge party gave a raw database message; a credit note could be "paid" to a gift card. Live data checked: none of these had happened yet (no voided bills, gift cards, billed pre-orders or reservations).
 App changes: gift-card history labels the new "void" entry; Pre-orders tells the cashier how much to hand back.
 
-Note: `supabase/schema/03_live_baseline.sql` was patched by hand to include 116 and `verify_rebuild.sh` (default still 115) has NOT yet been re-run against it; run `supabase/verify/verify_rebuild.sh 116` and fix any difference.
+Rebuild check re-run through 116: identical (3,093 objects).

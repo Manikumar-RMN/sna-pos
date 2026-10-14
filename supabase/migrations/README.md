@@ -4,9 +4,9 @@
 (Supabase project `lrtoktmfspnypkgrvnzg`); `086a_` sits between 086 and 087 because it was applied between them.
 112 to 115 were applied/recorded on live on 14 Oct 2026 (the history table holds a one-line summary for them; the full text is here).
 
-**These files rebuild the live database.** Run `supabase/verify/verify_rebuild.sh`: it replays 001-115 on a
+**These files rebuild the live database.** Run `supabase/verify/verify_rebuild.sh`: it replays 001-116 on a
 throw-away PostgreSQL and compares the result object by object with `supabase/schema/03_live_baseline.sql`
-(checked on 14 Oct 2026 through 115: identical, 3,090 objects). Run it after adding any migration, and re-export the baseline
+(checked on 15 Oct 2026 through 116: identical, 3,093 objects). Run it after adding any migration, and re-export the baseline
 when the live database changes.
 
 ## What is and is not rebuilt
