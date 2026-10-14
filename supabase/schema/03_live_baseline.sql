@@ -1557,7 +1557,7 @@ begin
   if tg_op = 'INSERT' then
     v_need := new.quantity;
     for b in select id, qty_left from public.product_batches
-              where branch_id = v_branch and product_id = new.product_id and qty_left > 0 and expires_on >= current_date
+              where branch_id = v_branch and product_id = new.product_id and qty_left > 0 and expires_on >= app.local_today(new.restaurant_id)
               order by expires_on, made_on, created_at for update loop
       exit when v_need <= 0;
       v_take := least(v_need, b.qty_left);
@@ -1668,8 +1668,8 @@ begin
 
     select g2.is_price_inclusive into v_incl from public.tax_groups g2 where g2.id = v_product.tax_group_id;
     select tr.id into v_rate from public.tax_rates tr
-     where tr.tax_group_id = v_product.tax_group_id and tr.valid_from <= current_date
-       and (tr.valid_to is null or tr.valid_to >= current_date)
+     where tr.tax_group_id = v_product.tax_group_id and tr.valid_from <= app.local_today(p_restaurant)
+       and (tr.valid_to is null or tr.valid_to >= app.local_today(p_restaurant))
      order by tr.valid_from desc limit 1;
     select coalesce(jsonb_agg(jsonb_build_object('name', name, 'rate', rate, 'compound', is_compound)
                               order by display_order), '[]'::jsonb)
@@ -2790,6 +2790,16 @@ begin
   end if;
   return jsonb_build_object('state', 'ok', 'ends', v_end, 'days_left', v_end - v_today, 'lock_at', v_lock_at);
 end $function$
+;
+
+CREATE OR REPLACE FUNCTION app.local_day_start(p_restaurant uuid)
+ returns timestamptz
+ language sql
+ stable security definer
+ set search_path to 'public', 'pg_temp'
+as $function$
+  select (app.local_today(p_restaurant)::timestamp) at time zone coalesce(nullif(r.timezone, ''), 'UTC') from public.restaurants r where r.id = p_restaurant
+$function$
 ;
 
 CREATE OR REPLACE FUNCTION app.local_today(p_restaurant uuid)
@@ -4502,18 +4512,18 @@ AS $function$
 declare cur public.tax_rates%rowtype; v_has boolean; v_rate uuid; c jsonb; k int := 0;
 begin
   select * into cur from public.tax_rates
-   where tax_group_id = p_group and valid_from <= current_date
-     and (valid_to is null or valid_to >= current_date)
+   where tax_group_id = p_group and valid_from <= app.local_today(p_restaurant)
+     and (valid_to is null or valid_to >= app.local_today(p_restaurant))
    order by valid_from desc limit 1 for update;
   v_has := found;
-  if v_has and cur.valid_from = current_date then
+  if v_has and cur.valid_from = app.local_today(p_restaurant) then
     update public.tax_rates set total_rate = app.effective_rate(p_comps) where id = cur.id;
     v_rate := cur.id;
     delete from public.tax_rate_components where tax_rate_id = cur.id;
   else
-    if v_has then update public.tax_rates set valid_to = current_date - 1 where id = cur.id; end if;
+    if v_has then update public.tax_rates set valid_to = app.local_today(p_restaurant) - 1 where id = cur.id; end if;
     insert into public.tax_rates (restaurant_id, tax_group_id, total_rate, valid_from)
-    values (p_restaurant, p_group, app.effective_rate(p_comps), current_date) returning id into v_rate;
+    values (p_restaurant, p_group, app.effective_rate(p_comps), app.local_today(p_restaurant)) returning id into v_rate;
   end if;
   for c in select * from jsonb_array_elements(coalesce(p_comps, '[]'::jsonb)) loop
     k := k + 1;
@@ -5054,7 +5064,7 @@ begin
 
   if p_action in ('orders', 'sales') then
     begin
-      v_from := coalesce((p_params->>'from')::date, current_date);
+      v_from := coalesce((p_params->>'from')::date, app.local_today(v_rest));
       v_to := coalesce((p_params->>'to')::date, v_from);
     exception when others then raise exception 'Dates must look like 2026-09-28.';
     end;
@@ -5183,14 +5193,14 @@ CREATE OR REPLACE FUNCTION public.batch_add(p_product uuid, p_qty numeric, p_exp
  SET search_path TO 'public', 'pg_temp'
 AS $function$
 declare v_user uuid := app.require_permission('order.create'); v_rest uuid := app.current_restaurant_id(); v_branch uuid := app.current_branch_id(); v uuid;
-  v_made date := coalesce(p_made_on, current_date);
+  v_made date := coalesce(p_made_on, app.local_today(v_rest));
 begin
   if not exists (select 1 from public.products where id = p_product and restaurant_id = v_rest and deleted_at is null and track_batches) then
     raise exception 'That dish is not tracked in batches. Tick "Track in batches" on the dish first.';
   end if;
   if coalesce(p_qty, 0) <= 0 or p_qty > 100000 then raise exception 'Enter how many were made.'; end if;
   if p_expires_on is null or p_expires_on < v_made then raise exception 'Best before must be on or after the day it was made.'; end if;
-  if v_made > current_date then raise exception 'The day made cannot be in the future.'; end if;
+  if v_made > app.local_today(v_rest) then raise exception 'The day made cannot be in the future.'; end if;
   insert into public.product_batches (restaurant_id, branch_id, product_id, made_on, expires_on, qty_made, qty_left, note, created_by)
   values (v_rest, v_branch, p_product, v_made, p_expires_on, round(p_qty, 3), round(p_qty, 3), nullif(left(btrim(coalesce(p_note, '')), 200), ''), v_user)
   returning id into v;
@@ -5205,7 +5215,7 @@ CREATE OR REPLACE FUNCTION public.batch_stock()
  SET search_path TO 'public', 'pg_temp'
 AS $function$
   select coalesce(jsonb_object_agg(p.id, coalesce((select sum(qty_left) from public.product_batches b
-           where b.product_id = p.id and b.branch_id = app.current_branch_id() and b.expires_on >= current_date), 0)), '{}'::jsonb)
+           where b.product_id = p.id and b.branch_id = app.current_branch_id() and b.expires_on >= app.local_today(app.current_restaurant_id())), 0)), '{}'::jsonb)
     from public.products p where p.restaurant_id = app.current_restaurant_id() and p.track_batches and p.deleted_at is null
 $function$
 ;
@@ -5239,16 +5249,16 @@ begin
   return jsonb_build_object(
     'batches', coalesce((select jsonb_agg(jsonb_build_object('id', b.id, 'product_id', b.product_id, 'product', p.name, 'made_on', b.made_on,
                  'expires_on', b.expires_on, 'qty_made', b.qty_made, 'qty_left', b.qty_left, 'wasted', b.wasted, 'note', b.note,
-                 'expired', b.expires_on < current_date) order by b.expires_on, p.name)
+                 'expired', b.expires_on < app.local_today(v_rest)) order by b.expires_on, p.name)
         from public.product_batches b join public.products p on p.id = b.product_id
        where b.branch_id = v_branch and (b.qty_left > 0 or b.created_at > now() - interval '2 days')), '[]'::jsonb),
     'dishes', coalesce((select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name,
-                 'left', coalesce((select sum(qty_left) from public.product_batches b where b.product_id = p.id and b.branch_id = v_branch and b.expires_on >= current_date), 0),
+                 'left', coalesce((select sum(qty_left) from public.product_batches b where b.product_id = p.id and b.branch_id = v_branch and b.expires_on >= app.local_today(v_rest)), 0),
                  -- sold without a batch to take from (more sold than recorded as made)
                  'short', coalesce((select sum(oi.quantity - coalesce(oi.cancelled_qty, 0)) from public.order_items oi join public.orders o on o.id = oi.order_id
-                                     where oi.product_id = p.id and o.branch_id = v_branch and oi.created_at > current_date and oi.cancelled_at is null), 0)
+                                     where oi.product_id = p.id and o.branch_id = v_branch and oi.created_at >= app.local_day_start(v_rest) and oi.cancelled_at is null), 0)
                           - coalesce((select -sum(bm.qty) from public.batch_movements bm join public.order_items oi on oi.id = bm.order_item_id join public.orders o on o.id = oi.order_id
-                                     where oi.product_id = p.id and o.branch_id = v_branch and oi.created_at > current_date), 0))
+                                     where oi.product_id = p.id and o.branch_id = v_branch and oi.created_at >= app.local_day_start(v_rest)), 0))
              order by p.name)
         from public.products p where p.restaurant_id = v_rest and p.track_batches and p.deleted_at is null), '[]'::jsonb));
 end $function$
@@ -6045,7 +6055,7 @@ begin
   insert into public.tax_groups (restaurant_id, name, is_price_inclusive)
   values (v_rest, left(trim(p_name), 60), false) returning id into v_group;
   insert into public.tax_rates (restaurant_id, tax_group_id, total_rate, valid_from)
-  values (v_rest, v_group, v_r, current_date) returning id into v_rate;
+  values (v_rest, v_group, v_r, app.local_today(v_rest)) returning id into v_rate;
   perform app.write_tax_components(v_rest, v_rate, v_r);
   perform app.audit('tax.group_create', 'tax_groups', v_group,
     jsonb_build_object('name', trim(p_name), 'rate', v_r));
@@ -7210,7 +7220,7 @@ begin
       'comps', coalesce((select jsonb_agg(jsonb_build_object('name', t.name, 'rate', t.rate, 'compound', t.is_compound) order by t.display_order)
                            from public.tax_rate_components t
                           where t.tax_rate_id = (select tr.id from public.tax_rates tr where tr.tax_group_id = p.tax_group_id
-                                                   and tr.valid_from <= current_date and (tr.valid_to is null or tr.valid_to >= current_date)
+                                                   and tr.valid_from <= app.local_today(v_rest) and (tr.valid_to is null or tr.valid_to >= app.local_today(v_rest))
                                                  order by tr.valid_from desc limit 1)
                             and t.applies_when in ('always', 'intra_region')), '[]'::jsonb),
       'groups', coalesce((select jsonb_agg(jsonb_build_object('id', mg.id, 'name', mg.name,
@@ -9698,6 +9708,36 @@ begin
 end $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.set_company_timezone(p_timezone text)
+ returns jsonb
+ language plpgsql
+ security definer
+ set search_path to 'public', 'pg_temp'
+as $function$
+declare
+  v_user uuid := app.require_permission('settings.manage');
+  v_rest uuid := app.current_restaurant_id();
+  v_tz text := btrim(coalesce(p_timezone, ''));
+  v_old text;
+begin
+  if v_tz = '' or v_tz !~ '^([A-Za-z_]+/[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)?|UTC)$' or v_tz ~ '^(posix|right|SystemV)/'
+     or not exists (select 1 from pg_timezone_names n where n.name = v_tz) then
+    raise exception 'Choose a time zone from the list.';
+  end if;
+  select timezone into v_old from public.restaurants where id = v_rest for update;
+  if v_old = v_tz and not exists (select 1 from public.branches b where b.restaurant_id = v_rest and b.timezone <> v_tz) then
+    return jsonb_build_object('timezone', v_tz, 'changed', false);
+  end if;
+  if exists (select 1 from public.shifts s where s.restaurant_id = v_rest and s.status = 'open') then
+    raise exception 'Close the open shift on every outlet before changing the time zone, so that no bill falls on the wrong day.';
+  end if;
+  update public.restaurants set timezone = v_tz where id = v_rest;
+  update public.branches set timezone = v_tz where restaurant_id = v_rest and timezone <> v_tz;
+  perform app.audit('company.timezone', 'restaurants', v_rest, jsonb_build_object('timezone', v_tz), jsonb_build_object('timezone', v_old));
+  return jsonb_build_object('timezone', v_tz, 'changed', true, 'was', v_old);
+end $function$
+;
+
 CREATE OR REPLACE FUNCTION public.set_current_outlet(p_branch uuid, p_all boolean DEFAULT false)
  RETURNS void
  LANGUAGE plpgsql
@@ -10033,21 +10073,21 @@ begin
   if not found then raise exception 'Tax group not found.'; end if;
 
   select * into cur from public.tax_rates
-   where tax_group_id = g.id and valid_from <= current_date
-     and (valid_to is null or valid_to >= current_date)
+   where tax_group_id = g.id and valid_from <= app.local_today(v_rest)
+     and (valid_to is null or valid_to >= app.local_today(v_rest))
    order by valid_from desc limit 1 for update;
   v_has := found;
   if v_has and cur.total_rate = v_r then return; end if;
 
-  if v_has and cur.valid_from = current_date then
+  if v_has and cur.valid_from = app.local_today(v_rest) then
     update public.tax_rates set total_rate = v_r where id = cur.id;
     v_rate := cur.id;
   else
     if v_has then
-      update public.tax_rates set valid_to = current_date - 1 where id = cur.id;
+      update public.tax_rates set valid_to = app.local_today(v_rest) - 1 where id = cur.id;
     end if;
     insert into public.tax_rates (restaurant_id, tax_group_id, total_rate, valid_from)
-    values (v_rest, g.id, v_r, current_date) returning id into v_rate;
+    values (v_rest, g.id, v_r, app.local_today(v_rest)) returning id into v_rate;
   end if;
   perform app.write_tax_components(v_rest, v_rate, v_r);
 
@@ -13943,6 +13983,7 @@ REVOKE ALL ON FUNCTION app.kiosk_auto_accept(uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.licence_locked(uuid,timestamp with time zone) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.licence_state(uuid,timestamp with time zone) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.local_today(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION app.local_day_start(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.log_plan(uuid,text,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.monthly_charge(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.new_invite_code() FROM PUBLIC;
@@ -14447,6 +14488,9 @@ GRANT EXECUTE ON FUNCTION set_report_schedule_active(uuid,boolean) TO service_ro
 REVOKE ALL ON FUNCTION set_reservation_status(uuid,text,uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION set_reservation_status(uuid,text,uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION set_reservation_status(uuid,text,uuid) TO service_role;
+REVOKE ALL ON FUNCTION set_company_timezone(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION set_company_timezone(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION set_company_timezone(text) TO service_role;
 REVOKE ALL ON FUNCTION set_second_language(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION set_second_language(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION set_second_language(text) TO service_role;

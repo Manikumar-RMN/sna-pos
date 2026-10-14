@@ -3,17 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { clockIn, clockOut, fixEntry } from "./actions";
+import { fromZonedInput, toZonedInput } from "@/lib/format";
 
 const show = (iso: string | null, tz: string) =>
   iso ? new Date(iso).toLocaleString("en-IN", { timeZone: tz, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
-
-/** "YYYY-MM-DDTHH:mm" for a datetime-local field, in this device's time. */
-function local(iso: string | null) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-}
 
 export function ClockButton({ clockedInAt, timezone, name }: { clockedInAt: string | null; timezone: string; name: string }) {
   const router = useRouter();
@@ -54,8 +47,8 @@ export function EntryRow({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
-  const [inAt, setIn] = useState(local(entry.clockIn));
-  const [outAt, setOut] = useState(local(entry.clockOut));
+  const [inAt, setIn] = useState(toZonedInput(entry.clockIn, timezone));
+  const [outAt, setOut] = useState(toZonedInput(entry.clockOut, timezone));
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -89,7 +82,7 @@ export function EntryRow({
                 disabled={pending}
                 onClick={() =>
                   start(async () => {
-                    const r = await fixEntry(entry.id, new Date(inAt).toISOString(), outAt ? new Date(outAt).toISOString() : null, reason);
+                    const r = await fixEntry(entry.id, fromZonedInput(inAt, timezone), outAt ? fromZonedInput(outAt, timezone) : null, reason);
                     if (!r.ok) return setError(r.error);
                     setEditing(false);
                     router.refresh();

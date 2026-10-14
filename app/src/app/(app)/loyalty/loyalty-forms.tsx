@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { money } from "@/lib/format";
 import { checkGiftCard, giftCardHistory, payBackGiftCard, saveLoyaltyRules, sellGiftCard, topUpGiftCard, type CardEntry } from "./actions";
 
+import { useTz } from "../tz";
 export function LoyaltyRules({ currency, initial }: { currency: string; initial: { spend: number; value: number; min: number; saved: boolean } }) {
   const [spend, setSpend] = useState(String(initial.spend));
   const [value, setValue] = useState(String(initial.value));
@@ -49,6 +50,7 @@ export function LoyaltyRules({ currency, initial }: { currency: string; initial:
 }
 
 export function GiftCardDesk({ currency, methods, canPayBack = false }: { currency: string; methods: { id: string; name: string }[]; canPayBack?: boolean }) {
+  const tz = useTz();
   const [value, setValue] = useState("");
   const [method, setMethod] = useState(methods[0]?.id ?? "");
   const [phone, setPhone] = useState("");
@@ -184,7 +186,7 @@ export function GiftCardDesk({ currency, methods, canPayBack = false }: { curren
                 {card.entries.map((e, i) => (
                   <li key={i} className="flex justify-between gap-2">
                     <span>
-                      {new Date(e.at).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })} · {kindLabel[e.kind]}
+                      {new Date(e.at).toLocaleString("en-IN", { timeZone: tz, dateStyle: "short", timeStyle: "short" })} · {kindLabel[e.kind]}
                       {e.bill ? ` · ${e.bill}` : ""}
                     </span>
                     <span className="tabular-nums">{Number(e.amount) > 0 ? "+" : "−"}{m(Math.abs(Number(e.amount)))}</span>

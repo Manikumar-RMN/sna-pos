@@ -11,6 +11,7 @@ import { OutletSwitcher, type OutletInfo } from "./outlet/outlet-switcher";
 import { cookies } from "next/headers";
 import { isLang, type LangCode } from "@/lib/i18n";
 import { Dual, LangProvider } from "./lang";
+import { TzProvider } from "./tz";
 import { getLicence, licenceDate } from "@/lib/licence";
 import { LicenceGate, LicenceNotice } from "./licence-notice";
 import { SNA_CONTACT_EMAIL } from "@/lib/sna-contact";
@@ -120,6 +121,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     );
 
   return (
+    <TzProvider timezone={user.timezone}>
     <LangProvider lang={lang}>
     <div className="min-h-screen md:flex md:gap-3 md:p-3">
       {/* Tablet and desktop: green icon rail */}
@@ -196,5 +198,6 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       </div>
     </div>
     </LangProvider>
+    </TzProvider>
   );
 }

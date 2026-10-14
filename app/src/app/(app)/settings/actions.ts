@@ -313,6 +313,14 @@ export async function clearCounterLock(deviceId: string): Promise<Result> {
   return done("PIN lock cleared. Staff can unlock that tablet again.");
 }
 
+/** The restaurant's time zone (all outlets). Every date and time on every screen follows it. */
+export async function setCompanyTimezone(timezone: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_company_timezone", { p_timezone: timezone });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  return done("Time zone saved. Every screen now follows it.");
+}
+
 /** The restaurant's second language, shown under the English words on every device ("" = none). */
 export async function setSecondLanguage(lang: string): Promise<Result> {
   if (lang !== "" && !isLang(lang)) return { ok: false, error: "Unknown language." };

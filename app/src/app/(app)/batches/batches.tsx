@@ -6,20 +6,22 @@ import { useRouter } from "next/navigation";
 import { ConfirmButton } from "../settings/confirm-button";
 import { addBatch, writeOffBatch } from "./actions";
 
+import { useTz } from "../tz";
+import { addDays, todayIn } from "@/lib/format";
 export type BatchData = {
   batches: { id: string; product_id: string; product: string; made_on: string; expires_on: string; qty_made: number; qty_left: number; wasted: number; note: string | null; expired: boolean }[];
   dishes: { id: string; name: string; left: number; short: number }[];
 };
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
 const nice = (s: string) => new Date(s + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 
 export function Batches({ data }: { data: BatchData }) {
   const router = useRouter();
   const [productId, setProductId] = useState(data.dishes[0]?.id ?? "");
   const [qty, setQty] = useState("");
-  const [madeOn, setMadeOn] = useState(iso(new Date()));
-  const [expires, setExpires] = useState(iso(new Date(Date.now() + 2 * 86400000)));
+  const tz = useTz();
+  const [madeOn, setMadeOn] = useState(todayIn(tz));
+  const [expires, setExpires] = useState(addDays(todayIn(tz), 2));
   const [note, setNote] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();

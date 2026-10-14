@@ -20,6 +20,7 @@ import {
 } from "./actions";
 import { ConfirmButton } from "./confirm-button";
 
+import { useTz } from "../tz";
 function useRunner() {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -860,6 +861,7 @@ export function CountersForm({
   canEdit: boolean;
   isThisACounter: boolean;
 }) {
+  const tz = useTz();
   const { pending, msg, run } = useRunner();
   const [name, setName] = useState(`Counter ${devices.length + 1}`);
   const [confirm, setConfirm] = useState(false);
@@ -882,7 +884,7 @@ export function CountersForm({
             <span>
               <b>{d.name}</b>
               <span className="ml-2 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-                {d.lastSeen ? `last unlocked ${new Date(d.lastSeen).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}` : "not used yet"}
+                {d.lastSeen ? `last unlocked ${new Date(d.lastSeen).toLocaleString("en-IN", { timeZone: tz, dateStyle: "medium", timeStyle: "short" })}` : "not used yet"}
               </span>
             </span>
             {canEdit && (

@@ -142,3 +142,21 @@ export const stateStyle: Record<string, { label: string; bg: string; fg: string 
   refunded: { label: "Refunded", bg: "var(--color-ground)", fg: "var(--color-ink-2)" },
   "part-refunded": { label: "Part refunded", bg: "var(--color-ground)", fg: "var(--color-ink-2)" },
 };
+
+/** "YYYY-MM-DDTHH:mm" for a datetime-local field, showing a moment as the wall clock of `tz`. */
+export function toZonedInput(iso: string | null | undefined, tz: string): string {
+  if (!iso) return "";
+  const p = new Intl.DateTimeFormat("en-CA", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).formatToParts(new Date(iso));
+  const g = (t: string) => p.find((x) => x.type === t)?.value ?? "00";
+  return `${g("year")}-${g("month")}-${g("day")}T${g("hour")}:${g("minute")}`;
+}
+
+/** The moment (ISO) that the wall clock `value` ("YYYY-MM-DDTHH:mm") shows in `tz`. */
+export function fromZonedInput(value: string, tz: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
+  if (!m) return new Date(value).toISOString();
+  const guess = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]));
+  let t = guess.getTime() - tzOffsetMs(guess, tz);
+  t = guess.getTime() - tzOffsetMs(new Date(t), tz); // once more, in case a clock change sits between
+  return new Date(t).toISOString();
+}

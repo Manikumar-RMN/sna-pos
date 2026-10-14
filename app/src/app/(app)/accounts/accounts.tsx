@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import { saveAccount, settleAccount, statement, type Statement } from "./actions";
 
+import { useTz } from "../tz";
+import { todayIn } from "@/lib/format";
 export type Account = { id: string; name: string; phone: string | null; company: string | null; limit: number | null; balance: number; last: string | null };
 type Method = { id: string; name: string; kind: string };
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export function Accounts({ accounts, methods, currency, canManage, canPay }: { accounts: Account[]; methods: Method[]; currency: string; canManage: boolean; canPay: boolean }) {
   const m = (n: number) => money(n, currency);
@@ -218,9 +219,10 @@ function SettleDialog({ account, methods, currency, onClose, onSaved }: { accoun
 
 function StatementView({ account, currency, onBack }: { account: Account; currency: string; onBack: () => void }) {
   const m = (n: number) => money(n, currency);
-  const now = new Date();
-  const [from, setFrom] = useState(iso(new Date(now.getFullYear(), now.getMonth(), 1)));
-  const [to, setTo] = useState(iso(now));
+  const tz = useTz();
+  const today = todayIn(tz);
+  const [from, setFrom] = useState(today.slice(0, 8) + "01");
+  const [to, setTo] = useState(today);
   const [st, setSt] = useState<Statement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -281,7 +283,7 @@ function StatementView({ account, currency, onBack }: { account: Account; curren
               </tr>
               {st.entries.map((e, i) => (
                 <tr key={i} className="border-t" style={{ borderColor: "var(--color-line)" }}>
-                  <td className="py-1.5">{new Date(e.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</td>
+                  <td className="py-1.5">{new Date(e.at).toLocaleDateString("en-IN", { timeZone: tz, day: "numeric", month: "short" })}</td>
                   <td>
                     {e.kind === "charge" ? (
                       e.order_id ? (

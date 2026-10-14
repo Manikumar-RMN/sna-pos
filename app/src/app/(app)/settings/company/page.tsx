@@ -5,6 +5,7 @@ import { NoAccess, SectionHead } from "../section-head";
 import { cookies } from "next/headers";
 import { LanguageForm } from "./language-form";
 import { BusinessTypeCard } from "./business-type";
+import { TimezoneForm } from "./timezone-form";
 
 export default async function CompanySettings() {
   const user = await requireUser();
@@ -49,6 +50,7 @@ export default async function CompanySettings() {
           ...(isIndia ? { fssai_no: rest?.fssai_no ?? "", sac_code: rest?.sac_code ?? "996331" } : {}),
         }}
       />
+      <TimezoneForm current={user.timezone} canEdit={can(user, "settings.manage")} />
       <LanguageForm
         restaurant={user.second_language ?? ""}
         device={(await cookies()).get("sna_lang2")?.value ?? ""}

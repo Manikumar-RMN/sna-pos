@@ -7348,6 +7348,7 @@ export type Database = {
         Args: { p_id: string; p_status: string; p_table?: string }
         Returns: undefined
       }
+      set_company_timezone: { Args: { p_timezone: string }; Returns: Json }
       set_second_language: { Args: { p_lang: string }; Returns: undefined }
       set_staff_pin: {
         Args: { p_pin?: string; p_user_id: string }
