@@ -63,15 +63,19 @@ competitor's restaurant POS site — **not to be copied in design, copy or brand
   after 3 refusals it moves to a "stuck" list on the device (visible banner, Save a copy, Try again).
   (2) First automated tests (26): the bill calculator against 16 results from the live database function,
   5,000 random bills, and the queue rules. Run `npm test` in `app/`. (3) Removed the unused `refundBill`
-  action. (4) Migration 112 written (NOT yet applied to live): revokes direct write rights on the money,
+  action. (4) Migration 113 (was 112) written (NOT yet applied to live): revokes direct write rights on the money,
   audit and permission tables; tested on a scratch copy built from the baseline.
-  Still open: the offline sync function trusts the device's prices, discount and clock (it only flags);
-  migrations 056, 058-060, 062, 067, 069 and 01-054 are not in git (see the baseline).
+  (5) **Migration history restored in git.** 67 missing files recovered from the live database's own history,
+  7 files replaced where git differed from what ran (066 was an empty stub), 112 added for a function and trigger
+  that were changed directly in the database. `supabase/verify/verify_rebuild.sh` replays 001-112 on a scratch
+  PostgreSQL and compares with the baseline: identical (3,088 objects). Global reference data (countries, currencies,
+  modules, permissions) is reproduced by the migrations. Migration 112 was NOT recorded in Supabase's history table.
+  The renumbered grants migration is now 113.
+  Still open: the offline sync function trusts the device's prices, discount and clock (it only flags).
 - 13 Oct 2026: **Live database captured in git** — `supabase/schema/03_live_baseline.sql`
   (100 tables, 331 functions, RLS, policies, grants). Loaded into a fresh Postgres
   and the object counts match live. The numbered migrations in `supabase/migrations/`
-  are still incomplete (46 of ~111 files); this file is the source of truth until
-  they are backfilled. It holds no data and no secrets: `app.secrets.pin_pepper` and
+  were incomplete when this was written; they were restored on 14 Oct (see below). It holds no data and no secrets: `app.secrets.pin_pepper` and
   the vault secrets `push_secret` / `push_url` must be recreated by hand on a rebuild.
 - 23 Sep 2026: **SNA POS Agent designed** — `sna-pos/agent-architecture.md`. Four
   agent jobs defined, with a hard line between what deterministic code owns (money)

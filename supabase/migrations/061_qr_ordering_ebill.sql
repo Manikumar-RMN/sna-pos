@@ -1,6 +1,9 @@
+-- Recovered from the live database's own migration history (supabase_migrations.schema_migrations):
+-- version 20260928142807, name '061_qr_ordering_ebill'. This is the SQL that actually ran.
+-- The text previously in git under this number differed from what ran (see git history before the commit that added this header).
+
 -- 061: QR table ordering (guest orders from the phone, staff accept) and the shareable e-bill (WhatsApp).
 
--- ---------- QR codes on tables ----------
 alter table public.dining_tables add column if not exists qr_token text;
 create unique index if not exists dining_tables_qr_token_uq on public.dining_tables (qr_token) where qr_token is not null;
 
@@ -9,7 +12,6 @@ language sql volatile set search_path = public, extensions, pg_temp as $$
   select translate(encode(extensions.gen_random_bytes(p_bytes), 'base64'), '+/=', '-_');
 $$;
 
--- Makes sure every active table has a QR code and returns them (for printing the QR sheet).
 create or replace function public.table_qr_codes() returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_rest uuid := app.current_restaurant_id(); v_branch uuid := app.current_branch_id();
@@ -23,7 +25,6 @@ begin
                      from public.dining_tables t where t.restaurant_id = v_rest and t.branch_id = v_branch and t.is_active), '[]'::jsonb);
 end $$;
 
--- New code for one table (the old printed QR stops working).
 create or replace function public.reset_table_qr(p_table uuid) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin
@@ -34,7 +35,6 @@ begin
   perform app.audit('table.qr_reset', 'dining_tables', p_table, '{}'::jsonb, null);
 end $$;
 
--- ---------- Guest order requests ----------
 create table if not exists public.qr_orders (
   id uuid primary key default gen_random_uuid(),
   restaurant_id uuid not null references public.restaurants(id),
@@ -61,7 +61,6 @@ revoke all on public.qr_orders from anon;
 revoke insert, update, delete on public.qr_orders from authenticated;
 grant select on public.qr_orders to authenticated;
 
--- The table behind a QR code; refuses when the code is unknown or the add-on is off.
 create or replace function app.qr_table(p_token text) returns public.dining_tables
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare t public.dining_tables%rowtype;
@@ -74,7 +73,6 @@ begin
   return t;
 end $$;
 
--- Menu for the guest's phone (no sign-in).
 create or replace function public.qr_menu(p_token text) returns jsonb
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare t public.dining_tables%rowtype := app.qr_table(p_token); r record;
@@ -112,7 +110,6 @@ begin
         ) c), '[]'::jsonb));
 end $$;
 
--- Guest sends the order. It waits for staff to accept; nothing reaches the kitchen or the bill before that.
 create or replace function public.qr_place_order(p_token text, p_items jsonb, p_guest_name text default null, p_note text default null)
 returns jsonb
 language plpgsql volatile security definer set search_path = public, pg_temp as $$
@@ -130,12 +127,11 @@ begin
   if (select count(*) from public.qr_orders q where q.dining_table_id = t.id and q.created_at > now() - interval '10 minutes') >= 8 then
     raise exception 'Too many orders from this table. Please ask the staff.';
   end if;
-  -- Keep only the fields staff billing uses; guests cannot hold items or set prices.
   select jsonb_agg(jsonb_build_object('product_id', x->>'product_id', 'qty', (x->>'qty')::int,
                                       'note', left(coalesce(x->>'note', ''), 120),
                                       'options', coalesce(case when jsonb_typeof(x->'options') = 'array' then x->'options' end, '[]'::jsonb)))
     into v_items from jsonb_array_elements(p_items) x;
-  v_in := app.bill_input(t.restaurant_id, t.branch_id, v_items, 0, null, null);  -- checks items, options, sold out
+  v_in := app.bill_input(t.restaurant_id, t.branch_id, v_items, 0, null, null);
   v_total := (app.calc_bill(v_in->'calc')->>'grand_total')::numeric;
   insert into public.qr_orders (restaurant_id, branch_id, dining_table_id, items, estimated_total, guest_name, guest_note, guest_key)
   values (t.restaurant_id, t.branch_id, t.id, v_items, v_total, nullif(left(trim(p_guest_name), 60), ''), nullif(left(trim(p_note), 200), ''), v_key)
@@ -143,14 +139,12 @@ begin
   return jsonb_build_object('request_id', v_id, 'key', v_key, 'estimated_total', v_total);
 end $$;
 
--- Guest's phone checks whether the order was accepted.
 create or replace function public.qr_order_status(p_request uuid, p_key text) returns jsonb
 language sql stable security definer set search_path = public, pg_temp as $$
   select jsonb_build_object('status', q.status, 'reason', q.reject_reason, 'estimated_total', q.estimated_total)
     from public.qr_orders q where q.id = p_request and q.guest_key = p_key;
 $$;
 
--- Staff accept: items join the table's open bill (or start a new one) and go to the kitchen.
 create or replace function public.accept_qr_order(p_id uuid) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare q public.qr_orders%rowtype; v_order uuid; v_res jsonb; v_table text;
@@ -189,11 +183,9 @@ begin
   perform app.audit('qr_order.reject', 'qr_orders', p_id, jsonb_build_object('reason', p_reason), null);
 end $$;
 
--- ---------- E-bill link (WhatsApp) ----------
 alter table public.orders add column if not exists receipt_token text;
 create unique index if not exists orders_receipt_token_uq on public.orders (receipt_token) where receipt_token is not null;
 
--- Makes (once) the private link for a bill and returns it with the customer's phone, if known.
 create or replace function public.share_bill(p_order uuid) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_tok text; v_phone text;
@@ -209,7 +201,6 @@ begin
   return jsonb_build_object('token', v_tok, 'phone', v_phone);
 end $$;
 
--- The e-bill page (no sign-in; the long random link is the key).
 create or replace function public.public_receipt(p_token text) returns jsonb
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare o public.orders%rowtype; r record;
@@ -237,7 +228,7 @@ begin
                                   'options', i.options_text, 'qty', i.quantity, 'amount', i.line_subtotal) order by i.created_at, i.id)
                         from public.order_items i where i.order_id = o.id and i.cancelled_at is null), '[]'::jsonb),
     'taxes', coalesce((select jsonb_agg(jsonb_build_object('name', x.n, 'amount', x.a) order by x.n)
-                        from (select t.component_name || ' (' || rtrim(rtrim(to_char(t.rate, 'FM990.99'), '0'), '.') || '%)' as n, sum(t.tax_amount) as a
+                        from (select t.component_name || ' (' || trim(to_char(t.rate, 'FM990.99')) || '%)' as n, sum(t.tax_amount) as a
                                 from public.order_item_taxes t where t.order_id = o.id group by 1 having sum(t.tax_amount) <> 0) x), '[]'::jsonb),
     'subtotal', o.subtotal, 'discount', o.discount_total, 'service_charge', o.service_charge,
     'rounding', o.rounding_adjustment, 'tax_included', o.tax_included, 'grand_total', o.grand_total, 'paid', o.paid_total);

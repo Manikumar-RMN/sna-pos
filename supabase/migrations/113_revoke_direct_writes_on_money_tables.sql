@@ -1,4 +1,4 @@
--- 112: Signed-in users can no longer write directly to the money, audit and security tables.
+-- 113: Signed-in users can no longer write directly to the money, audit and security tables.
 --
 -- Why: the `authenticated` role held INSERT/UPDATE/DELETE/TRUNCATE on these tables. Row Level Security
 -- already blocks the writes (these tables have no write policy), so nothing changes for the app today;

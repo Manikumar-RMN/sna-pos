@@ -1,12 +1,12 @@
--- 57: Multi-outlet — outlet switcher, per-outlet data, central menu with outlet prices,
---     reports per outlet or all outlets, outlet comparison, central kitchen stock transfer.
+-- Recovered from the live database's own migration history (supabase_migrations.schema_migrations):
+-- version 20260928103339, name '057_multi_outlet'. This is the SQL that actually ran.
+-- The text previously in git under this number differed from what ran (see git history before the commit that added this header).
 
 alter table public.users
   add column if not exists current_branch_id uuid references public.branches(id),
   add column if not exists all_outlets boolean not null default false;
 alter table public.branches add column if not exists is_central_kitchen boolean not null default false;
 
--- ---------- which outlet am I working in ----------
 create or replace function app.can_use_branch(p_branch uuid) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
   select exists (
@@ -31,7 +31,6 @@ language sql stable security definer set search_path = public, pg_temp as $$
       order by b.created_at limit 1))
 $$;
 
--- Reports: one outlet, or every outlet when the owner chose "All outlets".
 create or replace function app.report_branch() returns uuid
 language sql stable security definer set search_path = public, pg_temp as $$
   select case
@@ -71,7 +70,6 @@ begin
   update public.users set current_branch_id = p_branch, all_outlets = coalesce(p_all, false) where id = app.current_user_id();
 end $$;
 
--- Owner / manager decides which outlets each person works in.
 create or replace function public.set_user_outlets(p_user_id uuid, p_branches uuid[]) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_rest uuid := app.current_restaurant_id();
@@ -89,7 +87,6 @@ begin
   perform app.audit('user.outlets', 'users', p_user_id, jsonb_build_object('outlets', p_branches));
 end $$;
 
--- ---------- per-outlet data: people see the outlet they are working in ----------
 do $$
 declare t text;
 begin
@@ -110,7 +107,6 @@ begin
   end loop;
 end $$;
 
--- ---------- central menu, outlet prices ----------
 create table public.branch_prices (
   restaurant_id uuid not null references public.restaurants(id),
   branch_id uuid not null references public.branches(id),
@@ -156,7 +152,6 @@ end $$;
 do $$
 declare v_def text;
 begin
-  -- Bills use the outlet's price and availability when set.
   v_def := pg_get_functiondef('app.bill_input(uuid,uuid,jsonb,numeric,boolean,jsonb)'::regprocedure);
   v_def := replace(v_def, 'v_text text; g record;', 'v_text text; g record; v_bp public.branch_prices%rowtype;');
   v_def := replace(v_def, '    if not v_product.is_available then raise exception',
@@ -181,12 +176,12 @@ begin
   if position('branch_prices' in v_def) = 0 then raise exception 'sync_offline_bill patch failed'; end if;
   execute v_def;
 
-  -- Reports follow the outlet chosen (or all outlets).
   v_def := pg_get_functiondef('public.sales_report(date,date)'::regprocedure);
   v_def := replace(v_def, 'where restaurant_id = v_rest and created_at >= v_start and created_at < v_end',
                           'where restaurant_id = v_rest and app.in_scope(branch_id) and created_at >= v_start and created_at < v_end');
   v_def := replace(v_def, 'from public.refunds r where r.restaurant_id = v_rest and',
                           'from public.refunds r where r.restaurant_id = v_rest and app.in_scope((select o2.branch_id from public.orders o2 where o2.id = r.order_id)) and');
+  if position('in_scope' in v_def) = 0 then raise exception 'sales_report patch failed'; end if;
   execute v_def;
 
   v_def := pg_get_functiondef('public.settlement_report(date,date)'::regprocedure);
@@ -196,20 +191,22 @@ begin
                           'where r.restaurant_id = v_rest and app.in_scope((select o2.branch_id from public.orders o2 where o2.id = p.order_id)) and r.created_at');
   v_def := replace(v_def, 'where o.restaurant_id = v_rest and o.status = ''voided''',
                           'where o.restaurant_id = v_rest and app.in_scope(o.branch_id) and o.status = ''voided''');
+  if position('in_scope' in v_def) = 0 then raise exception 'settlement patch failed'; end if;
   execute v_def;
 
   v_def := pg_get_functiondef('public.gst_register(date,date)'::regprocedure);
   v_def := replace(v_def, 'where o.restaurant_id = v_rest and o.business_date', 'where o.restaurant_id = v_rest and app.in_scope(o.branch_id) and o.business_date');
   v_def := replace(v_def, 'cn.restaurant_id = v_rest and', 'cn.restaurant_id = v_rest and app.in_scope(cn.branch_id) and');
+  if position('in_scope' in v_def) = 0 then raise exception 'gst patch failed'; end if;
   execute v_def;
 
   v_def := pg_get_functiondef('public.accounting_journal(date,date)'::regprocedure);
   v_def := replace(v_def, 'where o.restaurant_id = v_rest and o.business_date', 'where o.restaurant_id = v_rest and app.in_scope(o.branch_id) and o.business_date');
   v_def := replace(v_def, 'cn.restaurant_id = v_rest and', 'cn.restaurant_id = v_rest and app.in_scope(cn.branch_id) and');
+  if position('in_scope' in v_def) = 0 then raise exception 'journal patch failed'; end if;
   execute v_def;
 end $$;
 
--- ---------- outlet comparison ----------
 create or replace function public.outlet_comparison(p_from date, p_to date) returns jsonb
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare v_rest uuid := app.current_restaurant_id();
@@ -231,7 +228,6 @@ begin
      group by b.id, b.name, b.code) z);
 end $$;
 
--- ---------- central kitchen ----------
 alter table public.stock_movements drop constraint stock_movements_kind_check;
 alter table public.stock_movements add constraint stock_movements_kind_check
   check (kind in ('purchase', 'sale', 'returned', 'wastage', 'count', 'adjust', 'transfer_in', 'transfer_out'));
@@ -273,7 +269,6 @@ begin
   execute v_def;
 end $$;
 
--- Owner marks which outlet is the central kitchen.
 create or replace function public.set_central_kitchen(p_branch uuid, p_on boolean) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin
@@ -284,7 +279,6 @@ begin
   perform app.audit('outlet.central_kitchen', 'branches', p_branch, jsonb_build_object('on', p_on));
 end $$;
 
--- Current outlet on the signed-in user.
 create or replace view public.v_current_user as
  select u.id as user_id, u.restaurant_id, u.full_name, u.email, u.employee_code,
         r.id as role_id, r.name as role_name, res.trading_name, res.country_code, res.currency_code, res.timezone,

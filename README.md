@@ -15,7 +15,8 @@ country. A product of **SNA.AI**.
 |---|---|
 | `supabase/schema/01_schema.sql` | The full database — 37 tables, Row Level Security, and the rules that protect the money |
 | `supabase/schema/02_agent.sql` | The SNA POS Agent: its tables and its read-only database role |
-| `supabase/schema/03_live_baseline.sql` | The live database as it stands on 13 Oct 2026 (100 tables, 331 functions, RLS, grants). Rebuilds an empty project; **not** to be run on the live one. Supersedes 01 and 02 as the source of truth |
+| `supabase/schema/03_live_baseline.sql` | The live database as it stands on 13 Oct 2026 (100 tables, 331 functions, RLS, grants), in one file. **Not** to be run on the live one. Supersedes 01 and 02 |
+| `supabase/migrations/` | All 114 migration files (001-113) in order, rebuilding the live database. See its README. `supabase/verify/verify_rebuild.sh` proves it |
 | `docs/database-explained.md` | The schema in plain language. **Read this first.** |
 | `docs/prd-billing-screen.md` | What the billing screen must do, with acceptance criteria |
 | `docs/design-system-decision.md` | Colours, type, touch targets, and which of the 80 screen mockups survive |
