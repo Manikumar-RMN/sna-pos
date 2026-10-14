@@ -58,7 +58,7 @@ export async function payBackGiftCard(code: string) {
   return { ok: true as const, code: d.code, paidBack: Number(d.paid_back) };
 }
 
-export type CardEntry = { at: string; kind: "issue" | "redeem" | "topup" | "payback"; amount: number; bill: string | null };
+export type CardEntry = { at: string; kind: "issue" | "redeem" | "topup" | "payback" | "void"; amount: number; bill: string | null };
 
 /** A card's history, newest first. */
 export async function giftCardHistory(code: string) {

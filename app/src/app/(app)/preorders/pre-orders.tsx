@@ -164,6 +164,8 @@ export function PreOrders({
                             start(async () => {
                               const r = await billPreOrder(o.id);
                               if (!r.ok) return setMsg({ ok: false, text: r.error });
+                              // The advance was more than the bill: stay here so the cashier sees how much to hand back.
+                              if (r.leftOver > 0) return setMsg({ ok: true, text: `Bill ${r.billNumber} made. The advance was ${m(r.leftOver)} more than the bill: give ${m(r.leftOver)} back to the guest. It is already written down.` });
                               router.push(`/bills/${r.orderId}`);
                             })
                           }

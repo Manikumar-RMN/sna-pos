@@ -244,3 +244,11 @@ competitor's restaurant POS site — **not to be copied in design, copy or brand
 - **Legal & Compliance Lead** → trademark search; confirm the competitor's site was
   used only as a market reference and nothing was copied; add an AI-processing
   disclosure to the privacy policy before the agent goes live.
+
+
+## Stock, purchases, loyalty, reservations, deliveries, pre-orders, QR and kiosk (checked with real actions)
+New database-level tests: `app/e2e/stock.e2e.test.ts` (27) and `app/e2e/extras.e2e.test.ts` (49); all 139 database tests pass.
+Stock and purchases passed everything. Seven real problems were found elsewhere and are fixed by **migration 116 (written, tested on a scratch database, NOT yet applied to live)**:
+voiding a bill paid with a gift card did not return the card's money; voiding did not return spent points or take back earned points; a pre-order advance larger than the bill was never handed back or recorded;
+the guest QR menu showed the plain price instead of the offer price; a booking could be seated at another restaurant's table; a huge party gave a raw database message; a credit note could be "paid" to a gift card. Live data checked: none of these had happened yet (no voided bills, gift cards, billed pre-orders or reservations).
+App changes: gift-card history labels the new "void" entry; Pre-orders tells the cashier how much to hand back.
