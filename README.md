@@ -23,6 +23,7 @@ country. A product of **SNA.AI**.
 | `docs/agent-architecture.md` | What the AI agent owns, what it must never touch, and why |
 | `docs/developer-hiring-brief.md` | Hiring the reviewer — including questions a non-developer can score |
 | `demo/sna-pos-demo.html` | A working billing demo. Open it in a browser; no build step. |
+| `app/e2e/` | 61 end-to-end tests of the money path against a throw-away database (`npm run test:e2e` in `app/`). Read its README |
 | `STATUS.md` | Current state, decisions, blockers. Start here on any new day. |
 
 ## The three rules this design exists to enforce

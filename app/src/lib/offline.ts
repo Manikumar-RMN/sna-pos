@@ -93,6 +93,8 @@ export type OfflineBill = {
   grand_total: number;
   due: number;
   calc: CalcResult;
+  /** When the menu copy this bill was priced from was taken (Snapshot.taken_at). Missing on bills queued by an older version. */
+  snapshot_at?: string;
 };
 
 const K_DEVICE = "sna.device.v1";

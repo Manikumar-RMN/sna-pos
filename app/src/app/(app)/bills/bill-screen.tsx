@@ -11,6 +11,7 @@ import { LoyaltyPanel } from "./loyalty-panel";
 import { GuestDetails } from "./guest-details";
 import { AccountPanel } from "./account-panel";
 import { byTableNumber } from "@/lib/table-order";
+import { describeOfflineFlags } from "@/lib/offline-flags";
 
 /** One bill: printable receipt, its history, and the actions the user may take. */
 export async function BillScreen({ orderId, from, splitPay = false }: { orderId: string; from: "pos" | "bills"; splitPay?: boolean }) {
@@ -53,6 +54,13 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
       : Promise.resolve({ data: null }),
   ]);
 
+  // Bills made offline: what the server noted when it checked them (managers only).
+  let offlineNotes: string[] = [];
+  if (can(user, "order.void")) {
+    const { data: fl } = await supabase.from("orders").select("offline_flags").eq("id", bill.id).maybeSingle();
+    offlineNotes = describeOfflineFlags(fl?.offline_flags);
+  }
+
   // Customer accounts (pay later), for "Charge to account" on an unpaid bill.
   const { data: accounts } = open && can(user, "payment.take") ? await supabase.rpc("accounts_list") : { data: null };
 
@@ -60,6 +68,16 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
 
   return (
     <div>
+      {offlineNotes.length > 0 && (
+        <div className="no-print card mx-auto mb-3 max-w-sm p-3 text-sm" role="alert" style={{ borderColor: "var(--color-bad)" }}>
+          <b>This bill was made offline and needed a correction:</b>
+          <ul className="mt-1 list-disc pl-5">
+            {offlineNotes.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {mergedTo && (
         <div className="no-print card mx-auto mb-3 max-w-sm p-3 text-sm">
           This bill was merged into{" "}

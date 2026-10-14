@@ -6,7 +6,7 @@ create extension if not exists pgcrypto with schema extensions;
 create extension if not exists citext with schema extensions;
 create extension if not exists "uuid-ossp" with schema extensions;
 create schema auth; create schema vault; create schema net; create schema cron;
-create function auth.uid() returns uuid language sql as 'select null::uuid';
+create function auth.uid() returns uuid language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claim.sub', true), ''), (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub'))::uuid $$;
 create function auth.role() returns text language sql as 'select null::text';
 create function auth.jwt() returns jsonb language sql as 'select null::jsonb';
 create table auth.users(id uuid primary key default gen_random_uuid(), email text, encrypted_password text, raw_user_meta_data jsonb, raw_app_meta_data jsonb, email_confirmed_at timestamptz, created_at timestamptz default now(), updated_at timestamptz default now(), phone text, aud text, role text, instance_id uuid, confirmation_token text, recovery_token text, email_change_token_new text, email_change text, last_sign_in_at timestamptz, is_sso_user boolean default false, deleted_at timestamptz, banned_until timestamptz);

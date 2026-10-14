@@ -59,6 +59,17 @@ competitor's restaurant POS site — **not to be copied in design, copy or brand
 - 23 Sep 2026: **Design system resolved** — two competing themes reduced to one.
 - 23 Sep 2026: **Billing screen PRD written**, replacing the bullet-list UX spec.
 - 23 Sep 2026: Name applied throughout as **SNA POS**.
+- 14 Oct 2026: **Offline sync hardened and the money path tested end to end.** 61 end-to-end tests (`npm run test:e2e` in `app/`,
+  see `app/e2e/README.md`) run the real database functions as owner / manager / cashier on a throw-away PostgreSQL built from the
+  migrations: tenancy, billing, shift and day close, concurrency, offline. They found that the offline-sync function trusted the
+  till: a price of 1.00 for a dosa was recorded as 1.00, a cashier's discount was accepted, and the notes it wrote were never seen
+  (the app never showed `offline_flags`; owner alerts ignored offline bills). **Migration 114** (written, tested, NOT yet on live)
+  corrects unknown prices to the real price, removes a discount without the right, reports unknown payment methods and a till clock
+  that runs ahead, and turns every flagged bill into an owner alert; the bill screen now shows the notes to managers, and the till
+  sends `snapshot_at` so a price change made while it was offline is not a false alarm. It changes exactly two functions
+  (`sync_offline_bill`, `audit_to_alert`). To apply: run the file in the Supabase SQL editor, then re-export the baseline.
+  Correction to an earlier note: the business day is always the open one, never taken from the till's clock, so an offline bill
+  cannot land in a closed day.
 - 14 Oct 2026: **Migrations 112 and 113 are on live** (run by the owner in the SQL editor; verified by the assistant).
   History table lists both; 20 tables remain writable for signed-in users (was 48), 0 write rights left on the 28 money,
   audit and permission tables, SELECT kept, trigger from 112 present, order/payment rows unchanged. Baseline grants refreshed;
