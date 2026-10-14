@@ -26,3 +26,7 @@ app/node_modules/
 app/.next/
 app/out/
 app/next-env.d.ts
+
+# browser tests
+app/.next-e2e/
+app/.tools/

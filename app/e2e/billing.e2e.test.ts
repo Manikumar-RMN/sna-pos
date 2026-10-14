@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { admin, closePool, haveDb, rpc, uuid } from "./support/db";
+import { admin, asUser, closePool, haveDb, rpc, uuid } from "./support/db";
 import { expectError, oracle } from "./support/oracle";
 import { items, makeWorld, type World } from "./support/world";
 
@@ -178,6 +178,35 @@ describe.skipIf(!haveDb())("billing: totals, payments, edits, voids and refunds"
       expect(money((await order(a.order_id)).grand_total)).toBe(money(expected.grand_total));
       expect((await order(b.order_id)).merged_into).toBe(a.order_id);
       await expectError(rpc(cashier(), "pay_order", [b.order_id, w.methods.cash, 1000]), /./);
+    });
+  });
+
+  describe("the menu the billing screen loads (v_menu, read by a signed-in cashier through the API)", () => {
+    const menu = (who: string) => asUser(who, async (q) => (await q("select id, name, price, list_price, is_available from public.v_menu order by name")).rows);
+
+    it("a signed-in cashier can read the menu with its prices", async () => {
+      const rows = await menu(cashier());
+      expect(rows.map((r) => r.name).sort()).toEqual(["Chicken Biryani", "Cola", "Masala Dosa", "Veg Thali"]);
+      for (const r of rows) {
+        const p = Object.values(w.products).find((x) => x.id === r.id)!;
+        expect(money(r.price)).toBe(money(p.price));
+        expect(money(r.list_price)).toBe(money(p.price));
+      }
+    });
+
+    it("an outlet price replaces the menu price, and an active happy-hour rule lowers it; billing charges the same price the screen shows", async () => {
+      await admin("insert into public.branch_prices (restaurant_id, branch_id, product_id, price) values ($1,$2,$3,140)", [w.restaurantId, w.branchId, w.products.dosa.id]);
+      let dosa = (await menu(cashier())).find((r) => r.id === w.products.dosa.id)!;
+      expect([money(dosa.price), money(dosa.list_price)]).toEqual([14000, 14000]);
+      const ruleId = await rpc<string>(manager(), "save_price_rule", [{ name: "Half price dosa", kind: "percent_off", value: 50, days: [1, 2, 3, 4, 5, 6, 7], start_time: "00:00", end_time: "23:59", product_ids: [w.products.dosa.id], category_ids: [] }]);
+      dosa = (await menu(cashier())).find((r) => r.id === w.products.dosa.id)!;
+      expect([money(dosa.price), money(dosa.list_price)], "menu shows the offer price; list price is unchanged").toEqual([7000, 14000]);
+      const others = (await menu(cashier())).filter((r) => r.id !== w.products.dosa.id);
+      expect(others.every((r) => money(r.price) === money(r.list_price))).toBe(true);
+      const q = await rpc(cashier(), "quote_order", [items(w, { dosa: 1 })]);
+      expect(money(q.subtotal), "the bill uses the price on the screen").toBe(7000);
+      await admin("delete from public.price_rules where id = $1", [ruleId]);
+      await admin("delete from public.branch_prices where product_id = $1", [w.products.dosa.id]);
     });
   });
 

@@ -62,7 +62,8 @@ export async function startCluster(): Promise<Cluster | null> {
     for (const k of ["tables", "functions", "sequences"])
       await c.query(`alter default privileges for role postgres in schema public grant all on ${k} to anon, authenticated, service_role`);
     const files = readdirSync(join(REPO, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort((a, b) => (a < b ? -1 : 1));
-    for (const f of files) {
+    const last = Number(process.env.E2E_LAST_MIGRATION || 9999); // lets a test run against an older database, e.g. to prove it would have caught a bug
+    for (const f of files.filter((f) => Number.parseInt(f, 10) <= last)) {
       const sql = readFileSync(join(REPO, "supabase/migrations", f), "utf8").replace(/^[ \t]*create extension if not exists (pg_net|pg_cron)[^\n]*$/gim, "");
       try { await c.query(sql); } catch (e) { throw new Error(`Migration ${f} failed: ${(e as Error).message}`); }
     }
