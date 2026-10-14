@@ -27,7 +27,7 @@ npm run dev
 it prints a line like:
 
 ```
-▲ Next.js 15.0.3
+▲ Next.js 16
 - Local: http://localhost:3000
 ```
 

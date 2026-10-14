@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { readQueue, writeQueue, type OfflineBill } from "@/lib/offline";
+import { readQueue, readStuck, writeQueue, writeStuck, type OfflineBill } from "@/lib/offline";
+import { applySyncOutcome, retryStuck } from "@/lib/offline-queue";
 import { syncOfflineBill } from "./pos/actions";
 
 /** How many times a bill's guest details are tried before they are given up. */
@@ -10,6 +11,7 @@ const GUEST_TRIES = 5;
 /** Sends bills made offline on this device as soon as the server can be reached, and shows what is waiting. */
 export function OfflineSync() {
   const [queue, setQueue] = useState<OfflineBill[]>([]);
+  const [stuck, setStuck] = useState<OfflineBill[]>([]);
   const [online, setOnline] = useState(true);
   const [note, setNote] = useState<string | null>(null);
   const busy = useRef(false);
@@ -17,6 +19,7 @@ export function OfflineSync() {
   const run = useCallback(async () => {
     const q = readQueue();
     setQueue(q);
+    setStuck(readStuck());
     if (!q.length || busy.current || !navigator.onLine) return;
     busy.current = true;
     let problem: string | null = null;
@@ -32,19 +35,24 @@ export function OfflineSync() {
         }
         // The queue is read again every time it is written: a bill made on this device while this one was
         // being sent is in the fresh copy, and must not be wiped out by an older one.
+        const out = applySyncOutcome(readQueue(), readStuck(), bill, res);
+        // A bill is only taken out of the queue once its copy in the stuck list is safely stored.
+        if (out.moved && !writeStuck(out.stuck)) {
+          problem = `Bill ${bill.number} was refused and this device's storage is full, so it stays in the queue. Free some space.`;
+          break;
+        }
+        writeQueue(out.queue);
+        setQueue(out.queue);
+        setStuck(out.stuck);
         if (res.ok) {
-          const now = readQueue().filter((b) => b.client_id !== bill.client_id);
-          writeQueue(now);
-          setQueue(now);
           if (res.guestDropped) problem = `Bill ${bill.number} was sent, but its guest details could not be saved. Add them on the bill.`;
         } else if (res.guestPending) {
-          // The bill itself is on the server; only its guest details are still to go. Count the try and carry
-          // on with the bills behind it.
-          const now = readQueue().map((b) => (b.client_id === bill.client_id ? { ...b, guest_tries: (b.guest_tries ?? 0) + 1 } : b));
-          writeQueue(now);
-          setQueue(now);
           problem = res.error ?? "Waiting to send guest details…";
-        } else {
+        } else if (res.refused) {
+          // The server said no to this bill itself. It must not hold up the bills behind it: carry on.
+          problem = `Bill ${bill.number} was refused: ${res.error ?? "unknown reason"}`;
+        }
+        if (out.stop) {
           problem = res.error ?? "A bill could not be sent.";
           break;
         }
@@ -57,6 +65,23 @@ export function OfflineSync() {
       busy.current = false;
     }
   }, []);
+
+  const retry = () => {
+    const back = retryStuck(readQueue(), readStuck());
+    writeQueue(back.queue);
+    writeStuck(back.stuck);
+    setQueue(back.queue);
+    setStuck(back.stuck);
+    run();
+  };
+  const download = () => {
+    const blob = new Blob([JSON.stringify(readStuck(), null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `sna-pos-unsent-bills-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   useEffect(() => {
     setOnline(navigator.onLine);
@@ -79,8 +104,20 @@ export function OfflineSync() {
     };
   }, [run]);
 
-  if (online && queue.length === 0 && !note) return null;
+  if (online && queue.length === 0 && !note && stuck.length === 0) return null;
   return (
+    <>
+    {stuck.length > 0 && (
+      <div className="no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm" role="alert" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
+        <span>
+          <b>{stuck.length} offline bill{stuck.length === 1 ? "" : "s"} could not be accepted by the server</b> ({stuck.map((b) => b.number).join(", ")}). They are saved on this device, not lost. Tell the owner: {stuck[0].sync_error}
+        </span>
+        <span className="flex gap-2">
+          <button className="rounded-lg border px-3 py-1 text-xs font-bold" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }} onClick={download}>Save a copy</button>
+          <button className="rounded-lg border px-3 py-1 text-xs font-bold" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }} onClick={retry}>Try again</button>
+        </span>
+      </div>
+    )}
     <div
       className="no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm"
       role="status"
@@ -103,5 +140,6 @@ export function OfflineSync() {
         </button>
       )}
     </div>
+    </>
   );
 }
