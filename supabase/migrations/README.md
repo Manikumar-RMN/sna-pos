@@ -6,7 +6,7 @@
 
 **These files rebuild the live database.** Run `supabase/verify/verify_rebuild.sh`: it replays 001-115 on a
 throw-away PostgreSQL and compares the result object by object with `supabase/schema/03_live_baseline.sql`
-(checked on 14 Oct 2026 through 115: identical, 3,089 objects). Run it after adding any migration, and re-export the baseline
+(checked on 14 Oct 2026 through 115: identical, 3,090 objects). Run it after adding any migration, and re-export the baseline
 when the live database changes.
 
 ## What is and is not rebuilt
