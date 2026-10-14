@@ -23,7 +23,7 @@ when the live database changes.
 ## History notes
 
 - 112 was found live but in no migration (changed directly in the database); it is written here so a rebuild has it.
-- 113 is written but **not applied** to live yet (revokes direct write rights on money and permission tables).
+- 113 revokes direct write rights on money and permission tables. It is applied to live by `supabase/apply_112_113_on_live.sql` (see STATUS.md).
 - 066 was an empty stub in git; the real file (clock-in/clock-out functions) is restored.
 - `086a_ai_employee_mvp_schema` created tables from another product by mistake; 088 removes them. Both are kept so history is true.
 - `070-074_optional_shifts_sessions_README.md` describes 070-074, which are now present as files.
