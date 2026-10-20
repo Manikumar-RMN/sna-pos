@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import { DishName } from "../lang";
 import { addToBill, placeOrder, type CartItem } from "../pos/actions";
+import { KotSheet } from "./kot-sheet";
+import { ReadyAlerts } from "./ready-alerts";
 import { OptionPicker, SizePicker, WeightPicker, qtyText, type ChosenOption, type MenuItem } from "../pos/pos-terminal";
 
 export type CaptainTable = {
@@ -75,6 +77,7 @@ export function Captain({
           Kitchen →
         </Link>
       </div>
+      <ReadyAlerts />
       {done && (
         <div role="status" className="mb-3 rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: "var(--color-ok-soft)", color: "var(--color-ok)" }}>
           {done}
@@ -208,6 +211,7 @@ function OrderView({
   const [picking, setPicking] = useState<MenuItem | null>(null);
   const [weighing, setWeighing] = useState<MenuItem | null>(null);
   const [showCart, setShowCart] = useState(false);
+  const [showKots, setShowKots] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const ref = useRef<string | undefined>(newRef());
@@ -302,11 +306,18 @@ function OrderView({
           </div>
         </div>
         {target.billId && (
+          <button className="text-xs font-semibold" style={{ color: "var(--color-brand)" }} onClick={() => setShowKots(true)}>
+            Sent KOTs
+          </button>
+        )}
+        {target.billId && (
           <Link href={`/bills/${target.billId}`} className="text-xs font-semibold" style={{ color: "var(--color-brand)" }}>
             Bill →
           </Link>
         )}
       </div>
+      <ReadyAlerts />
+      {showKots && target.billId && <KotSheet orderId={target.billId} billNumber={target.billNumber} onClose={() => setShowKots(false)} onChanged={() => {}} />}
 
       <input className="field mb-2" placeholder="Search the menu…" value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
       {!search.trim() && (

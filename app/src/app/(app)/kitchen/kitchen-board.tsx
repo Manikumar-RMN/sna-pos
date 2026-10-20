@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import { printedTickets, readDevicePrint, rememberPrinted } from "@/lib/device-print";
 import { kotLines, sendToRawbt } from "@/lib/rawbt";
 import { timeOnly } from "@/lib/format";
-import { claimForPrint, markPrinted, setTicketStatus } from "./actions";
+import { claimForPrint, markKotSeen, markPrinted, setTicketStatus } from "./actions";
 import { playNewTicketSound, readSoundWanted, saveSoundWanted, soundReady, soundSupported, unlockSound, watchSound } from "./sound";
 import { DishName, Dual } from "../lang";
 
 export type Ticket = {
   id: string;
   number: string;
-  status: "new" | "preparing" | "ready";
+  status: "new" | "preparing" | "ready" | "cancelled";
   createdAt: string;
   /** "Table 4", "Takeaway · Ravi", "Delivery" … */
   where: string;
@@ -21,13 +21,17 @@ export type Ticket = {
   station: string;
   printedAt: string | null;
   bill: string;
-  items: { name: string; local?: string | null; qty: number; note: string | null; cancelled: boolean }[];
+  items: { name: string; local?: string | null; qty: number; note: string | null; cancelled: boolean; changeText?: string | null }[];
+  /** A waiter changed this ticket (quantity or note) and the kitchen has not tapped "Seen" yet. */
+  changed?: boolean;
+  /** Why the waiter cancelled the whole ticket (status "cancelled"). */
+  cancelReason?: string | null;
 };
 
 /** A ticket already marked "Served" a short while ago; it can be brought back to "Ready to serve". */
 export type ServedTicket = Omit<Ticket, "status"> & { readyAt: string | null };
 
-const COLUMNS: { key: Ticket["status"]; title: string; next: "preparing" | "ready" | "served"; action: string }[] = [
+const COLUMNS: { key: "new" | "preparing" | "ready"; title: string; next: "preparing" | "ready" | "served"; action: string }[] = [
   { key: "new", title: "New", next: "preparing", action: "Start" },
   { key: "preparing", title: "Preparing", next: "ready", action: "Ready" },
   { key: "ready", title: "Ready to serve", next: "served", action: "Served" },
@@ -124,6 +128,16 @@ export function KitchenBoard({
     if (fresh.some((t) => !before.has(t.id) && (filter === "All" || t.station === filter))) playNewTicketSound();
   }, [tickets, filter, soundWanted]);
 
+  // Beep when a ticket is cancelled or changed by a waiter (not for ones already on screen when the page opened).
+  const seenAttention = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const keys = tickets.filter((t) => t.status === "cancelled" || t.changed).map((t) => `${t.id}:${t.status}:${t.changed ? "c" : ""}`);
+    const before = seenAttention.current;
+    seenAttention.current = new Set(keys);
+    if (!before || !soundWanted) return;
+    if (keys.some((k) => !before.has(k))) playNewTicketSound();
+  }, [tickets, soundWanted]);
+
   // This device prints new tickets for its stations (Settings → Printers).
   useEffect(() => {
     if (myStations.length === 0 || busyPrinting.current) return;
@@ -192,11 +206,23 @@ export function KitchenBoard({
     [tickets, served, myStations],
   );
   const shown = filter === "All" ? tickets : tickets.filter((t) => t.station === filter);
+  const cancelledShown = shown.filter((t) => t.status === "cancelled");
   const servedShown = filter === "All" ? served : served.filter((t) => t.station === filter);
   const soundOn = soundWanted && soundLive;
   // Printed ticket: dishes about 25% larger when the owner chose large kitchen-ticket text.
   const itemPx = largePrint ? 20 : 16;
   const subPx = largePrint ? 18 : 14;
+
+  function seen(id: string) {
+    setBusyId(id);
+    setError(null);
+    start(async () => {
+      const res = await markKotSeen(id);
+      if (!res.ok) setError(res.error ?? "Could not save that.");
+      setBusyId(null);
+      router.refresh();
+    });
+  }
 
   function move(id: string, next: "preparing" | "ready" | "served") {
     setBusyId(id);
@@ -239,7 +265,8 @@ export function KitchenBoard({
       <div id="kot-print" aria-hidden="true" className="pointer-events-none fixed left-[-9999px] top-0" style={{ width: `${printMm}mm`, color: "#000", background: "#fff" }}>
         {printing.map((t) => (
           <div key={t.id} className="kot-page p-2 font-mono">
-            <div className="text-center text-[18px] font-bold">KOT · {t.station}</div>
+            <div className="text-center text-[18px] font-bold">{t.status === "cancelled" ? "CANCELLED KOT" : t.changed ? "CHANGED KOT" : "KOT"} · {t.station}</div>
+            {t.status === "cancelled" && t.cancelReason && <div className="text-center text-[13px] font-bold">Do not make. {t.cancelReason}</div>}
             {t.token != null && <div className="text-center text-[28px] font-bold leading-tight">Token {t.token}</div>}
             <div className="flex justify-between gap-2 text-[14px] font-bold">
               <span>{t.where}</span>
@@ -258,6 +285,7 @@ export function KitchenBoard({
                   </span>
                 )}
                 {i.cancelled && " — CANCELLED"}
+                {i.changeText && !i.cancelled && <div className="pl-5 font-bold" style={{ fontSize: subPx }}>** {i.changeText}</div>}
                 {i.note && (
                   <div className="pl-5 font-bold" style={{ fontSize: subPx }}>
                     ** {i.note}
@@ -322,6 +350,40 @@ export function KitchenBoard({
           {error}
         </p>
       )}
+      {cancelledShown.length > 0 && (
+        <section className="mb-4 space-y-2" aria-label="Cancelled tickets">
+          {cancelledShown.map((t) => (
+            <div key={t.id} role="alert" className="rounded-xl border-2 p-3" style={{ borderColor: "var(--color-bad)", background: "var(--color-bad-soft)" }}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-extrabold" style={{ color: "var(--color-bad)" }}>
+                    CANCELLED — do not make · {t.where || t.number}
+                  </div>
+                  <div className="text-[11px]" style={{ color: "var(--color-ink-2)" }}>
+                    {t.number} · {t.station}
+                    {t.cancelReason ? ` · ${t.cancelReason}` : ""}
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <button className="btn border text-sm" style={{ borderColor: "var(--color-bad)", background: "var(--color-surface)", color: "var(--color-bad)" }} onClick={() => setPrinting([t])}>
+                    Print
+                  </button>
+                  <button className="btn btn-primary text-sm" disabled={pending && busyId === t.id} onClick={() => seen(t.id)}>
+                    {pending && busyId === t.id ? "…" : "Seen"}
+                  </button>
+                </div>
+              </div>
+              <ul className="mt-1 text-sm" style={{ color: "var(--color-ink-2)" }}>
+                {t.items.map((i, idx) => (
+                  <li key={idx} style={{ textDecoration: "line-through" }}>
+                    {i.qty}× <DishName name={i.name} local={i.local} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      )}
       <div className="grid gap-4 md:grid-cols-3">
         {COLUMNS.map((col) => {
           const list = shown.filter((t) => t.status === col.key);
@@ -340,7 +402,15 @@ export function KitchenBoard({
                   const age = minutesAgo(t.createdAt, now);
                   const late = col.key !== "ready" && age >= 15;
                   return (
-                    <div key={t.id} className="card p-3" style={late ? { borderColor: "var(--color-bad)" } : undefined}>
+                    <div key={t.id} className="card p-3" style={t.changed ? { borderColor: "var(--color-warn)", borderWidth: 2 } : late ? { borderColor: "var(--color-bad)" } : undefined}>
+                      {t.changed && (
+                        <div className="-mx-1 -mt-1 mb-2 flex items-center justify-between gap-2 rounded-lg px-2 py-1.5" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }} role="alert">
+                          <span className="text-xs font-extrabold">CHANGED by the waiter</span>
+                          <button className="rounded-md border px-2.5 py-1 text-xs font-bold" style={{ borderColor: "var(--color-warn)", background: "var(--color-surface)" }} disabled={pending && busyId === t.id} onClick={() => seen(t.id)}>
+                            Seen
+                          </button>
+                        </div>
+                      )}
                       <div className="mb-2 flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           {t.token != null && <div className="font-display text-2xl font-bold leading-tight">Token {t.token}</div>}
@@ -363,6 +433,11 @@ export function KitchenBoard({
                           <li key={idx} style={i.cancelled ? { textDecoration: "line-through", color: "var(--color-bad)" } : undefined}>
                             <span className="font-bold tabular-nums">{i.qty}×</span> <DishName name={i.name} local={i.local} />
                             {i.cancelled && <span className="ml-1 text-[11px] font-bold no-underline">CANCELLED</span>}
+                            {i.changeText && !i.cancelled && (
+                              <div className="text-xs font-bold" style={{ color: "var(--color-warn)" }}>
+                                {i.changeText}
+                              </div>
+                            )}
                             {i.note && (
                               <div className="text-xs" style={{ color: "var(--color-warn)" }}>
                                 {i.note}

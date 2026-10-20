@@ -62,7 +62,12 @@ type Product = {
   /** Ready-made goods counted in batches (made on, best before). */
   track_batches?: boolean;
 };
-type TaxGroup = { id: string; name: string };
+type TaxGroup = { id: string; name: string; rate?: number | null };
+/** "VAT" becomes "VAT (22%)"; a name that already shows its percentage ("Food 5%") is left alone. */
+function taxLabel(g: TaxGroup): string {
+  if (g.rate == null || /\d\s*%/.test(g.name)) return g.name;
+  return `${g.name} (${Number(g.rate)}%)`;
+}
 export type OptionGroupView = {
   id: string;
   name: string;
@@ -122,6 +127,10 @@ export function MenuManager({
   const mains = tree.filter((c) => c.depth === 0);
   const uncategorised = dishes.filter((p) => !categories.some((c) => c.id === p.category_id));
   const sizingDish = sizingId ? dishes.find((p) => p.id === sizingId) ?? null : null;
+  const taxOf = (id: string) => {
+    const g = taxGroups.find((t) => t.id === id);
+    return g ? taxLabel(g) : undefined;
+  };
   const groupNames = (productId: string) =>
     (productGroups[productId] ?? [])
       .map((g) => optionGroups.find((x) => x.id === g)?.name)
@@ -196,6 +205,7 @@ export function MenuManager({
                   key={p.id}
                   product={p}
                   currency={currency}
+                  tax={taxOf(p.tax_group_id)}
                   optionNames={groupNames(p.id)}
                   sizes={sizesOf(p.id)}
                   onSizes={() => setSizingId(p.id)}
@@ -213,7 +223,7 @@ export function MenuManager({
             Other items
           </div>
           {uncategorised.map((p) => (
-            <ProductRow key={p.id} product={p} currency={currency} optionNames={groupNames(p.id)} sizes={sizesOf(p.id)} onSizes={() => setSizingId(p.id)} onEdit={() => setEditing(p)} />
+            <ProductRow key={p.id} product={p} currency={currency} tax={taxOf(p.tax_group_id)} optionNames={groupNames(p.id)} sizes={sizesOf(p.id)} onSizes={() => setSizingId(p.id)} onEdit={() => setEditing(p)} />
           ))}
         </div>
       )}
@@ -371,9 +381,12 @@ function ProductRow({
   sizes,
   onSizes,
   onEdit,
+  tax,
 }: {
   product: Product;
   currency: string;
+  /** Tax group with its percentage, e.g. "GST 5%" or "VAT (22%)". */
+  tax?: string;
   optionNames: string;
   sizes: Product[];
   onSizes: () => void;
@@ -457,6 +470,11 @@ function ProductRow({
         {optionNames && (
           <div className="truncate text-[11px]" style={{ color: "var(--color-ink-3)" }}>
             Options: {optionNames}
+          </div>
+        )}
+        {tax && !product.is_charge && (
+          <div className="truncate text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+            Tax: {tax}
           </div>
         )}
       </div>
@@ -767,7 +785,7 @@ function ProductModal({
             <label className="mb-1.5 block text-sm font-semibold">Tax group</label>
             <select name="tax_group_id" defaultValue={product?.tax_group_id ?? (taxGroups[0]?.id ?? "")} className="field" required>
               {taxGroups.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+                <option key={t.id} value={t.id}>{taxLabel(t)}</option>
               ))}
             </select>
           </div>

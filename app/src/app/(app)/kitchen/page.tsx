@@ -4,7 +4,7 @@ import { orderTypeLabel } from "@/lib/format";
 import { billFormat, paperWidth } from "@/lib/bill-format";
 import { KitchenBoard, type ServedTicket, type Ticket } from "./kitchen-board";
 
-const TICKET_COLUMNS = "id, order_id, ticket_number, station, status, created_at, started_at, ready_at, printed_at";
+const TICKET_COLUMNS = "id, order_id, ticket_number, station, status, created_at, started_at, ready_at, printed_at, changed_at, kitchen_seen_at, cancel_reason";
 
 export default async function KitchenPage() {
   const user = await requireUser();
@@ -12,7 +12,7 @@ export default async function KitchenPage() {
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const servedSince = new Date(Date.now() - 2 * 3600 * 1000).toISOString();
 
-  const [{ data: tickets }, { data: servedRows }, { data: settings }] = await Promise.all([
+  const [{ data: tickets }, { data: servedRows }, { data: settings }, { data: cancelledRows }] = await Promise.all([
     supabase
       .from("kitchen_tickets")
       .select(TICKET_COLUMNS)
@@ -28,18 +28,26 @@ export default async function KitchenPage() {
       .order("ready_at", { ascending: false })
       .limit(20),
     supabase.from("branch_settings").select("bill_format").eq("branch_id", user.branch_id).maybeSingle(),
+    // Cancelled by the waiter and not yet acknowledged: shown in red until the kitchen taps "Seen".
+    supabase
+      .from("kitchen_tickets")
+      .select(TICKET_COLUMNS)
+      .eq("status", "cancelled")
+      .is("kitchen_seen_at", null)
+      .gte("created_at", since)
+      .order("created_at"),
   ]);
 
-  const all = [...(tickets ?? []), ...(servedRows ?? [])];
+  const all = [...(tickets ?? []), ...(servedRows ?? []), ...(cancelledRows ?? [])];
   const ids = all.map((t) => t.id);
   const orderIds = [...new Set(all.map((t) => t.order_id))];
   const [{ data: items }, { data: orders }] = await Promise.all([
     ids.length
       ? supabase
           .from("kitchen_ticket_items")
-          .select("kitchen_ticket_id, product_name, product_name_local, quantity, note, status")
+          .select("kitchen_ticket_id, product_name, product_name_local, quantity, note, status, change_text")
           .in("kitchen_ticket_id", ids)
-      : Promise.resolve({ data: [] as { kitchen_ticket_id: string; product_name: string; product_name_local: string | null; quantity: number; note: string | null; status: string }[] }),
+      : Promise.resolve({ data: [] as { kitchen_ticket_id: string; product_name: string; product_name_local: string | null; quantity: number; note: string | null; status: string; change_text: string | null }[] }),
     orderIds.length
       ? supabase.from("orders").select("id, order_type, dining_table_id, bill_number, token_no, guest_name").in("id", orderIds)
       : Promise.resolve({ data: [] as { id: string; order_type: string; dining_table_id: string | null; bill_number: string; token_no: number | null; guest_name: string | null }[] }),
@@ -69,11 +77,18 @@ export default async function KitchenPage() {
       bill: o?.bill_number ?? "",
       items: (items ?? [])
         .filter((i) => i.kitchen_ticket_id === t.id)
-        .map((i) => ({ name: i.product_name, local: i.product_name_local, qty: Number(i.quantity), note: i.note, cancelled: i.status === "cancelled" })),
+        .map((i) => ({ name: i.product_name, local: i.product_name_local, qty: Number(i.quantity), note: i.note, cancelled: i.status === "cancelled", changeText: i.change_text })),
     };
   };
 
-  const board: Ticket[] = (tickets ?? []).map((t) => ({ ...details(t), status: t.status as Ticket["status"] }));
+  const board: Ticket[] = [
+    ...(tickets ?? []).map((t) => ({
+      ...details(t),
+      status: t.status as Ticket["status"],
+      changed: !!t.changed_at && !t.kitchen_seen_at,
+    })),
+    ...(cancelledRows ?? []).map((t) => ({ ...details(t), status: "cancelled" as const, cancelReason: t.cancel_reason, changed: false })),
+  ];
   const served: ServedTicket[] = (servedRows ?? []).map((t) => ({ ...details(t), readyAt: t.ready_at }));
 
   // Settings → Bill layout: paper roll width and the size of the text on the kitchen ticket.

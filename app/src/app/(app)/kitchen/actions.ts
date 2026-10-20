@@ -34,3 +34,12 @@ export async function claimForPrint(ids: string[]): Promise<string[] | null> {
   if (error || !Array.isArray(data)) return null;
   return data as string[];
 }
+
+/** The kitchen has seen that a waiter cancelled or changed this ticket. */
+export async function markKotSeen(ticketId: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("kot_kitchen_seen", { p_ticket_id: ticketId });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/kitchen");
+  return { ok: true };
+}

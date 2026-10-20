@@ -316,7 +316,11 @@ export function ReceiptView({
             <Rule />
             <div className="space-y-0.5 text-[1em]">
               <Row label="VATable sales" value={m(vatable)} />
-              <Row label="VAT" value={m(data.taxTotal)} />
+              {data.taxLines.length > 0 ? (
+                data.taxLines.map((t, i) => <Row key={i} label={t.name} value={m(t.amount)} />)
+              ) : (
+                <Row label="VAT" value={m(data.taxTotal)} />
+              )}
               <Row label="VAT-exempt sales" value={m(data.exemptSales)} />
               <Row label="Zero-rated sales" value={m(0)} />
             </div>

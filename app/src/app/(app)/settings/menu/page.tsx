@@ -8,7 +8,7 @@ export default async function MenuPage() {
   const supabase = await createClient();
 
   // RLS scopes all of these to the signed-in user's restaurant.
-  const [{ data: categories }, { data: products }, { data: taxGroups }, { data: groups }, { data: optItems }, { data: links }] =
+  const [{ data: categories }, { data: products }, { data: taxGroups }, { data: groups }, { data: optItems }, { data: links }, { data: taxRates }] =
     await Promise.all([
       supabase.from("categories").select("id, name, display_order, parent_id").is("deleted_at", null).order("display_order").order("name"),
       supabase
@@ -20,7 +20,18 @@ export default async function MenuPage() {
       supabase.from("modifier_groups").select("id, name, is_required, min_select, max_select").eq("is_active", true).order("name"),
       supabase.from("modifier_items").select("id, modifier_group_id, name, price_delta, display_order, product_id").eq("is_active", true).order("display_order"),
       supabase.from("product_modifier_groups").select("product_id, modifier_group_id"),
+      supabase.from("tax_rates").select("tax_group_id, total_rate, valid_from, valid_to"),
     ]);
+
+  // The percentage each tax group charges today, shown next to its name (VAT 22%, Food 5%).
+  const today = new Date().toISOString().slice(0, 10);
+  const rateOf = new Map<string, { from: string; rate: number }>();
+  for (const r of taxRates ?? []) {
+    if (r.valid_from > today || (r.valid_to && r.valid_to < today)) continue;
+    const cur = rateOf.get(r.tax_group_id);
+    if (!cur || r.valid_from > cur.from) rateOf.set(r.tax_group_id, { from: r.valid_from, rate: Number(r.total_rate) });
+  }
+  const taxGroupsWithRate = (taxGroups ?? []).map((g) => ({ ...g, rate: rateOf.get(g.id)?.rate ?? null }));
 
   const optionGroups: OptionGroupView[] = (groups ?? []).map((g) => ({
     id: g.id,
@@ -56,7 +67,7 @@ export default async function MenuPage() {
         currency={user.currency_code}
         categories={categories ?? []}
         products={(products ?? []).map((p) => ({ ...p, price: Number(p.price), is_available: p.is_available ?? true }))}
-        taxGroups={taxGroups ?? []}
+        taxGroups={taxGroupsWithRate}
         optionGroups={optionGroups}
         productGroups={productGroups}
         showStations={has(user, "kitchen_stations")}

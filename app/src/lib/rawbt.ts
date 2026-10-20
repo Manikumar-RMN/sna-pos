@@ -233,7 +233,8 @@ export function billLines(data: ReceiptData): { lines: Line[]; width: number } {
     const vatable = Math.round((data.netSales - data.exemptSales + data.seniorDiscount) * 100) / 100;
     L.push({ rule: true });
     row("VATable sales", m(vatable));
-    row("VAT", m(data.taxTotal));
+    if (data.taxLines.length > 0) for (const t of data.taxLines) row(t.name, m(t.amount));
+    else row("VAT", m(data.taxTotal));
     row("VAT-exempt sales", m(data.exemptSales));
     row("Zero-rated sales", m(0));
     if (data.senior) {

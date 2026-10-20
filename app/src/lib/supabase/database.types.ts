@@ -2123,6 +2123,9 @@ export type Database = {
           quantity: number
           restaurant_id: string
           status: string
+          cancel_reason: string | null
+          change_text: string | null
+          changed_at: string | null
         }
         Insert: {
           id?: string
@@ -2134,6 +2137,9 @@ export type Database = {
           quantity: number
           restaurant_id: string
           status?: string
+          cancel_reason?: string | null
+          change_text?: string | null
+          changed_at?: string | null
         }
         Update: {
           id?: string
@@ -2145,6 +2151,9 @@ export type Database = {
           quantity?: number
           restaurant_id?: string
           status?: string
+          cancel_reason?: string | null
+          change_text?: string | null
+          changed_at?: string | null
         }
         Relationships: [
           {
@@ -2185,6 +2194,11 @@ export type Database = {
           status: string
           synced_at: string | null
           ticket_number: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          changed_at: string | null
+          kitchen_seen_at: string | null
+          waiter_seen_at: string | null
         }
         Insert: {
           branch_id: string
@@ -2200,6 +2214,11 @@ export type Database = {
           status?: string
           synced_at?: string | null
           ticket_number: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          changed_at?: string | null
+          kitchen_seen_at?: string | null
+          waiter_seen_at?: string | null
         }
         Update: {
           branch_id?: string
@@ -2215,6 +2234,11 @@ export type Database = {
           status?: string
           synced_at?: string | null
           ticket_number?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          changed_at?: string | null
+          kitchen_seen_at?: string | null
+          waiter_seen_at?: string | null
         }
         Relationships: [
           {
@@ -6863,6 +6887,18 @@ export type Database = {
         Returns: Json
       }
       cancel_invite: { Args: { p_user_id: string }; Returns: undefined }
+      kot_cancel: { Args: { p_reason: string; p_ticket_id: string }; Returns: Json }
+      kot_cancel_item: {
+        Args: { p_qty: number; p_reason: string; p_ticket_item_id: string }
+        Returns: Json
+      }
+      kot_kitchen_seen: { Args: { p_ticket_id: string }; Returns: undefined }
+      kot_modify_item: {
+        Args: { p_note: string; p_qty: number; p_reason?: string; p_ticket_item_id: string }
+        Returns: Json
+      }
+      waiter_ready_alerts: { Args: Record<PropertyKey, never>; Returns: Json }
+      waiter_ready_seen: { Args: { p_ticket_id: string }; Returns: undefined }
       cancel_order_item: {
         Args: { p_order_item_id: string; p_qty: number; p_reason: string }
         Returns: Json
