@@ -2937,6 +2937,8 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           cancelled_qty: number
+          list_price: number | null
+          offer_name: string | null
           created_at: string
           held: boolean
           id: string
@@ -2967,6 +2969,8 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_qty?: number
+          list_price?: number | null
+          offer_name?: string | null
           created_at?: string
           held?: boolean
           id: string
@@ -2997,6 +3001,8 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_qty?: number
+          list_price?: number | null
+          offer_name?: string | null
           created_at?: string
           held?: boolean
           id?: string

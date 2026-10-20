@@ -184,9 +184,11 @@ export function PreOrders({
                     ) : (
                       <div className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
                         {o.status === "billed" && o.order_id ? (
-                          <Link href={`/bills/${o.order_id}`} className="font-semibold" style={{ color: "var(--color-brand)" }}>
-                            Billed as {o.bill_number} →
-                          </Link>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <Link href={`/bills/${o.order_id}`} className="font-semibold" style={{ color: "var(--color-brand)" }}>
+                              Billed as {o.bill_number} →
+                            </Link>
+                          </div>
                         ) : (
                           "Cancelled"
                         )}

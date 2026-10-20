@@ -406,6 +406,11 @@ export function BillActions({
               >
                 {pending ? "Saving…" : compKind === "complimentary" ? "Make complimentary" : "Make staff meal"}
               </button>
+              {compReason.trim().length < 3 && (
+                <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+                  {compKind === "complimentary" ? "Type a reason (at least 3 letters) to continue." : "Type the staff member's name (at least 3 letters) to continue."}
+                </p>
+              )}
             </div>
           )}
 
@@ -434,6 +439,11 @@ export function BillActions({
                     Discount amount
                   </label>
                   <input id="adj-disc" className="field h-10 text-sm" inputMode="decimal" placeholder="0" value={discAmt} onChange={(e) => setDiscAmt(e.target.value)} />
+                  {discAmt.includes("%") && (
+                    <p className="text-xs" role="alert" style={{ color: "var(--color-bad)" }}>
+                      Enter the discount as an amount, not a percent (for 10% of {m(grandTotal)}, type {(Math.round(grandTotal * 10) / 100).toFixed(2)}).
+                    </p>
+                  )}
                   {discNum > 0 && (
                     <input className="field h-10 text-sm" placeholder="Reason (optional)" value={discReason} onChange={(e) => setDiscReason(e.target.value)} maxLength={200} />
                   )}
@@ -445,7 +455,7 @@ export function BillActions({
               )}
               <button
                 className="btn btn-primary mt-1 w-full text-sm"
-                disabled={pending || !adjustChanged || !(discNum >= 0) || Number.isNaN(discNum)}
+                disabled={pending || !adjustChanged || !(discNum >= 0) || Number.isNaN(discNum) || discAmt.includes("%")}
                 onClick={() =>
                   run(() =>
                     adjustBill({
@@ -603,6 +613,11 @@ export function BillActions({
                   >
                     {pending ? "Merging…" : "Merge into this bill"}
                   </button>
+                  {!mergeFrom && (
+                    <p className="mt-1.5 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                      Choose the bill to merge, above.
+                    </p>
+                  )}
                 </>
               )}
             </div>

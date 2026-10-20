@@ -257,7 +257,7 @@ export async function redeemPoints(orderId: string, points: number) {
   if (error) return { ok: false as const, error: friendlyDbError(error) };
   revalidatePath(`/bills/${orderId}`);
   const d = data as { points_used: number; amount: number };
-  return { ok: true as const, message: `${d.points_used} points used (${d.amount}).` };
+  return { ok: true as const, message: `${d.points_used} points used (₹${Number(d.amount).toFixed(2)} off the bill).` };
 }
 
 export async function redeemGiftCard(orderId: string, code: string, amount: number | null) {

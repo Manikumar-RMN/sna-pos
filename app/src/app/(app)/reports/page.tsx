@@ -35,6 +35,8 @@ type Report = {
     discounts: number;
     tax: number;
     rounding: number;
+    /** Rounding on cash payments (the amount the till differs from the bill totals). */
+    cash_rounding?: number;
     total_billed: number;
     average_bill: number;
     voided_bills: number;
@@ -82,7 +84,20 @@ export default async function ReportsPage({
   }
 
   const sp = await searchParams;
-  const today = todayIn(user.timezone);
+  const supabase = await createClient();
+  // "Today" is the business day the bills are being counted to: the open day, or the last day worked.
+  // (After a late close, or past midnight, this is not always the calendar date.)
+  const { data: latestDay } = await supabase
+    .from("business_days")
+    .select("business_date, status")
+    .order("business_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const calendarToday = todayIn(user.timezone);
+  const today = latestDay?.business_date && isYmd(latestDay.business_date)
+    && (latestDay.status === "open" || latestDay.business_date > calendarToday)
+    ? latestDay.business_date
+    : calendarToday;
   let from = today;
   let to = today;
   let range = sp.range ?? "today";
@@ -104,7 +119,6 @@ export default async function ReportsPage({
     range = "today";
   }
 
-  const supabase = await createClient();
   const showRegister = user.country_code === "IN" && can(user, "report.view_financial");
   const showJournal = can(user, "report.view_financial") && has(user, "accounting");
   const multi = has(user, "multi_outlet") && user.outlet_count > 1;
@@ -236,6 +250,7 @@ export default async function ReportsPage({
                       money(rep.summary.tax, c),
                     ],
                     ["Rounding", money(rep.summary.rounding, c)],
+                    Math.abs(rep.summary.cash_rounding ?? 0) >= 0.005 ? ["Cash rounding (on cash payments)", money(rep.summary.cash_rounding ?? 0, c)] : null,
                     ["Total billed", money(rep.summary.total_billed, c)],
                     unpaidAmount > 0 ? [`Not yet paid (${unpaidCount})`, `−${money(unpaidAmount, c)}`] : null,
                     ["Net sales (excluding tax)", money(rep.summary.net_sales, c)],

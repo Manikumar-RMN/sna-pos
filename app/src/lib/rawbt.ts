@@ -196,6 +196,7 @@ export function billLines(data: ReceiptData): { lines: Line[]; width: number } {
       L.push({ text: lr(`  ${qtyRate}`, amt.trim(), W) });
     }
     if (opt) L.push({ text: `  ${opt}` });
+    if (it.offerName) L.push({ text: `  ${plain(it.offerName)}${it.listPrice != null && it.listPrice > it.unitPrice ? ` (was ${it.listPrice.toFixed(2)})` : ""}` });
   }
   L.push({ rule: true });
 

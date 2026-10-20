@@ -3,6 +3,22 @@ import { billState } from "@/lib/format";
 import { billFormat } from "@/lib/bill-format";
 import type { ReceiptData } from "@/app/(app)/pos/receipt-view";
 
+const flagText: Record<string, string> = {
+  older_than_7_days: "This offline bill was made more than 7 days before it reached the server.",
+  total_differs: "The total made on the device differs from the server's total.",
+  price_corrected: "A price sent from the device was not a menu price, so the bill was recorded at the real menu price.",
+  discount_cut: "The discount was reduced on the server.",
+  discount_removed: "A discount was sent from a device by someone without the right to give discounts, so it was not given.",
+  method_unknown: "The payment method sent from the device was not found, so it was recorded as cash.",
+  device_clock_ahead: "The clock on the device was ahead of the server.",
+  numbers_skipped: "Bill numbers were skipped before this bill (a device may have synced out of order).",
+  liquor_and_food_mixed: "Liquor and food were on one bill.",
+  liquor_on_food_series: "A liquor bill was numbered in the food series.",
+  food_on_liquor_series: "A food bill was numbered in the liquor series.",
+  sent_after_licence_ended: "Sent after the licence ended.",
+  partner_total_differs: "The partner's total differs from the server's total.",
+};
+
 export type BillDetail = {
   id: string;
   receipt: ReceiptData;
@@ -28,6 +44,8 @@ export type BillDetail = {
   /** Items held for a later course, not yet sent to the kitchen. */
   heldCount: number;
   businessDate: string | null;
+  /** Checks the server raised when this offline / partner bill was accepted (for the owner to look at). */
+  flags: string[];
   creditNotes: { id: string; number: string; amount: number; at: string; reason: string }[];
   paymentList: { id: string; methodId: string; methodName: string; amount: number; rounded: boolean }[];
   /** Discount and service charge as they stand on an open bill. */
@@ -47,7 +65,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into, calc_params, business_date, buyer_gstin, buyer_name, guest_name, guest_phone, delivery_address, token_no, comp_kind, comp_reason",
+      "id, bill_number, order_type, created_at, subtotal, discount_total, tax_total, tax_included, tax_exempt_amount, exempt_sales, service_charge, rounding_adjustment, grand_total, paid_total, status, payment_status, void_reason, voided_at, voided_by, cashier_id, branch_id, dining_table_id, currency_code, senior_details, merged_into, calc_params, business_date, buyer_gstin, buyer_name, guest_name, guest_phone, delivery_address, token_no, comp_kind, comp_reason, offline_flags",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -56,7 +74,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const [items, taxes, payments, refunds, restaurant, branch, settings, table, discounts, upiMethod, day, creditNotes] = await Promise.all([
     supabase
       .from("order_items")
-      .select("id, product_name, product_name_local, options_text, quantity, unit, unit_price, line_subtotal, net_amount, created_at, cancelled_at, cancelled_qty, cancel_reason, held")
+      .select("id, product_name, product_name_local, options_text, quantity, unit, unit_price, line_subtotal, net_amount, created_at, cancelled_at, cancelled_qty, cancel_reason, held, offer_name, list_price")
       .eq("order_id", order.id)
       .order("created_at")
       .order("id"),
@@ -163,6 +181,8 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
       unit: it.unit ?? null,
       unitPrice: Number(it.unit_price),
       amount: Number(it.line_subtotal),
+      offerName: (it as { offer_name?: string | null }).offer_name ?? null,
+      listPrice: (it as { list_price?: number | string | null }).list_price != null ? Number((it as { list_price?: number | string | null }).list_price) : null,
     })),
     taxLines: Array.from(taxMap, ([name, amount]) => ({ name, amount })),
     subtotal: Number(order.subtotal),
@@ -237,6 +257,9 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     dayClosed: (day.data as { status?: string } | null)?.status === "closed",
     heldCount: liveItems.filter((it) => it.held).length,
     businessDate: order.business_date,
+    flags: (Array.isArray(order.offline_flags) ? (order.offline_flags as { flag?: string }[]) : [])
+      .map((f) => flagText[f?.flag ?? ""] ?? null)
+      .filter((x): x is string => !!x),
     creditNotes: (creditNotes.data ?? []).map((c) => ({ id: c.id, number: c.number, amount: Number(c.amount), at: c.created_at, reason: c.reason })),
     paymentList: paymentRows.map((p) => ({
       id: p.id,

@@ -88,6 +88,17 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
         </div>
       )}
 
+      {bill.flags.length > 0 && (
+        <div className="no-print card mx-auto mb-3 max-w-sm p-3 text-sm" style={{ borderColor: "var(--color-warn, #b45309)" }}>
+          <div className="font-semibold">Please check this bill</div>
+          <ul className="mt-1 list-disc pl-5">
+            {bill.flags.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <GuestDetails
         orderId={bill.id}
         token={r.token ?? null}

@@ -25,7 +25,7 @@ export type ReceiptData = {
   currency: string;
   cashierName: string;
   /** unit: "kg" for items sold by weight. */
-  items: { name: string; local?: string | null; options: string | null; qty: number; unit?: string | null; unitPrice: number; amount: number }[];
+  items: { name: string; local?: string | null; options: string | null; qty: number; unit?: string | null; unitPrice: number; amount: number; offerName?: string | null; listPrice?: number | null }[];
   /** Tax components summed over the bill. */
   taxLines: { name: string; amount: number }[];
   subtotal: number;
@@ -241,6 +241,12 @@ export function ReceiptView({
                   {it.name}
                   {it.local && <div className="text-[0.91em]">{it.local}</div>}
                   {it.options && <div className="text-[0.91em]">&nbsp;&nbsp;{it.options}</div>}
+                  {it.offerName && (
+                    <div className="text-[0.91em]">
+                      &nbsp;&nbsp;{it.offerName}
+                      {it.listPrice != null && it.listPrice > it.unitPrice ? ` (was ${it.listPrice.toFixed(2)})` : ""}
+                    </div>
+                  )}
                 </td>
                 <td className="text-center align-top">{it.unit ? `${it.qty.toFixed(3)} ${it.unit}` : it.qty}</td>
                 {f.rate && <td className="text-right align-top">{it.unitPrice.toFixed(2)}</td>}
