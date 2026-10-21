@@ -156,7 +156,7 @@ export async function addTables(prefix: string, from: number, to: number, seats:
     .select("id, table_number, is_active")
     .eq("branch_id", branchId)
     .in("table_number", wanted);
-  if (readError) return { ok: false, error: readError.message };
+  if (readError) return { ok: false, error: friendlyDbError(readError) };
   const byNumber = new Map((existing ?? []).map((t) => [t.table_number, t]));
   const toAdd = wanted.filter((n) => !byNumber.has(n));
   const toRestore = (existing ?? []).filter((t) => !t.is_active).map((t) => t.id);
@@ -265,7 +265,7 @@ export async function setUpThisTabletAsCounter(name: string): Promise<Result> {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
   const { data: signUp, error: signUpError } = await plain.auth.signUp({ email, password });
-  if (signUpError || !signUp.user) return { ok: false, error: `Could not create the tablet's sign-in: ${signUpError?.message ?? "unknown error"}` };
+  if (signUpError || !signUp.user) return { ok: false, error: `Could not create the tablet's sign-in. ${signUpError ? friendlyDbError(signUpError) : "Please try again."}` };
   let session = signUp.session;
   if (!session) {
     const { data: signIn } = await plain.auth.signInWithPassword({ email, password });
@@ -278,7 +278,7 @@ export async function setUpThisTabletAsCounter(name: string): Promise<Result> {
   const supabase = await createClient();
   const { data: mgr } = await supabase.auth.getSession();
   const { data: deviceId, error: regError } = await supabase.rpc("register_counter_device", { p_auth_user_id: signUp.user.id, p_name: label });
-  if (regError) return { ok: false, error: regError.message };
+  if (regError) return { ok: false, error: friendlyDbError(regError) };
 
   // Switch this browser from the manager to the tablet's own sign-in.
   const { error: setError } = await supabase.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
@@ -389,7 +389,7 @@ export async function saveSessions(
   // Switching an outlet back to the shared times removes its own times.
   if (clearOutletId) {
     const { error: e } = await supabase.rpc("save_meal_sessions", { p_branch: clearOutletId, p_sessions: [] as unknown as Json });
-    if (e) return { ok: false, error: e.message };
+    if (e) return { ok: false, error: friendlyDbError(e) };
   }
   const { error } = await supabase.rpc("save_meal_sessions", {
     p_branch: outletId as unknown as string,

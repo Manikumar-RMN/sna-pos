@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { has, requireUser } from "@/lib/auth";
 import { WhatsAppSummary } from "./whatsapp-summary";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-error";
 import { dateTime, money } from "@/lib/format";
 import { PrintButton } from "../../../print-button";
 import { paidLaterNote, voidedAfterCloseNote } from "../../figures";
@@ -68,7 +69,7 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
   if (error) {
     return (
       <div className="card mx-auto max-w-md p-5 text-sm" role="alert">
-        {error.message}
+        {friendlyDbError(error)}
       </div>
     );
   }

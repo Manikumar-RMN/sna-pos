@@ -201,7 +201,7 @@ async function linkOptionGroups(productId: string, restaurantId: string, formDat
   const groupIds = formData.getAll("option_group").map(String).filter(Boolean);
   const supabase = await createClient();
   const { error: delError } = await supabase.from("product_modifier_groups").delete().eq("product_id", productId);
-  if (delError) return delError.message;
+  if (delError) return friendlyDbError(delError);
   if (groupIds.length === 0) return null;
   const { error } = await supabase
     .from("product_modifier_groups")
@@ -265,7 +265,7 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
     })
     .eq("parent_id", id)
     .is("deleted_at", null);
-  if (sizeError) return { error: sizeError.message };
+  if (sizeError) return { error: friendlyDbError(sizeError) };
   const linkError = await linkOptionGroups(id, restaurantId!, formData);
   if (linkError) return { error: linkError };
   revalidatePath("/settings/menu");
@@ -295,7 +295,7 @@ export async function addSize(parentId: string, sizeName: string, rawPrice: stri
     .eq("id", parentId)
     .is("deleted_at", null)
     .maybeSingle();
-  if (readError) return { error: readError.message };
+  if (readError) return { error: friendlyDbError(readError) };
   if (!parent) return { error: "That dish was not found." };
   if (parent.parent_id) return { error: "A size cannot have sizes of its own." };
   const { error } = await supabase.from("products").insert({
@@ -401,7 +401,7 @@ export async function removeOptionGroup(groupId: string): Promise<MenuState> {
   if (denied) return { error: denied };
   const supabase = await createClient();
   const { error: linkError } = await supabase.from("product_modifier_groups").delete().eq("modifier_group_id", groupId);
-  if (linkError) return { error: linkError.message };
+  if (linkError) return { error: friendlyDbError(linkError) };
   const { error } = await supabase.from("modifier_groups").update({ is_active: false }).eq("id", groupId);
   if (error) return { error: friendlyDbError(error) };
   revalidatePath("/settings/menu");

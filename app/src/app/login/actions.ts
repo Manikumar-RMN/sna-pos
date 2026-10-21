@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 
 export type AuthState = { error: string | null; notice?: string | null };
 
+const SIGN_IN_FAILED =
+  "Invalid client code, username, or password. After 5 wrong tries sign-in pauses for 5 minutes.";
+
 /**
  * One action handles both sign-in and account creation. Which one runs is
  * decided by the `intent` field, set by whichever button was pressed.
@@ -94,20 +97,11 @@ export async function authenticate(_prev: AuthState, formData: FormData): Promis
     }
 
     const result = (data ?? null) as
-      | { email?: string; error?: string; minutes?: number }
+      | { email?: string; error?: string }
       | null;
 
     if (!result) {
       return { error: "Could not reach the server. Check the internet connection." };
-    }
-
-    if (result.error === "locked") {
-      const mins = result.minutes ?? 5;
-      return {
-        error: `Too many wrong passwords. Try again in ${mins} ${
-          mins === 1 ? "minute" : "minutes"
-        }.`,
-      };
     }
 
     if (result.error === "inactive") {
@@ -116,8 +110,9 @@ export async function authenticate(_prev: AuthState, formData: FormData): Promis
 
     if (result.error || !result.email) {
       // Deliberately vague: the same message for a wrong code, a wrong
-      // username and a wrong password, so none of them can be probed.
-      return { error: "Invalid client code, username, or password." };
+      // username, a wrong password and a locked account (the database answers
+      // a locked account exactly like a wrong password), so none can be probed.
+      return { error: SIGN_IN_FAILED };
     }
 
     // The password is already verified; this is what actually mints the session.
@@ -127,7 +122,7 @@ export async function authenticate(_prev: AuthState, formData: FormData): Promis
     });
 
     if (authError) {
-      return { error: "Invalid client code, username, or password." };
+      return { error: SIGN_IN_FAILED };
     }
 
     revalidatePath("/", "layout");

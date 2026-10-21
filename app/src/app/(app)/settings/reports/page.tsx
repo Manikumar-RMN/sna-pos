@@ -1,5 +1,6 @@
 import { can, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-error";
 import { NoAccess, SectionHead } from "../section-head";
 import { ReportSchedules, type EmailMode, type Schedule } from "./report-schedules";
 
@@ -31,7 +32,7 @@ export default async function ReportSettings() {
       </SectionHead>
       {error ? (
         <div className="card p-4 text-sm font-semibold" role="alert" style={{ color: "var(--color-bad)" }}>
-          {error.message}
+          {friendlyDbError(error)}
         </div>
       ) : (
         <ReportSchedules

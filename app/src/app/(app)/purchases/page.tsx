@@ -2,6 +2,7 @@ import Link from "next/link";
 import { can, has, requireUser, type CurrentUser } from "@/lib/auth";
 import { UpgradeNote } from "../upgrade-note";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-error";
 import { addDays, money, todayIn } from "@/lib/format";
 import {
   EMPTY_REPORT,
@@ -92,7 +93,7 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
       </nav>
 
       {supplierError ? (
-        <LoadError what="the suppliers" message={supplierError.message} />
+        <LoadError what="the suppliers" message={friendlyDbError(supplierError)} />
       ) : tab === "receive" ? (
         <ReceiveSection supabase={supabase} user={user} suppliers={suppliers} po={one(sp.po) ?? null} />
       ) : tab === "orders" ? (
@@ -208,8 +209,8 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
       .order("created_at", { ascending: false })
       .limit(20),
   ]);
-  if (ingError) return <LoadError what="the ingredients" message={ingError.message} />;
-  if (grError) return <LoadError what="the goods received" message={grError.message} />;
+  if (ingError) return <LoadError what="the ingredients" message={friendlyDbError(ingError)} />;
+  if (grError) return <LoadError what="the goods received" message={friendlyDbError(grError)} />;
 
   const orderRows: OrderDb[] = [...(pos ?? [])];
   // Opened from an order that is not among the newest open ones: fetch that one too.
@@ -278,9 +279,9 @@ async function OrdersSection({ supabase, user, suppliers, low }: SectionProps & 
     // Every order still on its way (not only the newest ones listed), so "Fill from low stock" does not suggest it again.
     supabase.from("purchase_orders").select("id, status").in("status", ["ordered", "part_received"]).order("created_at", { ascending: false }).limit(300),
   ]);
-  if (stockError) return <LoadError what="the stock levels" message={stockError.message} />;
-  if (poError) return <LoadError what="the purchase orders" message={poError.message} />;
-  if (openError) return <LoadError what="the purchase orders" message={openError.message} />;
+  if (stockError) return <LoadError what="the stock levels" message={friendlyDbError(stockError)} />;
+  if (poError) return <LoadError what="the purchase orders" message={friendlyDbError(poError)} />;
+  if (openError) return <LoadError what="the purchase orders" message={friendlyDbError(openError)} />;
 
   const levels = ((report ?? { levels: [] }) as unknown as { levels: { id: string; name: string; unit: string; cost: number | string; reorder: number | string; stock: number | string }[] }).levels ?? [];
   const ingredients: StockedIngredient[] = levels.map((l) => ({ id: l.id, name: l.name, unit: l.unit, cost: Number(l.cost), stock: Number(l.stock), reorder: Number(l.reorder) }));
@@ -336,7 +337,7 @@ async function SuppliersSection({ supabase, user, suppliers }: SectionProps) {
     supabase.rpc("purchase_report", { p_from: today, p_to: today }),
     supabase.from("countries").select("tax_id_label").eq("code", user.country_code).maybeSingle(),
   ]);
-  if (error) return <LoadError what="what is owed to suppliers" message={error.message} />;
+  if (error) return <LoadError what="what is owed to suppliers" message={friendlyDbError(error)} />;
   const owed: Record<string, number> = {};
   for (const o of cleanReport(report).owed) owed[o.supplier_id] = Math.round(((owed[o.supplier_id] ?? 0) + o.owed) * 100) / 100;
   return <SuppliersTab suppliers={suppliers} owed={owed} currency={user.currency_code} taxLabel={country?.tax_id_label ?? "Tax number"} />;
@@ -352,7 +353,7 @@ async function PaySection({ supabase, user, period }: Omit<SectionProps, "suppli
     period === "last" ? supabase.rpc("purchase_report", { p_from: lastStart, p_to: lastEnd }) : Promise.resolve(null),
   ]);
   const error = now.error ?? last?.error;
-  if (error) return <LoadError what="the purchase figures" message={error.message} />;
+  if (error) return <LoadError what="the purchase figures" message={friendlyDbError(error)} />;
 
   const thisMonth = cleanReport(now.data);
   const shown = last ? cleanReport(last.data) : thisMonth;

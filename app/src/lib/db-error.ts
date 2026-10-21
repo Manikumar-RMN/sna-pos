@@ -50,9 +50,19 @@ const GENERAL: Record<string, string> = {
   "22001": "A text is too long.",
 };
 
+const NO_PERMISSION = "You do not have permission to do that.";
+const SIGN_IN_AGAIN = "Please sign in again.";
+const NO_CONNECTION = "Could not reach the server. Check the internet connection.";
+
 export function friendlyDbError(err: DbErrorLike | null | undefined): string {
   const raw = String(err?.message ?? "").trim();
   const code = String(err?.code ?? "");
+  // Messages our own functions raise on purpose (code P0001) are plain already and always pass through.
+  if (code !== "P0001") {
+    if (/fetch failed|failed to fetch|network request failed|econnrefused|enotfound|etimedout|socket hang up/i.test(raw)) return NO_CONNECTION;
+    if (code === "PGRST301" || /jwt expired|invalid jwt|jwt is expired/i.test(raw)) return SIGN_IN_AGAIN;
+    if (code === "42501" || /row-level security|permission denied/i.test(raw)) return NO_PERMISSION;
+  }
   const constraint = /constraint "([^"]+)"/.exec(raw)?.[1];
   if (constraint && KNOWN[constraint]) return KNOWN[constraint];
   const byText = /violates check constraint/.test(raw) ? "23514" : /violates unique constraint|duplicate key/.test(raw) ? "23505" : /violates foreign key/.test(raw) ? "23503" : /violates not-null/.test(raw) ? "23502" : /invalid input syntax/.test(raw) ? "22P02" : /numeric field overflow|out of range/.test(raw) ? "22003" : /value too long/.test(raw) ? "22001" : "";

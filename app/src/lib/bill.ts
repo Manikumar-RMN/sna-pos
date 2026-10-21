@@ -49,7 +49,7 @@ export type BillDetail = {
   creditNotes: { id: string; number: string; amount: number; at: string; reason: string }[];
   paymentList: { id: string; methodId: string; methodName: string; amount: number; rounded: boolean }[];
   /** Discount and service charge as they stand on an open bill. */
-  adjust: { discount: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
+  adjust: { discount: number; subtotal: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
 };
 
 /**
@@ -273,6 +273,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
       const scPercent = Number(settings.data?.service_charge_percent ?? 0);
       return {
         discount: Number(cp.discount ?? 0),
+        subtotal: Number(order.subtotal),
         scAvailable: scPercent > 0,
         scOn: Number(cp.sc_percent ?? 0) > 0,
         scPercent,

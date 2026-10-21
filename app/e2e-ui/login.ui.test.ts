@@ -41,9 +41,11 @@ describe.skipIf(!haveUi())("signing in and out (real app, real browser)", () => 
 
   it("five wrong passwords lock that staff member out for a few minutes, even with the right password", async () => {
     const page = await (await newContext()).newPage();
-    for (let i = 0; i < 5; i++) { await fill(page, { user: w.manager.code, pass: `wrong-${i}` }); await page.getByText(/Invalid client code|Too many wrong passwords/).waitFor({ timeout: 20000 }); }
+    for (let i = 0; i < 5; i++) { await fill(page, { user: w.manager.code, pass: `wrong-${i}` }); await page.getByText("Invalid client code, username, or password.").waitFor({ timeout: 20000 }); }
+    // locked: the right password is refused with the very same vague message (no "locked", no minutes)
     await fill(page, { user: w.manager.code });
-    await page.getByText(/Too many wrong passwords/).waitFor({ timeout: 20000 });
+    await page.getByText("After 5 wrong tries sign-in pauses for 5 minutes.").waitFor({ timeout: 20000 });
+    expect(await page.locator("body").innerText()).not.toMatch(/locked|Too many wrong/i);
     expect(page.url()).toMatch(/\/login/);
     const [u] = await admin("select login_locked_until from public.users where id = $1", [w.manager.userId]);
     expect(new Date(u.login_locked_until).getTime()).toBeGreaterThan(Date.now());

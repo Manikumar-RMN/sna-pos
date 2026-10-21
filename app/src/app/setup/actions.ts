@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-error";
 
 export type SetupState = { error: string | null };
 
@@ -16,7 +17,7 @@ export async function joinWithCode(_prev: SetupState, formData: FormData): Promi
   }
   const supabase = await createClient();
   const { error } = await supabase.rpc("claim_staff_invite", { p_code: code });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyDbError(error) };
   revalidatePath("/", "layout");
   redirect("/dashboard");
 }

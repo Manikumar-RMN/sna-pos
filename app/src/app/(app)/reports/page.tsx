@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-error";
 import { addDays, dateTime, isYmd, longDate, money, orderTypeLabel, todayIn } from "@/lib/format";
 import { CsvButton } from "./csv-button";
 
@@ -216,7 +217,7 @@ export default async function ReportsPage({
 
       {error || !rep ? (
         <div className="card p-5 text-sm" style={{ color: "var(--color-bad)" }}>
-          {error?.message ?? "The report could not be loaded."}
+          {error ? friendlyDbError(error) : "The report could not be loaded."}
         </div>
       ) : (
         <>

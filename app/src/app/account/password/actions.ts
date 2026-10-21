@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-error";
 
 export type PasswordState = { error: string | null };
 
@@ -29,7 +30,7 @@ export async function changePassword(_prev: PasswordState, formData: FormData): 
     return {
       error: /different|same/i.test(error.message)
         ? "Choose a password different from the temporary one."
-        : error.message,
+        : friendlyDbError(error),
     };
   }
   // Clears the "must change password" flag set by a manager's reset, and logs it.

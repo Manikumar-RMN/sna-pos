@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-error";
 import { SectionHead } from "../section-head";
 import { PlanView, type Plan } from "./plan-view";
 
@@ -8,7 +9,7 @@ export default async function PlanSettings() {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("my_plan");
   if (error || !data) {
-    return <div className="card p-5 text-sm">Could not load your plan: {error?.message}</div>;
+    return <div className="card p-5 text-sm">Could not load your plan. {error ? friendlyDbError(error) : ""}</div>;
   }
   return (
     <div>

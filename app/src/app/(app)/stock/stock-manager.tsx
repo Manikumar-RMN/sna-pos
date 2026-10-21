@@ -251,8 +251,10 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
               <ul className="mt-3 space-y-2">
                 {recipeRows.map((row, i) => (
                   <li key={i} className="flex gap-2">
+                    {/* .field sets width:100%, which beats the utility widths, so the sizes are set inline: the name gets the free space. */}
                     <select
-                      className="field h-10 flex-1 text-sm"
+                      className="field h-10 min-w-0 flex-1 truncate text-sm"
+                      style={{ flex: "1 1 0%", minWidth: 140, textOverflow: "ellipsis" }}
                       value={row.ingredient_id}
                       onChange={(e) => setRecipeRows(recipeRows.map((r, j) => (j === i ? { ...r, ingredient_id: e.target.value } : r)))}
                       aria-label="Ingredient"
@@ -265,14 +267,15 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
                       ))}
                     </select>
                     <input
-                      className="field h-10 w-28 text-sm"
+                      className="field h-10 w-28 shrink-0 text-sm"
+                      style={{ flex: "none", width: 96 }}
                       inputMode="decimal"
                       placeholder="Qty"
                       value={row.qty}
                       onChange={(e) => setRecipeRows(recipeRows.map((r, j) => (j === i ? { ...r, qty: e.target.value } : r)))}
                       aria-label="Quantity per portion"
                     />
-                    <button className="px-2 text-sm font-bold" style={{ color: "var(--color-bad)" }} onClick={() => setRecipeRows(recipeRows.filter((_, j) => j !== i))} aria-label="Remove ingredient">
+                    <button className="shrink-0 px-2 text-sm font-bold" style={{ color: "var(--color-bad)", flex: "none" }} onClick={() => setRecipeRows(recipeRows.filter((_, j) => j !== i))} aria-label="Remove ingredient">
                       ×
                     </button>
                   </li>

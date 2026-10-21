@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money, orderTypeLabel, roundCash } from "@/lib/format";
+import { parseDiscountInput } from "@/lib/discount";
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, type CartItem, type PlaceOrderInput, type Quote, type Senior } from "./actions";
@@ -269,7 +270,6 @@ export function PosTerminal({
   const mixedLiquor = lines.some((l) => l.item.liquor) && lines.some((l) => !l.item.liquor);
   const isCash = paymentMethods.find((p) => p.id === methodId)?.kind === "cash";
   const askRef = !!paymentMethods.find((p) => p.id === methodId)?.ask_reference;
-  const discountAmt = Math.max(0, Number(discount) || 0);
   const chosenTable = tables.find((t) => t.id === tableId) ?? null;
   // A table that already has an open bill: the cashier adds to it, or says clearly that a second bill is wanted.
   // (Bills made without internet are paid at once and carry no table, so they are not held back.)
@@ -284,6 +284,12 @@ export function PosTerminal({
   // Per item: one for every item on the bill.
   const packingQty = packRule?.per === "item" ? Math.max(1, Math.ceil(lines.reduce((s, l) => s + (l.item.byWeight ? 1 : l.qty), 0))) : 1;
   const packingAmount = packRule ? Math.round(packRule.price * packingQty * 100) / 100 : 0;
+  // The discount box takes an amount or a percent ("10%"). A percent is worked out on the same base the bill
+  // calculation uses (sum of price x qty, packing charge included), so it follows the cart when lines change and
+  // works the same without internet. Only the amount is ever sent.
+  const discountBase = Math.round((lines.reduce((s, l) => s + unitPrice(l) * l.qty, 0) + (packingTicked && lines.length > 0 ? packingAmount : 0)) * 100) / 100;
+  const discountParsed = parseDiscountInput(discount, discountBase);
+  const discountAmt = discountParsed.ok ? discountParsed.amount : 0;
 
   // Brands / stalls on this menu, in menu order; choosing one shows only its dishes.
   const brandTabs = useMemo(() => {
@@ -807,6 +813,7 @@ export function PosTerminal({
     if (savedRef.current || offlineBill || sending.current) return;
     setError(null);
     if (lines.length === 0) return setError("Add at least one item.");
+    if (!discountParsed.ok) return setError(discountParsed.message);
     if (mixedLiquor) return setError("Liquor and food go on separate bills. Remove the food or the drinks, save this bill, then bill the rest.");
     if (!quote || quoting) return setError("Please wait a moment — the total is being checked.");
     if (needSeparate) return setError(`Table ${chosenTable?.number ?? ""} already has an open bill. Add to it, or tick “Start a separate bill for this table”.`);
@@ -1441,8 +1448,18 @@ export function PosTerminal({
                       <label className="text-xs font-medium" style={{ color: "var(--color-ink-2)" }} htmlFor="discount">
                         Discount
                       </label>
-                      <input id="discount" className="field h-9 flex-1 text-sm" inputMode="decimal" placeholder="0" value={discount} onChange={(e) => setDiscount(e.target.value)} />
+                      <input id="discount" className="field h-9 flex-1 text-sm" inputMode="decimal" placeholder="Amount or 10%" value={discount} onChange={(e) => setDiscount(e.target.value)} />
                     </div>
+                  )}
+                  {(canDiscount || canPay) && !senior && !discountParsed.ok && (
+                    <p className="text-xs" role="alert" style={{ color: "var(--color-bad)" }}>
+                      {discountParsed.message}
+                    </p>
+                  )}
+                  {(canDiscount || canPay) && !senior && discountParsed.ok && discountParsed.percent !== null && (
+                    <p className="text-xs" role="status" style={{ color: "var(--color-ink-2)" }}>
+                      {discountParsed.percent}% = {m(discountParsed.amount)}
+                    </p>
                   )}
                   {discountAmt > 0 && !senior && (
                     <input className="field h-9 text-sm" placeholder="Discount reason (optional)" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} />
@@ -1550,14 +1567,14 @@ export function PosTerminal({
                   <>
                     <button
                       onClick={() => submit("unpaid")}
-                      disabled={pending || quoting || !quote || needSeparate || !!saved}
+                      disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved}
                       className="btn border px-4 text-base font-bold"
                       style={{ borderColor: "var(--color-brand)", background: "var(--color-surface)", color: "var(--color-brand-strong, var(--color-brand))" }}
                       title="Send the order to the kitchen and print the KOT. The bill stays open: print it and take the payment later."
                     >
                       KOT
                     </button>
-                    <button onClick={() => submit("pay")} disabled={pending || quoting || !quote || needSeparate || !!saved} className="btn btn-pay flex-1 text-base">
+                    <button onClick={() => submit("pay")} disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved} className="btn btn-pay flex-1 text-base">
                       {pending ? "Saving…" : <Dual text="Charge" />}
                       {!pending && quote ? ` ${m(due)}` : ""}
                     </button>
@@ -1565,7 +1582,7 @@ export function PosTerminal({
                 ) : (
                   <button
                     onClick={() => submit("unpaid")}
-                    disabled={pending || quoting || !quote || needSeparate || !!saved}
+                    disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved}
                     className="btn btn-primary flex-1 text-base"
                     title="Send the order to the kitchen and print the KOT. The cashier takes the payment later."
                   >
@@ -1576,7 +1593,7 @@ export function PosTerminal({
               {canPay ? (
                 <button
                   onClick={() => submit("split")}
-                  disabled={pending || quoting || !quote || needSeparate || !!saved}
+                  disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved}
                   className="mt-2 w-full text-center text-xs font-semibold"
                   style={{ color: "var(--color-brand-strong)" }}
                 >

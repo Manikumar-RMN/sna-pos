@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money, roundCash } from "@/lib/format";
+import { parseDiscountInput } from "@/lib/discount";
 import { UpiQr } from "../upi-qr";
 import { Dual } from "../lang";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
+import { KotSheet } from "../captain/kot-sheet";
 import { adjustBill, makeComplimentary, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
 
 type Method = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
@@ -15,7 +17,7 @@ type Line = { id: string; name: string; options: string | null; qty: number; amo
 type TableOpt = { id: string; number: string; busy: boolean };
 type OtherBill = { id: string; billNumber: string; total: number; table: string | null; mergeable: boolean };
 type Panel = null | "split" | "move" | "merge" | "cancel" | "adjust" | "comp";
-type Adjust = { discount: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
+type Adjust = { discount: number; subtotal: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
 
 export function BillActions({
   orderId,
@@ -30,6 +32,7 @@ export function BillActions({
   canPay,
   canVoid,
   canDiscount = false,
+  canKots = false,
   adjust,
   canChangeMode = false,
   dayClosed = false,
@@ -62,6 +65,8 @@ export function BillActions({
   canPay: boolean;
   canVoid: boolean;
   canDiscount?: boolean;
+  /** Show "Sent KOTs": the bill is unpaid or part-paid, not voided, its day is open, and the user may take orders. */
+  canKots?: boolean;
   adjust?: Adjust;
   canChangeMode?: boolean;
   /** The bill's day is closed: no void; money back only by credit note. */
@@ -103,6 +108,7 @@ export function BillActions({
   const [voidReason, setVoidReason] = useState("");
   const [confirm, setConfirm] = useState<null | "void" | "refund" | "cancel">(null);
   const [panel, setPanel] = useState<Panel>(null);
+  const [showKots, setShowKots] = useState(false);
   const [moveTo, setMoveTo] = useState("");
   const [mergeFrom, setMergeFrom] = useState("");
   const [splitQty, setSplitQty] = useState<Record<string, number>>({});
@@ -156,7 +162,9 @@ export function BillActions({
         ? "There is only one item on this bill."
         : null;
   const mergeable = otherBills.filter((b) => b.mergeable);
-  const discNum = discAmt.trim() === "" ? 0 : Math.round(Number(discAmt) * 100) / 100;
+  // "10%" is turned into an amount on the bill's subtotal; the server only takes the amount.
+  const discParsed = parseDiscountInput(discAmt, adjust?.subtotal ?? 0);
+  const discNum = discParsed.ok ? discParsed.amount : 0;
   const showAdjust =
     !!adjust && state === "unpaid" && !hasPayments && (canPay || canDiscount);
   const adjustChanged = !!adjust && (discNum !== adjust.discount || (adjust.scAvailable && scWanted !== adjust.scOn));
@@ -195,7 +203,7 @@ export function BillActions({
 
   const showBuyer = buyer !== undefined && state !== "voided" && !dayClosed && (canPay || canVoid);
   const showFire = open && heldCount > 0 && !dayClosed;
-  if (!showPay && !showRefund && !showVoid && !showFix && !showBuyer && !showFire && !notice) return null;
+  if (!showPay && !showRefund && !showVoid && !showFix && !showBuyer && !showFire && !canKots && !notice) return null;
 
   return (
     <div className="no-print mx-auto mt-4 max-w-sm space-y-3">
@@ -232,6 +240,13 @@ export function BillActions({
           {pending ? "Sending…" : `Send ${heldCount} held item${heldCount === 1 ? "" : "s"} to the kitchen (next course)`}
         </button>
       )}
+
+      {canKots && (
+        <button className="btn w-full border text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setShowKots(true)}>
+          Sent KOTs
+        </button>
+      )}
+      {canKots && showKots && <KotSheet orderId={orderId} billNumber={billNumber} onClose={() => setShowKots(false)} onChanged={() => router.refresh()} />}
 
       {showPay && (
         <section className="card p-4">
@@ -436,12 +451,17 @@ export function BillActions({
                     </p>
                   )}
                   <label className="block text-xs font-medium" style={{ color: "var(--color-ink-2)" }} htmlFor="adj-disc">
-                    Discount amount
+                    Discount (amount or %)
                   </label>
-                  <input id="adj-disc" className="field h-10 text-sm" inputMode="decimal" placeholder="0" value={discAmt} onChange={(e) => setDiscAmt(e.target.value)} />
-                  {discAmt.includes("%") && (
+                  <input id="adj-disc" className="field h-10 text-sm" inputMode="decimal" placeholder="Amount or percent, e.g. 10%" value={discAmt} onChange={(e) => setDiscAmt(e.target.value)} />
+                  {!discParsed.ok && (
                     <p className="text-xs" role="alert" style={{ color: "var(--color-bad)" }}>
-                      Enter the discount as an amount, not a percent (for 10% of {m(grandTotal)}, type {(Math.round(grandTotal * 10) / 100).toFixed(2)}).
+                      {discParsed.message}
+                    </p>
+                  )}
+                  {discParsed.ok && discParsed.percent !== null && (
+                    <p className="text-xs" role="status" style={{ color: "var(--color-ink-2)" }}>
+                      {discParsed.percent}% = {m(discParsed.amount)}
                     </p>
                   )}
                   {discNum > 0 && (
@@ -455,7 +475,7 @@ export function BillActions({
               )}
               <button
                 className="btn btn-primary mt-1 w-full text-sm"
-                disabled={pending || !adjustChanged || !(discNum >= 0) || Number.isNaN(discNum) || discAmt.includes("%")}
+                disabled={pending || !adjustChanged || !discParsed.ok}
                 onClick={() =>
                   run(() =>
                     adjustBill({

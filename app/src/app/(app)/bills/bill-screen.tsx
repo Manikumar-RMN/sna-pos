@@ -182,6 +182,7 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
         canVoid={can(user, "order.void")}
         canMerge={has(user, "merge")}
         canDiscount={can(user, "order.discount")}
+        canKots={open && !bill.dayClosed && can(user, "order.create")}
         adjust={bill.adjust}
         canChangeMode={can(user, "payment.change_mode")}
         dayClosed={bill.dayClosed}

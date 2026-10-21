@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-error";
 
 export type UnlockResult = { ok: true; next: string } | { ok: false; error: string };
 
@@ -16,7 +17,7 @@ export async function unlockWithPin(pin: string): Promise<UnlockResult> {
   if (!/^\d{4,6}$/.test(pin)) return { ok: false, error: "A PIN is 4 to 6 digits." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("pin_unlock", { p_pin: pin });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyDbError(error) };
   const res = (data ?? {}) as { ok?: boolean; error?: string; can_bill?: boolean };
   if (!res.ok) return { ok: false, error: res.error ?? "Wrong PIN." };
   revalidatePath("/", "layout");

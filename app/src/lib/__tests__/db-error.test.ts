@@ -18,6 +18,27 @@ describe("friendlyDbError", () => {
     expect(friendlyDbError({ message: 'duplicate key value violates unique constraint "x_key"', code: "23505" })).toBe("That already exists.");
     expect(friendlyDbError({ message: 'invalid input syntax for type uuid: "abc"', code: "22P02" })).toMatch(/format/);
   });
+  it("says plainly when the database refuses a person", () => {
+    const rls = 'new row violates row-level security policy for table "products"';
+    expect(friendlyDbError({ message: rls, code: "42501" })).toBe("You do not have permission to do that.");
+    expect(friendlyDbError({ message: rls })).toBe("You do not have permission to do that.");
+    expect(friendlyDbError({ message: "permission denied for table orders" })).toBe("You do not have permission to do that.");
+    expect(friendlyDbError({ message: "anything", code: "42501" })).toBe("You do not have permission to do that.");
+    expect(friendlyDbError({ message: rls, code: "42501" })).not.toMatch(/products|policy|row/);
+  });
+  it("asks to sign in again when the session has ended", () => {
+    expect(friendlyDbError({ message: "JWT expired", code: "PGRST301" })).toBe("Please sign in again.");
+    expect(friendlyDbError({ message: "JWT expired" })).toBe("Please sign in again.");
+  });
+  it("says so when the server cannot be reached", () => {
+    expect(friendlyDbError({ message: "TypeError: fetch failed" })).toBe("Could not reach the server. Check the internet connection.");
+    expect(friendlyDbError({ message: "fetch failed" })).toBe("Could not reach the server. Check the internet connection.");
+  });
+  it("never replaces a message our own functions raise on purpose", () => {
+    expect(friendlyDbError({ message: "Bill BILL26-0007 is already paid. Use a refund.", code: "P0001" })).toBe("Bill BILL26-0007 is already paid. Use a refund.");
+    expect(friendlyDbError({ message: "You do not have the right to set prices.", code: "P0001" })).toBe("You do not have the right to set prices.");
+    expect(friendlyDbError({ message: "Not allowed (order.discount).", code: "P0001" })).toBe("Not allowed (order.discount).");
+  });
   it("never returns an empty message", () => {
     expect(friendlyDbError(null)).toMatch(/try again/);
     expect(friendlyDbError({ message: "" })).toMatch(/try again/);
