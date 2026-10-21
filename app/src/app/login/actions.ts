@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyDbError } from "@/lib/db-error";
 
 export type AuthState = { error: string | null; notice?: string | null };
 
@@ -50,7 +51,7 @@ export async function authenticate(_prev: AuthState, formData: FormData): Promis
     }
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
-      return { error: error.message };
+      return { error: friendlyDbError(error) };
     }
     if (!data.session) {
       return {

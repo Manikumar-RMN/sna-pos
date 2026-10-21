@@ -1448,7 +1448,7 @@ export function PosTerminal({
                       <label className="text-xs font-medium" style={{ color: "var(--color-ink-2)" }} htmlFor="discount">
                         Discount
                       </label>
-                      <input id="discount" className="field h-9 flex-1 text-sm" inputMode="decimal" placeholder="Amount or 10%" value={discount} onChange={(e) => setDiscount(e.target.value)} />
+                      <input id="discount" className="field h-9 flex-1 text-sm" inputMode="text" placeholder="Amount or 10%" value={discount} onChange={(e) => setDiscount(e.target.value)} />
                     </div>
                   )}
                   {(canDiscount || canPay) && !senior && !discountParsed.ok && (

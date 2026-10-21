@@ -453,7 +453,7 @@ export function BillActions({
                   <label className="block text-xs font-medium" style={{ color: "var(--color-ink-2)" }} htmlFor="adj-disc">
                     Discount (amount or %)
                   </label>
-                  <input id="adj-disc" className="field h-10 text-sm" inputMode="decimal" placeholder="Amount or percent, e.g. 10%" value={discAmt} onChange={(e) => setDiscAmt(e.target.value)} />
+                  <input id="adj-disc" className="field h-10 text-sm" inputMode="text" placeholder="Amount or percent, e.g. 10%" value={discAmt} onChange={(e) => setDiscAmt(e.target.value)} />
                   {!discParsed.ok && (
                     <p className="text-xs" role="alert" style={{ color: "var(--color-bad)" }}>
                       {discParsed.message}
