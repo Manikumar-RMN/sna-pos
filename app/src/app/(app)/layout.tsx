@@ -46,7 +46,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const shiftsOn = !!(await (await createClient()).from("branch_settings").select("shifts_enabled").eq("branch_id", user.branch_id).maybeSingle()).data?.shifts_enabled;
   const canFinancial = can(user, "report.view_financial");
   // The Reports drop-down lists the same pages the Reports hub shows this role.
-  const reportItems = REPORT_LINKS.filter((r) => r.need === "sales" || canFinancial).map((r) => ({ href: r.href, label: r.title }));
+  const reportItems = REPORT_LINKS.filter((r) => r.need === "sales" || canFinancial).map((r) => ({ href: r.href, label: r.title, group: r.group }));
   const links = [
     { href: "/dashboard", label: "Home", show: true },
     { href: "/owner", label: "Owner", show: has(user, "owner_app") && can(user, "report.view_sales") },

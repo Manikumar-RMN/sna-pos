@@ -4,13 +4,36 @@ export type ReportLink = {
   title: string;
   blurb: string;
   need: "sales" | "financial";
+  /** Heading the report is listed under on the hub and in the menu drop-down (the Sales summary has none). */
+  group?: string;
 };
 
 export const REPORT_LINKS: ReportLink[] = [
   { href: "/reports", title: "Sales summary", blurb: "Sales, tax, payments, hours and items for the period.", need: "sales" },
-  { href: "/reports/popular-items", title: "Popular items", blurb: "The items that sell the most, by units and amount.", need: "sales" },
-  { href: "/reports/slow-items", title: "Slow and unsold items", blurb: "Menu items that sold the least, or not at all.", need: "sales" },
-  { href: "/reports/waiter-sales", title: "Waiter-wise sales", blurb: "Bills, covers and sales for each waiter or cashier.", need: "sales" },
-  { href: "/reports/discounts", title: "Discounts", blurb: "Who gave discounts, how much, and on which days.", need: "financial" },
-  { href: "/reports/audit", title: "Voids, cancels and refunds", blurb: "Voided bills, cancelled items, refunds and credit notes.", need: "financial" },
+  { group: "Operations", href: "/reports/pending-kot", title: "Pending KOT", blurb: "Kitchen tickets with food still waiting.", need: "sales" },
+  { group: "Operations", href: "/reports/pending-bills", title: "Pending bills", blurb: "Open bills and bills not fully paid, with balance and age.", need: "sales" },
+  { group: "Operations", href: "/reports/void-bills", title: "Void bills", blurb: "Bills that were voided, with the reason and who did it.", need: "sales" },
+  { group: "Sales", href: "/reports/bills-detail", title: "Bills detail", blurb: "Every finished bill with its amounts and how it was paid.", need: "financial" },
+  { group: "Sales", href: "/reports/sales-day-book", title: "Sales day book", blurb: "One line per day: bills, tax, cash and other payments.", need: "financial" },
+  { group: "Sales", href: "/reports/sales-month-book", title: "Sales day book monthwise", blurb: "The same book, one line per month.", need: "financial" },
+  { group: "Sales", href: "/reports/settlement", title: "Settlement", blurb: "Payments by mode, refunds, net collected and payment list.", need: "financial" },
+  { group: "Sales", href: "/reports/tax", title: "Tax report", blurb: "Taxable amount and tax for each tax and rate.", need: "financial" },
+  { group: "Items & staff", href: "/reports/popular-items", title: "Popular items", blurb: "The items that sell the most, by units and amount.", need: "sales" },
+  { group: "Items & staff", href: "/reports/slow-items", title: "Slow and unsold items", blurb: "Menu items that sold the least, or not at all.", need: "sales" },
+  { group: "Items & staff", href: "/reports/waiter-sales", title: "Waiter-wise sales", blurb: "Bills, covers and sales for each waiter or cashier.", need: "sales" },
+  { group: "Items & staff", href: "/reports/discounts", title: "Discounts", blurb: "Who gave discounts, how much, and on which days.", need: "financial" },
+  { group: "Audit", href: "/reports/audit", title: "Voids, cancels and refunds", blurb: "Voided bills, cancelled items, refunds and credit notes.", need: "financial" },
 ];
+
+/** The links this person may see, split under their headings in order (the Sales summary has no heading). */
+export function groupReportLinks(canFinancial: boolean): { group: string | null; items: ReportLink[] }[] {
+  const out: { group: string | null; items: ReportLink[] }[] = [];
+  for (const l of REPORT_LINKS) {
+    if (l.need === "financial" && !canFinancial) continue;
+    const g = l.group ?? null;
+    const last = out[out.length - 1];
+    if (last && last.group === g) last.items.push(l);
+    else out.push({ group: g, items: [l] });
+  }
+  return out;
+}

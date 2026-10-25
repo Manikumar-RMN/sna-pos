@@ -1,8 +1,10 @@
 import { parseUnsold, reportRpcError } from "@/lib/reports-pack";
 import { money } from "@/lib/format";
-import { CsvButton } from "../csv-button";
-import { Card, Empty, Err, Note, Table } from "../_components/ui";
-import { loadReport, ReportShell } from "../_components/report-context";
+import { sumBy } from "@/lib/report-shell";
+import { Empty, Err, Note } from "../_components/ui";
+import { loadReport } from "../_components/report-context";
+import { ReportShell } from "../_components/report-shell";
+import { ReportTable } from "../_components/report-table";
 
 const TOP = 100;
 
@@ -20,22 +22,24 @@ export default async function SlowItemsPage({ searchParams }: { searchParams: Pr
   const { dead, slow } = err ? { dead: [], slow: [] } : parseUnsold(data as unknown);
 
   return (
-    <ReportShell ctx={ctx} title="Slow and unsold items" basePath="/reports/slow-items">
-      <Card
-        title="Slow and unsold items"
-        action={
-          slow.length + dead.length > 0 ? (
-            <CsvButton
-              filename={`slow_items_${from}_${to}.csv`}
-              header={["Item", "Status", "Quantity", "Amount before tax"]}
-              rows={[
+    <ReportShell
+      ctx={ctx}
+      title="Slow and unsold items"
+      basePath="/reports/slow-items"
+      excel={
+        slow.length + dead.length > 0
+          ? {
+              filename: `slow_items_${from}_${to}.csv`,
+              header: ["Item", "Status", "Quantity", "Amount before tax"],
+              rows: [
                 ...dead.map((d) => [d.name, "No sales", 0, 0] as (string | number)[]),
                 ...slow.map((s) => [s.name, "Slow", s.qty, s.amount] as (string | number)[]),
-              ]}
-            />
-          ) : null
-        }
-      >
+              ],
+            }
+          : null
+      }
+    >
+      <div>
         {err ? <Err e={err} /> : dead.length + slow.length === 0 ? (
           <Empty text="There are no active menu items." />
         ) : (
@@ -47,7 +51,7 @@ export default async function SlowItemsPage({ searchParams }: { searchParams: Pr
               <p className="mb-3 text-sm" style={{ color: "var(--color-ink-3)" }}>Every active item sold at least once.</p>
             ) : (
               <div className="mb-3">
-                <Table head={["Item"]} rows={dead.slice(0, TOP).map((d) => [d.name])} />
+                <ReportTable head={["Item"]} rows={dead.slice(0, TOP).map((d) => [d.name])} />
                 {dead.length > TOP && <Note>Showing {TOP} of {dead.length}. The CSV has them all.</Note>}
               </div>
             )}
@@ -55,7 +59,11 @@ export default async function SlowItemsPage({ searchParams }: { searchParams: Pr
               Sold least ({slow.length})
             </h3>
             {slow.length === 0 ? <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>Nothing to show.</p> : (
-              <Table head={["Item", "Units", "Amount"]} rows={slow.map((s) => [s.name, String(s.qty), money(s.amount, c)])} />
+              <ReportTable
+                head={["Item", "Units", "Amount"]}
+                rows={slow.map((s) => [s.name, String(s.qty), money(s.amount, c)])}
+                total={["TOTAL", String(sumBy(slow, (s) => s.qty)), money(sumBy(slow, (s) => s.amount), c)]}
+              />
             )}
             <Note>
               Only items that are on the menu and available are counted.
@@ -65,7 +73,7 @@ export default async function SlowItemsPage({ searchParams }: { searchParams: Pr
             </Note>
           </>
         )}
-      </Card>
+      </div>
     </ReportShell>
   );
 }

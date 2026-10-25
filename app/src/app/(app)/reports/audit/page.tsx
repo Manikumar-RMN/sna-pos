@@ -2,9 +2,10 @@ import { AUDIT_ACTION_LABEL, auditDetail } from "@/lib/reports-pack";
 import { inChunks } from "@/lib/reports-fetch";
 import { friendlyDbError } from "@/lib/db-error";
 import { addDays, dateTime, localDayStartIso, money } from "@/lib/format";
-import { CsvButton } from "../csv-button";
-import { Card, Empty, Err, Note, Notice, Table } from "../_components/ui";
-import { loadReport, ReportShell } from "../_components/report-context";
+import { Empty, Err, Note, Notice } from "../_components/ui";
+import { loadReport } from "../_components/report-context";
+import { ReportShell } from "../_components/report-shell";
+import { ReportTable } from "../_components/report-table";
 
 const AUDIT_EACH = 100;
 const AUDIT_ADJUST_FETCH = 300;
@@ -103,28 +104,30 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const textCols = head.map((_, i) => i).filter((i) => i !== amountCol);
 
   return (
-    <ReportShell ctx={ctx} title="Voids, cancels and refunds" basePath="/reports/audit" basis="from the activity log, by calendar date">
+    <ReportShell
+      ctx={ctx}
+      title="Voids, cancels and refunds"
+      basePath="/reports/audit"
+      basis="from the activity log, by calendar date"
+      landscape
+      excel={auditRows.length > 0 ? { filename: `audit_${from}_${to}.csv`, header: head, rows: csvRows } : null}
+    >
       {lookupError && (
         <Notice tone="bad">
           Some staff names or bill numbers could not be loaded ({friendlyDbError(lookupError)}). They may show as Unknown or blank.
         </Notice>
       )}
-      <Card
-        title="Voids, cancels, refunds and discount approvals"
-        action={
-          auditRows.length > 0 ? <CsvButton filename={`audit_${from}_${to}.csv`} header={head} rows={csvRows} /> : null
-        }
-      >
+      <div>
         {auditError ? <Err e={auditError} /> : auditRows.length === 0 ? <Empty text="Nothing was voided, cancelled or refunded in this period." /> : (
           <>
-            <Table head={head} rows={tableRows} textCols={textCols} />
+            <ReportTable head={head} rows={tableRows} textCols={textCols} zebra />
             {auditHitLimit && <Note>Showing the latest {AUDIT_EACH} of each kind. Choose a shorter range to see older entries.</Note>}
           </>
         )}
         <Note>
           From the activity log, by calendar date and for {scope.all ? "all outlets" : "this outlet"}. Manager PIN approvals and bill adjustments with no discount are not listed. Reprints of bills are not recorded in the activity log, so they cannot be listed here.
         </Note>
-      </Card>
+      </div>
     </ReportShell>
   );
 }

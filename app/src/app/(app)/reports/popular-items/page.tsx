@@ -1,8 +1,10 @@
 import { parsePopular, reportRpcError } from "@/lib/reports-pack";
 import { money } from "@/lib/format";
-import { CsvButton } from "../csv-button";
-import { Card, Empty, Err, Note, Table } from "../_components/ui";
-import { loadReport, ReportShell } from "../_components/report-context";
+import { sumBy } from "@/lib/report-shell";
+import { Empty, Err, Note } from "../_components/ui";
+import { loadReport } from "../_components/report-context";
+import { ReportShell } from "../_components/report-shell";
+import { ReportTable } from "../_components/report-table";
 
 const TOP = 100;
 
@@ -20,25 +22,27 @@ export default async function PopularItemsPage({ searchParams }: { searchParams:
   const popular = err ? [] : parsePopular(data as unknown);
 
   return (
-    <ReportShell ctx={ctx} title="Popular items" basePath="/reports/popular-items">
-      <Card
-        title="Items sold, most first"
-        action={
-          popular.length > 0 ? (
-            <CsvButton
-              filename={`popular_items_${from}_${to}.csv`}
-              header={["Item", "Quantity", "Amount before tax"]}
-              rows={popular.map((i) => [i.name, i.qty, i.amount])}
-            />
-          ) : null
-        }
-      >
+    <ReportShell
+      ctx={ctx}
+      title="Popular items"
+      basePath="/reports/popular-items"
+      excel={
+        popular.length > 0
+          ? { filename: `popular_items_${from}_${to}.csv`, header: ["Item", "Quantity", "Amount before tax"], rows: popular.map((i) => [i.name, i.qty, i.amount]) }
+          : null
+      }
+    >
+      <div>
         {err ? <Err e={err} /> : popular.length === 0 ? <Empty text="No items were sold in this period." /> : (
-          <Table head={["Item", "Units", "Amount"]} rows={popular.map((i) => [i.name, String(i.qty), money(i.amount, c)])} />
+          <ReportTable
+            head={["Item", "Units", "Amount"]}
+            rows={popular.map((i) => [i.name, String(i.qty), money(i.amount, c)])}
+            total={[popular.length >= TOP ? `TOTAL (top ${TOP})` : "TOTAL", String(sumBy(popular, (i) => i.qty)), money(sumBy(popular, (i) => i.amount), c)]}
+          />
         )}
         {popular.length >= TOP && <Note>Top {TOP} items by units sold.</Note>}
         {scope.all && <Note>Items are combined across all outlets.</Note>}
-      </Card>
+      </div>
     </ReportShell>
   );
 }

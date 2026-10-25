@@ -6,11 +6,14 @@ export function CsvButton({
   header,
   rows,
   label = "Download CSV",
+  className,
 }: {
   filename: string;
   header: string[];
   rows: (string | number)[][];
   label?: string;
+  /** Replaces the default small button look (the report screens use their own button style). */
+  className?: string;
 }) {
   function download() {
     const esc = (v: string | number) => {
@@ -31,7 +34,12 @@ export function CsvButton({
     URL.revokeObjectURL(url);
   }
   return (
-    <button onClick={download} className="rounded-lg border px-2.5 py-1 text-xs font-semibold" style={{ borderColor: "var(--color-line)" }}>
+    <button
+      type="button"
+      onClick={download}
+      className={className ?? "rounded-lg border px-2.5 py-1 text-xs font-semibold"}
+      style={className ? undefined : { borderColor: "var(--color-line)" }}
+    >
       {label}
     </button>
   );

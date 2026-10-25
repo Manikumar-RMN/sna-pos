@@ -2,12 +2,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { isYmd, longDate, todayIn } from "@/lib/format";
+import { isYmd, todayIn } from "@/lib/format";
 import { outletScope, resolveRange, type OutletScope } from "@/lib/reports-pack";
 import type { OutletInfo } from "../../outlet/outlet-switcher";
-import { FilterBar } from "./filter-bar";
-import { OutletBanner } from "./outlet-banner";
-import { Notice } from "./ui";
 
 type RangeParams = { range?: string; from?: string; to?: string };
 
@@ -76,27 +73,4 @@ export async function loadReport(
   const scope = outletScope(info, { id: user.branch_id, name: user.branch_name });
   const showPicker = has(user, "multi_outlet") && (info?.outlets.length ?? 0) > 1;
   return { ok: true, ctx: { user, supabase, from, to, range, clamped: !!clamped, today, calendarToday, info, scope, showPicker } };
-}
-
-/** Page frame shared by the report pages: title, way back to the hub, outlet banner, date filter, then the report. */
-export function ReportShell({ ctx, title, basePath, basis = "by business day · voided bills and cancelled items are left out", note, children }: { ctx: ReportCtx; title: string; basePath: string; basis?: string; note?: string; children: ReactNode }) {
-  const { from, to } = ctx;
-  return (
-    <div className="mx-auto max-w-5xl">
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold tracking-tight">{title}</h1>
-        <Link href="/reports" className="text-xs font-semibold" style={{ color: "var(--color-brand-strong)" }}>
-          ← All reports
-        </Link>
-      </div>
-      <p className="mt-1 mb-3 text-sm" style={{ color: "var(--color-ink-3)" }}>
-        {from === to ? longDate(from) : `${longDate(from)} – ${longDate(to)}`} · {basis}
-        {note ? ` · ${note}` : ""}
-      </p>
-      <OutletBanner scope={ctx.scope} info={ctx.info} showPicker={ctx.showPicker} />
-      <FilterBar basePath={basePath} from={from} to={to} range={ctx.range} today={ctx.today} />
-      {ctx.clamped && <Notice>Reports cover at most one year, so only the latest 366 days of the range you chose are shown.</Notice>}
-      {children}
-    </div>
-  );
 }

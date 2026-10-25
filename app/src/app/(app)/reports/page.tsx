@@ -6,7 +6,8 @@ import { addDays, dateTime, isYmd, longDate, money, orderTypeLabel, todayIn } fr
 import { outletScope, rangeQuery } from "@/lib/reports-pack";
 import { CsvButton } from "./csv-button";
 import { OutletBanner } from "./_components/outlet-banner";
-import { REPORT_LINKS } from "./_components/report-links";
+import { FilterForm } from "./_components/filter-form";
+import { groupReportLinks } from "./_components/report-links";
 import type { OutletInfo } from "../outlet/outlet-switcher";
 
 type Settlement = {
@@ -142,7 +143,7 @@ export default async function ReportsPage({
   const scope = outletScope(outletInfo, { id: user.branch_id, name: user.branch_name });
   const showPicker = multi && (outletInfo?.outlets.length ?? 0) > 1;
   const canFinancial = can(user, "report.view_financial");
-  const links = REPORT_LINKS.filter((l) => l.need === "sales" || canFinancial);
+  const linkGroups = groupReportLinks(canFinancial);
   const keep = rangeQuery(sp);
   const rep = data as unknown as Report | null;
   const settle = settleData as unknown as Settlement | null;
@@ -151,35 +152,38 @@ export default async function ReportsPage({
   const unpaidBills = Number(rep?.summary.unpaid_bills ?? 0);
   const unpaidCount = `${unpaidBills} bill${unpaidBills === 1 ? "" : "s"}`;
 
-  const presets = [
-    { key: "today", label: "Today" },
-    { key: "yesterday", label: "Yesterday" },
-    { key: "7d", label: "Last 7 days" },
-    { key: "month", label: "This month" },
-    { key: "lastmonth", label: "Last month" },
-  ];
-
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="text-xl font-bold tracking-tight">Reports</h1>
       <p className="mt-1 mb-3 text-sm" style={{ color: "var(--color-ink-3)" }}>
         Choose a report. Each one opens on its own page.
       </p>
-      <nav aria-label="Reports" className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {links.map((l) => {
-          const here = l.href === "/reports";
-          return (
-            <Link
-              key={l.href}
-              href={here ? "#sales-summary" : `${l.href}${keep}`}
-              className="card block p-4"
-              style={here ? { borderColor: "var(--color-brand)", background: "var(--color-brand-soft)" } : undefined}
-            >
-              <div className="text-sm font-bold">{l.title}</div>
-              <div className="mt-0.5 text-xs" style={{ color: "var(--color-ink-3)" }}>{l.blurb}</div>
-            </Link>
-          );
-        })}
+      <nav aria-label="Reports" className="mb-5">
+        {linkGroups.map((g) => (
+          <div key={g.group ?? "top"} className="mb-4">
+            {g.group && (
+              <h2 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: "var(--color-ink-3)" }}>
+                {g.group}
+              </h2>
+            )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {g.items.map((l) => {
+                const here = l.href === "/reports";
+                return (
+                  <Link
+                    key={l.href}
+                    href={here ? "#sales-summary" : `${l.href}${keep}`}
+                    className="card block p-4"
+                    style={here ? { borderColor: "var(--color-brand)", background: "var(--color-brand-soft)" } : undefined}
+                  >
+                    <div className="text-sm font-bold">{l.title}</div>
+                    <div className="mt-0.5 text-xs" style={{ color: "var(--color-ink-3)" }}>{l.blurb}</div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <div id="sales-summary" className="scroll-mt-4" />
@@ -221,30 +225,8 @@ export default async function ReportsPage({
         </div>
       )}
 
-      <div className="mb-5 flex flex-wrap items-center gap-2">
-        {presets.map((p) => (
-          <Link
-            key={p.key}
-            href={`/reports?range=${p.key}`}
-            className="rounded-full border px-3 py-1.5 text-xs font-semibold"
-            style={{
-              borderColor: range === p.key ? "var(--color-brand)" : "var(--color-line)",
-              background: range === p.key ? "var(--color-brand-soft)" : "var(--color-surface)",
-              color: range === p.key ? "var(--color-brand-strong)" : "var(--color-ink-2)",
-            }}
-          >
-            {p.label}
-          </Link>
-        ))}
-        <form action="/reports" className="flex flex-wrap items-center gap-1.5">
-          <input type="date" name="from" defaultValue={from} max={today} className="field h-9 w-36 text-xs" />
-          <span className="text-xs" style={{ color: "var(--color-ink-3)" }}>to</span>
-          <input type="date" name="to" defaultValue={to} max={today} className="field h-9 w-36 text-xs" />
-          <button className="rounded-lg border px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
-            Show
-          </button>
-        </form>
-      </div>
+      <FilterForm basePath="/reports" from={from} to={to} range={range} max={today} />
+      <div className="mb-5" />
 
       {error || !rep ? (
         <div className="card p-5 text-sm" style={{ color: "var(--color-bad)" }}>

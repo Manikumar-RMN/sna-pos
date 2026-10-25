@@ -7202,12 +7202,18 @@ export type Database = {
       }
       remove_report_schedule: { Args: { p_id: string }; Returns: undefined }
       reopen_day: { Args: { p_reason: string }; Returns: Json }
+      report_bills_detail: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_discounts: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_pending_bills: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_pending_kot: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_popular_items: {
         Args: { p_from: string; p_to: string }
         Returns: Json
       }
+      report_sales_day_book: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_sales_month_book: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_schedules_list: { Args: never; Returns: Json }
+      report_settlement: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_sent: {
         Args: {
           p_note: string
@@ -7217,10 +7223,12 @@ export type Database = {
         }
         Returns: undefined
       }
+      report_tax: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_unsold_items: {
         Args: { p_from: string; p_to: string }
         Returns: Json
       }
+      report_void_bills: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_waiter_sales: {
         Args: { p_from: string; p_to: string }
         Returns: Json
