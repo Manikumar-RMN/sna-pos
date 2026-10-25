@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { Dual } from "./lang";
+
+/** One menu entry. `children` makes it a drop-down group (Reports); the entry itself still links to `href`. */
+export type NavItem = { href: string; label: string; children?: { href: string; label: string }[] };
+
+/** The child page that is open now. The group's own page only counts on an exact match. */
+function childOn(path: string, group: string, href: string) {
+  return href === group ? path === href : isOn(path, href);
+}
 
 /** Line icons for the side menu (24×24, drawn with a single path each). */
 const ICONS: Record<string, string> = {
@@ -38,12 +47,13 @@ function Icon({ href }: { href: string }) {
 }
 
 /** Vertical icon menu on the green rail (tablet and desktop). */
-export function NavRail({ links }: { links: { href: string; label: string }[] }) {
+export function NavRail({ links }: { links: NavItem[] }) {
   const path = usePathname();
   return (
     <nav aria-label="Main" className="flex flex-col items-center gap-1.5">
       {links.map((l) => {
         const on = isOn(path, l.href);
+        if (l.children?.length) return <RailGroup key={l.href} item={l} on={on} path={path} />;
         return (
           <Link
             key={l.href}
@@ -62,12 +72,13 @@ export function NavRail({ links }: { links: { href: string; label: string }[] })
 }
 
 /** Horizontal menu for phones. */
-export function NavLinks({ links }: { links: { href: string; label: string }[] }) {
+export function NavLinks({ links }: { links: NavItem[] }) {
   const path = usePathname();
   return (
     <nav aria-label="Main" className="-mx-1 flex items-center gap-1 overflow-x-auto whitespace-nowrap text-sm">
       {links.map((l) => {
         const on = isOn(path, l.href);
+        if (l.children?.length) return <BarGroup key={l.href} item={l} on={on} path={path} />;
         return (
           <Link
             key={l.href}
@@ -82,5 +93,156 @@ export function NavLinks({ links }: { links: { href: string; label: string }[] }
         );
       })}
     </nav>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ transform: open ? "rotate(180deg)" : undefined, transition: "transform 120ms" }}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+/**
+ * Open/close state for a drop-down. It closes on Escape (focus goes back to the
+ * button), on a press outside the button or list, on a page change and when the
+ * page scrolls or resizes (the list is fixed, so it would drift from its button).
+ */
+function useDropdown(path: string) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
+  const btn = useRef<HTMLButtonElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const [lastPath, setLastPath] = useState(path);
+  if (lastPath !== path) {
+    setLastPath(path);
+    setOpen(false);
+  }
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: Event) => {
+      const t = e.target as Node | null;
+      if (t && (btn.current?.contains(t) || box.current?.contains(t))) return;
+      setOpen(false);
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        btn.current?.focus();
+      }
+    };
+    const close = (e: Event) => {
+      if (e.target instanceof Node && box.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener("pointerdown", down);
+    document.addEventListener("keydown", key);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("pointerdown", down);
+      document.removeEventListener("keydown", key);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [open]);
+  /** `side`: beside the button (rail) or under it (phone bar). */
+  function toggle(anchor: HTMLElement | null, side: "right" | "below") {
+    if (!open && anchor) {
+      const r = anchor.getBoundingClientRect();
+      setPos(side === "right" ? { left: r.right + 10, top: Math.max(8, r.top) } : { left: Math.max(8, Math.min(r.left, window.innerWidth - 248)), top: r.bottom + 6 });
+    }
+    setOpen(!open);
+  }
+  return { open, setOpen, pos, btn, box, toggle };
+}
+
+function DropList({ id, item, path, pos, box, onPick }: { id: string; item: NavItem; path: string; pos: { left: number; top: number }; box: RefObject<HTMLDivElement | null>; onPick: () => void }) {
+  return (
+    <div
+      ref={box}
+      id={id}
+      className="fixed z-50 w-60 max-w-[calc(100vw-16px)] overflow-y-auto rounded-2xl border p-1.5 shadow-lg"
+      style={{ left: pos.left, top: pos.top, maxHeight: "calc(100vh - 24px)", background: "var(--color-surface)", borderColor: "var(--color-line)", color: "var(--color-ink)" }}
+    >
+      <ul className="m-0 list-none p-0">
+        {item.children?.map((c) => {
+          const here = childOn(path, item.href, c.href);
+          return (
+            <li key={c.href}>
+              <Link
+                href={c.href}
+                onClick={onPick}
+                aria-current={here ? "page" : undefined}
+                className="flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold"
+                style={here ? { background: "var(--color-brand-soft)", color: "var(--color-brand)" } : undefined}
+              >
+                <Dual text={c.label} />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/** Rail: the Reports icon opens its page; the chevron under it opens a list of reports beside the rail. */
+function RailGroup({ item, on, path }: { item: NavItem; on: boolean; path: string }) {
+  const id = useId();
+  const d = useDropdown(path);
+  return (
+    <div className="flex flex-col items-center">
+      <Link
+        href={item.href}
+        aria-current={path === item.href ? "page" : undefined}
+        className="flex w-[60px] min-h-[56px] flex-col items-center justify-center gap-[3px] rounded-t-2xl text-[10px] font-bold"
+        style={on ? { background: "rgba(255,255,255,0.16)", color: "#fff" } : { color: "rgba(255,255,255,0.74)" }}
+      >
+        <Icon href={item.href} />
+        <Dual text={item.label} />
+      </Link>
+      <button
+        ref={d.btn}
+        type="button"
+        aria-expanded={d.open}
+        aria-controls={id}
+        aria-label={`${item.label} list`}
+        onClick={() => d.toggle(d.btn.current, "right")}
+        className="flex min-h-11 w-[60px] items-center justify-center rounded-b-2xl"
+        style={on || d.open ? { background: "rgba(255,255,255,0.16)", color: "#fff" } : { color: "rgba(255,255,255,0.74)" }}
+      >
+        <Chevron open={d.open} />
+      </button>
+      {d.open && <DropList id={id} item={item} path={path} pos={d.pos} box={d.box} onPick={() => d.setOpen(false)} />}
+    </div>
+  );
+}
+
+/** Phone bar: the Reports link plus a chevron that drops the list below it. */
+function BarGroup({ item, on, path }: { item: NavItem; on: boolean; path: string }) {
+  const id = useId();
+  const d = useDropdown(path);
+  const style = on || d.open ? { background: "rgba(255,255,255,0.16)", color: "#fff" } : { color: "rgba(255,255,255,0.8)" };
+  return (
+    <div className="flex items-center rounded-xl" style={style}>
+      <Link href={item.href} aria-current={path === item.href ? "page" : undefined} className="flex items-center gap-1.5 py-2 pl-3 pr-1 font-semibold">
+        <Icon href={item.href} />
+        <Dual text={item.label} />
+      </Link>
+      <button
+        ref={d.btn}
+        type="button"
+        aria-expanded={d.open}
+        aria-controls={id}
+        aria-label={`${item.label} list`}
+        onClick={() => d.toggle(d.btn.current?.parentElement ?? null, "below")}
+        className="flex min-h-11 min-w-9 items-center justify-center rounded-xl pr-1"
+      >
+        <Chevron open={d.open} />
+      </button>
+      {d.open && <DropList id={id} item={item} path={path} pos={d.pos} box={d.box} onPick={() => d.setOpen(false)} />}
+    </div>
   );
 }

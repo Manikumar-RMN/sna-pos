@@ -3,7 +3,8 @@ import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { lockCounter } from "@/app/counter/actions";
-import { NavLinks, NavRail } from "./nav-links";
+import { NavLinks, NavRail, type NavItem } from "./nav-links";
+import { REPORT_LINKS } from "./reports/_components/report-links";
 import { IdleLock } from "./idle-lock";
 import { OfflineSync } from "./offline-sync";
 import { SwRegister } from "./sw-register";
@@ -43,6 +44,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // Show only the screens this role can use. The database enforces the real
   // rules; this just keeps the menu honest.
   const shiftsOn = !!(await (await createClient()).from("branch_settings").select("shifts_enabled").eq("branch_id", user.branch_id).maybeSingle()).data?.shifts_enabled;
+  const canFinancial = can(user, "report.view_financial");
+  // The Reports drop-down lists the same pages the Reports hub shows this role.
+  const reportItems = REPORT_LINKS.filter((r) => r.need === "sales" || canFinancial).map((r) => ({ href: r.href, label: r.title }));
   const links = [
     { href: "/dashboard", label: "Home", show: true },
     { href: "/owner", label: "Owner", show: has(user, "owner_app") && can(user, "report.view_sales") },
@@ -67,7 +71,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     { href: "/help", label: "Help", show: true },
   ]
     .filter((l) => l.show)
-    .map(({ href, label }) => ({ href, label }));
+    .map(({ href, label }): NavItem => (href === "/reports" ? { href, label, children: reportItems } : { href, label }));
 
   // The licence: a reminder from 15 days before the end date, read-only after it.
   const licence = await getLicence();
