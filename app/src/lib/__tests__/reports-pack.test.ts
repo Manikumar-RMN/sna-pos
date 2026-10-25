@@ -1,26 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
-  aggregateItems,
-  aggregateWaiters,
   auditDetail,
-  discountPercent,
-  discountsByDay,
-  discountsByUser,
+  mergeCashiers,
+  outletScope,
+  parseDiscounts,
+  parsePopular,
+  parseUnsold,
+  parseWaiters,
+  rangeQuery,
+  reportRpcError,
   resolveRange,
-  splitPopularSlow,
-  type OrderRow,
 } from "../reports-pack";
-
-const order = (o: Partial<OrderRow>): OrderRow => ({
-  business_date: "2026-10-20",
-  cashier_id: "c1",
-  waiter_id: null,
-  covers: null,
-  grand_total: 100,
-  subtotal: 100,
-  discount_total: 0,
-  ...o,
-});
 
 describe("resolveRange", () => {
   it("defaults to the business day", () => {
@@ -38,80 +28,105 @@ describe("resolveRange", () => {
   });
 });
 
+describe("resolveRange clamp", () => {
+  it("keeps a range of exactly 366 days and cuts a longer one to the latest 366 days", () => {
+    expect(resolveRange("2026-10-20", { from: "2025-10-20", to: "2026-10-21" })).toEqual({ from: "2025-10-20", to: "2026-10-21", range: "custom" });
+    expect(resolveRange("2026-10-20", { from: "2020-01-01", to: "2026-10-20" })).toEqual({
+      from: "2025-10-19",
+      to: "2026-10-20",
+      range: "custom",
+      clamped: true,
+    });
+  });
+});
+
+describe("reportRpcError", () => {
+  it("passes the report functions' own messages through as plain words", () => {
+    for (const m of [
+      "You do not have the right to see financial reports.",
+      "Your role does not allow this action (report.view_sales).",
+      "Choose a valid date range.",
+      "Choose a range of one year or less.",
+    ]) {
+      const e = reportRpcError({ message: m, code: "42501" });
+      expect(e).toEqual({ message: m, code: "P0001" });
+    }
+    expect(reportRpcError({ message: "ERROR: Choose a valid date range." })?.message).toBe("Choose a valid date range.");
+  });
+  it("leaves other errors and no error alone", () => {
+    const other = { message: "fetch failed", code: "" };
+    expect(reportRpcError(other)).toBe(other);
+    expect(reportRpcError(null)).toBeNull();
+  });
+});
+
 describe("items", () => {
-  const lines = [
-    { product_id: "a", product_name: "Dosa", quantity: 2, line_subtotal: "100.00" },
-    { product_id: "a", product_name: "Dosa", quantity: 3, line_subtotal: 150 },
-    { product_id: "b", product_name: "Tea", quantity: 10, line_subtotal: 100 },
-    { product_id: null, product_name: "Open item", quantity: 1, line_subtotal: 20 },
-  ];
-  it("adds up units and amount per item, most units first", () => {
-    const r = aggregateItems(lines);
-    expect(r.map((x) => [x.name, x.qty, x.amount])).toEqual([
-      ["Tea", 10, 100],
-      ["Dosa", 5, 250],
-      ["Open item", 1, 20],
+  it("reads popular items, best first as the database sent them", () => {
+    const r = parsePopular([
+      { product_id: "a", name: "Tea", units: 10, amount: "100.50" },
+      { product_id: null, name: "Open item", units: 1, amount: 20 },
+    ]);
+    expect(r).toEqual([
+      { key: "a", name: "Tea", qty: 10, amount: 100.5 },
+      { key: "name:Open item", name: "Open item", qty: 1, amount: 20 },
     ]);
   });
-  it("splits slow and unsold items among active menu items only", () => {
-    const sold = aggregateItems(lines);
-    const active = [
-      { id: "a", name: "Dosa" },
-      { id: "b", name: "Tea" },
-      { id: "z", name: "Vada" },
-      { id: "y", name: "Idli" },
-    ];
-    const r = splitPopularSlow(sold, active, { slow: 1 });
-    expect(r.dead.map((d) => d.name)).toEqual(["Idli", "Vada"]);
-    expect(r.slow.map((s) => s.name)).toEqual(["Dosa"]);
-    expect(r.popular[0].name).toBe("Tea");
+  it("reads unsold and sold-least items", () => {
+    const r = parseUnsold({ unsold: [{ id: "z", name: "Vada" }], sold_least: [{ product_id: "a", name: "Dosa", units: 5, amount: 250 }] });
+    expect(r.dead).toEqual([{ id: "z", name: "Vada" }]);
+    expect(r.slow).toEqual([{ key: "a", name: "Dosa", qty: 5, amount: 250 }]);
   });
-  it("copes with an empty range", () => {
-    expect(splitPopularSlow([], [])).toEqual({ popular: [], slow: [], dead: [] });
+  it("copes with empty or odd results", () => {
+    expect(parsePopular(null)).toEqual([]);
+    expect(parsePopular({})).toEqual([]);
+    expect(parseUnsold(null)).toEqual({ dead: [], slow: [] });
+    expect(parseUnsold({ unsold: "x", sold_least: [null, 3] })).toEqual({ dead: [], slow: [] });
   });
 });
 
 describe("waiters", () => {
-  it("falls back to the cashier and averages the bill", () => {
-    const r = aggregateWaiters([
-      order({ waiter_id: "w1", grand_total: 200, covers: 2 }),
-      order({ waiter_id: "w1", grand_total: 101, covers: 3 }),
-      order({ waiter_id: null, cashier_id: "c1", grand_total: 50 }),
+  it("reads one row per outlet per person and works out the average bill", () => {
+    const r = parseWaiters([
+      { branch_id: "b1", outlet_name: "Main", user_id: "w1", staff_name: "Asha", bills: 2, covers: 5, sales: 301 },
+      { branch_id: "b2", outlet_name: "Mall", user_id: "w1", staff_name: "Asha", bills: 1, covers: null, sales: 50 },
     ]);
     expect(r).toEqual([
-      { user_id: "w1", bills: 2, covers: 5, total: 301, average: 150.5 },
-      { user_id: "c1", bills: 1, covers: 0, total: 50, average: 50 },
+      { branch_id: "b1", outlet_name: "Main", user_id: "w1", name: "Asha", bills: 2, covers: 5, total: 301, average: 150.5 },
+      { branch_id: "b2", outlet_name: "Mall", user_id: "w1", name: "Asha", bills: 1, covers: 0, total: 50, average: 50 },
     ]);
   });
-  it("is empty for no bills", () => {
-    expect(aggregateWaiters([])).toEqual([]);
+  it("is empty for nothing, and names missing people Unknown", () => {
+    expect(parseWaiters([])).toEqual([]);
+    expect(parseWaiters(null)).toEqual([]);
+    expect(parseWaiters([{ bills: 0, sales: 0 }])[0]).toMatchObject({ name: "Unknown", outlet_name: "Unknown outlet", average: 0, user_id: null });
   });
 });
 
 describe("discounts", () => {
-  const rows = [
-    order({ cashier_id: "c1", subtotal: 200, discount_total: 20, business_date: "2026-10-19" }),
-    order({ cashier_id: "c1", subtotal: 100, discount_total: 50, business_date: "2026-10-20" }),
-    order({ cashier_id: "c2", subtotal: 100, discount_total: 5, business_date: "2026-10-20" }),
-    order({ cashier_id: "c2", subtotal: 100, discount_total: 0, business_date: "2026-10-20" }),
-  ];
-  it("computes the percent of the menu value", () => {
-    expect(discountPercent(200, 20)).toBe(10);
-    expect(discountPercent(0, 20)).toBe(0);
-    expect(discountPercent(100, 0)).toBe(0);
-    expect(discountPercent(10, 99)).toBe(100);
+  const json = {
+    by_cashier: [
+      { branch_id: "b1", outlet_name: "Main", user_id: "c1", name: "Ravi", bills: 2, total: 70, max_pct: 50 },
+      { branch_id: "b2", outlet_name: "Mall", user_id: "c1", name: "Ravi", bills: 1, total: 10, max_pct: 60 },
+      { branch_id: "b2", outlet_name: "Mall", user_id: "c2", name: "Mina", bills: 1, total: 5, max_pct: 5 },
+    ],
+    by_day: [{ business_date: "2026-10-19", bills: 1, total: 20, max_pct: 10 }],
+    by_outlet: [{ branch_id: "b1", outlet_name: "Main", bills: 2, total: 70, max_pct: 50 }],
+  };
+  it("reads the three views", () => {
+    const r = parseDiscounts(json);
+    expect(r.byDay).toEqual([{ key: "2026-10-19", name: "2026-10-19", bills: 1, total: 20, maxPercent: 10 }]);
+    expect(r.byOutlet).toEqual([{ key: "b1", name: "Main", bills: 2, total: 70, maxPercent: 50 }]);
+    expect(r.byCashier).toHaveLength(3);
   });
-  it("groups by cashier and ignores bills with no discount", () => {
-    expect(discountsByUser(rows)).toEqual([
-      { key: "c1", bills: 2, total: 70, maxPercent: 50 },
-      { key: "c2", bills: 1, total: 5, maxPercent: 5 },
+  it("merges a cashier across outlets: bills and total added, highest percent kept, biggest first", () => {
+    expect(mergeCashiers(parseDiscounts(json).byCashier)).toEqual([
+      { key: "c1", name: "Ravi", bills: 3, total: 80, maxPercent: 60 },
+      { key: "c2", name: "Mina", bills: 1, total: 5, maxPercent: 5 },
     ]);
   });
-  it("groups by day, oldest first", () => {
-    expect(discountsByDay(rows)).toEqual([
-      { key: "2026-10-19", bills: 1, total: 20, maxPercent: 10 },
-      { key: "2026-10-20", bills: 2, total: 55, maxPercent: 50 },
-    ]);
+  it("is empty for nothing", () => {
+    expect(parseDiscounts(null)).toEqual({ byCashier: [], byDay: [], byOutlet: [] });
+    expect(mergeCashiers([])).toEqual([]);
   });
 });
 
@@ -160,5 +175,31 @@ describe("auditDetail", () => {
   it("survives missing or odd payloads", () => {
     expect(auditDetail("order.refund", null, null)).toEqual({ bill: "", detail: "Refund", reason: "", amount: null });
     expect(auditDetail("order.adjust", "text", [1])).toMatchObject({ amount: null });
+  });
+});
+
+describe("rangeQuery", () => {
+  it("keeps presets and custom ranges, drops the default", () => {
+    expect(rangeQuery({})).toBe("");
+    expect(rangeQuery({ range: "today" })).toBe("");
+    expect(rangeQuery({ range: "nonsense" })).toBe("");
+    expect(rangeQuery({ range: "7d" })).toBe("?range=7d");
+    expect(rangeQuery({ from: "2026-10-01", to: "2026-10-05" })).toBe("?from=2026-10-01&to=2026-10-05");
+  });
+});
+
+describe("outletScope", () => {
+  const info = { current: "b1", all_outlets: false, outlets: [{ id: "b1", name: "Main" }, { id: "b2", name: "Mall" }] };
+  it("reads one outlet when the picker is on a single outlet", () => {
+    const s = outletScope(info, { id: "b1", name: "Main" });
+    expect(s).toMatchObject({ all: false, branchId: "b1", label: "Outlet: Main", count: 2 });
+    expect(s.names.get("b2")).toBe("Mall");
+  });
+  it("reads every outlet on All outlets", () => {
+    const s = outletScope({ ...info, all_outlets: true }, { id: "b1", name: "Main" });
+    expect(s).toMatchObject({ all: true, branchId: null, label: "All outlets" });
+  });
+  it("falls back to the signed-in outlet when my_outlets is missing", () => {
+    expect(outletScope(null, { id: "b9", name: "Solo" })).toMatchObject({ all: false, branchId: "b9", label: "Outlet: Solo", count: 1 });
   });
 });

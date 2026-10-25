@@ -7202,6 +7202,11 @@ export type Database = {
       }
       remove_report_schedule: { Args: { p_id: string }; Returns: undefined }
       reopen_day: { Args: { p_reason: string }; Returns: Json }
+      report_discounts: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_popular_items: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       report_schedules_list: { Args: never; Returns: Json }
       report_sent: {
         Args: {
@@ -7211,6 +7216,14 @@ export type Database = {
           p_secret: string
         }
         Returns: undefined
+      }
+      report_unsold_items: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
+      report_waiter_sales: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
       }
       request_plan_change: {
         Args: {

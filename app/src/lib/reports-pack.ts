@@ -1,9 +1,10 @@
 /**
- * Pure helpers for the "More reports" page (popular / slow items, waiter-wise
- * sales, discount summary, cancel and void audit). No database access here, so
- * every rule can be unit-tested.
+ * Pure helpers for the report pages under /reports (popular / slow items, waiter-wise
+ * sales, discount summary, cancel and void audit) and their outlet scope. No database
+ * access here, so every rule can be unit-tested.
  */
 import { addDays, isYmd } from "./format";
+import type { DbErrorLike } from "./db-error";
 
 const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 const num = (v: unknown) => {
@@ -11,18 +12,27 @@ const num = (v: unknown) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+/** Longest range (in days from first to last day) the report functions accept. */
+export const MAX_RANGE_DAYS = 366;
+
 /** Same range presets as the main Reports page; `today` is the business day. */
 export function resolveRange(
   today: string,
   sp: { range?: string; from?: string; to?: string },
-): { from: string; to: string; range: string } {
+): { from: string; to: string; range: string; clamped?: true } {
   let from = today;
   let to = today;
   let range = sp.range ?? "today";
+  let clamped = false;
   if (isYmd(sp.from) && isYmd(sp.to)) {
     from = sp.from <= sp.to ? sp.from : sp.to;
     to = sp.from <= sp.to ? sp.to : sp.from;
     range = "custom";
+    // The report functions refuse more than 366 days; keep the latest 366 days instead of failing.
+    if (from < addDays(to, -MAX_RANGE_DAYS)) {
+      from = addDays(to, -MAX_RANGE_DAYS);
+      clamped = true;
+    }
   } else if (range === "yesterday") {
     from = to = addDays(today, -1);
   } else if (range === "7d") {
@@ -35,120 +45,145 @@ export function resolveRange(
   } else {
     range = "today";
   }
-  return { from, to, range };
+  return clamped ? { from, to, range, clamped: true } : { from, to, range };
 }
 
-// ---------- items ----------
+/** Keeps the chosen date range when moving between report pages ("" for the default, today). */
+export function rangeQuery(sp: { range?: string; from?: string; to?: string }): string {
+  if (isYmd(sp.from) && isYmd(sp.to)) return `?from=${sp.from}&to=${sp.to}`;
+  if (sp.range && ["yesterday", "7d", "month", "lastmonth"].includes(sp.range)) return `?range=${sp.range}`;
+  return "";
+}
 
-export type ItemLine = { product_id: string | null; product_name: string; quantity: unknown; line_subtotal: unknown };
+// ---------- outlet scope ----------
+
+/** The part of `my_outlets` the reports need. */
+export type OutletsLite = { current: string; all_outlets: boolean; outlets: { id: string; name: string }[] };
+export type OutletScope = {
+  /** True when the outlet picker is on "All outlets". */
+  all: boolean;
+  /** The one outlet to read, or null for every outlet. */
+  branchId: string | null;
+  /** "All outlets" or "Outlet: <name>". */
+  label: string;
+  /** Outlet names by id, for an Outlet column. */
+  names: Map<string, string>;
+  /** How many outlets the person can see. */
+  count: number;
+};
+
+/** Works out which outlet(s) a report covers from `my_outlets` (falls back to the signed-in outlet when it is missing). */
+export function outletScope(info: OutletsLite | null | undefined, fallback: { id: string; name: string }): OutletScope {
+  const outlets = info?.outlets?.length ? info.outlets : [{ id: fallback.id, name: fallback.name }];
+  const names = new Map(outlets.map((o) => [o.id, o.name]));
+  const all = !!info?.all_outlets;
+  const current = info?.current || fallback.id;
+  return {
+    all,
+    branchId: all ? null : current,
+    label: all ? "All outlets" : `Outlet: ${names.get(current) ?? fallback.name}`,
+    names,
+    count: outlets.length,
+  };
+}
+
+// ---------- RPC results (migration 128) ----------
+// The totals are worked out in the database (report_popular_items, report_unsold_items, report_waiter_sales,
+// report_discounts), so the app only reads their JSON safely and merges a few rows for display.
+
+/** Errors the report functions raise on purpose; they are already plain words and are shown as they are. */
+const PLAIN_RPC_ERROR = /^(You do not have the right|Your role does not allow|You are not signed in|Choose a )/;
+
+/** Makes a report function's error readable: its own plain messages pass through, the rest go through friendlyDbError. */
+export function reportRpcError(e: DbErrorLike | null | undefined): DbErrorLike | null {
+  if (!e) return null;
+  const msg = String(e.message ?? "").replace(/^[^]*?ERROR:\s*/, "").trim();
+  return PLAIN_RPC_ERROR.test(msg) ? { message: msg, code: "P0001" } : e;
+}
+
+const list = (v: unknown): Record<string, unknown>[] =>
+  Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x)) : [];
+const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+const text = (v: unknown, d = "") => (typeof v === "string" && v ? v : d);
+const idOrNull = (v: unknown) => (typeof v === "string" && v ? v : null);
+
 export type ItemSale = { key: string; name: string; qty: number; amount: number };
 
-/** Units and amount per item (grouped by menu item, falling back to the printed name). */
-export function aggregateItems(lines: ItemLine[]): ItemSale[] {
-  const map = new Map<string, ItemSale>();
-  for (const l of lines) {
-    const key = l.product_id ?? `name:${l.product_name}`;
-    const cur = map.get(key) ?? { key, name: l.product_name, qty: 0, amount: 0 };
-    cur.qty += num(l.quantity);
-    cur.amount += num(l.line_subtotal);
-    map.set(key, cur);
-  }
-  return [...map.values()]
-    .map((x) => ({ ...x, qty: r2(x.qty), amount: r2(x.amount) }))
-    .sort((a, b) => b.qty - a.qty || b.amount - a.amount || a.name.localeCompare(b.name));
+/** report_popular_items: best first. */
+export function parsePopular(json: unknown): ItemSale[] {
+  return list(json).map((r) => ({
+    key: idOrNull(r.product_id) ?? `name:${text(r.name)}`,
+    name: text(r.name, "Unknown item"),
+    qty: num(r.units),
+    amount: num(r.amount),
+  }));
 }
 
-/**
- * Slow items = active menu items sold the least. `dead` are active items with no
- * sale at all in the range; `slow` are the lowest sellers among those that sold.
- * Items that sold nothing are never in `slow`, and sold items are never in `dead`.
- */
-export function splitPopularSlow(
-  sold: ItemSale[],
-  activeItems: { id: string; name: string }[],
-  opts: { top?: number; slow?: number } = {},
-): { popular: ItemSale[]; slow: ItemSale[]; dead: { id: string; name: string }[] } {
-  const top = opts.top ?? 100;
-  const slowN = opts.slow ?? 20;
-  const soldKeys = new Set(sold.map((s) => s.key));
-  const activeIds = new Set(activeItems.map((a) => a.id));
-  const dead = activeItems
-    .filter((a) => !soldKeys.has(a.id))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  // Only items still on the menu can be "slow"; a retired item that sold earlier is not a problem to fix.
-  const slow = [...sold]
-    .filter((s) => activeIds.has(s.key))
-    .sort((a, b) => a.qty - b.qty || a.amount - b.amount || a.name.localeCompare(b.name))
-    .slice(0, slowN);
-  return { popular: sold.slice(0, top), slow, dead };
+/** report_unsold_items: active items with no sale, and the active items that sold least. */
+export function parseUnsold(json: unknown): { dead: { id: string; name: string }[]; slow: ItemSale[] } {
+  const o = obj(json);
+  return {
+    dead: list(o.unsold).map((r) => ({ id: text(r.id), name: text(r.name, "Unknown item") })),
+    slow: parsePopular(o.sold_least),
+  };
 }
 
-// ---------- waiters ----------
+export type WaiterRow = { branch_id: string | null; outlet_name: string; user_id: string | null; name: string; bills: number; covers: number; total: number; average: number };
 
-export type OrderRow = {
-  business_date: string | null;
-  cashier_id: string | null;
-  waiter_id: string | null;
-  covers: unknown;
-  grand_total: unknown;
-  subtotal: unknown;
-  discount_total: unknown;
-};
-export type WaiterRow = { user_id: string; bills: number; covers: number; total: number; average: number };
-
-/** Sales per waiter, using the cashier when no waiter was recorded. Sorted by sales. */
-export function aggregateWaiters(orders: OrderRow[]): WaiterRow[] {
-  const map = new Map<string, WaiterRow>();
-  for (const o of orders) {
-    const id = o.waiter_id ?? o.cashier_id;
-    if (!id) continue;
-    const cur = map.get(id) ?? { user_id: id, bills: 0, covers: 0, total: 0, average: 0 };
-    cur.bills += 1;
-    cur.covers += Math.max(0, Math.trunc(num(o.covers)));
-    cur.total += num(o.grand_total);
-    map.set(id, cur);
-  }
-  return [...map.values()]
-    .map((w) => ({ ...w, total: r2(w.total), average: w.bills ? r2(w.total / w.bills) : 0 }))
-    .sort((a, b) => b.total - a.total || a.user_id.localeCompare(b.user_id));
+/** report_waiter_sales: one row per outlet per staff member, biggest sales first. */
+export function parseWaiters(json: unknown): WaiterRow[] {
+  return list(json).map((r) => {
+    const bills = Math.max(0, Math.trunc(num(r.bills)));
+    const total = num(r.sales);
+    return {
+      branch_id: idOrNull(r.branch_id),
+      outlet_name: text(r.outlet_name, "Unknown outlet"),
+      user_id: idOrNull(r.user_id),
+      name: text(r.staff_name, "Unknown"),
+      bills,
+      covers: Math.max(0, Math.trunc(num(r.covers))),
+      total,
+      average: bills ? r2(total / bills) : 0,
+    };
+  });
 }
 
-// ---------- discounts ----------
+export type DiscountGroup = { key: string; name: string; bills: number; total: number; maxPercent: number };
+export type DiscountReport = { byCashier: DiscountGroup[]; byDay: DiscountGroup[]; byOutlet: DiscountGroup[] };
 
-export type DiscountGroup = { key: string; bills: number; total: number; maxPercent: number };
-
-/** Percent of the pre-discount bill value (subtotal) that was given away. */
-export function discountPercent(subtotal: unknown, discount: unknown): number {
-  const s = num(subtotal);
-  const d = num(discount);
-  if (s <= 0 || d <= 0) return 0;
-  return r2(Math.min(100, (d / s) * 100));
+/** report_discounts. By-cashier rows come per outlet; use `mergeCashiers` to combine a person across outlets. */
+export function parseDiscounts(json: unknown): DiscountReport {
+  const o = obj(json);
+  const group = (r: Record<string, unknown>, key: string, name: string): DiscountGroup => ({
+    key,
+    name,
+    bills: Math.trunc(num(r.bills)),
+    total: num(r.total),
+    maxPercent: num(r.max_pct),
+  });
+  return {
+    byCashier: list(o.by_cashier).map((r) => group(r, idOrNull(r.user_id) ?? `name:${text(r.name)}`, text(r.name, "Unknown"))),
+    byDay: list(o.by_day).map((r) => group(r, text(r.business_date), text(r.business_date))),
+    byOutlet: list(o.by_outlet).map((r) => group(r, idOrNull(r.branch_id) ?? "", text(r.outlet_name, "Unknown outlet"))),
+  };
 }
 
-function groupDiscounts(orders: OrderRow[], keyOf: (o: OrderRow) => string | null): DiscountGroup[] {
+/** Adds a cashier's rows from several outlets together (bills and total added, highest percent kept). Biggest total first. */
+export function mergeCashiers(rows: DiscountGroup[]): DiscountGroup[] {
   const map = new Map<string, DiscountGroup>();
-  for (const o of orders) {
-    const d = num(o.discount_total);
-    if (d <= 0) continue;
-    const key = keyOf(o);
-    if (!key) continue;
-    const cur = map.get(key) ?? { key, bills: 0, total: 0, maxPercent: 0 };
-    cur.bills += 1;
-    cur.total += d;
-    cur.maxPercent = Math.max(cur.maxPercent, discountPercent(o.subtotal, d));
-    map.set(key, cur);
+  for (const g of rows) {
+    const cur = map.get(g.key);
+    if (cur) {
+      cur.bills += g.bills;
+      cur.total += g.total;
+      cur.maxPercent = Math.max(cur.maxPercent, g.maxPercent);
+    } else {
+      map.set(g.key, { ...g });
+    }
   }
-  return [...map.values()].map((g) => ({ ...g, total: r2(g.total) }));
-}
-
-/** Discounted bills per cashier (the person who billed), biggest total first. */
-export function discountsByUser(orders: OrderRow[]): DiscountGroup[] {
-  return groupDiscounts(orders, (o) => o.cashier_id).sort((a, b) => b.total - a.total || a.key.localeCompare(b.key));
-}
-
-/** Discounted bills per business day, oldest first. */
-export function discountsByDay(orders: OrderRow[]): DiscountGroup[] {
-  return groupDiscounts(orders, (o) => o.business_date).sort((a, b) => a.key.localeCompare(b.key));
+  return [...map.values()]
+    .map((g) => ({ ...g, total: r2(g.total) }))
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
 }
 
 // ---------- audit ----------

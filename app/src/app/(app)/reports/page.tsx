@@ -3,7 +3,11 @@ import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyDbError } from "@/lib/db-error";
 import { addDays, dateTime, isYmd, longDate, money, orderTypeLabel, todayIn } from "@/lib/format";
+import { outletScope, rangeQuery } from "@/lib/reports-pack";
 import { CsvButton } from "./csv-button";
+import { OutletBanner } from "./_components/outlet-banner";
+import { REPORT_LINKS } from "./_components/report-links";
+import type { OutletInfo } from "../outlet/outlet-switcher";
 
 type Settlement = {
   methods: { method: string; kind: string; mode: string; payments: number; collected: number; refunded: number; voided: number; net: number }[];
@@ -129,12 +133,17 @@ export default async function ReportsPage({
     showRegister ? supabase.rpc("gst_register", { p_from: from, p_to: to }) : Promise.resolve({ data: null }),
     showJournal ? supabase.rpc("accounting_journal", { p_from: from, p_to: to }) : Promise.resolve({ data: null }),
     multi ? supabase.rpc("outlet_comparison", { p_from: from, p_to: to }) : Promise.resolve({ data: null }),
-    multi ? supabase.rpc("my_outlets") : Promise.resolve({ data: null }),
+    supabase.rpc("my_outlets"),
     supabase.rpc("session_report", { p_from: from, p_to: to }),
   ]);
   const sessions = (sessionData ?? []) as unknown as { session: string; bills: number; total: number; average: number; top_items: { item: string; qty: number }[] }[];
   const compare = (compareData ?? []) as unknown as { outlet: string; code: string; bills: number; total: number; average: number; discounts: number; voids: number; void_value: number }[];
-  const allOutlets = !!(outletData as unknown as { all_outlets?: boolean } | null)?.all_outlets;
+  const outletInfo = (outletData as unknown as OutletInfo | null) ?? null;
+  const scope = outletScope(outletInfo, { id: user.branch_id, name: user.branch_name });
+  const showPicker = multi && (outletInfo?.outlets.length ?? 0) > 1;
+  const canFinancial = can(user, "report.view_financial");
+  const links = REPORT_LINKS.filter((l) => l.need === "sales" || canFinancial);
+  const keep = rangeQuery(sp);
   const rep = data as unknown as Report | null;
   const settle = settleData as unknown as Settlement | null;
   const c = user.currency_code;
@@ -152,16 +161,33 @@ export default async function ReportsPage({
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold tracking-tight">Reports</h1>
-        <Link href="/reports/more" className="text-xs font-semibold" style={{ color: "var(--color-brand-strong)" }}>
-          More reports: popular items, waiters, discounts, voids →
-        </Link>
-      </div>
-      <p className="mt-1 mb-4 text-sm" style={{ color: "var(--color-ink-3)" }}>
-        {from === to ? longDate(from) : `${longDate(from)} – ${longDate(to)}`} · voided bills are left out of every total
-        {multi ? ` · ${allOutlets ? "All outlets" : `Outlet: ${user.branch_name}`} (change with the outlet picker at the top)` : ""}
+      <h1 className="text-xl font-bold tracking-tight">Reports</h1>
+      <p className="mt-1 mb-3 text-sm" style={{ color: "var(--color-ink-3)" }}>
+        Choose a report. Each one opens on its own page.
       </p>
+      <nav aria-label="Reports" className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {links.map((l) => {
+          const here = l.href === "/reports";
+          return (
+            <Link
+              key={l.href}
+              href={here ? "#sales-summary" : `${l.href}${keep}`}
+              className="card block p-4"
+              style={here ? { borderColor: "var(--color-brand)", background: "var(--color-brand-soft)" } : undefined}
+            >
+              <div className="text-sm font-bold">{l.title}</div>
+              <div className="mt-0.5 text-xs" style={{ color: "var(--color-ink-3)" }}>{l.blurb}</div>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div id="sales-summary" className="scroll-mt-4" />
+      <h2 className="text-lg font-bold tracking-tight">Sales summary</h2>
+      <p className="mt-1 mb-3 text-sm" style={{ color: "var(--color-ink-3)" }}>
+        {from === to ? longDate(from) : `${longDate(from)} – ${longDate(to)}`} · voided bills are left out of every total
+      </p>
+      <OutletBanner scope={scope} info={outletInfo} showPicker={showPicker} />
 
       {multi && compare.length > 0 && (
         <div className="card mb-5 overflow-x-auto p-4">
