@@ -152,7 +152,12 @@ export default async function ReportsPage({
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="text-xl font-bold tracking-tight">Reports</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-bold tracking-tight">Reports</h1>
+        <Link href="/reports/more" className="text-xs font-semibold" style={{ color: "var(--color-brand-strong)" }}>
+          More reports: popular items, waiters, discounts, voids →
+        </Link>
+      </div>
       <p className="mt-1 mb-4 text-sm" style={{ color: "var(--color-ink-3)" }}>
         {from === to ? longDate(from) : `${longDate(from)} – ${longDate(to)}`} · voided bills are left out of every total
         {multi ? ` · ${allOutlets ? "All outlets" : `Outlet: ${user.branch_name}`} (change with the outlet picker at the top)` : ""}
