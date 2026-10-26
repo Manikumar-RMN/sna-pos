@@ -4,7 +4,14 @@ import {
   MAX_COVERS,
   coversError,
   deskUrl,
+  DESK_CARRY_MAX_AGE_MS,
+  deskCarryUsable,
+  destinationLabel,
   discardQuestion,
+  movedNotice,
+  offlineSwitchQuestion,
+  planSwitch,
+  selectionKey,
   needsInternetText,
   openPriceError,
   openPriceValue,
@@ -118,5 +125,40 @@ describe("open price entry", () => {
     expect(openPriceValue("99.5")).toBe(99.5);
     expect(openPriceValue(" 12 ")).toBe(12);
     expect(openPriceValue("0.07")).toBe(0.07);
+  });
+});
+
+describe("table switching with unsent items", () => {
+  it("carries the items when online and says where they went", () => {
+    expect(planSwitch({ itemsInCart: 2, online: true, destLabel: "Table 4" })).toEqual({ action: "carry", notice: "Order moved to Table 4" });
+    expect(movedNotice("Counter")).toBe("Order moved to Counter");
+  });
+  it("just goes when the cart is empty", () => {
+    expect(planSwitch({ itemsInCart: 0, online: true, destLabel: "Table 4" })).toEqual({ action: "go" });
+    expect(planSwitch({ itemsInCart: 0, online: false, destLabel: "Table 4" })).toEqual({ action: "go" });
+  });
+  it("asks only without internet", () => {
+    const p = planSwitch({ itemsInCart: 1, online: false, destLabel: "Table 4" });
+    expect(p.action).toBe("confirm");
+    expect(offlineSwitchQuestion(1)).toMatch(/^No internet\. 1 item has not been sent/);
+    expect(offlineSwitchQuestion(3)).toMatch(/3 items have not been sent/);
+  });
+  it("labels destinations and keys selections", () => {
+    expect(destinationLabel({ kind: "counter" })).toBe("Counter");
+    expect(destinationLabel({ kind: "table", number: "7" })).toBe("Table 7");
+    expect(destinationLabel({ kind: "bill", tableNumber: "7" })).toBe("Table 7");
+    expect(destinationLabel({ kind: "bill", tableNumber: null })).toBe("this bill");
+    expect(selectionKey({ kind: "counter" })).toBe("counter");
+    expect(selectionKey({ kind: "table", tableId: "x" })).toBe("t:x");
+    expect(selectionKey({ kind: "bill", billId: "y" })).toBe("b:y");
+  });
+  it("restores a kept cart only once-fresh and for its own destination", () => {
+    const now = 1_000_000;
+    expect(deskCarryUsable({ to: "t:a", at: now - 1000 }, "t:a", now)).toBe(true);
+    expect(deskCarryUsable({ to: "t:a", at: now - 1000 }, "t:b", now)).toBe(false);
+    expect(deskCarryUsable({ to: "t:a", at: now - DESK_CARRY_MAX_AGE_MS }, "t:a", now)).toBe(false);
+    expect(deskCarryUsable({ to: "t:a", at: now + 5 }, "t:a", now)).toBe(false);
+    expect(deskCarryUsable({ to: "t:a" }, "t:a", now)).toBe(false);
+    expect(deskCarryUsable(null, "t:a", now)).toBe(false);
   });
 });

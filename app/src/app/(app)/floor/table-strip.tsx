@@ -72,11 +72,14 @@ export function TableStrip({
             onClick={counter.onSelect}
             className="tap card flex min-h-16 flex-col items-start justify-between p-2 text-left"
             style={{
-              borderColor: counter.selected ? "var(--color-brand)" : "var(--color-line)",
-              boxShadow: counter.selected ? "0 0 0 3px var(--color-brand-soft)" : undefined,
+              borderColor: "var(--color-line)",
+              boxShadow: counter.selected ? SELECTED_RING : undefined,
             }}
           >
-            <span className="text-sm font-bold">{counter.label ?? "Counter"}</span>
+            <span className="flex w-full items-start justify-between gap-1">
+              <span className="text-sm font-bold">{counter.label ?? "Counter"}</span>
+              {counter.selected && <SelectedMark />}
+            </span>
             <span className="text-[11px]" style={{ color: "var(--color-ink-3)" }}>
               Takeaway
             </span>
@@ -105,11 +108,13 @@ export function TableStrip({
               style={{
                 ...style,
                 borderWidth: 2,
-                boxShadow: isSel ? "0 0 0 3px var(--color-brand-soft), 0 0 0 5px var(--color-brand)" : undefined,
+                // Selected is independent of status: the status fill and border stay, a thick ink ring goes round the tile.
+                boxShadow: isSel ? SELECTED_RING : undefined,
               }}
             >
               <span className="flex w-full items-start justify-between gap-1">
                 <span className="text-base font-bold leading-none">{t.number}</span>
+                {isSel && <SelectedMark />}
                 {st?.reservedSoon && (
                   <span className="rounded px-1 text-[10px] font-bold" style={{ background: "var(--color-accent)", color: "var(--color-accent-ink)" }} title={`Booked: ${st.reservationName ?? ""}`}>
                     Booked
@@ -175,6 +180,18 @@ export function TableStrip({
 
       <TableLegend counts={counts} />
     </div>
+  );
+}
+
+/** The selected tile: a thick ink ring outside the tile (white gap, then ink), whatever the status colour is. */
+const SELECTED_RING = "0 0 0 2px var(--color-surface, #fff), 0 0 0 5px var(--color-ink)";
+
+/** Small "Selected" marker with a check, so selection does not rely on the ring alone. */
+function SelectedMark() {
+  return (
+    <span className="rounded px-1 text-[10px] font-bold leading-4" style={{ background: "var(--color-ink)", color: "#fff" }}>
+      <span aria-hidden>✓ </span>Selected
+    </span>
   );
 }
 

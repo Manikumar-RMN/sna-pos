@@ -1,21 +1,28 @@
 "use client";
 
-import { useEffect, useState, type ComponentProps } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import { TableStrip } from "../floor/table-strip";
 import type { FloorRow } from "@/lib/table-status";
-import { deskUrl, discardQuestion } from "@/lib/order-desk";
+import { deskUrl, destinationLabel, planSwitch, selectionKey } from "@/lib/order-desk";
 import { useOnline } from "@/lib/use-online";
 import { PosTerminal, type AddTo, type KotDone } from "./pos-terminal";
 import { KotPrinter } from "./kot/[orderId]/kot-printer";
 import { ScreenSwitch } from "./screen-switch";
 
-type TerminalBase = Omit<ComponentProps<typeof PosTerminal>, "addTo" | "lockedTable" | "inline" | "onKotDone" | "askCovers" | "onCartCount">;
+type TerminalBase = Omit<ComponentProps<typeof PosTerminal>, "addTo" | "lockedTable" | "inline" | "onKotDone" | "askCovers" | "onCartCount" | "deskKey" | "deskTableId" | "stashRef">;
 
 export type DeskSelection =
   | { kind: "counter" }
   | { kind: "table"; tableId: string; number: string; /** the table already has an open bill: this is a separate one */ separate: boolean }
   | { kind: "bill"; billId: string; tableId: string | null };
+
+/** What a tap on a table / counter means for the cart that follows: the key of the next screen, whether it is a running bill, its name. */
+type DeskSelectionTarget = {
+  key: string;
+  runningBill: boolean;
+  label: Parameters<typeof destinationLabel>[0];
+};
 
 export type DeskTable = { id: string; number: string; seats: number | null; openBills: { id: string; billNumber: string; total: number }[] };
 
@@ -52,17 +59,23 @@ export function OrderDesk({
   const router = useRouter();
   const online = useOnline();
   const hasBill = selection.kind === "bill" && !!billPanel;
-  const selKey = selection.kind === "counter" ? "counter" : selection.kind === "table" ? `t:${selection.tableId}` : `b:${selection.billId}`;
+  const selKey = selectionKey(selection);
   const currentUrl = deskUrl(selection.kind === "counter" ? { kind: "counter" } : selection.kind === "table" ? { kind: "table", tableId: selection.tableId } : { kind: "bill", billId: selection.billId });
 
   const [tab, setTab] = useState<"order" | "bill">(hasBill ? "bill" : "order");
   const [cartCount, setCartCount] = useState(0);
   const [nonce, setNonce] = useState(0);
   const [kot, setKot] = useState<KotDone | null>(null);
+  /** The terminal offers a function that keeps the unsent cart for the next selection. */
+  const stashRef = useRef<((destKey: string, toRunningBill: boolean) => "kept" | "empty" | "busy") | null>(null);
+  /** "Order moved to Table 4": set when the items followed, cleared after a few seconds, on the next change or on send. */
+  const [notice, setNotice] = useState<string | null>(null);
+  const carriedHere = useRef(false);
 
-  // A new table or bill chosen: phones show the bill first when there is one.
+  // A new table or bill chosen: phones show the bill first when there is one (the order first when items followed).
   useEffect(() => {
-    setTab(hasBill ? "bill" : "order");
+    setTab(hasBill && !carriedHere.current ? "bill" : "order");
+    carriedHere.current = false;
     setCartCount(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selKey]);
@@ -86,11 +99,36 @@ export function OrderDesk({
     return () => clearInterval(t);
   }, [router, kot]);
 
-  /** Moves to another table / bill, asking first if items not yet sent would be lost. */
-  function go(url: string) {
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 8000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  /**
+   * Moves to another table / bill / counter at any time. Unsent items follow (the terminal keeps them in this tab's sessionStorage and
+   * the next screen takes them once): nothing is saved before Send KOT, so nothing is moved or doubled on the server. Only without
+   * internet (the other table cannot load) is staff asked first.
+   */
+  function go(url: string, target: DeskSelectionTarget) {
     if (url === currentUrl) return;
-    const q = discardQuestion(cartCount);
-    if (q && !window.confirm(q)) return;
+    const plan = planSwitch({ itemsInCart: cartCount, online, destLabel: destinationLabel(target.label) });
+    if (plan.action === "confirm") {
+      if (!window.confirm(plan.question)) return;
+      router.push(url);
+      return;
+    }
+    if (plan.action === "carry") {
+      const kept = stashRef.current?.(target.key, target.runningBill) ?? "empty";
+      if (kept === "busy") {
+        setNotice("This order is being sent. Wait a moment, then pick the table.");
+        return;
+      }
+      if (kept === "kept") {
+        carriedHere.current = true;
+        setNotice(plan.notice);
+      }
+    } else setNotice(null);
     router.push(url);
   }
 
@@ -120,9 +158,20 @@ export function OrderDesk({
             selectedTableId={selectedTableId}
             selectedBillId={selection.kind === "bill" ? selection.billId : null}
             refreshMs={0}
-            onSelect={(tableId, billId) => go(billId ? deskUrl({ kind: "bill", billId }) : deskUrl({ kind: "table", tableId }))}
-            counter={{ selected: selection.kind === "counter", onSelect: () => go("/pos") }}
+            onSelect={(tableId, billId) => {
+              const t = tables.find((x) => x.id === tableId);
+              const label = { kind: "table", number: t?.number ?? "" } as const;
+              if (billId) go(deskUrl({ kind: "bill", billId }), { key: selectionKey({ kind: "bill", billId }), runningBill: true, label: { kind: "bill", tableNumber: t?.number ?? null } });
+              else go(deskUrl({ kind: "table", tableId }), { key: selectionKey({ kind: "table", tableId }), runningBill: false, label });
+            }}
+            counter={{ selected: selection.kind === "counter", onSelect: () => go("/pos", { key: "counter", runningBill: false, label: { kind: "counter" } }) }}
           />
+        </div>
+      )}
+
+      {notice && (
+        <div role="status" aria-live="polite" className="no-print mb-3 rounded-lg px-3 py-2 text-sm font-bold" style={{ background: "var(--color-brand-soft)", color: "var(--color-ink)" }}>
+          {notice}
         </div>
       )}
 
@@ -158,6 +207,9 @@ export function OrderDesk({
             askCovers
             canOpenPrice={canOpenPrice}
             onCartCount={setCartCount}
+            deskKey={selKey}
+            deskTableId={selection.kind === "bill" ? selection.tableId : null}
+            stashRef={stashRef}
             onKotDone={setKot}
           />
         </div>
@@ -183,6 +235,7 @@ export function OrderDesk({
           onDone={() => {
             const done = kot;
             setKot(null);
+            setNotice(null);
             // A fresh order form (the sent items are on the bill now), and the bill beside it with the new total.
             setNonce((n) => n + 1);
             setCartCount(0);

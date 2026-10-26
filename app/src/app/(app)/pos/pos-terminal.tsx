@@ -9,7 +9,7 @@ import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, stockWarnings, type CartItem, type PlaceOrderInput, type Quote, type Senior } from "./actions";
 import { loadLastRound } from "./repeat-round";
 import { mapRoundToMenu } from "@/lib/repeat-round";
-import { coversError, needsInternetText, openPriceError, openPriceValue, parseCovers } from "@/lib/order-desk";
+import { coversError, deskCarryUsable, needsInternetText, openPriceError, openPriceValue, parseCovers } from "@/lib/order-desk";
 import { cashDue, deviceKey, offlineQuote, readQueue, readSnapshot, saveSnapshot, takeNumber, writeQueue, type OfflineBill, type Snapshot } from "@/lib/offline";
 import { OfflineReceipt } from "./offline-receipt";
 import { stripText, warnedProducts, type StockWarning } from "./stock-warning";
@@ -158,6 +158,76 @@ function takeCarried(billId: string, menu: MenuItem[], packingId: string | null,
   });
   return { cart, dropped };
 }
+/**
+ * Table switch on the single order screen: the unsent cart follows staff to the newly chosen table / bill / counter. Nothing is
+ * saved on the server before Send KOT, so this copy in sessionStorage is the only one: the new screen takes it once (it is removed
+ * when read), only for the destination it was made for, and for at most two minutes. Besides what AddTo carries it keeps the typed
+ * open price and (not to a running bill) the discount boxes. Never a payment, guests or guest details.
+ */
+const DESK_CARRY_KEY = "sna.pos.deskcarry.v1";
+type DeskCarriedLine = CarriedLine & { pr?: number };
+function clearDeskCarry() {
+  try {
+    sessionStorage.removeItem(DESK_CARRY_KEY);
+  } catch {
+    // no storage: nothing was kept
+  }
+}
+function takeDeskCarry(
+  destKey: string,
+  menu: MenuItem[],
+  packingId: string | null,
+  allowHold: boolean,
+  canOpenPrice: boolean,
+  destTableId: string | null,
+): { cart: Record<string, CartLine>; dropped: number; discount: string; reason: string } | null {
+  let raw: string | null;
+  try {
+    raw = sessionStorage.getItem(DESK_CARRY_KEY);
+    sessionStorage.removeItem(DESK_CARRY_KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  let saved: { to?: unknown; at?: unknown; lines?: unknown; d?: unknown; dr?: unknown } | null;
+  try {
+    saved = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  // A table that gained its single open bill since the strip was drawn opens as that bill (the server redirects): same table, so still ours.
+  const redirected = !!saved && typeof saved.to === "string" && saved.to.startsWith("t:") && destKey.startsWith("b:") && destTableId !== null && saved.to === `t:${destTableId}`;
+  if (!saved || !Array.isArray(saved.lines) || !deskCarryUsable(saved, redirected ? (saved.to as string) : destKey, Date.now())) return null;
+  const cart: Record<string, CartLine> = {};
+  let dropped = 0;
+  saved.lines.forEach((x: unknown, i: number) => {
+    const l = (x && typeof x === "object" ? x : {}) as { [K in keyof DeskCarriedLine]?: unknown };
+    const item = menu.find((it) => it.id === l.p && it.id !== packingId);
+    const ids = Array.isArray(l.o) ? [...new Set<unknown>(l.o)] : null;
+    const qty = l.q;
+    const pr = typeof l.pr === "number" && l.pr > 0 && l.pr < 100_000_000 ? Math.round(l.pr * 100) / 100 : undefined;
+    const openOk = !item?.is_open_price || (canOpenPrice && pr !== undefined);
+    const options: ChosenOption[] = item && ids ? item.groups.flatMap((g) => g.options.filter((o) => ids.includes(o.id))) : [];
+    if (!item || !ids || !openOk || options.length !== ids.length || typeof qty !== "number" || !Number.isInteger(qty) || qty < 1) {
+      dropped++;
+      return;
+    }
+    const price = item.is_open_price ? pr : undefined;
+    const base = lineKey(item.id, options, price);
+    const key = cart[base] ? `${base}#c${i}` : base;
+    const line: CartLine = { key, item, options, qty, note: typeof l.n === "string" ? l.n.slice(0, 200) : "" };
+    if (price !== undefined) line.openPrice = price;
+    if (allowHold && l.h === true) line.hold = true;
+    cart[key] = line;
+  });
+  return {
+    cart,
+    dropped,
+    discount: !destKey.startsWith("b:") && typeof saved.d === "string" ? saved.d.slice(0, 20) : "",
+    reason: !destKey.startsWith("b:") && typeof saved.dr === "string" ? saved.dr.slice(0, 200) : "",
+  };
+}
+
 /** The packing charge rule kept in this device's offline copy (null: none, or its menu item is not in the copy). */
 function offlinePackingRule(snap: Snapshot | null): PackingRule | null {
   const rule = snap?.settings.packing;
@@ -194,6 +264,9 @@ export function PosTerminal({
   canOpenPrice = false,
   onCartCount,
   stockCheck = false,
+  deskKey = null,
+  deskTableId = null,
+  stashRef = null,
 }: {
   currency: string;
   canDiscount: boolean;
@@ -237,6 +310,12 @@ export function PosTerminal({
   canOpenPrice?: boolean;
   /** Single order screen: how many items wait in the cart, so the screen can ask before they are thrown away. */
   onCartCount?: (n: number) => void;
+  /** Single order screen: the key of this selection (counter / t:id / b:id); the kept cart of a table switch is taken for it on start. */
+  deskKey?: string | null;
+  /** Single order screen, a bill selected: the table that bill is on (a table tapped just after it got its one bill opens as that bill). */
+  deskTableId?: string | null;
+  /** Single order screen: filled with a function that keeps the unsent cart for the next selection (see DESK_CARRY_KEY). */
+  stashRef?: { current: ((destKey: string, toRunningBill: boolean) => "kept" | "empty" | "busy") | null } | null;
   /** The restaurant has the stock module: ask the database whether the order runs an ingredient short (a warning only, online only). */
   stockCheck?: boolean;
   categoryParents?: Record<string, { id: string; name: string }>;
@@ -307,6 +386,8 @@ export function PosTerminal({
 
   const m = (n: number) => money(n, currency);
   const lines = Object.values(cart);
+  /** Which table (or the counter) this order goes to, on the single order screen. */
+  const whereLabel = addTo ? (addTo.table ? `Table ${addTo.table}` : null) : lockedTable ? `Table ${lockedTable.number}` : deskKey ? "Counter" : null;
   // Bars: liquor and food may not share a bill.
   const mixedLiquor = lines.some((l) => l.item.liquor) && lines.some((l) => !l.item.liquor);
   const isCash = paymentMethods.find((p) => p.id === methodId)?.kind === "cash";
@@ -812,6 +893,7 @@ export function PosTerminal({
     });
   }
   function clearAll() {
+    clearDeskCarry();
     setCart({});
     // The search goes too; the chosen category tab stays.
     setSearch("");
@@ -856,6 +938,43 @@ export function PosTerminal({
     if (carried.dropped > 0) setError(`${carried.dropped} item${carried.dropped === 1 ? "" : "s"} could not be brought over because the menu changed. Check the list before adding.`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Table switch: restore what the previous table left (once), and show it as the cart.
+  useEffect(() => {
+    if (!deskKey) return;
+    const carried = takeDeskCarry(deskKey, menu, packing?.productId ?? null, allowHold, canOpenPrice, deskTableId);
+    if (!carried) return;
+    if (Object.keys(carried.cart).length > 0) setCart((c) => (Object.keys(c).length > 0 ? c : carried.cart));
+    if (carried.discount && canDiscount) {
+      setDiscount(carried.discount);
+      setDiscountReason(carried.reason);
+    }
+    if (carried.dropped > 0) setError(`${carried.dropped} item${carried.dropped === 1 ? "" : "s"} could not be brought to this table (menu changed or open price not allowed). Check the list before sending.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Offered to the order screen every render, so it always sees the current cart.
+  useEffect(() => {
+    if (!stashRef) return;
+    stashRef.current = (destKey, toRunningBill) => {
+      // A save is on its way or done: the items are (about to be) on the server, so they must not be copied anywhere.
+      // (maybeSaved: a send got no reply, so it may be on the server; copying it to another table could make a second order.)
+      if (savedRef.current || sending.current || maybeSaved) return "busy";
+      if (lines.length === 0) return "empty";
+      try {
+        const kept: DeskCarriedLine[] = lines.map((l) => ({ p: l.item.id, o: l.options.map((o) => o.id), q: l.qty, n: l.note, h: !!l.hold, ...(l.openPrice != null ? { pr: l.openPrice } : {}) }));
+        const withDiscount = !toRunningBill && canDiscount;
+        sessionStorage.setItem(
+          DESK_CARRY_KEY,
+          JSON.stringify({ to: destKey, at: Date.now(), lines: kept, ...(withDiscount && discount ? { d: discount, dr: discountReason } : {}) }),
+        );
+        return "kept";
+      } catch {
+        // No storage on this device: nothing can follow.
+        return "busy";
+      }
+    };
+  });
 
   /** Opens this screen for an open bill, taking the items already in the cart along. */
   function openAddTo(billId: string) {
@@ -1040,6 +1159,7 @@ export function PosTerminal({
               ? `/pos?bill=${res.orderId}&print=1`
               : `/pos/receipt/${res.orderId}?print=1`;
       savedRef.current = true;
+      clearDeskCarry();
       setMaybeSaved(false);
       setSaved(next);
       if (mode === "unpaid" && onKotDone) onKotDone({ orderId: res.orderId, billNumber: res.billNumber, where: whereText, token: res.tokenNo, kind: "new" });
@@ -1080,6 +1200,7 @@ export function PosTerminal({
       if (!res.ok) return setError(res.error);
       // Added. Locked until the bill opens; the id is kept so that a tap that slipped through adds nothing twice.
       savedRef.current = true;
+      clearDeskCarry();
       // The added items go to the kitchen: print their KOT here, then back to the bill.
       setSaved(`/pos/kot/${addTo.id}?then=bill`);
       if (onKotDone) onKotDone({ orderId: addTo.id, billNumber: addTo.billNumber, where: addTo.where ?? (addTo.table ? `Table ${addTo.table}` : ""), token: addTo.token ?? null, kind: "add" });
@@ -1092,7 +1213,7 @@ export function PosTerminal({
       <div>
         <div className="mb-3 flex flex-wrap items-center gap-x-3">
           <h1 className="text-xl font-bold tracking-tight">
-            {addTo ? `Add items to bill ${addTo.billNumber}` : lockedTable ? `Table ${lockedTable.number}: new order` : "Billing"}
+            {addTo ? `${addTo.table ? `Table ${addTo.table}: add items to bill` : "Add items to bill"} ${addTo.billNumber}` : lockedTable ? `Table ${lockedTable.number}: new order` : deskKey ? "Counter: new order" : "Billing"}
           </h1>
           {offline && (
             <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
@@ -1315,7 +1436,7 @@ export function PosTerminal({
           onClick={() => document.getElementById("cart")?.scrollIntoView({ behavior: "smooth" })}
         >
           <span>
-            View order · {itemCount} item{itemCount === 1 ? "" : "s"}
+            View order · {whereLabel ? `${whereLabel} · ` : ""}{itemCount} item{itemCount === 1 ? "" : "s"}
           </span>
           <span>{quote ? m(due) : m(addSubtotal)}</span>
         </button>

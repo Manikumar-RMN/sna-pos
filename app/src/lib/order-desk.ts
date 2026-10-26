@@ -107,6 +107,53 @@ export function discardQuestion(itemsInCart: number): string | null {
   return `${itemsInCart} item${itemsInCart === 1 ? " has" : "s have"} not been sent yet. Leave this order and lose ${itemsInCart === 1 ? "it" : "them"}?`;
 }
 
+/** The key of a desk selection: a new terminal is made for each one. Counter, table or bill. */
+export function selectionKey(sel: { kind: "counter" } | { kind: "table"; tableId: string } | { kind: "bill"; billId: string }): string {
+  return sel.kind === "counter" ? "counter" : sel.kind === "table" ? `t:${sel.tableId}` : `b:${sel.billId}`;
+}
+
+/** How long the cart copy kept for a table switch stays valid (it only has to survive one page change). */
+export const DESK_CARRY_MAX_AGE_MS = 2 * 60 * 1000;
+
+/** The kept cart may be restored only on the screen it was made for, once, and while it is fresh. */
+export function deskCarryUsable(saved: { to?: unknown; at?: unknown } | null | undefined, destKey: string, now: number): boolean {
+  if (!saved || typeof saved !== "object") return false;
+  const age = typeof saved.at === "number" ? now - saved.at : NaN;
+  return saved.to === destKey && age >= 0 && age < DESK_CARRY_MAX_AGE_MS;
+}
+
+/** The short notice after the unsent items followed staff to another table. */
+export function movedNotice(label: string): string {
+  return `Order moved to ${label}`;
+}
+
+/**
+ * What happens when staff tap another table (or Counter) while the screen may hold unsent items.
+ * - nothing in the cart: just go;
+ * - items and internet: go, the items follow (nothing is saved on the server before Send KOT, so nothing is duplicated);
+ * - items and no internet: the next screen cannot load, so ask (confirm text), keeping the items if the answer is no.
+ */
+export type SwitchPlan = { action: "go" } | { action: "carry"; notice: string } | { action: "confirm"; question: string };
+
+export function planSwitch(input: { itemsInCart: number; online: boolean; destLabel: string }): SwitchPlan {
+  if (!(input.itemsInCart > 0)) return { action: "go" };
+  if (!input.online) return { action: "confirm", question: offlineSwitchQuestion(input.itemsInCart) };
+  return { action: "carry", notice: movedNotice(input.destLabel) };
+}
+
+/** Asked only without internet: the other table cannot be opened, so the items would be lost if the page reloads. */
+export function offlineSwitchQuestion(itemsInCart: number): string {
+  const n = itemsInCart;
+  return `No internet. ${n} item${n === 1 ? " has" : "s have"} not been sent yet and cannot be moved to another table without the connection. Leave this order and lose ${n === 1 ? "it" : "them"}?`;
+}
+
+/** The name of a destination for the notice, e.g. "Table 4" / "Counter". */
+export function destinationLabel(sel: { kind: "counter" } | { kind: "table"; number: string } | { kind: "bill"; tableNumber: string | null }): string {
+  if (sel.kind === "counter") return "Counter";
+  if (sel.kind === "table") return `Table ${sel.number}`;
+  return sel.tableNumber ? `Table ${sel.tableNumber}` : "this bill";
+}
+
 /** The text shown for an open-priced item's price box, or null when it is fine (> 0, at most 2 decimals, below 100 million). */
 export function openPriceError(text: string): string | null {
   const t = text.trim();
