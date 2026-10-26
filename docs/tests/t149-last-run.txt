@@ -1,0 +1,42 @@
+== replaying migrations 001..148
+   failures: 0
+== applying 149 (twice: the file must be re-runnable)
+   run 1 ok
+   run 2 ok
+== t149.sql
+psql:/tmp/w-t149/t.sql:6: NOTICE:  schema "t" does not exist, skipping
+ result |                                                        label                                                        | detail 
+--------+---------------------------------------------------------------------------------------------------------------------+--------
+ PASS   | 1.1 the 16 old columns keep name and order; billed_bills and billed_at are the two new last ones                    | 
+ PASS   | 1.2 free table before any bill: open_bills 0, billed_bills 0, billed_at null                                        | 
+ PASS   | 1.3 the two new columns are integer and timestamptz                                                                 | 
+ PASS   | 2.1 open bill, no print: open_bills 1, billed_bills 0, billed_at null                                               | 
+ PASS   | 2.2 the first print wrote bill.print                                                                                | 
+ PASS   | 2.3 after log_print bill: open_bills 1, billed_bills 1                                                              | 
+ PASS   | 2.4 billed_at is set and equals the audit row time of the print                                                     | 
+ PASS   | 2.5 a reprint of the same bill: still billed_bills 1, billed_at unchanged (first print)                             | 
+ PASS   | 2.6 second open bill unprinted: open_bills 2, billed_bills 1, billed_at still the first print                       | 
+ PASS   | 2.7 both printed: billed_bills 2, billed_at is still the oldest print                                               | 
+ PASS   | 2.8 both bills paid: open_bills 0, billed_bills 0, billed_at null (table free again)                                | 
+ PASS   | 2.8b the paid bills really are paid                                                                                 | 
+ PASS   | 2.9 one printed bill paid, the other printed and open: open_bills 1, billed_bills 1 (the paid one no longer counts) | 
+ PASS   | 2.10 a printed bill that was voided is not counted: open_bills 0, billed_bills 0, billed_at null                    | 
+ PASS   | 2.11 a kitchen ticket reprint (kot.reprint) does not count as a printed bill                                        | 
+ PASS   | 2.12 the other restaurant sees none of our tables                                                                   | 
+ PASS   | 3.1 old columns on A5 as before: open_bills 1, open_total = the bill total, kot_waiting 1, reservation empty        | 
+ PASS   | 3.2 oldest_open_at is the bill time, db_now is the database clock                                                   | 
+ PASS   | 3.3 kot_due_at / kot_prep_min / kot_ticket_at still filled for the waiting ticket                                   | 
+ PASS   | 3.4 only active tables of this outlet, in table order (A1..A6)                                                      | 
+ PASS   | 3.5 floor_status is security definer with a fixed search_path                                                       | 
+ PASS   | 4.1 (F15) a role without order.create is refused                                                                    | 
+ PASS   | 4.2 (F16) not signed in is refused                                                                                  | 
+ PASS   | 4.3 a Cashier (order.create) still sees all 6 tables                                                                | 
+ PASS   | 4.4 (F19) floor_status is read only (stable)                                                                        | 
+ PASS   | 4.5 (F20) not callable by anon or public; callable by authenticated and service_role                                | 
+ PASS   | 4.6 only one floor_status function exists (the old 16-column one was dropped)                                       | 
+(27 rows)
+
+
+RESULT: 27 passed, 0 failed
+SQL errors outside t.err (must be 0): 0
+t149 OK

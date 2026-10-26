@@ -31,6 +31,10 @@
   --color-warn-soft: #FDF1D6;
   --color-bad: #A3321F;
   --color-bad-soft: #FBE4DE;
+  --color-bad-strong: #7A1F10;
+  --color-bad-mid: #F4BDB1;
+  --color-info: #1D5FA8;
+  --color-info-soft: #E1EDFA;
 
   --radius-card: 22px;
 }

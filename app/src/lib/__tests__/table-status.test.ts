@@ -49,6 +49,27 @@ describe("thresholds", () => {
 });
 
 describe("classifyTable", () => {
+  it("is billed (blue) when every open bill has been printed, even when the bill is old or the kitchen is late", () => {
+    const base = { open_bills: 1, oldest_open_at: at(-30), billed_bills: 1, billed_at: at(-5) };
+    const s = classifyTable(row(base));
+    expect(s.state).toBe("billed");
+    expect(s.billedMinutes).toBe(5);
+    expect(s.note).toBe("printed 5 min ago");
+    expect(classifyTable(row({ ...base, oldest_open_at: at(-200) })).state).toBe("billed");
+    expect(classifyTable(row({ ...base, kot_waiting: 1, oldest_kot_at: at(-40) })).state).toBe("billed");
+  });
+  it("is not billed when only some of the open bills were printed, or when the database sends no print count", () => {
+    expect(classifyTable(row({ open_bills: 2, oldest_open_at: at(-30), billed_bills: 1, billed_at: at(-5) })).state).toBe("busy");
+    expect(classifyTable(row({ open_bills: 1, oldest_open_at: at(-30) })).state).toBe("busy");
+  });
+  it("goes straight back to free once nothing is open (paid), whatever was printed before", () => {
+    expect(classifyTable(row({ open_bills: 0, billed_bills: 0 })).state).toBe("free");
+  });
+  it("reads the print columns from the database rows", () => {
+    const [r] = parseFloorRows([{ table_id: "x", table_number: "1", billed_bills: 2, billed_at: at(-3) }]);
+    expect(r.billed_bills).toBe(2);
+    expect(r.billed_at).toBe(at(-3));
+  });
   it("is free with no bill and no booking", () => {
     expect(classifyTable(row()).state).toBe("free");
   });
@@ -170,7 +191,7 @@ describe("countStates", () => {
       row({ table_id: "e", reservation_at: at(10) }),
       row({ table_id: "f" }),
     ];
-    expect(countStates(rows)).toEqual({ free: 2, busy: 1, delayed: 1, kot_delayed: 1, reserved: 1 });
+    expect(countStates(rows)).toEqual({ free: 2, busy: 1, billed: 0, delayed: 1, kot_delayed: 1, reserved: 1 });
   });
 });
 

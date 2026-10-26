@@ -7365,6 +7365,8 @@ export type Database = {
           kot_due_at: string | null
           kot_prep_min: number | null
           kot_ticket_at: string | null
+          billed_bills: number
+          billed_at: string | null
         }[]
       }
       invite_staff: {

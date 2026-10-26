@@ -1,0 +1,52 @@
+== A. replaying migrations 001..148
+   failures: 0
+== go-live 149 without 148 recorded (must refuse, change nothing)
+psql:/tmp/gl149/golive149.sql:116: ERROR:  GO-LIVE 149 STOPPED: change 148 (erase_groups_and_grants) is not recorded as applied. Apply 141-148 first. Nothing was changed.
+   unchanged: yes
+== go-live 149, first run (must succeed)
+psql:/tmp/gl149/golive149.sql:116: NOTICE:  GO-LIVE 149 done: floor_status() now also returns billed_bills and billed_at (blue "bill printed" table colour).
+recorded: 20261026125143 149_floor_status_billed
+objects md5: 58c664b32fe77717ae237afff842cd87
+recorded 149: 1
+   signature changed by the go-live: yes (expected)
+== go-live 149, second run (must refuse, change nothing)
+psql:/tmp/gl149/golive149.sql:116: ERROR:  GO-LIVE 149 STOPPED: change 149 (floor_status_billed) is already recorded as applied. Nothing was changed.
+   unchanged: yes
+== all-or-nothing: the same file with a failing statement after the migration text rolls everything back (and records nothing)
+psql:/tmp/gl149/golive149_broken.sql:117: ERROR:  division by zero
+   nothing changed after the failure: yes
+== the migration file itself is re-runnable
+   ran again without error
+== t149.sql
+RESULT: 27 passed, 0 failed
+   SQL errors outside t.err (must be 0): 0
+== B. regression tests on a clean copy with the go-live applied
+   go-live ran on the copy
+-- t132-134
+ PASS   | 5.4 no bill was created on T3 by the failed move                                                                                                                           | 
+RESULT: 77 passed, 0 failed
+ stop_if_failed 
+-- t135-137
+RESULT: 98 passed, 0 failed
+ stop_if_failed 
+-- t138
+RESULT: 58 passed, 0 failed
+ stop_if_failed 
+-- t129
+ PASS   | 1.3c bills detail: failed payment not listed on o7; o3 shows comp_kind; unpaid o12 has no payments                                                                                                                                    
+ PASS   | 1.5a settlement by mode (All): Cash 4 payments / 4 bills 1450 (failed 40 not counted; includes o13 cash rounding 0.4), Card 480, Gift card 378, UPI 200                                                                               
+ PASS   | 1.5d settlement detail rows (All): 9 captured payments on completed bills (no advance on the open o14, no failed p7f, no o10 of the 23rd, no other restaurant), totals                                                                
+ PASS   | 1.8 [All] settlement by mode = sales_report by_method (only difference: failed payments, 40)                                                                                                                                          
+ PASS   | 2.3 [outlet A] settlement by mode = sales_report by_method (only difference: failed payments, 0)                                                                                                                                      
+ PASS   | 3.2 [outlet B] settlement by mode = sales_report by_method (only difference: failed payments, 40)                                                                                                                                     
+ PASS   | 4.2 [Maya, restricted] settlement by mode = sales_report by_method (only difference: failed payments, 0)                                                                                                                              
+RESULT: 151 passed, 0 failed
+ stop_if_failed 
+== C. t141-148 (before-141 results captured on 140, then the 141-148 go-live, then the 149 go-live)
+   failures: 0
+(1 row)
+
+   go-live 141-148 ran on the copy
+   go-live 149 ran on the copy
+-- t141-148
+RESULT: 206 passed, 0 failed

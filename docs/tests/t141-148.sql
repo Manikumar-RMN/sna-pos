@@ -305,8 +305,8 @@ update public.kitchen_ticket_items set status = 'cancelled' where order_item_id 
 select t.as_su('owner');
 create temp table fs as select * from public.floor_status();
 reset role;
-select t.same('3.2 columns: 13 old ones first, then kot_due_at, kot_prep_min, kot_ticket_at',
-  (select jsonb_agg(c order by o) from unnest((select proargnames from pg_proc where oid = 'public.floor_status()'::regprocedure)) with ordinality x(c, o) ),
+select t.same('3.2 columns: 13 old ones first, then kot_due_at, kot_prep_min, kot_ticket_at (migration 149 may add billed_bills, billed_at after them: only the first 16 are checked)',
+  (select jsonb_agg(c order by o) from unnest((select proargnames from pg_proc where oid = 'public.floor_status()'::regprocedure)) with ordinality x(c, o) where o <= 16),
   '["table_id","table_number","seats","open_bills","open_total","oldest_open_at","kot_waiting","oldest_kot_at","reservation_id","reservation_at","reservation_name","reservation_party","db_now","kot_due_at","kot_prep_min","kot_ticket_at"]');
 select t.same('3.3 F1: pasta (20 min) + soup (none) -> longest prep 20, due = ticket + 25 min',
   (select jsonb_build_object('prep', kot_prep_min, 'mins', round(extract(epoch from (kot_due_at - kot_ticket_at)) / 60), 'waiting', kot_waiting) from fs where table_number = 'F1'), '{"prep":20,"mins":25,"waiting":1}');
