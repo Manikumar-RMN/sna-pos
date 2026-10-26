@@ -1,0 +1,74 @@
+NOTICE:  database "t140" does not exist, skipping
+== replaying migrations 001..139
+   failures: 0
+== t140-pre.sql (fixtures and results before 140)
+== applying 140 (twice: the file must be re-runnable)
+   run 1 ok
+   run 2 ok
+== t140.sql
+ result |                                                                                     label                                                                                      | detail 
+--------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------
+ PASS   | 1.1 a Cashier still cannot preview                                                                                                                                             | 
+ PASS   | 1.2 a Cashier still cannot apply                                                                                                                                               | 
+ PASS   | 1.3 preview: Tea -25 shows the real result -5, flagged below_zero (not cut to 0)                                                                                               | 
+ PASS   | 1.4 preview counts and can_apply = false                                                                                                                                       | 
+ PASS   | 1.5 mixed batch: the flagged line comes first, the good line follows with problem null                                                                                         | 
+ PASS   | 1.6 mixed batch counts                                                                                                                                                         | 
+ PASS   | 1.7 a free item (price 0) lowered by 5 used to vanish from the preview (cut to 0 = unchanged); now it is listed and flagged                                                    | 
+ PASS   | 1.8 above the largest price (10000000) is flagged too_high with the real figure                                                                                                | 
+ PASS   | 1.9 landing exactly on 0 is allowed (not flagged)                                                                                                                              | 
+ PASS   | 1.10 a normal +10% preview: unchanged shape and numbers, no problems, can_apply                                                                                                | 
+ PASS   | 1.11 apply refuses Tea -25 (would be -5) and names the count                                                                                                                   | 
+ PASS   | 1.12 apply refuses the WHOLE mixed batch (one bad line stops the good one too)                                                                                                 | 
+ PASS   | 1.13 apply refuses a price above the maximum                                                                                                                                   | 
+ PASS   | 1.14 apply refuses the free item going below zero                                                                                                                              | 
+ PASS   | 1.15 the refusal comes even with a matching expect_lines                                                                                                                       | 
+ PASS   | 1.16 nothing was written by the refusals: prices, batches, lines, audit, owner alerts                                                                                          | 
+ PASS   | 1.17 the expect_lines check still works (stale preview is refused)                                                                                                             | 
+ PASS   | 1.18 a good batch applies                                                                                                                                                      | 
+ PASS   | 1.19 the same client ref returns the same batch (idempotent)                                                                                                                   | 
+ PASS   | 1.20 preview and apply used the same prices: what the preview showed is what was written (and recorded)                                                                        | 
+ PASS   | 1.21 undo is untouched: restores both prices                                                                                                                                   | 
+ PASS   | 1.22 prices are back                                                                                                                                                           | 
+ PASS   | 1.23 a result of exactly 0 can still be applied                                                                                                                                | 
+ PASS   | 1.24 and be undone                                                                                                                                                             | 
+ PASS   | 1.25 the pricing function: rounding and signs (no more cutting)                                                                                                                | 
+ PASS   | 1.26 app.bulk_price_problem boundaries                                                                                                                                         | 
+ PASS   | 1.27 the helpers are not callable by the app roles                                                                                                                             | 
+ PASS   | 2.1 day D: all old keys and numbers identical to before 140                                                                                                                    | 
+ PASS   | 2.2 empty day E: old keys identical                                                                                                                                            | 
+ PASS   | 2.3 a date with no business day: old keys identical                                                                                                                            | 
+ PASS   | 2.4 an unknown outlet still gives null                                                                                                                                         | 
+ PASS   | 2.5 only the five new keys were added                                                                                                                                          | 
+ PASS   | 2.6 day D new values: 9 guests on 3 dine-in bills (voided and merged bills left out), 790 / 9 = 87.78 per guest, tips 30 + 20 (the voided bill and the other-day tip left out) | 
+ PASS   | 2.7 day E: no guests (0 and sales per guest 0, not null) and the one tip dated that day                                                                                        | 
+ PASS   | 2.8 a day with nothing at all: zeros                                                                                                                                           | 
+ PASS   | 2.9 the summary agrees with the reports (report_covers / report_tips) for day D                                                                                                | 
+ PASS   | 2.10 report_summary is still locked down (internal)                                                                                                                            | 
+ PASS   | 2.11 report_summary is still STABLE and security definer                                                                                                                       | 
+ PASS   | 3.0 fixture: Chef Special is open-priced with a stored price of 10                                                                                                             | 
+ PASS   | 3.1 Cashier without order.open_price: bill ACCEPTED, recorded at the till price 75 (not the stored 10)                                                                         | 
+ PASS   | 3.2 it is flagged on the order (open_price_no_right) and nothing else                                                                                                          | 
+ PASS   | 3.3 the answer to the till carries the same flag                                                                                                                               | 
+ PASS   | 3.4 audit order.open_price_offline written for review, naming the cashier and the bill                                                                                         | 
+ PASS   | 3.5 the usual audits are there too: order.offline_flagged (with a plain summary), order.offline_sync, and the per-line order.open_price (131 trigger)                          | 
+ PASS   | 3.6 sending the same bill again is a repeat: no second order, no second audit                                                                                                  | 
+ PASS   | 3.7 Manager (has the right): accepted at 120 + 100, NO review flag, no order.open_price_offline audit, line marked open_price                                                  | 
+ PASS   | 3.8 price 0 on an open-priced item: bill REFUSED with a clear message                                                                                                          | 
+ PASS   | 3.9 a negative price is refused the same way                                                                                                                                   | 
+ PASS   | 3.10 an absurd price is refused                                                                                                                                                | 
+ PASS   | 3.11 refusals left nothing behind: no order, series number not used up                                                                                                         | 
+ PASS   | 3.12 the refusal is a P0001 database message (the app treats it as "refused": the bill moves to the device Stuck list with this text, never lost)                              | 
+ PASS   | 3.13 an item that was fixed-price on the till but is open-priced now, billed at the old stored price 10 by a Cashier: accepted at 10 and flagged for review                    | 
+ PASS   | 3.14 an ordinary offline bill (right price + a price the menu never had) gives exactly what it gave before 140                                                                 | 
+ PASS   | 3.15 an ordinary bill creates no open-price audit and no review flag                                                                                                           | 
+ PASS   | 3.16 sync_offline_bill is still callable by signed-in users only (grants kept by create or replace)                                                                            | 
+(55 rows)
+
+
+RESULT: 55 passed, 0 failed
+ stop_if_failed 
+----------------
+               
+(1 row)
+

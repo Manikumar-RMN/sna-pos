@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { readDevicePrint, rememberPrinted } from "@/lib/device-print";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../../../approval";
 import { logPrint } from "../../../bills/log-print";
+import { dropPrint, recordDeclaredPrint, useBrowserPrint } from "@/lib/print-log";
 import { claimTickets, loadKot } from "./actions";
 import { KotTicketsPrint, runPrint, type KotSlip } from "./kot-print";
 
@@ -56,6 +57,8 @@ export function KotPrinter({
   const [error, setError] = useState<string | null>(null);
   const [printError, setPrintError] = useState<string | null>(null);
   const [needsPin, setNeedsPin] = useState(false);
+  const [declaredNote, setDeclaredNote] = useState<{ text: string; ref?: string; needsPin?: boolean } | null>(null);
+  const [pinForDeclared, setPinForDeclared] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [attempt, setAttempt] = useState(0);
   const started = useRef(false);
@@ -157,6 +160,37 @@ export function KotPrinter({
     setPrinting(again);
   }
 
+  /**
+   * Ctrl+P or the browser menu on this screen: the tickets of this bill are a copy, so it is recorded as a KOT reprint (the page cannot
+   * stop it). Needs the reprint right; without it a notice offers the manager PIN and the print waits in the device queue.
+   */
+  async function logDeclaredKot() {
+    const ids = (printedHere.length > 0 ? printedHere : (slips ?? [])).map((s) => s.id);
+    if (ids.length === 0) return;
+    setCountdown(null);
+    const out = await recordDeclaredPrint({ kind: "kot", orderId, ticketIds: ids, isReprint: true }, (e) => logPrint({ kind: "kot", orderId: e.orderId, ticketIds: e.ticketIds }));
+    if (out.status === "recorded") return setDeclaredNote({ text: "Printed from the browser menu: recorded as a KOT reprint." });
+    if (out.status === "offline") return setDeclaredNote({ text: "Printed from the browser menu. The record is saved on this device and is sent when the internet is back." });
+    if (out.status === "needs_approval")
+      return setDeclaredNote({ text: "Printed from the browser menu, not recorded yet: a reprint needs the reprint right or a manager PIN.", ref: out.ref, needsPin: true });
+    setDeclaredNote({ text: `Printed from the browser menu, not recorded yet: ${cleanMessage(out.error)}` });
+  }
+  useBrowserPrint(status === "done" && !error && (slips?.length ?? 0) > 0, () => void logDeclaredKot());
+
+  async function recordDeclaredWithPin(ref: string) {
+    const ids = (printedHere.length > 0 ? printedHere : (slips ?? [])).map((s) => s.id);
+    try {
+      const res = await logPrint({ kind: "kot", orderId, ticketIds: ids });
+      if (res.ok) {
+        dropPrint(ref);
+        return setDeclaredNote({ text: "Browser-menu print recorded as a KOT reprint." });
+      }
+      setDeclaredNote({ text: `Not recorded: ${cleanMessage(res.error)}`, ref, needsPin: neededRight(res.error) === "order.reprint" });
+    } catch {
+      setDeclaredNote({ text: "Not recorded: could not reach the server. It stays queued on this device.", ref });
+    }
+  }
+
   function retry() {
     if (embedded) {
       // Stay on the order screen: ask the server again (nothing is sent twice).
@@ -194,6 +228,21 @@ export function KotPrinter({
       {printError && (
         <p className="mt-3 rounded-lg px-3 py-2 text-sm" role="alert" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
           {printError}
+        </p>
+      )}
+      {declaredNote && (
+        <p className="no-print mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)" }}>
+          <span>{declaredNote.text}</span>
+          <span className="flex gap-2">
+            {declaredNote.needsPin && declaredNote.ref && (
+              <button className="rounded-lg border px-2.5 py-1 font-bold" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }} onClick={() => setPinForDeclared(declaredNote.ref ?? null)}>
+                Record with manager PIN
+              </button>
+            )}
+            <button className="font-semibold underline" onClick={() => setDeclaredNote(null)}>
+              Dismiss
+            </button>
+          </span>
         </p>
       )}
       {!error && status !== "loading" && list.length === 0 && (
@@ -256,6 +305,17 @@ export function KotPrinter({
   return (
     <>
       {printing.length > 0 && <KotTicketsPrint slips={printing} info={info} />}
+      {pinForDeclared && (
+        <ApprovalPrompt
+          permission="order.reprint"
+          onCancel={() => setPinForDeclared(null)}
+          onApproved={() => {
+            const ref = pinForDeclared;
+            setPinForDeclared(null);
+            void recordDeclaredWithPin(ref);
+          }}
+        />
+      )}
       {needsPin && (
         <ApprovalPrompt
           permission="order.reprint"

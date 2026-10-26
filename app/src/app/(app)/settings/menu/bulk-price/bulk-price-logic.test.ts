@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildScope, checkInput, descendantIds, describeChange, historyTitle, parseValue, summarize, type Preview } from "./bulk-price-logic";
+import { buildScope, checkInput, descendantIds, describeChange, historyTitle, parseValue, problemText, summarize, type Preview } from "./bulk-price-logic";
 
 describe("parseValue", () => {
   it("reads plain numbers and a decimal comma", () => {
@@ -62,7 +62,27 @@ describe("summarize", () => {
   const line = (id: string, scope: "base" | "branch", o: number, n: number) => ({ product_id: id, name: id, category: "c", scope, branch_id: scope === "branch" ? "b" : null, branch: null, old_price: o, new_price: n });
   it("counts dishes, rises, falls and outlet prices", () => {
     const p: Preview = { lines: [line("a", "base", 100, 110), line("a", "branch", 110, 121), line("b", "base", 50, 45)], total_lines: 5, base_lines: 3, branch_lines: 2, truncated: false, include_branch: true };
-    expect(summarize(p)).toEqual({ items: 2, up: 2, down: 1, outletPrices: 2, hiddenRows: 2 });
+    expect(summarize(p)).toEqual({ items: 2, up: 2, down: 1, outletPrices: 2, hiddenRows: 2, belowZero: 0, tooHigh: 0, invalid: 0, canApply: true });
+  });
+  it("flags prices below zero or too high, and cannot be applied then (counts come from the database, which sees every line)", () => {
+    const bad = { ...line("t", "base", 20, -5), problem: "below_zero" as const };
+    const p: Preview = { lines: [bad, line("b", "base", 100, 50)], total_lines: 2, base_lines: 2, branch_lines: 0, truncated: false, include_branch: true, below_zero_lines: 3, too_high_lines: 1, invalid_lines: 4, can_apply: false };
+    const s = summarize(p);
+    expect(s).toMatchObject({ belowZero: 3, tooHigh: 1, invalid: 4, canApply: false });
+    expect(problemText(s)).toBe("3 prices would go below zero and 1 price would go above 10000000. Nothing can be changed until that is fixed: use a smaller reduction, or leave those dishes out. They are listed first, in red.");
+  });
+  it("works with an older database that sends no counts: the flagged lines on screen are counted", () => {
+    const bad = { ...line("t", "base", 20, -5), problem: "below_zero" as const };
+    const p: Preview = { lines: [bad], total_lines: 1, base_lines: 1, branch_lines: 0, truncated: false, include_branch: true };
+    expect(summarize(p)).toMatchObject({ belowZero: 1, invalid: 1, canApply: false });
+    expect(problemText(summarize(p))).toContain("1 price would go below zero");
+    const ok: Preview = { lines: [line("a", "base", 1, 2)], total_lines: 1, base_lines: 1, branch_lines: 0, truncated: false, include_branch: true };
+    expect(problemText(summarize(ok))).toBeNull();
+    expect(summarize(ok).canApply).toBe(true);
+  });
+  it("nothing to change cannot be applied", () => {
+    const p: Preview = { lines: [], total_lines: 0, base_lines: 0, branch_lines: 0, truncated: false, include_branch: true };
+    expect(summarize(p).canApply).toBe(false);
   });
 });
 

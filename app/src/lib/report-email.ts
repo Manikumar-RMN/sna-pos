@@ -35,6 +35,12 @@ export type ReportSummary = {
   unpaid_amount: number;
   refunds: number;
   refund_count: number;
+  /** Guests (covers) on the day's dine-in bills, and sales per guest. 0 when the figures are missing (an older database). */
+  covers: number;
+  sales_per_cover: number;
+  /** Tips taken (memo only, never part of the bill total), and how many. */
+  tips: number;
+  tip_count: number;
   payments: { method: string; count: number; amount: number }[];
   by_type: { type: string; bills: number; total: number }[];
   top_items: { item: string; qty: number; amount: number }[];
@@ -88,6 +94,10 @@ export function cleanSummary(raw: unknown): ReportSummary | null {
     unpaid_amount: num(r.unpaid_amount),
     refunds: num(r.refunds),
     refund_count: num(r.refund_count),
+    covers: Math.max(0, Math.round(num(r.covers))),
+    sales_per_cover: Math.max(0, num(r.sales_per_cover)),
+    tips: Math.max(0, num(r.tips)),
+    tip_count: Math.max(0, Math.round(num(r.tip_count))),
     payments: list(r.payments, 12).map((p) => ({ method: text(p.method, 40), count: num(p.count), amount: num(p.amount) })),
     by_type: list(r.by_type, 6).map((t) => ({ type: text(t.type, 20), bills: num(t.bills), total: num(t.total) })),
     top_items: list(r.top_items, 5).map((i) => ({ item: text(i.item, 60), qty: num(i.qty), amount: num(i.amount) })),
@@ -142,6 +152,9 @@ export function buildSummaryEmail(s: ReportSummary, test: boolean): { subject: s
   if (s.refund_count > 0) other.push([`Refunds (${s.refund_count})`, m(s.refunds)]);
   if (s.complimentary_bills > 0) other.push([`Complimentary (${plural(s.complimentary_bills, "bill", "bills")})`, m(s.complimentary_value)]);
   if (s.staff_meal_bills > 0) other.push([`Staff meals (${plural(s.staff_meal_bills, "bill", "bills")})`, m(s.staff_meal_value)]);
+  // Guests and tips: shown only when there is something to show. Tips are a memo, not part of the figures above.
+  if (s.covers > 0) other.push(["Guests", `${s.covers}${s.sales_per_cover > 0 ? ` · ${m(s.sales_per_cover)} per guest` : ""}`]);
+  if (s.tips > 0) other.push([`Tips (${plural(s.tip_count, "tip", "tips")}, not in the total)`, m(s.tips)]);
 
   const sections: [string, [string, string][]][] = [
     ["", headline],

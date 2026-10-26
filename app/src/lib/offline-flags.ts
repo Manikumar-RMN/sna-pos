@@ -14,6 +14,9 @@ export function describeOfflineFlags(raw: unknown): string[] {
       case "discount_removed":
         out.push(`A discount of ${n(f.amount)} was given on the till by someone without the right to discount. It was not allowed.`);
         break;
+      case "open_price_no_right":
+        out.push(`${String(f.item)} is an open-price item. It was billed offline at ${n(f.price)} by someone without the right to enter prices. The bill was kept at that price: please check it.`);
+        break;
       case "method_unknown":
         out.push("The payment method on the till was not recognised, so the payment was recorded as cash.");
         break;

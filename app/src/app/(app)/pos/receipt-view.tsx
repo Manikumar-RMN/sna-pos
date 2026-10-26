@@ -9,6 +9,7 @@ import { billFormat, billTextPx, paperWidth, type BillFormat } from "@/lib/bill-
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { logPrint } from "../bills/log-print";
+import { dropPrint, markAppPrint, recordDeclaredPrint, useBrowserPrint } from "@/lib/print-log";
 
 export type ReceiptData = {
   invoiceTitle: string | null;
@@ -93,6 +94,9 @@ export function ReceiptView({
   const [needsPin, setNeedsPin] = useState(false);
   const printedHere = useRef(false);
   const [printError, setPrintError] = useState<string | null>(null);
+  // Ctrl+P / browser-menu print: what happened to its log entry (shown as a small notice, never blocks the print).
+  const [declaredNote, setDeclaredNote] = useState<{ text: string; ref?: string; needsPin?: boolean } | null>(null);
+  const [pinForDeclared, setPinForDeclared] = useState<string | null>(null);
   const c = data.currency;
   const m = (n: number) => money(n, c);
   const f = billFormat(data.format);
@@ -115,7 +119,7 @@ export function ReceiptView({
   /**
    * Print button and the print after payment. The database counts earlier prints (log_print, migration 135): the first print of a
    * bill is silent, a later one is a reprint that needs the right or a manager PIN and is written to the audit log. Prints only
-   * when the log is written. Ctrl+P / the browser's own menu cannot be seen, and a bill shown without an id (the layout preview) is not logged.
+   * when the log is written. Ctrl+P / the browser's own menu is recorded by logDeclaredPrint ("beforeprint"); a bill shown without an id (the layout preview) is not logged.
    */
   async function printBillLogged() {
     setPrintError(null);
@@ -139,7 +143,48 @@ export function ReceiptView({
     if (readDevicePrint().method === "rawbt") {
       const { lines, width } = billLines(data);
       sendToRawbt(lines, width);
-    } else window.print();
+    } else {
+      // The print was logged just before: the "beforeprint" listener below must not log it a second time.
+      markAppPrint();
+      window.print();
+    }
+  }
+
+  /**
+   * Ctrl+P or the browser menu: the print cannot be held back, so it is recorded afterwards. It is declared a reprint when this
+   * screen already printed the bill; otherwise the database decides (first print silent, later ones reprints). A role without the
+   * reprint right gets a notice with a manager PIN button, and the print waits in the device queue until it is recorded.
+   */
+  async function logDeclaredPrint() {
+    if (!orderId) return;
+    const out = await recordDeclaredPrint({ kind: "bill", orderId, isReprint: printedHere.current }, (e) =>
+      logPrint({ kind: "bill", orderId: e.orderId, isReprint: e.isReprint }),
+    );
+    if (out.status === "recorded") {
+      printedHere.current = true;
+      return setDeclaredNote(out.reprint ? { text: `Printed from the browser menu: recorded as reprint (copy ${out.printNo ?? "2+"}).` } : null);
+    }
+    if (out.status === "offline") return setDeclaredNote({ text: "Printed from the browser menu. The record is saved on this device and is sent when the internet is back." });
+    if (out.status === "needs_approval")
+      return setDeclaredNote({ text: "Printed from the browser menu, not recorded yet: a reprint needs the reprint right or a manager PIN.", ref: out.ref, needsPin: true });
+    setDeclaredNote({ text: `Printed from the browser menu, not recorded yet: ${cleanMessage(out.error)}` });
+  }
+  useBrowserPrint(!!orderId, () => void logDeclaredPrint());
+
+  /** The manager PIN was entered for a browser-menu print: record it now (one-time approval). */
+  async function recordDeclaredWithPin(ref: string) {
+    if (!orderId) return;
+    try {
+      const res = await logPrint({ kind: "bill", orderId, isReprint: true });
+      if (res.ok) {
+        dropPrint(ref);
+        printedHere.current = true;
+        return setDeclaredNote({ text: `Browser-menu print recorded as reprint (copy ${res.printNo ?? "2+"}).` });
+      }
+      setDeclaredNote({ text: `Not recorded: ${cleanMessage(res.error)}`, ref, needsPin: neededRight(res.error) === "order.reprint" });
+    } catch {
+      setDeclaredNote({ text: "Not recorded: could not reach the server. It stays queued on this device.", ref });
+    }
   }
   const whenStr = new Date(data.createdAt).toLocaleString("en-IN", {
     timeZone: data.timezone,
@@ -166,6 +211,17 @@ export function ReceiptView({
         }
       `}</style>
 
+      {pinForDeclared && (
+        <ApprovalPrompt
+          permission="order.reprint"
+          onCancel={() => setPinForDeclared(null)}
+          onApproved={() => {
+            const ref = pinForDeclared;
+            setPinForDeclared(null);
+            void recordDeclaredWithPin(ref);
+          }}
+        />
+      )}
       {needsPin && (
         <ApprovalPrompt
           permission="order.reprint"
@@ -186,6 +242,21 @@ export function ReceiptView({
           Print
         </button>
       </div>
+      {declaredNote && (
+        <p className="no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)" }}>
+          <span>{declaredNote.text}</span>
+          <span className="flex gap-2">
+            {declaredNote.needsPin && declaredNote.ref && (
+              <button className="rounded-lg border px-2.5 py-1 font-bold" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }} onClick={() => setPinForDeclared(declaredNote.ref ?? null)}>
+                Record with manager PIN
+              </button>
+            )}
+            <button className="font-semibold underline" onClick={() => setDeclaredNote(null)}>
+              Dismiss
+            </button>
+          </span>
+        </p>
+      )}
       {printError && (
         <p className="no-print mb-3 rounded-lg px-3 py-2 text-sm" role="alert" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
           {printError}

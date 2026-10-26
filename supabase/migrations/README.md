@@ -166,3 +166,9 @@ The ten changes below (one-batch set) go to live together with `docs/go-live-130
 | `137_copy_rights_and_access.sql` | recorded by the go-live file | copy_role_rights, copy_staff_access |
 | `138_report_pack_3_covers_reprints_tips.sql` | recorded by the go-live file | report_covers, report_reprints, report_tips; pending KOT and pending bills fixed (unpaid dine-in bills are 'open') |
 | `139_erase_groups_tips_and_price_changes.sql` | recorded by the go-live file | app.erase_groups() lists order_tips, price_change_lines, price_change_batches |
+
+Change 140 (after 130-139) goes to live with `docs/go-live-140.sql` (built by `docs/tests/build-go-live-140.sh`, proved by `docs/tests/run-golive-140.sh`; same all-or-nothing, refuses without 139 recorded and refuses a second run):
+
+| File | Version | Note |
+|---|---|---|
+| `140_bulk_price_range_offline_open_price_summary_extras.sql` | recorded by the go-live file | bulk price: below-zero / above-maximum prices are flagged in the preview and the whole batch is refused on apply (no more silent cut to 0); `sync_offline_bill`: open-priced items re-checked (price above zero, bill kept and flagged `open_price_no_right` + audit `order.open_price_offline` when the user lacks `order.open_price`); `app.report_summary` adds covers, bills_with_covers, sales_per_cover, tips, tip_count |

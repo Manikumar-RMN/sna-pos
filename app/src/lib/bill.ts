@@ -7,6 +7,7 @@ const flagText: Record<string, string> = {
   older_than_7_days: "This offline bill was made more than 7 days before it reached the server.",
   total_differs: "The total made on the device differs from the server's total.",
   price_corrected: "A price sent from the device was not a menu price, so the bill was recorded at the real menu price.",
+  open_price_no_right: "An open-price item was billed offline by someone without the right to enter prices. The bill was kept at the price charged: please check it.",
   discount_cut: "The discount was reduced on the server.",
   discount_removed: "A discount was sent from a device by someone without the right to give discounts, so it was not given.",
   method_unknown: "The payment method sent from the device was not found, so it was recorded as cash.",

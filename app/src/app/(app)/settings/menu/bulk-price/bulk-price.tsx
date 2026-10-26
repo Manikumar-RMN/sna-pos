@@ -12,6 +12,7 @@ import {
   descendantIds,
   describeChange,
   historyTitle,
+  problemText,
   ROUNDINGS,
   summarize,
   type BulkMode,
@@ -113,7 +114,7 @@ export function BulkPrice({
     );
   }
   function doApply() {
-    if (!preview || !input.ok) return;
+    if (!preview || !sum || !sum.canApply || !input.ok) return;
     guarded(
       () => applyBulkPrice({ mode, valueText, rounding, scope, includeBranch, reason, clientRef, expectLines: preview.total_lines }),
       () => {
@@ -264,6 +265,11 @@ export function BulkPrice({
           <p className="mt-1 text-sm" style={{ color: "var(--color-ink-2)" }}>
             {describeChange(mode, input.value)}: {preview.total_lines === 0 ? "no price would change." : `${preview.total_lines} prices change (${sum.up} up, ${sum.down} down${preview.branch_lines > 0 ? `, ${preview.branch_lines} of them outlet prices` : ""}).`}
           </p>
+          {sum.invalid > 0 && (
+            <p className="mt-3 rounded-2xl px-4 py-3 text-sm font-semibold" role="alert" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
+              {problemText(sum)}
+            </p>
+          )}
           {preview.total_lines > 0 && (
             <>
               <div className="mt-3 max-h-96 overflow-auto rounded-2xl border" style={{ borderColor: "var(--color-line)" }}>
@@ -278,7 +284,7 @@ export function BulkPrice({
                   </thead>
                   <tbody>
                     {preview.lines.map((l, i) => (
-                      <tr key={`${l.product_id}-${l.branch_id ?? "base"}-${i}`} style={{ borderTop: "1px solid var(--color-line)" }}>
+                      <tr key={`${l.product_id}-${l.branch_id ?? "base"}-${i}`} style={{ borderTop: "1px solid var(--color-line)", ...(l.problem ? { background: "var(--color-bad-soft)" } : {}) }}>
                         <td className="px-3 py-2">
                           <div className="font-medium">{l.name}</div>
                           <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
@@ -287,7 +293,10 @@ export function BulkPrice({
                         </td>
                         <td className="px-3 py-2 text-xs">{l.scope === "base" ? "Main price" : l.branch ?? "Outlet"}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{money(l.old_price, currency)}</td>
-                        <td className="px-3 py-2 text-right font-bold tabular-nums">{money(l.new_price, currency)}</td>
+                        <td className="px-3 py-2 text-right font-bold tabular-nums" style={l.problem ? { color: "var(--color-bad)" } : undefined}>
+                          {money(l.new_price, currency)}
+                          {l.problem && <div className="text-xs font-semibold">{l.problem === "below_zero" ? "below zero" : "too high"}</div>}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -311,7 +320,7 @@ export function BulkPrice({
                   yesLabel="Yes, change them"
                   noLabel="Not yet"
                   tone="plain"
-                  disabled={pending || reason.trim().length < 3}
+                  disabled={pending || reason.trim().length < 3 || !sum.canApply}
                   onConfirm={doApply}
                 >
                   Apply to {preview.total_lines} prices

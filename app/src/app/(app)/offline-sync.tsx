@@ -3,10 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readQueue, readStuck, writeQueue, writeStuck, type OfflineBill } from "@/lib/offline";
 import { applySyncOutcome, retryStuck } from "@/lib/offline-queue";
+import { flushPrintQueue, PRINT_QUEUE_CHANGED, readPrintQueue, retryApproved, summarize, toSendResult, type PrintEvent, type SendResult } from "@/lib/print-log";
 import { syncOfflineBill } from "./pos/actions";
+import { logPrint } from "./bills/log-print";
+import { ApprovalPrompt } from "./approval";
 
 /** How many times a bill's guest details are tried before they are given up. */
 const GUEST_TRIES = 5;
+
+/** One queued print (offline receipt, Ctrl+P, a failed log call) -> the logPrint action. Throws when the server cannot be reached. */
+async function sendPrint(ev: PrintEvent): Promise<SendResult> {
+  return toSendResult(await logPrint({ kind: ev.kind, orderId: ev.orderId, clientRef: ev.billClientRef, ticketIds: ev.ticketIds, isReprint: ev.isReprint }));
+}
 
 /** Sends bills made offline on this device as soon as the server can be reached, and shows what is waiting. */
 export function OfflineSync() {
@@ -15,8 +23,41 @@ export function OfflineSync() {
   const [online, setOnline] = useState(true);
   const [note, setNote] = useState<string | null>(null);
   const busy = useRef(false);
+  const printBusy = useRef(false);
+  const [prints, setPrints] = useState({ total: 0, needsApproval: 0, gaveUp: 0 });
+  const [pinOpen, setPinOpen] = useState(false);
 
-  const run = useCallback(async () => {
+  /**
+   * Records queued prints (reprint audit). Runs after the bills, so an offline bill's print finds its bill on the server; a print whose
+   * bill is not there yet just waits. Prints are sent in order per bill, each once (client ref), and a print that needs a manager PIN
+   * waits for a person (banner below) instead of being retried.
+   */
+  const runPrints = useCallback(async () => {
+    setPrints(summarize(readPrintQueue()));
+    if (printBusy.current || !navigator.onLine || readPrintQueue().length === 0) return;
+    printBusy.current = true;
+    try {
+      await flushPrintQueue(sendPrint);
+    } finally {
+      printBusy.current = false;
+      setPrints(summarize(readPrintQueue()));
+    }
+  }, []);
+
+  const approvedPrint = async () => {
+    setPinOpen(false);
+    const first = readPrintQueue().find((e) => e.needs_approval && !e.gave_up);
+    if (!first) return;
+    try {
+      await retryApproved(first.ref, sendPrint);
+    } catch {
+      /* no connection: it stays queued */
+    }
+    setPrints(summarize(readPrintQueue()));
+    void runPrints();
+  };
+
+  const runBills = useCallback(async () => {
     const q = readQueue();
     setQueue(q);
     setStuck(readStuck());
@@ -66,6 +107,11 @@ export function OfflineSync() {
     }
   }, []);
 
+  const run = useCallback(async () => {
+    await runBills();
+    await runPrints();
+  }, [runBills, runPrints]);
+
   const retry = () => {
     const back = retryStuck(readQueue(), readStuck());
     writeQueue(back.queue);
@@ -95,16 +141,21 @@ export function OfflineSync() {
     window.addEventListener("online", on);
     window.addEventListener("offline", off);
     window.addEventListener("sna-offline-queue", changed);
+    // A print was queued (or the queue changed): update the banner and record it. Writes made by a running flush are ignored (printBusy).
+    const printsChanged = () => void runPrints();
+    window.addEventListener(PRINT_QUEUE_CHANGED, printsChanged);
     const t = setInterval(run, 20000);
     return () => {
       window.removeEventListener("online", on);
       window.removeEventListener("offline", off);
       window.removeEventListener("sna-offline-queue", changed);
+      window.removeEventListener(PRINT_QUEUE_CHANGED, printsChanged);
       clearInterval(t);
     };
-  }, [run]);
+  }, [run, runPrints]);
 
-  if (online && queue.length === 0 && !note && stuck.length === 0) return null;
+  const printNeedsPin = prints.needsApproval > 0 || prints.gaveUp > 0;
+  if (online && queue.length === 0 && !note && stuck.length === 0 && !printNeedsPin) return null;
   return (
     <>
     {stuck.length > 0 && (
@@ -118,6 +169,21 @@ export function OfflineSync() {
         </span>
       </div>
     )}
+    {printNeedsPin && (
+      <div className="no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)" }}>
+        <span>
+          {prints.needsApproval > 0 && `${prints.needsApproval} reprint${prints.needsApproval === 1 ? "" : "s"} made without the reprint right ${prints.needsApproval === 1 ? "is" : "are"} not recorded yet: a manager PIN records ${prints.needsApproval === 1 ? "it" : "one at a time"}. `}
+          {prints.gaveUp > 0 && `${prints.gaveUp} print record${prints.gaveUp === 1 ? "" : "s"} could not be saved to the log and stay${prints.gaveUp === 1 ? "s" : ""} on this device.`}
+        </span>
+        {prints.needsApproval > 0 && online && (
+          <button className="rounded-lg border px-3 py-1 text-xs font-bold" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }} onClick={() => setPinOpen(true)}>
+            Enter manager PIN
+          </button>
+        )}
+      </div>
+    )}
+    {pinOpen && <ApprovalPrompt permission="order.reprint" onCancel={() => setPinOpen(false)} onApproved={() => void approvedPrint()} />}
+    {!(printNeedsPin && online && queue.length === 0 && !note && stuck.length === 0) && (
     <div
       className="no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm"
       role="status"
@@ -140,6 +206,7 @@ export function OfflineSync() {
         </button>
       )}
     </div>
+    )}
     </>
   );
 }

@@ -203,6 +203,7 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   "kot.reprint": "Kitchen ticket reprinted",
   "order.tip": "Tip recorded",
   "order.open_price": "Open-priced item sold",
+  "order.open_price_offline": "Open-priced item sold offline without the right (to review)",
   "order.move_item": "Item moved to another table",
   "menu.bulk_price_change": "Prices changed in bulk",
   "menu.bulk_price_undo": "Bulk price change undone",
@@ -247,6 +248,10 @@ export function auditDetail(action: string, newValue: unknown, oldValue: unknown
       return { bill, detail: "Tip", reason, amount: n.amount == null ? null : num(n.amount) };
     case "order.open_price":
       return { bill, detail: `${str(n.qty) || "1"} × ${str(n.product ?? n.item)}`.trim(), reason, amount: n.price == null ? null : num(n.price) };
+    case "order.open_price_offline": {
+      const first = rec(Array.isArray(n.items) ? n.items[0] : null);
+      return { bill, detail: str(first.item), reason, amount: first.price == null ? null : num(first.price) };
+    }
     case "bill.print":
     case "bill.reprint":
     case "kot.reprint":

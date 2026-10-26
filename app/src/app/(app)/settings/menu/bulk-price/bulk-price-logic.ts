@@ -18,6 +18,8 @@ export type PreviewLine = {
   branch: string | null;
   old_price: number;
   new_price: number;
+  /** Set by the database when the new price is not allowed: below zero, or above the largest price. */
+  problem?: "below_zero" | "too_high" | null;
 };
 
 export type Preview = {
@@ -27,6 +29,12 @@ export type Preview = {
   branch_lines: number;
   truncated: boolean;
   include_branch: boolean;
+  /** From migration 140 (missing before it: treated as none). Lines that would go below zero / above the largest price. */
+  below_zero_lines?: number;
+  too_high_lines?: number;
+  invalid_lines?: number;
+  invalid_items?: number;
+  can_apply?: boolean;
 };
 
 export type HistoryRow = {
@@ -89,7 +97,7 @@ function trim(n: number): string {
   return String(Number(n.toFixed(4)));
 }
 
-export function summarize(preview: Preview): { items: number; up: number; down: number; outletPrices: number; hiddenRows: number } {
+export function summarize(preview: Preview): { items: number; up: number; down: number; outletPrices: number; hiddenRows: number; belowZero: number; tooHigh: number; invalid: number; canApply: boolean } {
   const items = new Set(preview.lines.filter((l) => l.scope === "base").map((l) => l.product_id)).size;
   let up = 0;
   let down = 0;
@@ -97,7 +105,32 @@ export function summarize(preview: Preview): { items: number; up: number; down: 
     if (l.new_price > l.old_price) up += 1;
     else if (l.new_price < l.old_price) down += 1;
   }
-  return { items, up, down, outletPrices: preview.branch_lines, hiddenRows: Math.max(0, preview.total_lines - preview.lines.length) };
+  // The database counts every flagged line (the list on screen may be cut); older databases send no counts, so count what is shown.
+  const shownBelow = preview.lines.filter((l) => l.problem === "below_zero").length;
+  const shownHigh = preview.lines.filter((l) => l.problem === "too_high").length;
+  const belowZero = Math.max(Number(preview.below_zero_lines ?? 0), shownBelow);
+  const tooHigh = Math.max(Number(preview.too_high_lines ?? 0), shownHigh);
+  const invalid = belowZero + tooHigh;
+  return {
+    items,
+    up,
+    down,
+    outletPrices: preview.branch_lines,
+    hiddenRows: Math.max(0, preview.total_lines - preview.lines.length),
+    belowZero,
+    tooHigh,
+    invalid,
+    canApply: preview.total_lines > 0 && invalid === 0 && preview.can_apply !== false,
+  };
+}
+
+/** The sentence shown above the list when some new prices are not allowed (the database refuses the whole batch). */
+export function problemText(s: { belowZero: number; tooHigh: number; invalid: number }, maxPrice = 10_000_000): string | null {
+  if (s.invalid === 0) return null;
+  const parts: string[] = [];
+  if (s.belowZero > 0) parts.push(`${s.belowZero} ${s.belowZero === 1 ? "price would" : "prices would"} go below zero`);
+  if (s.tooHigh > 0) parts.push(`${s.tooHigh} ${s.tooHigh === 1 ? "price would" : "prices would"} go above ${maxPrice}`);
+  return `${parts.join(" and ")}. Nothing can be changed until that is fixed: use a smaller reduction, or leave those dishes out. They are listed first, in red.`;
 }
 
 /** A sentence for the history list. */

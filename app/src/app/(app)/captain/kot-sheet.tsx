@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { logPrint } from "../bills/log-print";
+import { dropPrint, recordDeclaredPrint, useBrowserPrint } from "@/lib/print-log";
 import { loadKotPrintInfo } from "../pos/kot/[orderId]/actions";
 import { useSlipPrinter, type KotSlip } from "../pos/kot/[orderId]/kot-print";
 import { cancelKot, cancelKotItem, loadBillKots, modifyKotItem, type Kot, type KotItem } from "./actions";
@@ -28,6 +29,9 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
   const [pinFor, setPinFor] = useState<Kot | null>(null);
   const [reprinting, setReprinting] = useState<string | null>(null);
   const printer = useSlipPrinter();
+  // Ctrl+P / browser menu while the sheet is open: what happened to its log entry.
+  const [declaredNote, setDeclaredNote] = useState<{ text: string; ref?: string; needsPin?: boolean } | null>(null);
+  const [pinForDeclared, setPinForDeclared] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const r = await loadBillKots(orderId);
@@ -102,6 +106,35 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
     }
   }
 
+  /** The tickets this sheet shows (cancelled ones are not a kitchen copy). */
+  const shownIds = () => (kots ?? []).filter((k) => k.status !== "cancelled" && k.items.some((i) => !i.cancelled)).map((k) => k.id);
+
+  /** Ctrl+P / the browser menu: the printed page carries these tickets, so it is recorded as a KOT reprint (it cannot be held back). */
+  async function logDeclaredKot() {
+    const ids = shownIds();
+    if (ids.length === 0) return;
+    const out = await recordDeclaredPrint({ kind: "kot", orderId, ticketIds: ids, isReprint: true }, (e) => logPrint({ kind: "kot", orderId: e.orderId, ticketIds: e.ticketIds }));
+    if (out.status === "recorded") return setDeclaredNote({ text: "Printed from the browser menu: recorded as a KOT reprint." });
+    if (out.status === "offline") return setDeclaredNote({ text: "Printed from the browser menu. The record is saved on this device and is sent when the internet is back." });
+    if (out.status === "needs_approval")
+      return setDeclaredNote({ text: "Printed from the browser menu, not recorded yet: a reprint needs the reprint right or a manager PIN.", ref: out.ref, needsPin: true });
+    setDeclaredNote({ text: `Printed from the browser menu, not recorded yet: ${cleanMessage(out.error)}` });
+  }
+  useBrowserPrint(shownIds().length > 0, () => void logDeclaredKot());
+
+  async function recordDeclaredWithPin(ref: string) {
+    try {
+      const res = await logPrint({ kind: "kot", orderId, ticketIds: shownIds() });
+      if (res.ok) {
+        dropPrint(ref);
+        return setDeclaredNote({ text: "Browser-menu print recorded as a KOT reprint." });
+      }
+      setDeclaredNote({ text: `Not recorded: ${cleanMessage(res.error)}`, ref, needsPin: neededRight(res.error) === "order.reprint" });
+    } catch {
+      setDeclaredNote({ text: "Not recorded: could not reach the server. It stays queued on this device.", ref });
+    }
+  }
+
   const reduce = edit?.kind === "item-change" && Number(edit.qty) < edit.item.qty;
 
   return (
@@ -124,6 +157,21 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
         {note && (
           <p role="status" className="mt-3 rounded-lg px-3 py-2 text-sm font-semibold" style={{ background: "var(--color-ok-soft)", color: "var(--color-ok)" }}>
             {note}
+          </p>
+        )}
+        {declaredNote && (
+          <p role="status" className="no-print mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)" }}>
+            <span>{declaredNote.text}</span>
+            <span className="flex gap-2">
+              {declaredNote.needsPin && declaredNote.ref && (
+                <button className="rounded-lg border px-2.5 py-1 font-bold" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }} onClick={() => setPinForDeclared(declaredNote.ref ?? null)}>
+                  Record with manager PIN
+                </button>
+              )}
+              <button className="font-semibold underline" onClick={() => setDeclaredNote(null)}>
+                Dismiss
+              </button>
+            </span>
           </p>
         )}
         {error && (
@@ -257,6 +305,17 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
           })}
         </div>
 
+        {pinForDeclared && (
+          <ApprovalPrompt
+            permission="order.reprint"
+            onCancel={() => setPinForDeclared(null)}
+            onApproved={() => {
+              const ref = pinForDeclared;
+              setPinForDeclared(null);
+              void recordDeclaredWithPin(ref);
+            }}
+          />
+        )}
         {pinFor && (
           <ApprovalPrompt
             permission="order.reprint"

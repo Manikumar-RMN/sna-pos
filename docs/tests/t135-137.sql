@@ -201,7 +201,8 @@ select t.q('2.5 with outlet prices switched off only the 3 base lines appear', :
 select t.q('2.6 rounding 1: Tea 20 + 2.5% = 20.5 -> 21', :'r1'::jsonb #> '{lines,0,new_price}', '21');
 select t.q('2.7 rounding 0.5: 20.5 stays', :'r05'::jsonb #> '{lines,0,new_price}', '20.5');
 select t.q('2.8 rounding 0.01: 20.50', :'r001'::jsonb #> '{lines,0,new_price}', '20.5');
-select t.q('2.9 a price never goes below zero', :'floor0'::jsonb #> '{lines,0,new_price}', '0');
+select t.q('2.9 a price never goes below zero (before 140: cut to 0; from 140: shown as the real -5 and flagged below_zero, and apply refuses the batch)',
+  :'floor0'::jsonb #> '{lines,0,new_price}', case when to_regprocedure('app.bulk_price_problem(numeric)') is null then '0' else '-5' end);
 select t.q('2.10 amount +0.40 on Soup 80 with rounding 0.5 -> 80.5', :'amt'::jsonb #> '{lines,0,new_price}', '80.5');
 select t.q('2.11 an outlet override that is null (Tea at Outlet A, only unavailable) is not a price line', :'r1'::jsonb -> 'total_lines', '1');
 select t.as_('mgr');

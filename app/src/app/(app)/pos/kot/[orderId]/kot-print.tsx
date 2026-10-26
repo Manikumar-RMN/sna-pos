@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { readDevicePrint } from "@/lib/device-print";
 import { kotLines, sendToRawbt } from "@/lib/rawbt";
+import { markAppPrint } from "@/lib/print-log";
 
 /** One kitchen ticket as it is printed. */
 export type KotSlip = {
@@ -35,6 +36,8 @@ export function printAndWait(): Promise<void> {
       resolve();
     };
     window.addEventListener("afterprint", finish);
+    // The app's own print (first KOT print is not logged, a reprint was logged just before): the Ctrl+P listeners must skip it.
+    markAppPrint();
     window.print();
     // A browser that neither blocks nor says "afterprint": do not wait for ever.
     window.setTimeout(finish, 20_000);

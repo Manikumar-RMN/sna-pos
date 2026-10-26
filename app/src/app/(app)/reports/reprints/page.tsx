@@ -69,7 +69,7 @@ export default async function ReprintsPage({ searchParams }: { searchParams: Pro
               />
             </section>
             <Note>
-              A reprint is a second or later print of a bill or kitchen ticket. Printing from the browser menu (Ctrl+P) and bills printed while offline are not recorded.
+              A reprint is a second or later print of a bill or kitchen ticket. Prints from the browser menu (Ctrl+P) and from receipts made offline are recorded too: a Ctrl+P print is marked as declared because it cannot be held back, and an offline print appears once its bill has reached the server (it can show up a little later than it happened). A print that needs a manager PIN is listed only after the PIN is entered.
               The totals cover every reprint in the period{cut ? ", not only the rows shown" : ""}.
             </Note>
           </>

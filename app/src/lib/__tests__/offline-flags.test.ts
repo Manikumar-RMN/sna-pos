@@ -16,6 +16,13 @@ describe("describeOfflineFlags", () => {
     expect(t[0]).toContain("120.00");
     expect(t[1]).toContain("100.00");
   });
+  it("explains an open-price item billed offline without the right", () => {
+    const t = describeOfflineFlags([{ flag: "open_price_no_right", item: "Chef Special", price: 75 }]);
+    expect(t).toHaveLength(1);
+    expect(t[0]).toContain("Chef Special");
+    expect(t[0]).toContain("75.00");
+    expect(t[0]).toContain("check it");
+  });
   it("handles flags written by the older function, and nothing at all", () => {
     expect(describeOfflineFlags([{ flag: "price", item: "Tea", offline_price: 5, menu_price: 10 }])).toHaveLength(1);
     expect(describeOfflineFlags(null)).toEqual([]);

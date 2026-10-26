@@ -1,15 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { money, orderTypeLabel } from "@/lib/format";
 import { billFormat, billTextPx, paperWidth } from "@/lib/bill-format";
 import type { OfflineBill, Snapshot } from "@/lib/offline";
 import { readDevicePrint } from "@/lib/device-print";
 import { offlineBillLines, offlineKotLines, sendToRawbt } from "@/lib/rawbt";
+import { enqueuePrint, markAppPrint, newPrintRef, useBrowserPrint, type PrintKind } from "@/lib/print-log";
 
 /** Bill and kitchen tickets for a bill made offline, printed from this device. */
 export function OfflineReceipt({ bill, snap, onDone }: { bill: OfflineBill; snap: Snapshot; onDone: () => void }) {
   const [target, setTarget] = useState<"bill" | "kot">("bill");
+  const [printNote, setPrintNote] = useState<string | null>(null);
+  // Prints made from this receipt so far. The first bill print is the normal one; every later one (and any later kitchen ticket) is a reprint.
+  const printed = useRef<Record<PrintKind, number>>({ bill: 0, kot: 0 });
   const r = snap.receipt;
   const m = (n: number) => money(n, r.currency);
   const when = new Date(bill.created_at).toLocaleString("en-IN", { timeZone: r.timezone, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -24,14 +28,32 @@ export function OfflineReceipt({ bill, snap, onDone }: { bill: OfflineBill; snap
   const stations = [...new Set(kotItems.map((i) => i.station))];
   const kotItemPx = f.kot_text === "large" ? 19 : 15;
   const kotNotePx = f.kot_text === "large" ? 17 : 13;
+  /**
+   * Offline there is no server to ask, so each print is written to the queue on this device (lib/print-log.ts); OfflineSync records it
+   * through log_print once the bill itself has reached the server (matched by the bill's client_id). The first bill print is silent.
+   * The first kitchen ticket is the normal send to the kitchen and is not a reprint, so only later ones are queued.
+   */
+  const noteForLog = (kind: PrintKind, declared: boolean) => {
+    const n = printed.current[kind];
+    printed.current[kind] = n + 1;
+    if (kind === "kot" && n === 0 && !declared) return;
+    const ok = enqueuePrint({ ref: newPrintRef(), kind, at: new Date().toISOString(), billClientRef: bill.client_id, isReprint: n > 0, declared });
+    if (declared) setPrintNote(ok ? "Printed from the browser menu. It will be recorded when this bill reaches the server." : "Printed from the browser menu, but this device could not save the record (storage full).");
+  };
+  // Ctrl+P / browser menu on this receipt: cannot be held back, so it is queued as a declared print of what is on screen.
+  useBrowserPrint(true, () => noteForLog(target, true));
   const print = (t: "bill" | "kot") => {
+    noteForLog(t, false);
     if (readDevicePrint().method === "rawbt") {
       const { lines, width } = t === "bill" ? offlineBillLines(bill, snap) : offlineKotLines(bill, snap);
       sendToRawbt(lines, width);
       return;
     }
     setTarget(t);
-    setTimeout(() => window.print(), 50);
+    setTimeout(() => {
+      markAppPrint(); // already queued above: the Ctrl+P listener must not queue it again
+      window.print();
+    }, 50);
   };
 
   return (
@@ -48,6 +70,11 @@ export function OfflineReceipt({ bill, snap, onDone }: { bill: OfflineBill; snap
         <div className="no-print rounded-xl px-3 py-2 text-sm" style={{ background: "var(--color-warn-soft)" }}>
           Saved offline on this device. It is sent to the server by itself when the internet is back.
         </div>
+        {printNote && (
+          <div className="no-print rounded-xl px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)" }}>
+            {printNote}
+          </div>
+        )}
         {/* Sizes are in em so the owner's text size applies to the whole bill, as on the online bill. */}
         <div
           id="off-bill"
