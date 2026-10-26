@@ -203,6 +203,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
     packing,
     allowHold: has(user, "courses"),
     customerDisplay: has(user, "customer_display") ? user.trading_name : null,
+    stockCheck: has(user, "stock"),
     tableOrdersWaiting,
     licenceLockAt: (await getLicence()).lock_at ?? null,
     categoryParents: await subCategoryParents(),

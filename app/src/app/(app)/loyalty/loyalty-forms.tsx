@@ -2,42 +2,61 @@
 
 import { useState, useTransition } from "react";
 import { money } from "@/lib/format";
+import { POINTS_DO_NOT_EXPIRE, REDEEM_MODES, REDEEM_TAX_NOTE, loyaltyExample, validateLoyaltyRules, type RedeemMode } from "@/lib/customers";
 import { checkGiftCard, giftCardHistory, payBackGiftCard, saveLoyaltyRules, sellGiftCard, topUpGiftCard, type CardEntry } from "./actions";
 
 import { useTz } from "../tz";
-export function LoyaltyRules({ currency, initial }: { currency: string; initial: { spend: number; value: number; min: number; saved: boolean } }) {
+export function LoyaltyRules({ currency, initial }: { currency: string; initial: { spend: number; value: number; min: number; mode: RedeemMode; maxPercent: number; saved: boolean } }) {
   const [spend, setSpend] = useState(String(initial.spend));
   const [value, setValue] = useState(String(initial.value));
   const [min, setMin] = useState(String(initial.min));
+  const [mode, setMode] = useState<string>(initial.mode);
+  const [maxPercent, setMaxPercent] = useState(String(initial.maxPercent));
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
+  const ex = loyaltyExample(Number(spend), Number(value));
   return (
     <section className="card space-y-3 p-4">
       <h2 className="text-sm font-bold">Points rules {!initial.saved && <span style={{ color: "var(--color-warn)" }}>— not set yet, guests earn nothing until you save</span>}</h2>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="block text-sm">
-          <span className="mb-1 block font-semibold">1 point for every ({currency})</span>
+          <span className="mb-1 block font-semibold">Rupees spent for 1 point ({currency})</span>
           <input className="field" inputMode="decimal" value={spend} onChange={(e) => setSpend(e.target.value)} />
         </label>
         <label className="block text-sm">
-          <span className="mb-1 block font-semibold">1 point is worth ({currency})</span>
+          <span className="mb-1 block font-semibold">Rupee value of 1 point ({currency})</span>
           <input className="field" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />
         </label>
         <label className="block text-sm">
-          <span className="mb-1 block font-semibold">Least points to use at once</span>
+          <span className="mb-1 block font-semibold">Minimum points to redeem</span>
           <input className="field" inputMode="numeric" value={min} onChange={(e) => setMin(e.target.value)} />
         </label>
+        <label className="block text-sm">
+          <span className="mb-1 block font-semibold">Highest share of a bill points can pay (%)</span>
+          <input className="field" inputMode="decimal" value={maxPercent} onChange={(e) => setMaxPercent(e.target.value)} />
+        </label>
       </div>
+      <label className="block text-sm sm:max-w-md">
+        <span className="mb-1 block font-semibold">Redeem as</span>
+        <select className="field" value={mode} onChange={(e) => setMode(e.target.value)}>
+          {REDEEM_MODES.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+        </select>
+      </label>
+      <p className="rounded-lg border p-2 text-xs" role="note" style={{ borderColor: mode === "discount" ? "var(--color-warn)" : "var(--color-line)", color: "var(--color-ink-2)" }}>
+        {REDEEM_TAX_NOTE}
+      </p>
       <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
-        Example: with {spend || "100"} and {value || "1"}, a bill of {money(Number(spend || 100) * 10, currency)} earns 10 points, worth{" "}
-        {money(10 * Number(value || 1), currency)} on a later bill. A credit note takes back the points on the refunded part.
+        Example: a bill of {money(ex.bill, currency)} earns {ex.points} points, worth {money(ex.worth, currency)} on a later bill.
+        A credit note takes back the points on the refunded part. {POINTS_DO_NOT_EXPIRE}
       </p>
       <button
         className="btn btn-primary"
         disabled={pending}
         onClick={() =>
           start(async () => {
-            const r = await saveLoyaltyRules(Number(spend), Number(value), Number(min || 0));
+            const v = validateLoyaltyRules({ spend, value, min, mode, maxPercent });
+            if (!v.ok) return setMsg({ ok: false, text: v.error });
+            const r = await saveLoyaltyRules(v.spend, v.value, v.min, v.mode, v.maxPercent);
             setMsg(r.ok ? { ok: true, text: r.message } : { ok: false, text: r.error });
           })
         }

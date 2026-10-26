@@ -13,15 +13,21 @@ const SCREENS = [
   "/settings/reports", "/settings/outlets", "/settings/brands", "/settings/plan", "/settings/api", "/settings/menu", "/account/password",
   // one-batch additions: the three new reports and the bulk price change screen
   "/reports/covers", "/reports/reprints", "/reports/tips", "/settings/menu/bulk-price",
+  // batch 3: customers, stock count and the six new reports
+  "/customers", "/stock/count",
+  "/reports/stock-on-hand", "/reports/stock-movement", "/reports/food-cost", "/reports/wastage", "/reports/customers", "/reports/loyalty-ledger",
 ];
 
 describe.skipIf(!haveUi())("every screen opens without an error page or a refused database request (real app, real browser)", () => {
-  let w: World, page: Page, paid: any;
+  let w: World, page: Page, paid: any, guestId: string | null = null;
   beforeAll(async () => {
     w = await makeWorld("uscr");
     await rpc(w.cashier.auth, "open_shift", [0]).catch(() => {});
     paid = await rpc(w.cashier.auth, "create_order", [items(w, { dosa: 2, cola: 1 }), "takeaway", null, null, w.methods.cash, 500]);
     await rpc(w.cashier.auth, "create_order", [items(w, { biryani: 1 }), "dine_in", w.tableId]);
+    // a guest on the paid bill, so /customers/<id> has a real page behind it
+    const att = await rpc(w.cashier.auth, "attach_customer", [paid.order_id, "9000000099", "Screen Guest"]).catch(() => null);
+    guestId = (att as { customer_id?: string } | null)?.customer_id ?? null;
     page = await (await newContext()).newPage();
     await signIn(page, w, w.owner);
   });
@@ -54,5 +60,16 @@ describe.skipIf(!haveUi())("every screen opens without an error page or a refuse
       expect(restErrors(t0).map((e) => `${e.status} ${e.path} -> ${e.error}`), p).toEqual([]);
     }
     void admin;
+  });
+
+  it("the customer page for a real guest", async () => {
+    if (!guestId) return;
+    const p = `/customers/${guestId}`;
+    const t0 = Date.now();
+    const resp = await page.goto(p, { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+    expect(resp?.status(), p).toBeLessThan(500);
+    expect(await page.locator("body").innerText(), p).not.toMatch(/Application error|Something went wrong|Internal Server Error/i);
+    expect(restErrors(t0).map((e) => `${e.status} ${e.path} -> ${e.error}`), p).toEqual([]);
   });
 });

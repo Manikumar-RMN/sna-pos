@@ -16,6 +16,9 @@ const LABELS: Record<string, string> = {
   "order.reprint": "reprint this bill or kitchen ticket",
   "order.create": "change this order",
   "menu.price_change": "change prices",
+  "loyalty.redeem": "use loyalty points on this bill",
+  "customer.manage": "change a guest's details",
+  "settings.manage": "do this owner-level action (for example deleting a guest's data)",
 };
 
 /** Finds "(order.discount)"-style right names that the database puts in "not allowed" messages. */

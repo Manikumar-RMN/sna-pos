@@ -20,8 +20,13 @@ export async function loadMenu(): Promise<MenuItem[]> {
     supabase.from("modifier_items").select("id, modifier_group_id, name, price_delta, display_order, product_id").eq("is_active", true).order("display_order").order("name"),
     // Dishes that have sizes (even sold-out ones): such a dish is sold only through one of its sizes.
     supabase.from("products").select("parent_id").not("parent_id", "is", null).is("deleted_at", null),
-    // Dishes sold by weight, item codes for the barcode scanner / weighing-scale labels, and open-priced dishes (price typed at the till).
-    supabase.from("products").select("id, sold_by, barcode, is_open_price").is("deleted_at", null).or("sold_by.eq.weight,barcode.not.is.null,is_open_price.eq.true"),
+    // Dishes sold by weight, item codes for the barcode scanner / weighing-scale labels, open-priced dishes (price typed at the till),
+    // and dishes marked "Do not allow discounts" (they take no share of a bill discount).
+    supabase
+      .from("products")
+      .select("id, sold_by, barcode, is_open_price, discount_restricted")
+      .is("deleted_at", null)
+      .or("sold_by.eq.weight,barcode.not.is.null,is_open_price.eq.true,discount_restricted.eq.true"),
     // Dishes counted in batches: how many are left today at this outlet.
     supabase.rpc("batch_stock"),
     // Bars: tax groups whose dishes go on separate liquor bills.
@@ -30,6 +35,8 @@ export async function loadMenu(): Promise<MenuItem[]> {
   const liquorIds = new Set((liquorGroups ?? []).map((g) => g.id));
   const left = (batchLeft ?? {}) as Record<string, number>;
   const codeOf = new Map((coded ?? []).map((p) => [p.id, p]));
+  // A size follows its dish (the database keeps them in step); if either is marked, the line is not discountable.
+  const noDiscount = (id: string, parentId: string | null) => !!codeOf.get(id)?.discount_restricted || (!!parentId && !!codeOf.get(parentId)?.discount_restricted);
 
   const onSale = new Set((menu ?? []).map((x) => x.id as string));
   // Option groups per menu item, in the order the kitchen expects: required choices first.
@@ -96,6 +103,8 @@ export async function loadMenu(): Promise<MenuItem[]> {
         left: (x.id as string) in left ? Number(left[x.id as string]) : undefined,
         /** Bars: liquor, billed only on separate liquor bills. */
         liquor: (x.tax_group_id != null && liquorIds.has(x.tax_group_id as string)) || undefined,
+        /** Marked "Do not allow discounts": takes no share of a bill discount. */
+        no_discount: noDiscount(x.id as string, (x.parent_id as string | null) ?? null) || undefined,
       }))
   );
 }

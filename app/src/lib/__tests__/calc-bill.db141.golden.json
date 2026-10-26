@@ -1,0 +1,1162 @@
+{
+ "source": "Numbers produced by app.calc_bill after migration 141 on PostgreSQL 16 (cases G1-G15 of docs/handover/A1/golden-bill.md). oracle 'db' = the database.",
+ "cases": [
+  {
+   "case": "G1 The plan's worked example, corrected: restricted A 100 + B 100, 18% exclusive (CGST 9 + SG",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 20,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 212.4,
+    "tax_total": 32.4,
+    "service_charge": 0.0,
+    "discount": 20.0,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "discountable_subtotal": 100.0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18.0,
+      "total": 118.0
+     },
+     {
+      "key": 2,
+      "discount": 20.0,
+      "tax": 14.4,
+      "total": 94.4
+     }
+    ]
+   }
+  },
+  {
+   "case": "G2 G1 with cash rounding to the nearest 1: grand 212.40 -> 212, rounding -0.40.",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 20,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "nearest_1"
+   },
+   "expected": {
+    "grand_total": 212,
+    "tax_total": 32.4,
+    "service_charge": 0.0,
+    "discount": 20.0,
+    "senior_discount": 0.0,
+    "rounding": -0.4,
+    "discountable_subtotal": 100.0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18.0,
+      "total": 118.0
+     },
+     {
+      "key": 2,
+      "discount": 20.0,
+      "tax": 14.4,
+      "total": 94.4
+     }
+    ]
+   }
+  },
+  {
+   "case": "G3 Same bill, nothing restricted: the old rule (the discount is spread over both lines pro ra",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 20,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 212.4,
+    "tax_total": 32.4,
+    "service_charge": 0.0,
+    "discount": 20.0,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 10.0,
+      "tax": 16.2,
+      "total": 106.2
+     },
+     {
+      "key": 2,
+      "discount": 10.0,
+      "tax": 16.2,
+      "total": 106.2
+     }
+    ]
+   }
+  },
+  {
+   "case": "G4 All lines restricted: the typed discount 30 is cut to 0 (pool 0), tax on the full price, d",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 80,
+      "qty": 2,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ],
+      "no_disc": true
+     }
+    ],
+    "discount": 30,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 188.8,
+    "tax_total": 28.8,
+    "service_charge": 0.0,
+    "discount": 0.0,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "discountable_subtotal": 0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 28.8,
+      "total": 188.8
+     }
+    ]
+   }
+  },
+  {
+   "case": "G5 Mixed tax-inclusive: restricted 107 (7% inside) + unrestricted 107, discount 20: the restr",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 107,
+      "qty": 1,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "VAT",
+        "rate": 7,
+        "compound": false
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 107,
+      "qty": 1,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "VAT",
+        "rate": 7,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 20,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 194.0,
+    "tax_total": 12.69,
+    "service_charge": 0.0,
+    "discount": 20.0,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "discountable_subtotal": 107.0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 7.0,
+      "total": 107.0
+     },
+     {
+      "key": 2,
+      "discount": 20.0,
+      "tax": 5.69,
+      "total": 87.0
+     }
+    ]
+   }
+  },
+  {
+   "case": "G6 The rounding remainder goes to the largest ELIGIBLE line: a restricted 500 is the largest ",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 500,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 33.33,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 3,
+      "price": 33.33,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 4,
+      "price": 33.34,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     }
+    ],
+    "discount": 10,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 590.0,
+    "tax_total": 0,
+    "service_charge": 0.0,
+    "discount": 10.0,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "discountable_subtotal": 100.0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 0,
+      "total": 500.0
+     },
+     {
+      "key": 2,
+      "discount": 3.33,
+      "tax": 0,
+      "total": 30.0
+     },
+     {
+      "key": 3,
+      "discount": 3.33,
+      "tax": 0,
+      "total": 30.0
+     },
+     {
+      "key": 4,
+      "discount": 3.34,
+      "tax": 0,
+      "total": 30.0
+     }
+    ]
+   }
+  },
+  {
+   "case": "G7 Discount larger than the pool: pizza 100 (restricted) + pasta 50 + soup 30, typed discount",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 50,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 30,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 120,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 118.0,
+    "tax_total": 18.0,
+    "service_charge": 0.0,
+    "discount": 80.0,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "discountable_subtotal": 80.0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18.0,
+      "total": 118.0
+     },
+     {
+      "key": 2,
+      "discount": 50.0,
+      "tax": 0.0,
+      "total": 0.0
+     },
+     {
+      "key": 3,
+      "discount": 30.0,
+      "tax": 0.0,
+      "total": 0.0
+     }
+    ]
+   }
+  },
+  {
+   "case": "G8 Points only, nothing restricted: loyalty_discount 40 over 100 + 60 (spread pro rata before",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 60,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 0,
+    "loyalty_discount": 40,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 141.6,
+    "tax_total": 21.6,
+    "service_charge": 0.0,
+    "discount": 0.0,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "loyalty_discount": 40.0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 25.0,
+      "tax": 13.5,
+      "total": 88.5
+     },
+     {
+      "key": 2,
+      "discount": 15.0,
+      "tax": 8.1,
+      "total": 53.1
+     }
+    ]
+   }
+  },
+  {
+   "case": "G9 Typed 20 + points 80 on a pool of 100 (pizza restricted 100, pasta 100): both fit, the pas",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 20,
+    "loyalty_discount": 80,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 118.0,
+    "tax_total": 18.0,
+    "service_charge": 0.0,
+    "discount": 20.0,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "loyalty_discount": 80.0,
+    "discountable_subtotal": 100.0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18.0,
+      "total": 118.0
+     },
+     {
+      "key": 2,
+      "discount": 100.0,
+      "tax": 0.0,
+      "total": 0.0
+     }
+    ]
+   }
+  },
+  {
+   "case": "G10 Typed 60 + points 40 on a pool of 80: the typed part first (60), the points take what is l",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 50,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 3,
+      "price": 30,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     }
+    ],
+    "discount": 60,
+    "loyalty_discount": 40,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 100.0,
+    "tax_total": 0,
+    "service_charge": 0.0,
+    "discount": 60.0,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "loyalty_discount": 20.0,
+    "discountable_subtotal": 80.0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 0,
+      "total": 100.0
+     },
+     {
+      "key": 2,
+      "discount": 50.0,
+      "tax": 0,
+      "total": 0.0
+     },
+     {
+      "key": 3,
+      "discount": 30.0,
+      "tax": 0,
+      "total": 0.0
+     }
+    ]
+   }
+  },
+  {
+   "case": "G11 Typed 150 on a pool of 100 with points 40 on top: the typed discount is cut to the pool (1",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 150,
+    "loyalty_discount": 40,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 118.0,
+    "tax_total": 18.0,
+    "service_charge": 0.0,
+    "discount": 100.0,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "loyalty_discount": 0.0,
+    "discountable_subtotal": 100.0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18.0,
+      "total": 118.0
+     },
+     {
+      "key": 2,
+      "discount": 100.0,
+      "tax": 0.0,
+      "total": 0.0
+     }
+    ]
+   }
+  },
+  {
+   "case": "G12 Service charge 5% (taxable) with a restricted line and a discount: the service charge is c",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 20,
+    "sc_percent": 5,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 223.02,
+    "tax_total": 34.02,
+    "service_charge": 9.0,
+    "discount": 20.0,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "discountable_subtotal": 100.0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18.9,
+      "total": 123.9
+     },
+     {
+      "key": 2,
+      "discount": 20.0,
+      "tax": 15.12,
+      "total": 99.12
+     }
+    ]
+   }
+  },
+  {
+   "case": "G13 Compound tax + nearest 0.05 rounding + restricted inclusive line: a larger mixed bill.",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 259.27,
+      "qty": 2,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "A",
+        "rate": 5,
+        "compound": true
+       },
+       {
+        "name": "B",
+        "rate": 9,
+        "compound": false
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 516.11,
+      "qty": 2.361,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "A",
+        "rate": 5,
+        "compound": true
+       },
+       {
+        "name": "B",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 629.95,
+      "qty": 3,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 4,
+      "price": 859.53,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9,
+        "compound": false
+       },
+       {
+        "name": "SGST",
+        "rate": 9,
+        "compound": false
+       }
+      ]
+     }
+    ],
+    "discount": 333.33,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "nearest_0_05"
+   },
+   "expected": {
+    "grand_total": 4294.85,
+    "tax_total": 342.48,
+    "service_charge": 0.0,
+    "discount": 333.33,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "discountable_subtotal": 3967.92,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 63.68,
+      "total": 518.54
+     },
+     {
+      "key": 2,
+      "discount": 102.36,
+      "tax": 137.08,
+      "total": 1116.18
+     },
+     {
+      "key": 3,
+      "discount": 158.76,
+      "tax": 0,
+      "total": 1731.09
+     },
+     {
+      "key": 4,
+      "discount": 72.21,
+      "tax": 141.72,
+      "total": 929.04
+     }
+    ]
+   }
+  },
+  {
+   "case": "G14 Senior / PWD share ignores the flag (statutory): a restricted line still gets the senior d",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [],
+      "no_disc": true
+     }
+    ],
+    "discount": 0,
+    "senior": {
+     "share": 1,
+     "rate": 20
+    },
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 80.0,
+    "tax_total": 0,
+    "service_charge": 0.0,
+    "discount": 0.0,
+    "senior_discount": 20.0,
+    "rounding": 0.0,
+    "discountable_subtotal": 0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 0,
+      "total": 80.0
+     }
+    ]
+   }
+  },
+  {
+   "case": "G15 Many small lines: nine lines of 0.01 (one of 9.99) + a restricted 400, typed discount 0.07",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 400,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 0.01,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 3,
+      "price": 0.01,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 4,
+      "price": 0.01,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 5,
+      "price": 0.01,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 6,
+      "price": 9.99,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 7,
+      "price": 0.01,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 8,
+      "price": 0.01,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 9,
+      "price": 0.01,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     },
+     {
+      "key": 10,
+      "price": 0.01,
+      "qty": 1,
+      "inclusive": false,
+      "comps": []
+     }
+    ],
+    "discount": 0.07,
+    "sc_percent": 0,
+    "sc_taxable": true,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 410.0,
+    "tax_total": 0,
+    "service_charge": 0.0,
+    "discount": 0.07,
+    "senior_discount": 0.0,
+    "rounding": 0.0,
+    "discountable_subtotal": 10.07,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 0,
+      "total": 400.0
+     },
+     {
+      "key": 2,
+      "discount": 0.0,
+      "tax": 0,
+      "total": 0.01
+     },
+     {
+      "key": 3,
+      "discount": 0.0,
+      "tax": 0,
+      "total": 0.01
+     },
+     {
+      "key": 4,
+      "discount": 0.0,
+      "tax": 0,
+      "total": 0.01
+     },
+     {
+      "key": 5,
+      "discount": 0.0,
+      "tax": 0,
+      "total": 0.01
+     },
+     {
+      "key": 6,
+      "discount": 0.07,
+      "tax": 0,
+      "total": 9.92
+     },
+     {
+      "key": 7,
+      "discount": 0.0,
+      "tax": 0,
+      "total": 0.01
+     },
+     {
+      "key": 8,
+      "discount": 0.0,
+      "tax": 0,
+      "total": 0.01
+     },
+     {
+      "key": 9,
+      "discount": 0.0,
+      "tax": 0,
+      "total": 0.01
+     },
+     {
+      "key": 10,
+      "discount": 0.0,
+      "tax": 0,
+      "total": 0.01
+     }
+    ]
+   }
+  }
+ ]
+}

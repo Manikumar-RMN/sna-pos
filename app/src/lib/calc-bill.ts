@@ -5,10 +5,23 @@
  * file with the database on thousands of random bills.
  */
 export type CalcComp = { name: string; rate: number; compound?: boolean };
-export type CalcLine = { key: number; price: number; qty: number; inclusive?: boolean; comps: CalcComp[] };
+export type CalcLine = {
+  key: number;
+  price: number;
+  qty: number;
+  inclusive?: boolean;
+  comps: CalcComp[];
+  /** The dish is marked "Do not allow discounts": it never takes a share of a bill discount (batch 3, plan 3.1). */
+  no_disc?: boolean;
+};
 export type CalcInput = {
   lines: CalcLine[];
   discount?: number;
+  /**
+   * Loyalty points used as a discount before tax (plan 4.4). Applied after the manual discount, from what is
+   * left of the pool. Never offline: the points balance must be checked online. Kept here so the mirror stays complete.
+   */
+  loyalty_discount?: number;
   sc_percent?: number;
   sc_taxable?: boolean;
   senior?: { share: number; rate?: number } | null;
@@ -18,7 +31,12 @@ export type CalcTax = { name: string; rate: number; taxable: number; amount: num
 export type CalcResult = {
   lines: { key: number; subtotal: number; discount: number; senior_discount: number; net: number; service_charge: number; tax: number; tax_included: number; total: number; taxes: CalcTax[] }[];
   subtotal: number;
+  /** The manual part of the bill discount that was applied (after the cap at the pool). */
   discount: number;
+  /** The loyalty-points part that was applied (0 when none). Total taken off before tax = discount + loyalty_discount. */
+  loyalty_discount: number;
+  /** Sum of the line subtotals of lines that may be discounted: the most a discount can be. */
+  discountable_subtotal: number;
   senior_discount: number;
   tax_exempt_amount: number;
   exempt_sales: number;
@@ -54,59 +72,71 @@ export function calcBill(p: CalcInput): CalcResult {
   const lines = p.lines ?? [];
   const n = lines.length;
   const discIn = r2(p.discount ?? 0); // cents
+  const loyIn = r2(p.loyalty_discount ?? 0); // cents
   const scPct = p.sc_percent ?? 0;
   const scTax = !!p.sc_taxable;
   const share = p.senior?.share ?? 0;
   const sPct = p.senior?.rate ?? 20;
   const rmode = p.rounding ?? "none";
-  if (discIn < 0) throw new Error("A discount cannot be negative.");
+  if (discIn < 0 || loyIn < 0) throw new Error("A discount cannot be negative.");
   if (share < 0 || share > 1) throw new Error("The senior citizen / PWD share must be between 0 and 100%.");
   if (share > 0 && discIn > 0) throw new Error("A senior citizen / PWD discount cannot be combined with another discount.");
+  if (share > 0 && loyIn > 0) throw new Error("Loyalty points cannot be used on a senior citizen / PWD bill.");
 
-  // Pass 1: subtotals.
+  // Pass 1: subtotals, and the pool a discount may come from (lines not marked "no discount").
   const subs: number[] = [];
+  const elig: boolean[] = [];
   let subtotal = 0;
-  let big = 0;
+  let pool = 0;
+  let big = -1; // the largest ELIGIBLE line (the first one when equal); -1 when no line can take a discount
   for (let i = 0; i < n; i++) {
     const sub = r2(lines[i].price * lines[i].qty);
     if (sub < 0) throw new Error("A line cannot be negative.");
+    const ok = !lines[i].no_disc;
     subs.push(sub);
+    elig.push(ok);
     subtotal += sub;
-    if (sub > subs[big]) big = i;
+    if (ok) {
+      pool += sub;
+      if (big === -1 || sub > subs[big]) big = i;
+    }
   }
 
-  // Pass 2: spread the discount; the largest line takes the remainder.
-  const discount = Math.min(discIn, subtotal);
+  // Pass 2: the manual discount comes first, the loyalty discount from what is left of the pool; the sum is
+  // spread over the eligible lines by value and the largest eligible line takes the remainder.
+  const manual = Math.min(discIn, pool);
+  const loyalty = Math.min(loyIn, pool - manual);
+  const discount = manual + loyalty;
   const discs: number[] = [];
   let alloc = 0;
   for (let i = 0; i < n; i++) {
-    if (i === big || subtotal === 0) discs.push(0);
+    if (!elig[i] || i === big || pool === 0) discs.push(0);
     else {
-      const d = r2((discount * subs[i]) / subtotal / 100);
+      const d = r2((discount * subs[i]) / pool / 100);
       discs.push(d);
       alloc += d;
     }
   }
-  if (n > 0) discs[big] = discount - alloc;
+  if (big >= 0) discs[big] = discount - alloc;
 
   // A small discount over many lines can leave the largest line with less than
   // nothing (every small line rounds up to 0.01). When that happens, spread it
   // again to the paisa by largest remainder: no line goes below zero or above
   // its own value, and the parts still add up exactly. Whole-number arithmetic
-  // (BigInt) so that a very large bill cannot lose precision.
-  if (n > 0 && subtotal > 0 && (discs[big] < 0 || discs[big] > subs[big])) {
+  // (BigInt) so that a very large bill cannot lose precision. Only eligible lines take part.
+  if (big >= 0 && pool > 0 && (discs[big] < 0 || discs[big] > subs[big])) {
     const dc = BigInt(discount);
-    const tc = BigInt(subtotal);
+    const tc = BigInt(pool);
     const bases: number[] = [];
     const rems: bigint[] = [];
     const taken: boolean[] = [];
     let sum = 0;
     for (let i = 0; i < n; i++) {
-      const prod = dc * BigInt(subs[i]);
+      const prod = elig[i] ? dc * BigInt(subs[i]) : BigInt(0);
       const base = Number(prod / tc);
       bases.push(base);
       rems.push(prod % tc);
-      taken.push(false);
+      taken.push(!elig[i]);
       sum += base;
     }
     let left = discount - sum;
@@ -203,7 +233,9 @@ export function calcBill(p: CalcInput): CalcResult {
   return {
     lines: out,
     subtotal: subtotal / 100,
-    discount: tDisc / 100,
+    discount: manual / 100,
+    loyalty_discount: loyalty / 100,
+    discountable_subtotal: pool / 100,
     senior_discount: tSdisc / 100,
     tax_exempt_amount: tRemoved / 100,
     exempt_sales: tExempt / 100,

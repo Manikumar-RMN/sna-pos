@@ -2380,22 +2380,28 @@ export type Database = {
       }
       loyalty_settings: {
         Row: {
+          max_redeem_percent: number
           min_redeem: number
           point_value: number
+          redeem_mode: string
           restaurant_id: string
           spend_per_point: number
           updated_at: string
         }
         Insert: {
+          max_redeem_percent?: number
           min_redeem?: number
           point_value?: number
+          redeem_mode?: string
           restaurant_id: string
           spend_per_point?: number
           updated_at?: string
         }
         Update: {
+          max_redeem_percent?: number
           min_redeem?: number
           point_value?: number
+          redeem_mode?: string
           restaurant_id?: string
           spend_per_point?: number
           updated_at?: string
@@ -2961,6 +2967,7 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           cancelled_qty: number
+          discount_blocked: boolean
           list_price: number | null
           offer_name: string | null
           created_at: string
@@ -2994,6 +3001,7 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_qty?: number
+          discount_blocked?: boolean
           list_price?: number | null
           offer_name?: string | null
           created_at?: string
@@ -3027,6 +3035,7 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_qty?: number
+          discount_blocked?: boolean
           list_price?: number | null
           offer_name?: string | null
           created_at?: string
@@ -4558,6 +4567,7 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           description: string | null
+          discount_restricted: boolean
           display_order: number
           hsn_code: string | null
           id: string
@@ -4571,6 +4581,7 @@ export type Database = {
           name: string
           name_local: string | null
           parent_id: string | null
+          prep_minutes: number | null
           price: number
           restaurant_id: string
           short_name: string | null
@@ -4588,6 +4599,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           description?: string | null
+          discount_restricted?: boolean
           display_order?: number
           hsn_code?: string | null
           id?: string
@@ -4601,6 +4613,7 @@ export type Database = {
           name: string
           name_local?: string | null
           parent_id?: string | null
+          prep_minutes?: number | null
           price: number
           restaurant_id: string
           short_name?: string | null
@@ -4618,6 +4631,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           description?: string | null
+          discount_restricted?: boolean
           display_order?: number
           hsn_code?: string | null
           id?: string
@@ -4631,6 +4645,7 @@ export type Database = {
           name?: string
           name_local?: string | null
           parent_id?: string | null
+          prep_minutes?: number | null
           price?: number
           restaurant_id?: string
           short_name?: string | null
@@ -6084,9 +6099,81 @@ export type Database = {
           },
         ]
       }
+      stock_count_lines: {
+        Row: {
+          branch_id: string
+          count_id: string
+          counted: number
+          diff: number
+          expected: number
+          ingredient_id: string
+          restaurant_id: string
+          unit_cost: number
+          value_diff: number
+        }
+        Insert: {
+          branch_id: string
+          count_id: string
+          counted: number
+          diff: number
+          expected: number
+          ingredient_id: string
+          restaurant_id: string
+          unit_cost: number
+          value_diff: number
+        }
+        Update: {
+          branch_id?: string
+          count_id?: string
+          counted?: number
+          diff?: number
+          expected?: number
+          ingredient_id?: string
+          restaurant_id?: string
+          unit_cost?: number
+          value_diff?: number
+        }
+        Relationships: []
+      }
+      stock_counts: {
+        Row: {
+          branch_id: string
+          business_date: string
+          client_ref: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          restaurant_id: string
+        }
+        Insert: {
+          branch_id: string
+          business_date: string
+          client_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          restaurant_id: string
+        }
+        Update: {
+          branch_id?: string
+          business_date?: string
+          client_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          restaurant_id?: string
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           branch_id: string
+          business_date: string
+          client_ref: string | null
+          count_id: string | null
           created_at: string
           created_by: string | null
           goods_receipt_id: string | null
@@ -6097,12 +6184,16 @@ export type Database = {
           order_id: string | null
           order_item_id: string | null
           qty: number
+          reason: string | null
           restaurant_id: string
           transfer_id: string | null
           unit_cost: number | null
         }
         Insert: {
           branch_id: string
+          business_date?: string
+          client_ref?: string | null
+          count_id?: string | null
           created_at?: string
           created_by?: string | null
           goods_receipt_id?: string | null
@@ -6113,12 +6204,16 @@ export type Database = {
           order_id?: string | null
           order_item_id?: string | null
           qty: number
+          reason?: string | null
           restaurant_id: string
           transfer_id?: string | null
           unit_cost?: number | null
         }
         Update: {
           branch_id?: string
+          business_date?: string
+          client_ref?: string | null
+          count_id?: string | null
           created_at?: string
           created_by?: string | null
           goods_receipt_id?: string | null
@@ -6129,6 +6224,7 @@ export type Database = {
           order_id?: string | null
           order_item_id?: string | null
           qty?: number
+          reason?: string | null
           restaurant_id?: string
           transfer_id?: string | null
           unit_cost?: number | null
@@ -6987,6 +7083,17 @@ export type Database = {
         }
         Returns: Json
       }
+      adjust_stock: {
+        Args: {
+          p_client_ref?: string | null
+          p_ingredient: string
+          p_kind: string
+          p_note?: string | null
+          p_qty: number
+          p_reason: string
+        }
+        Returns: Json
+      }
       admin_reset_password: {
         Args: { p_new_password: string; p_user_id: string }
         Returns: undefined
@@ -7068,6 +7175,22 @@ export type Database = {
         Returns: Json
       }
       cancel_invite: { Args: { p_user_id: string }; Returns: undefined }
+      customer_detail: { Args: { p_customer: string }; Returns: Json }
+      customer_list: {
+        Args: {
+          p_filter?: string
+          p_limit?: number
+          p_offset?: number
+          p_q?: string
+          p_sort?: string
+        }
+        Returns: Json
+      }
+      find_customer: { Args: { p_phone: string }; Returns: Json }
+      forget_customer: {
+        Args: { p_customer: string; p_reason: string }
+        Returns: undefined
+      }
       kot_cancel: { Args: { p_reason: string; p_ticket_id: string }; Returns: Json }
       kot_cancel_item: {
         Args: { p_qty: number; p_reason: string; p_ticket_item_id: string }
@@ -7077,6 +7200,53 @@ export type Database = {
       kot_modify_item: {
         Args: { p_note: string; p_qty: number; p_reason?: string; p_ticket_item_id: string }
         Returns: Json
+      }
+      log_customer_export: {
+        Args: { p_filter: string; p_rows: number }
+        Returns: undefined
+      }
+      low_stock_items: { Args: { p_limit?: number }; Returns: Json }
+      redeem_points_discount: {
+        Args: { p_client_ref?: string; p_order: string; p_points: number }
+        Returns: Json
+      }
+      remove_points_discount: { Args: { p_order: string }; Returns: Json }
+      report_customers: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_food_cost: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_loyalty_ledger: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
+      report_stock_movement: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
+      report_stock_on_hand: { Args: { p_as_of?: string | null }; Returns: Json }
+      report_wastage: { Args: { p_from: string; p_to: string }; Returns: Json }
+      stock_count_apply: {
+        Args: { p_client_ref?: string | null; p_lines: Json; p_note?: string | null }
+        Returns: Json
+      }
+      stock_in_quick: {
+        Args: {
+          p_bill_ref?: string | null
+          p_client_ref?: string | null
+          p_lines: Json
+          p_supplier_note?: string | null
+        }
+        Returns: Json
+      }
+      stock_warnings: { Args: { p_items: Json }; Returns: Json }
+      update_customer: {
+        Args: {
+          p_birthday: string
+          p_consent: boolean
+          p_customer: string
+          p_email: string
+          p_name: string
+          p_notes: string
+        }
+        Returns: undefined
       }
       waiter_ready_alerts: { Args: Record<PropertyKey, never>; Returns: Json }
       waiter_ready_seen: { Args: { p_ticket_id: string }; Returns: undefined }
@@ -7192,6 +7362,9 @@ export type Database = {
           reservation_name: string | null
           reservation_party: number | null
           db_now: string
+          kot_due_at: string | null
+          kot_prep_min: number | null
+          kot_ticket_at: string | null
         }[]
       }
       invite_staff: {
@@ -7499,14 +7672,25 @@ export type Database = {
         }
         Returns: string
       }
-      save_loyalty_settings: {
-        Args: {
-          p_min_redeem: number
-          p_point_value: number
-          p_spend_per_point: number
-        }
-        Returns: undefined
-      }
+      save_loyalty_settings:
+        | {
+            Args: {
+              p_min_redeem: number
+              p_point_value: number
+              p_spend_per_point: number
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_max_percent: number
+              p_min_redeem: number
+              p_mode: string
+              p_point_value: number
+              p_spend_per_point: number
+            }
+            Returns: undefined
+          }
       save_meal_sessions: {
         Args: { p_branch: string; p_sessions: Json }
         Returns: undefined

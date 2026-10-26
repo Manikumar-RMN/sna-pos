@@ -143,7 +143,12 @@ export default async function ReportsPage({
   const scope = outletScope(outletInfo, { id: user.branch_id, name: user.branch_name });
   const showPicker = multi && (outletInfo?.outlets.length ?? 0) > 1;
   const canFinancial = can(user, "report.view_financial");
-  const linkGroups = groupReportLinks(canFinancial);
+  // Inventory reports need the stock module (Professional) and stock.view; customer reports need customer.view.
+  const linkGroups = groupReportLinks({
+    financial: canFinancial,
+    stock: has(user, "stock") && (can(user, "stock.view") || can(user, "stock.manage")),
+    customers: can(user, "customer.view"),
+  });
   const keep = rangeQuery(sp);
   const rep = data as unknown as Report | null;
   const settle = settleData as unknown as Settlement | null;

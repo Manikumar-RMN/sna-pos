@@ -1,0 +1,175 @@
+== replaying migrations 001..140
+   failures: 0
+== t143-144-pre.sql (fixtures and old-style stock rows, before 143)
+== applying 143_inventory_core.sql (twice: the file must be re-runnable)
+   run 1 ok
+   run 2 ok
+== applying 144_inventory_reports.sql (twice: the file must be re-runnable)
+   run 1 ok
+   run 2 ok
+== t143-144.sql
+ result |                                                                                        label                                                                                         | detail 
+--------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------
+ PASS   | 1.1 stock.view and stock.adjust exist as rights                                                                                                                                      | 
+ PASS   | 1.2 granted to exactly the roles that had stock.manage (Owner, Manager, custom Stock keeper) plus the system role Chef                                                               | 
+ PASS   | 1.3 same set for stock.adjust                                                                                                                                                        | 
+ PASS   | 1.4 the Cashier has neither right                                                                                                                                                    | 
+ PASS   | 1.5 the custom role with stock.manage only (made before 143) got both                                                                                                                | 
+ PASS   | 1.6 a restaurant created after 143: Owner and Manager have both rights, Chef has both (trigger), Cashier has none                                                                    | 
+ PASS   | 2.1 business_date is NOT NULL on stock_movements                                                                                                                                     | 
+ PASS   | 2.2 no old row was lost or added by the migration                                                                                                                                    | 
+ PASS   | 2.3 the milk wastage at 02:30 local on 11 Oct belongs to business day 10 Oct (4 a.m. cut-off), not the calendar day                                                                  | 
+ PASS   | 2.4 purchases keep their day (5 Oct)                                                                                                                                                 | 
+ PASS   | 2.5 sale rows take the bill's business date                                                                                                                                          | 
+ PASS   | 2.6 old sale rows got the ingredient's cost (no sale row without a cost)                                                                                                             | 
+ PASS   | 2.7 the old wastage row got the milk cost (60); purchase costs are untouched (bun 5)                                                                                                 | 
+ PASS   | 2.8 the append-only trigger is switched on again after the back-fill                                                                                                                 | 
+ PASS   | 2.9 and an update is refused                                                                                                                                                         | 
+ PASS   | 2.10 the old Stock screen shows the same levels and costs as before 143                                                                                                              | 
+ PASS   | 3.1 a sale row carries the cost at the time of sale and the bill's business date                                                                                                     | 
+ PASS   | 3.2 an item cancelled later returns food at the cost it left at (200), even though the cost is 220 now                                                                               | 
+ PASS   | 3.3 a sale after the price change snapshots the new cost (patty 220)                                                                                                                 | 
+ PASS   | 3.4 combo: the chosen Tea takes milk 0.1 and tea powder 0.005 out, stamped with cost and business date                                                                               | 
+ PASS   | 3.5 rows written for a bill of 24 Oct are dated 24 Oct although they were created today                                                                                              | 
+ PASS   | 3.6 and the return of one burger is on 24 Oct too                                                                                                                                    | 
+ PASS   | 3.7 an offline bill claimed for yesterday and synced today: two sale rows (bun, patty) carry exactly the business date the bill got (what the sales reports use), costed at the sync | 
+ PASS   | 3.8 the sync sent twice (retry): the second answer is a repeat and no second set of rows appears                                                                                     | 
+ PASS   | 4.1 setup: the whole burger line moved to the other bill (same line id, now on D)                                                                                                    | 
+ PASS   | 4.2 moving food between bills changes no stock                                                                                                                                       | 
+ PASS   | 4.3 voiding the SOURCE bill returns only what is still on it (tea: milk +0.1), not the burgers that moved                                                                            | 
+ PASS   | 4.4 the void rows carry the line id and the voided bill                                                                                                                              | 
+ PASS   | 4.5 voiding the same bill again is refused                                                                                                                                           | 
+ PASS   | 4.6 and nothing more was written                                                                                                                                                     | 
+ PASS   | 4.7 voiding the TARGET returns the moved burgers too: bun +2, patty +0.3, rice +0.2                                                                                                  | 
+ PASS   | 4.8 over both bills the food is back exactly: every line on S and D nets to zero                                                                                                     | 
+ PASS   | 4.9 setup: 3 burgers sold                                                                                                                                                            | 
+ PASS   | 4.10 a partial move (one burger to the other bill) leaves the total stock where it was                                                                                               | 
+ PASS   | 4.11 voiding P returns the 2 burgers still on it (bun +2), not 3                                                                                                                     | 
+ PASS   | 4.12 voiding Q returns the moved burger and the tea: everything is back                                                                                                              | 
+ PASS   | 4.13 cancelled items and then a void bring back exactly what was taken out, once                                                                                                     | 
+ PASS   | 5.1 a credit note is money only: no stock row, no change in any level                                                                                                                | 
+ PASS   | 6.1 Cashier cannot record a purchase                                                                                                                                                 | 
+ PASS   | 6.2 Cashier cannot record wastage either (stock.adjust)                                                                                                                              | 
+ PASS   | 6.3 Chef cannot record a purchase                                                                                                                                                    | 
+ PASS   | 6.4 Basic edition: the stock functions are refused                                                                                                                                   | 
+ PASS   | 6.5 first purchase on empty stock: cost = the price paid                                                                                                                             | 
+ PASS   | 6.6 stock 10 at 50, buy 10 at 70 -> 60 (weighted average)                                                                                                                            | 
+ PASS   | 6.7 Chef may record wastage; stock goes negative (-5) and is allowed                                                                                                                 | 
+ PASS   | 6.8 the wastage row is stamped: cost 60, reason other, business date set                                                                                                             | 
+ PASS   | 6.9 buying while stock is negative: the new price becomes the cost                                                                                                                   | 
+ PASS   | 6.10 a count through record_stock: stock = counted, row is a count_correction                                                                                                        | 
+ PASS   | 6.11 Outlet A holds 10 at 100, Outlet B buys 10 at 120: cost = 110 (weighted over both outlets, not 120)                                                                             | 
+ PASS   | 6.12 each outlet keeps its own level                                                                                                                                                 | 
+ PASS   | 7.1 result: 3 lines, total value 400 + 600 + 50                                                                                                                                      | 
+ PASS   | 7.2 the same ingredient twice in one receipt is averaged in turn: sugar 10 at 40 then 10 at 60 -> 50                                                                                 | 
+ PASS   | 7.3 one purchase row per line, with the supplier note and bill number                                                                                                                | 
+ PASS   | 7.4 audit row stock.in with supplier and total                                                                                                                                       | 
+ PASS   | 7.5 the same client ref again: the stored answer comes back marked repeat, nothing is written twice                                                                                  | 
+ PASS   | 7.6b unknown ingredient on line 2                                                                                                                                                    | 
+ PASS   | 7.7 ... and salt did not move, the cost did not change, no ref was stored                                                                                                            | 
+ PASS   | 7.8 quantity zero is refused                                                                                                                                                         | 
+ PASS   | 7.9 a missing cost is refused                                                                                                                                                        | 
+ PASS   | 7.10 an empty receipt is refused                                                                                                                                                     | 
+ PASS   | 7.11 Chef cannot stock in (stock.manage)                                                                                                                                             | 
+ PASS   | 7.12 Cashier cannot stock in                                                                                                                                                         | 
+ PASS   | 7.13 Basic edition is refused                                                                                                                                                        | 
+ PASS   | 7.14 a client ref already used by another kind of request is refused                                                                                                                 | 
+ PASS   | 8.1 wastage: answer carries value 2 x 60 = 120                                                                                                                                       | 
+ PASS   | 8.2 the row: kind wastage, qty -2, reason spoilage, cost 60, created by the chef                                                                                                     | 
+ PASS   | 8.3 audit stock.wastage with ingredient, qty, reason and value                                                                                                                       | 
+ PASS   | 8.4 double tap (same client ref): one entry, answer marked repeat                                                                                                                    | 
+ PASS   | 8.5 adjust in / out are kind adjust with a sign and audit stock.adjust                                                                                                               | 
+ PASS   | 8.6 a reason is required                                                                                                                                                             | 
+ PASS   | 8.7 a reason outside the list is refused                                                                                                                                             | 
+ PASS   | 8.8 quantity must be above zero                                                                                                                                                      | 
+ PASS   | 8.9 kind must be known                                                                                                                                                               | 
+ PASS   | 8.10 Cashier cannot adjust (stock.adjust)                                                                                                                                            | 
+ PASS   | 8.11 Basic edition is refused                                                                                                                                                        | 
+ PASS   | 8.12 a client ref cannot be reused for another ingredient                                                                                                                            | 
+ PASS   | 8.13 an adjustment affects only the signed-in outlet                                                                                                                                 | 
+ PASS   | 8.14 a manual entry at 02:00 local lands on the previous business day (Etc/GMT+9)                                                                                                    | 
+ PASS   | 9.1 sugar 20 on hand, counted 18: one correction of -2; salt counted = expected: no movement; variance = -2 x 50                                                                     | 
+ PASS   | 9.2 the count wrote one movement (kind count, -2, reason count_correction, linked to the count)                                                                                      | 
+ PASS   | 9.3 the count record keeps BOTH lines (expected / counted / diff / cost / value)                                                                                                     | 
+ PASS   | 9.4 header: current outlet, business day, note, who                                                                                                                                  | 
+ PASS   | 9.5 audit stock.count                                                                                                                                                                | 
+ PASS   | 9.6 replay with the same client ref: same count, marked repeat, no new movement or count                                                                                             | 
+ PASS   | 9.7 an ingredient twice in one count is refused                                                                                                                                      | 
+ PASS   | 9.8 a negative counted quantity is refused                                                                                                                                           | 
+ PASS   | 9.9 an unknown ingredient is refused and nothing is written                                                                                                                          | 
+ PASS   | 9.10 ... stock and counts unchanged                                                                                                                                                  | 
+ PASS   | 9.11 Cashier cannot count (stock.adjust)                                                                                                                                             | 
+ PASS   | 9.12 Basic edition is refused                                                                                                                                                        | 
+ PASS   | 9.13 a count at Outlet B reads Outlet B's stock (0) and leaves Outlet A alone                                                                                                        | 
+ PASS   | 9.15 the count tables cannot be written by a signed-in person directly                                                                                                               | 
+ PASS   | 10.1 one dosa: rice is above zero after but under its reorder level -> low (no costs in the answer)                                                                                  | 
+ PASS   | 10.2 30 dosas need 6 kg of rice, more than is there -> out, with the numbers                                                                                                         | 
+ PASS   | 10.3 burger: bun and patty are well stocked -> no warning                                                                                                                            | 
+ PASS   | 10.4 a combo with Tea chosen: the option dish's ingredients count (500 meals need 2.5 kg tea powder and 50 l milk) and the combo itself adds none                                    | 
+ PASS   | 10.5 another outlet's stock is ignored: at Outlet B (rice 0) one dosa leaves it out                                                                                                  | 
+ PASS   | 10.6 only people who can take orders may ask (Chef cannot)                                                                                                                           | 
+ PASS   | 10.7 Basic edition: no error, an empty list                                                                                                                                          | 
+ PASS   | 10.8 garbage input is harmless (bad ids, no options array, nothing)                                                                                                                  | 
+ PASS   | 10.9 warn but allow: 30 dosas billed with too little rice, rice is now negative at Outlet A                                                                                          | 
+ PASS   | 11.1 Outlet A: rice is negative and listed FIRST (worst first), counts agree with the list                                                                                           | 
+ PASS   | 11.2 the limit trims the list but not the counts                                                                                                                                     | 
+ PASS   | 11.3 Outlet B (everything at zero or below, only items with a reorder level count): its own list                                                                                     | 
+ PASS   | 11.4 Cashier is refused (stock.view)                                                                                                                                                 | 
+ PASS   | 11.5 Basic edition: an empty card, no error                                                                                                                                          | 
+ PASS   | 12.1 Cashier reads nothing from ingredients, recipe_lines, stock_movements, stock_counts, stock_count_lines                                                                          | 
+ PASS   | 12.2 Chef (stock.view) reads ingredients, recipes, movements and counts of his outlet                                                                                                | 
+ PASS   | 12.3 a role with stock.manage only still reads everything (manage implies view)                                                                                                      | 
+ PASS   | 12.4 Outlet B's manager sees only Outlet B movements and counts                                                                                                                      | 
+ PASS   | 12.5 another restaurant's owner sees none of it                                                                                                                                      | 
+ PASS   | 12.6 nobody can insert into ingredients directly                                                                                                                                     | 
+ PASS   | 12.7 Cashier cannot use the old stock report (stock.view)                                                                                                                            | 
+ PASS   | 12.8 the old report counts days by BUSINESS day: the 02:30 wastage of 11 Oct shows on 10 Oct, not 11 Oct                                                                             | 
+ PASS   | 12.9 and the purchases show on 5 Oct                                                                                                                                                 | 
+ PASS   | 13.1 stock on hand, All outlets: every row's on_hand = the sum of its movements; value = max(on_hand, 0) x cost today                                                                | 
+ PASS   | 13.2 All outlets covers both outlets x every ingredient: 2 x 9 rows; rice at Outlet A is "negative" and valued at 0                                                                  | 
+ PASS   | 13.3 totals add up: value = sum of rows, status counts = rows with that status, by_outlet sums to the totals                                                                         | 
+ PASS   | 13.4 a single outlet (manager of A, manager of B) sees only its rows, and A + B = All outlets in value and items                                                                     | 
+ PASS   | 13.5 as_of: before the first purchase (4 Oct) everything is zero; on 5 Oct bun is 100 and milk 30                                                                                    | 
+ PASS   | 13.6 every row balances: closing = opening + purchased + transfer in - transfer out - used - wasted + adjusted + counted, and closing = the stock today                              | 
+ PASS   | 13.7 between 6 and 10 Oct only the milk wastage moves: milk opening 30, wasted 1, closing 29; every other row has opening = closing and no movement                                  | 
+ PASS   | 13.8 24 Oct (the bill with a back-dated business day): burgers sold 2, one cancelled -> bun used 1, patty used 0.15, nothing else is used                                            | 
+ PASS   | 13.9 detail rows: newest first, same count as the movements, value = qty x snapshot cost; 24 Oct details are all dated 24 Oct                                                        | 
+ PASS   | 13.10 value totals equal sums of snapshot costs: used_value = what the sales took out at cost                                                                                        | 
+ PASS   | 13.11 outlets reconcile: A + B = All for movements and values, and by_outlet adds up to the totals                                                                                   | 
+ PASS   | 13.12 range checks: wrong order and over a year                                                                                                                                      | 
+ PASS   | 13.13 over a year                                                                                                                                                                    | 
+ PASS   | 13.14 a day with a dish without a recipe: sales 24 Oct = water + 1 burger; only the burger is covered; cost = 1 x (bun 5 + patty 0.15 x 200) = 35                                    | 
+ PASS   | 13.15 by dish: water is listed with cost null and has_recipe false; burger has cost 35 and a percentage                                                                              | 
+ PASS   | 13.16 by day: the 24 Oct row matches the totals (the sale is dated 24 Oct although made today)                                                                                       | 
+ PASS   | 13.17 the whole month agrees with an independent calculation: sales of non-voided bills (not cancelled lines) and the snapshot cost of their sale/return rows                        | 
+ PASS   | 13.18 voided bills (S, D, P, Q, CV) are not in the sales and not in the cost; by_day and by_outlet add up to the totals; A + B = All                                                 | 
+ PASS   | 13.19 Chef has stock.view but not report.view_sales: refused                                                                                                                         | 
+ PASS   | 13.20 Cashier has report.view_sales but not stock.view: refused                                                                                                                      | 
+ PASS   | 13.21 wastage totals = the wastage movements (count and value at snapshot cost), positive numbers                                                                                    | 
+ PASS   | 13.22 every grouping adds up to the total (reason, ingredient, day, user, outlet)                                                                                                    | 
+ PASS   | 13.23 by reason: the chef's spoilage (2 x 60) is there, and old/unspecific wastage shows as "other"                                                                                  | 
+ PASS   | 13.24 the chef appears by name in by_user                                                                                                                                            | 
+ PASS   | 13.25 outlets: A + B = All (lines and value)                                                                                                                                         | 
+ PASS   | 13.26 business day: the milk wastage of 02:30 on 11 Oct is in the report for 10 Oct (1 line, 60), by Chef too                                                                        | 
+ PASS   | 13.28 wastage cap                                                                                                                                                                    | 
+ PASS   | 13.29 movement cap                                                                                                                                                                   | 
+ PASS   | 13.30 Basic edition: stock on hand refused                                                                                                                                           | 
+ PASS   | 13.31 Basic edition: stock movement refused                                                                                                                                          | 
+ PASS   | 13.32 Basic edition: food cost refused                                                                                                                                               | 
+ PASS   | 13.33 Basic edition: wastage refused                                                                                                                                                 | 
+ PASS   | 13.34 Cashier: stock on hand refused                                                                                                                                                 | 
+ PASS   | 13.35 Cashier: wastage refused                                                                                                                                                       | 
+ PASS   | 13.36 Cashier: stock movement refused                                                                                                                                                | 
+ PASS   | 13.37 grants: all new functions are callable by signed-in users and NOT by anon (and the helpers by nobody)                                                                          | 
+ PASS   | 14.1 setup: Late Foods has a count with a line and a movement                                                                                                                        | 
+ PASS   | 14.2 erasing stock transactions and then stock masters works with the new tables present: movements, ingredients and count lines are gone                                            | 
+ PASS   | 15.1 one stamp trigger, one grant trigger, policies are single                                                                                                                       | 
+(154 rows)
+
+
+RESULT: 154 passed, 0 failed
+ stop_if_failed 
+----------------
+               
+(1 row)
+

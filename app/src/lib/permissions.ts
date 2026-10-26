@@ -42,14 +42,23 @@ export function rightGroups(taxName = "tax"): RightGroup[] {
       rights: [
         { key: "menu.manage", label: "Add and edit dishes" },
         { key: "menu.price_change", label: "Change prices" },
-        { key: "stock.manage", label: "Stock, purchases and recipes" },
+      ],
+    },
+    {
+      name: "Stock",
+      rights: [
+        { key: "stock.manage", label: "Stock, purchases and recipes", hint: "Also covers seeing stock and recording wastage and counts" },
+        { key: "stock.view", label: "See stock, costs and stock reports", hint: "Needed to open the Stock screen and its reports" },
+        { key: "stock.adjust", label: "Record wastage and stock counts", hint: "Give this together with 'See stock' so the person can pick the ingredient" },
       ],
     },
     {
       name: "Customers",
       rights: [
+        { key: "customer.view", label: "See the customer list and history", hint: "Phone numbers are shown to people with this right" },
         { key: "customer.manage", label: "Add and edit customers" },
         { key: "customer.export", label: "Export the customer list" },
+        { key: "loyalty.redeem", label: "Use loyalty points on a bill", hint: "A manager PIN can approve it for one bill" },
       ],
     },
     {

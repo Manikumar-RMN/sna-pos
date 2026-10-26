@@ -39,6 +39,8 @@ export function BillActions({
   canDiscount = false,
   canKots = false,
   adjust,
+  discountPool,
+  loyaltyDiscount = 0,
   canChangeMode = false,
   dayClosed = false,
   heldCount = 0,
@@ -59,6 +61,10 @@ export function BillActions({
   canMerge = true,
   embedded = false,
 }: {
+  /** Total of the lines that can take a discount (lines marked "do not discount" are left out). Omit = the whole subtotal. */
+  discountPool?: number;
+  /** Points already used as a discount on this bill (shown in the dialog; changed only in the loyalty panel). */
+  loyaltyDiscount?: number;
   orderId: string;
   billNumber: string;
   state: "paid" | "unpaid" | "part-paid" | "voided" | "refunded" | "part-refunded";
@@ -173,7 +179,11 @@ export function BillActions({
         : null;
   const mergeable = otherBills.filter((b) => b.mergeable);
   // "10%" is turned into an amount on the bill's subtotal; the server only takes the amount.
-  const discParsed = parseDiscountInput(discAmt, adjust?.subtotal ?? 0);
+  // A percent is worked out on the lines that can be discounted, not on the whole subtotal.
+  const pool = Math.max(0, discountPool ?? adjust?.subtotal ?? 0);
+  const someBlocked = !!adjust && pool < adjust.subtotal - 0.004;
+  const noPool = !!adjust && pool <= 0;
+  const discParsed = parseDiscountInput(discAmt, pool);
   const discNum = discParsed.ok ? discParsed.amount : 0;
   const showAdjust =
     !!adjust && state === "unpaid" && !hasPayments && (canPay || canDiscount);
@@ -500,7 +510,31 @@ export function BillActions({
                   <label className="block text-xs font-medium" style={{ color: "var(--color-ink-2)" }} htmlFor="adj-disc">
                     Discount (amount or %)
                   </label>
-                  <input id="adj-disc" className="field h-10 text-sm" inputMode="text" placeholder="Amount or percent, e.g. 10%" value={discAmt} onChange={(e) => setDiscAmt(e.target.value)} />
+                  <input
+                    id="adj-disc"
+                    className="field h-10 text-sm"
+                    inputMode="text"
+                    placeholder={noPool ? "None of these items can be discounted" : "Amount or percent, e.g. 10%"}
+                    value={discAmt}
+                    disabled={noPool}
+                    onChange={(e) => setDiscAmt(e.target.value)}
+                  />
+                  {noPool ? (
+                    <p className="text-xs" role="status" style={{ color: "var(--color-ink-3)" }}>
+                      None of these items can be discounted.
+                    </p>
+                  ) : (
+                    someBlocked && (
+                      <p className="text-xs" role="status" style={{ color: "var(--color-ink-3)" }} data-testid="discount-pool-note">
+                        Discount applies to {m(pool)} of {m(adjust.subtotal)}. Some items cannot be discounted.
+                      </p>
+                    )
+                  )}
+                  {loyaltyDiscount > 0 && (
+                    <p className="text-xs" role="status" style={{ color: "var(--color-ink-3)" }}>
+                      Loyalty points already take {m(loyaltyDiscount)} off this bill.
+                    </p>
+                  )}
                   {!discParsed.ok && (
                     <p className="text-xs" role="alert" style={{ color: "var(--color-bad)" }}>
                       {discParsed.message}
@@ -522,7 +556,7 @@ export function BillActions({
               )}
               <button
                 className="btn btn-primary mt-1 w-full text-sm"
-                disabled={pending || !adjustChanged || !discParsed.ok}
+                disabled={pending || !adjustChanged || !discParsed.ok || (noPool && discNum > 0)}
                 onClick={() =>
                   run(() =>
                     adjustBill({

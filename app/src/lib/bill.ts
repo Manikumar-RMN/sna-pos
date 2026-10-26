@@ -34,7 +34,7 @@ export type BillDetail = {
   /** Still to pay (unpaid / part-paid bills). */
   balance: number;
   /** Items still on the bill, for cancel / split. */
-  lines: { id: string; name: string; options: string | null; qty: number; amount: number }[];
+  lines: { id: string; name: string; options: string | null; qty: number; amount: number; /** The dish was marked "no discount" when it was ordered (order_items.discount_blocked). */ blocked: boolean }[];
   cancelled: { name: string; qty: number; reason: string | null }[];
   tableId: string | null;
   hasDiscount: boolean;
@@ -50,7 +50,7 @@ export type BillDetail = {
   creditNotes: { id: string; number: string; amount: number; at: string; reason: string }[];
   paymentList: { id: string; methodId: string; methodName: string; amount: number; rounded: boolean }[];
   /** Discount and service charge as they stand on an open bill. */
-  adjust: { discount: number; subtotal: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
+  adjust: { discount: number; /** Points used as a discount on this bill (money, calc_params.loyalty_discount) and the points behind it. */ loyaltyDiscount: number; loyaltyPoints: number; subtotal: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
 };
 
 /**
@@ -75,7 +75,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const [items, taxes, payments, refunds, restaurant, branch, settings, table, discounts, upiMethod, day, creditNotes] = await Promise.all([
     supabase
       .from("order_items")
-      .select("id, product_name, product_name_local, options_text, quantity, unit, unit_price, line_subtotal, net_amount, created_at, cancelled_at, cancelled_qty, cancel_reason, held, offer_name, list_price")
+      .select("id, product_name, product_name_local, options_text, quantity, unit, unit_price, line_subtotal, net_amount, created_at, cancelled_at, cancelled_qty, cancel_reason, held, offer_name, list_price, discount_blocked")
       .eq("order_id", order.id)
       .order("created_at")
       .order("id"),
@@ -152,6 +152,9 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
   const seniorDiscount = (discounts.data ?? [])
     .filter((d) => d.discount_type === "senior_pwd")
     .reduce((s, d) => s + Number(d.amount), 0);
+  const loyaltyDiscount = (discounts.data ?? [])
+    .filter((d) => d.discount_type === "loyalty_points")
+    .reduce((s, d) => s + Number(d.amount), 0);
   const sd = order.senior_details as { kind?: string; name?: string; id_no?: string } | null;
 
   const b = branch.data;
@@ -187,7 +190,8 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
     })),
     taxLines: Array.from(taxMap, ([name, amount]) => ({ name, amount })),
     subtotal: Number(order.subtotal),
-    discount: Math.round((Number(order.discount_total) - seniorDiscount) * 100) / 100,
+    discount: Math.round((Number(order.discount_total) - seniorDiscount - loyaltyDiscount) * 100) / 100,
+    loyaltyDiscount: loyaltyDiscount > 0 ? loyaltyDiscount : undefined,
     serviceCharge: Number(order.service_charge),
     serviceChargeLabel: settings.data?.service_charge_label ?? "Service charge",
     taxTotal: Number(order.tax_total),
@@ -248,6 +252,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
       options: it.options_text,
       qty: Number(it.quantity),
       amount: Number(it.line_subtotal),
+      blocked: !!it.discount_blocked,
     })),
     cancelled: (items.data ?? [])
       .filter((it) => Number(it.cancelled_qty ?? 0) > 0)
@@ -270,10 +275,12 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
       rounded: Math.abs(Number(p.rounding_adjustment ?? 0)) >= 0.005,
     })),
     adjust: (() => {
-      const cp = (order.calc_params ?? {}) as { discount?: number | string; sc_percent?: number | string };
+      const cp = (order.calc_params ?? {}) as { discount?: number | string; sc_percent?: number | string; loyalty_discount?: number | string; loyalty_points?: number | string };
       const scPercent = Number(settings.data?.service_charge_percent ?? 0);
       return {
         discount: Number(cp.discount ?? 0),
+        loyaltyDiscount: Number(cp.loyalty_discount ?? 0),
+        loyaltyPoints: Number(cp.loyalty_points ?? 0),
         subtotal: Number(order.subtotal),
         scAvailable: scPercent > 0,
         scOn: Number(cp.sc_percent ?? 0) > 0,

@@ -1,6 +1,9 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   KOT_DELAYED_MIN,
+  PREP_GRACE_MIN,
   OPEN_DELAYED_MIN,
   RESERVE_AFTER_MIN,
   RESERVE_BEFORE_MIN,
@@ -35,6 +38,13 @@ describe("thresholds", () => {
     expect(KOT_DELAYED_MIN).toBe(15);
     expect(RESERVE_BEFORE_MIN).toBe(60);
     expect(RESERVE_AFTER_MIN).toBe(30);
+    expect(PREP_GRACE_MIN).toBe(5);
+  });
+  it("agrees with the grace written in migration 142 (skipped while that file is not in this checkout)", () => {
+    const file = join(process.cwd(), "..", "supabase", "migrations", "142_floor_status_prep.sql");
+    if (!existsSync(file)) return;
+    const sql = readFileSync(file, "utf8");
+    expect(sql).toMatch(new RegExp(`\\b${PREP_GRACE_MIN}\\b`));
   });
 });
 
@@ -103,6 +113,53 @@ describe("classifyTable", () => {
   });
 });
 
+describe("classifyTable with a prep time (migration 142)", () => {
+  // A ticket that started 11 min ago, prep 5 -> due 10 min after its start.
+  const base = { open_bills: 1, oldest_open_at: at(-20), kot_waiting: 1 };
+  const due = (startMin: number, prep: number | null) => ({
+    oldest_kot_at: at(startMin),
+    kot_ticket_at: at(startMin),
+    kot_prep_min: prep,
+    kot_due_at: at(startMin + (prep ?? 0) + PREP_GRACE_MIN),
+  });
+  it("is late only after prep plus grace", () => {
+    expect(classifyTable(row({ ...base, ...due(-10, 5) })).state).toBe("busy"); // exactly due
+    const late = classifyTable(row({ ...base, ...due(-11, 5) }));
+    expect(late.state).toBe("kot_delayed");
+    expect(late.note).toBe("KOT 11 min, prep 5");
+  });
+  it("a long prep keeps the table calm past 15 minutes", () => {
+    expect(classifyTable(row({ ...base, ...due(-20, 30) })).state).toBe("busy");
+  });
+  it("a ticket with no prep time uses the 15 minute rule (due = start + 15)", () => {
+    const d = { oldest_kot_at: at(-16), kot_ticket_at: at(-16), kot_prep_min: null, kot_due_at: at(-1) };
+    const s = classifyTable(row({ ...base, ...d }));
+    expect(s.state).toBe("kot_delayed");
+    expect(s.note).toBe("KOT 16 min");
+  });
+  it("describes the ticket that is due first, not the oldest one", () => {
+    const s = classifyTable(row({ ...base, oldest_kot_at: at(-40), kot_ticket_at: at(-12), kot_prep_min: 5, kot_due_at: at(-2) }));
+    expect(s.state).toBe("kot_delayed");
+    expect(s.kotMinutes).toBe(12);
+  });
+  it("falls back to the fixed 15 minutes when the new columns are missing or null", () => {
+    expect(classifyTable(row({ ...base, oldest_kot_at: at(-15) })).state).toBe("busy");
+    expect(classifyTable(row({ ...base, oldest_kot_at: at(-16), kot_due_at: null, kot_prep_min: null })).state).toBe("kot_delayed");
+  });
+  it("ignores a bad due time and uses the fixed rule", () => {
+    expect(classifyTable(row({ ...base, oldest_kot_at: at(-16), kot_due_at: "junk" })).state).toBe("kot_delayed");
+  });
+  it("moves with the time since the fetch", () => {
+    const r = row({ ...base, ...due(-5, 5) });
+    expect(classifyTable(r, 0).state).toBe("busy");
+    expect(classifyTable(r, 6 * 60000).state).toBe("kot_delayed");
+  });
+  it("a late bill still wins; no waiting ticket ignores kot_due_at", () => {
+    expect(classifyTable(row({ open_bills: 1, oldest_open_at: at(-120), kot_waiting: 1, ...due(-30, 5) })).state).toBe("delayed");
+    expect(classifyTable(row({ ...base, kot_waiting: 0, ...due(-30, 5) })).state).toBe("busy");
+  });
+});
+
 describe("countStates", () => {
   it("counts each state", () => {
     const rows = [
@@ -129,6 +186,14 @@ describe("parseFloorRows", () => {
     expect(rows[0].open_bills).toBe(2);
     expect(rows[0].open_total).toBe(726);
     expect(rows[0].reservation_id).toBeNull();
+    expect(rows[0].kot_due_at).toBeNull(); // old function: no prep columns
+    expect(rows[0].kot_prep_min).toBeNull();
+  });
+  it("reads the prep columns when the database sends them", () => {
+    const [r] = parseFloorRows([{ table_id: "t1", kot_due_at: at(3), kot_prep_min: "12", kot_ticket_at: at(-9) }]);
+    expect(r.kot_due_at).toBe(at(3));
+    expect(r.kot_prep_min).toBe(12);
+    expect(r.kot_ticket_at).toBe(at(-9));
   });
   it("drops junk and non-arrays", () => {
     expect(parseFloorRows(null)).toEqual([]);

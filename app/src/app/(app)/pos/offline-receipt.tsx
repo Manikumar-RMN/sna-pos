@@ -106,6 +106,7 @@ export function OfflineReceipt({ bill, snap, onDone }: { bill: OfflineBill; snap
             <div className="mt-1 text-[1em]">
               {(bill.guest.name || bill.guest.phone) && <div>Guest: {[bill.guest.name, bill.guest.phone].filter(Boolean).join(" · ")}</div>}
               {bill.guest.address && <div>Deliver to: {bill.guest.address}</div>}
+              {snap.settings.loyalty && bill.guest.phone && <div>Points will be added after sync</div>}
             </div>
           )}
           <Rule />

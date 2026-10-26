@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { orderTypeLabel } from "@/lib/format";
 import { billFormat, paperWidth } from "@/lib/bill-format";
+import { prepMinutesByOrderItem } from "./prep";
 import { KitchenBoard, type ServedTicket, type Ticket } from "./kitchen-board";
 
 const TICKET_COLUMNS = "id, order_id, ticket_number, station, status, created_at, started_at, ready_at, printed_at, changed_at, kitchen_seen_at, cancel_reason";
@@ -45,13 +46,15 @@ export default async function KitchenPage() {
     ids.length
       ? supabase
           .from("kitchen_ticket_items")
-          .select("kitchen_ticket_id, product_name, product_name_local, quantity, note, status, change_text")
+          .select("order_item_id, kitchen_ticket_id, product_name, product_name_local, quantity, note, status, change_text")
           .in("kitchen_ticket_id", ids)
-      : Promise.resolve({ data: [] as { kitchen_ticket_id: string; product_name: string; product_name_local: string | null; quantity: number; note: string | null; status: string; change_text: string | null }[] }),
+      : Promise.resolve({ data: [] as { order_item_id: string; kitchen_ticket_id: string; product_name: string; product_name_local: string | null; quantity: number; note: string | null; status: string; change_text: string | null }[] }),
     orderIds.length
       ? supabase.from("orders").select("id, order_type, dining_table_id, bill_number, token_no, guest_name").in("id", orderIds)
       : Promise.resolve({ data: [] as { id: string; order_type: string; dining_table_id: string | null; bill_number: string; token_no: number | null; guest_name: string | null }[] }),
   ]);
+  // Prep time per dish (products.prep_minutes, a size inherits its dish). Only a help: if the column is not there yet the board just shows no prep.
+  const prepByItem = await prepMinutesByOrderItem(supabase, (items ?? []).map((i) => i.order_item_id));
   const tableIds = [...new Set((orders ?? []).map((o) => o.dining_table_id).filter(Boolean))] as string[];
   const { data: tables } = tableIds.length
     ? await supabase.from("dining_tables").select("id, table_number").in("id", tableIds)
@@ -75,6 +78,13 @@ export default async function KitchenPage() {
       station: t.station ?? "Kitchen",
       printedAt: t.printed_at,
       bill: o?.bill_number ?? "",
+      prepMin: (() => {
+        const preps = (items ?? [])
+          .filter((i) => i.kitchen_ticket_id === t.id && i.status !== "cancelled")
+          .map((i) => prepByItem.get(i.order_item_id) ?? 0);
+        const max = preps.length ? Math.max(...preps) : 0;
+        return max > 0 ? max : null;
+      })(),
       items: (items ?? [])
         .filter((i) => i.kitchen_ticket_id === t.id)
         .map((i) => ({ name: i.product_name, local: i.product_name_local, qty: Number(i.quantity), note: i.note, cancelled: i.status === "cancelled", changeText: i.change_text })),

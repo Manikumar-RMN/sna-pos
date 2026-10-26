@@ -23,6 +23,13 @@ describe("describeOfflineFlags", () => {
     expect(t[0]).toContain("75.00");
     expect(t[0]).toContain("check it");
   });
+  it("explains a discount the server cut (items that cannot be discounted)", () => {
+    const t = describeOfflineFlags([{ flag: "discount_cut", asked: 50, recorded: 20 }]);
+    expect(t).toHaveLength(1);
+    expect(t[0]).toContain("50.00");
+    expect(t[0]).toContain("20.00");
+    expect(t[0]).toContain("cannot be discounted");
+  });
   it("handles flags written by the older function, and nothing at all", () => {
     expect(describeOfflineFlags([{ flag: "price", item: "Tea", offline_price: 5, menu_price: 10 }])).toHaveLength(1);
     expect(describeOfflineFlags(null)).toEqual([]);

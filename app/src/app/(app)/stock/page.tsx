@@ -3,14 +3,18 @@ import { UpgradeNote } from "../upgrade-note";
 import { createClient } from "@/lib/supabase/server";
 import { todayIn, addDays } from "@/lib/format";
 import { StockManager, type Level, type FoodCost } from "./stock-manager";
+import type { RecentAdjust } from "./wastage-form";
 import { TransferForm } from "./transfer-form";
 
-export default async function StockPage() {
+export default async function StockPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
   const user = await requireUser();
-  if (!can(user, "stock.manage")) {
+  const canManage = can(user, "stock.manage");
+  const canAdjust = canManage || can(user, "stock.adjust");
+  const canView = canManage || canAdjust || can(user, "stock.view");
+  if (!canView) {
     return (
       <div className="card mx-auto max-w-md p-5 text-sm" style={{ color: "var(--color-ink-2)" }}>
-        Your role does not include stock. An owner can give the &ldquo;Manage stock&rdquo; right in Settings → Security profiles.
+        Your role does not include stock. An owner can give the &ldquo;See stock, costs and stock reports&rdquo; right in Settings → Security profiles.
       </div>
     );
   }
@@ -21,19 +25,37 @@ export default async function StockPage() {
       </div>
     );
   }
+  const { filter } = await searchParams;
   const supabase = await createClient();
   const today = todayIn(user.timezone);
   const from = addDays(today, -6);
-  const transfers = has(user, "central_kitchen") && user.outlet_count > 1;
-  const [{ data: report }, { data: products }, { data: recipes }, { data: others }] = await Promise.all([
+  const transfers = canManage && has(user, "central_kitchen") && user.outlet_count > 1;
+  const [{ data: report }, { data: products }, { data: recipes }, { data: others }, recentRes] = await Promise.all([
     supabase.rpc("stock_report", { p_from: from, p_to: today }),
-    supabase.from("products").select("id, name, price").is("deleted_at", null).order("name"),
-    supabase.from("recipe_lines").select("product_id, ingredient_id, qty"),
+    canManage ? supabase.from("products").select("id, name, price").is("deleted_at", null).order("name") : Promise.resolve({ data: [] as { id: string; name: string; price: number }[] }),
+    canManage ? supabase.from("recipe_lines").select("product_id, ingredient_id, qty") : Promise.resolve({ data: [] as { product_id: string; ingredient_id: string; qty: number }[] }),
     transfers
       ? supabase.from("branches").select("id, name").is("deleted_at", null).neq("id", user.branch_id).order("created_at")
       : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    // Latest wastage and manual adjustments of this outlet (needs stock.view or stock.manage to read; empty for an adjust-only role).
+    canAdjust
+      ? supabase.from("stock_movements").select("id, created_at, ingredient_id, qty, kind, reason, note, ingredients(name, unit)").in("kind", ["wastage", "adjust"]).order("created_at", { ascending: false }).limit(20)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   const rep = (report ?? { levels: [], food_cost: [] }) as unknown as { levels: Level[]; food_cost: FoodCost[] };
+  const recent: RecentAdjust[] = ((recentRes.data ?? []) as unknown as Record<string, unknown>[]).map((r) => {
+    const ing = (r.ingredients ?? {}) as { name?: string; unit?: string };
+    return {
+      id: String(r.id),
+      at: String(r.created_at),
+      ingredient: ing.name ?? "Ingredient",
+      unit: ing.unit ?? "",
+      qty: Number(r.qty),
+      kind: String(r.kind),
+      reason: (r.reason as string | null) ?? null,
+      note: (r.note as string | null) ?? null,
+    };
+  });
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="text-xl font-bold tracking-tight">Stock</h1>
@@ -55,10 +77,15 @@ export default async function StockPage() {
       )}
       <StockManager
         currency={user.currency_code}
+        timezone={user.timezone}
         levels={rep.levels}
         foodCost={rep.food_cost}
         products={(products ?? []).map((p) => ({ id: p.id, name: p.name, price: Number(p.price) }))}
         recipes={(recipes ?? []).map((r) => ({ product_id: r.product_id, ingredient_id: r.ingredient_id, qty: Number(r.qty) }))}
+        recent={recent}
+        canManage={canManage}
+        canAdjust={canAdjust}
+        initialFilter={filter === "low" ? "low" : undefined}
       />
     </div>
   );

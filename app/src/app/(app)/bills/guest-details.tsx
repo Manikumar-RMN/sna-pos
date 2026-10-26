@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setGuestDetails } from "./actions";
+import { findCustomer, setGuestDetails, type RegularGuest } from "./actions";
+import { useOnline } from "@/lib/use-online";
+import { regularChipText } from "./loyalty-math";
 
 /**
  * Token number and the guest's name, phone and delivery address, shown above
@@ -14,6 +16,7 @@ export function GuestDetails({
   guest,
   delivery,
   canEdit,
+  showPoints = false,
 }: {
   orderId: string;
   /** Token number for the day, if the outlet uses tokens. */
@@ -23,6 +26,8 @@ export function GuestDetails({
   delivery: boolean;
   /** False on voided bills, closed days, and for staff who cannot take orders. */
   canEdit: boolean;
+  /** Loyalty module on: the chip also shows the guest's points. */
+  showPoints?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -31,6 +36,28 @@ export function GuestDetails({
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const online = useOnline();
+  const [regular, setRegular] = useState<RegularGuest | null>(null);
+
+  // Regular-guest hint: looked up from the saved phone, and again (after a pause) as a new phone is typed. Hint only; never blocks saving.
+  const lookupPhone = open ? phone : guest?.phone ? `+${guest.phone}` : "";
+  useEffect(() => {
+    if (!online || lookupPhone.replace(/\D/g, "").length < 7) {
+      setRegular(null);
+      return;
+    }
+    let live = true;
+    const t = setTimeout(() => {
+      findCustomer(lookupPhone)
+        .then((g) => live && setRegular(g))
+        .catch(() => live && setRegular(null));
+    }, 500);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [lookupPhone, online]);
+  const chip = regular ? regularChipText(regular, showPoints) : null;
 
   const hasGuest = !!(guest?.name || guest?.phone || guest?.address);
   if (token == null && !hasGuest && !canEdit) return null;
@@ -70,6 +97,13 @@ export function GuestDetails({
         <div className="min-w-0">
           {token != null && <div className="text-base font-bold">Token {token}</div>}
           {(guest?.name || guest?.phone) && <div>{[guest.name, guest.phone ? `+${guest.phone}` : null].filter(Boolean).join(" · ")}</div>}
+          {chip && !open && (
+            <div className="mt-1">
+              <span className="inline-block rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: "var(--color-brand-soft)", color: "var(--color-brand-strong)" }} data-testid="regular-guest-chip">
+                {chip}
+              </span>
+            </div>
+          )}
           {guest?.address && <div style={{ color: "var(--color-ink-2)" }}>Deliver to: {guest.address}</div>}
           {open && !hasGuest && token == null && <div className="font-bold">Guest details</div>}
         </div>
@@ -89,6 +123,11 @@ export function GuestDetails({
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
+          {open && chip && (
+            <p className="text-xs font-semibold" role="status" style={{ color: "var(--color-brand-strong)" }}>
+              {chip}
+            </p>
+          )}
           {delivery && (
             <input
               className="field h-10 text-sm"

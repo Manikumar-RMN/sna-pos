@@ -272,3 +272,44 @@ export async function redeemGiftCard(orderId: string, code: string, amount: numb
   const d = data as { card: string; used: number; card_balance: number };
   return { ok: true as const, message: `${d.used} taken from gift card ${d.card}. Left on the card: ${d.card_balance}.` };
 }
+
+export type RegularGuest = { id: string; name: string | null; visits: number; lastVisitOn: string | null; points: number };
+
+/** "Regular guest" hint: finds the guest by phone (last 10 digits) without changing anything. Never fails the screen. */
+export async function findCustomer(phone: string): Promise<RegularGuest | null> {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 7) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("find_customer", { p_phone: phone.trim() });
+  if (error || !data) return null;
+  const d = data as { id?: string; name?: string | null; visits?: number | string; last_visit_on?: string | null; points?: number | string };
+  if (!d.id) return null;
+  return { id: d.id, name: d.name ?? null, visits: Number(d.visits ?? 0), lastVisitOn: d.last_visit_on ?? null, points: Number(d.points ?? 0) };
+}
+
+/** Use points as a discount before tax. The same client ref on a retry = the same redeem, never two. */
+export async function redeemPointsDiscount(input: { orderId: string; points: number; clientRef?: string }): Promise<ActionResult> {
+  if (!Number.isInteger(input.points) || input.points <= 0) return { ok: false, error: "Enter a whole number of points." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("redeem_points_discount", {
+    p_order: input.orderId,
+    p_points: input.points,
+    p_client_ref: input.clientRef && /^[0-9a-f-]{36}$/i.test(input.clientRef) ? input.clientRef : undefined,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  refresh(input.orderId);
+  const d = (data ?? {}) as { points_used?: number | string; discount?: number | string; grand_total?: number | string; points_left?: number | string };
+  return {
+    ok: true,
+    message: `${Number(d.points_used ?? input.points)} points used: ${Number(d.discount ?? 0).toFixed(2)} off before tax. New total ${Number(d.grand_total ?? 0).toFixed(2)}. ${Number(d.points_left ?? 0)} points left.`,
+  };
+}
+
+/** Takes the points discount off the bill and gives the points back. */
+export async function removePointsDiscount(orderId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("remove_points_discount", { p_order: orderId });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  refresh(orderId);
+  return { ok: true, message: "Points taken off the bill and given back to the guest." };
+}

@@ -92,7 +92,7 @@ describe("guests (covers) rule", () => {
 
 describe("needs-internet words", () => {
   it("every feature has a sentence that says internet", () => {
-    for (const k of ["add_to_bill", "tip", "open_price", "move_item", "repeat_round", "bill_action"] as const) {
+    for (const k of ["add_to_bill", "tip", "open_price", "move_item", "repeat_round", "bill_action", "loyalty_redeem"] as const) {
       expect(needsInternetText(k).toLowerCase(), k).toContain("internet");
     }
   });

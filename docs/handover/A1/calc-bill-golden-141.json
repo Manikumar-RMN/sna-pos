@@ -1,0 +1,2164 @@
+[
+ {
+  "case": "G1",
+  "description": "The plan's worked example, corrected: restricted A 100 + B 100, 18% exclusive (CGST 9 + SGST 9), typed discount 20, no cash rounding. The plan said 232.40; the database says 212.40 (100 + 80 + 32.40 tax = A 118.00 + B 94.40).",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ],
+     "no_disc": true
+    },
+    {
+     "key": 2,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    }
+   ],
+   "discount": 20,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 100.0,
+     "tax": 18.0,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 9.0,
+       "taxable": 100.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 9.0,
+       "taxable": 100.0,
+       "compound": false
+      }
+     ],
+     "total": 118.0,
+     "discount": 0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 100.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 80.0,
+     "tax": 14.4,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 7.2,
+       "taxable": 80.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 7.2,
+       "taxable": 80.0,
+       "compound": false
+      }
+     ],
+     "total": 94.4,
+     "discount": 20.0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 80.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [
+    {
+     "name": "CGST",
+     "rate": 9,
+     "amount": 16.2,
+     "taxable": 180.0
+    },
+    {
+     "name": "SGST",
+     "rate": 9,
+     "amount": 16.2,
+     "taxable": 180.0
+    }
+   ],
+   "discount": 20.0,
+   "rounding": 0.0,
+   "subtotal": 200.0,
+   "net_sales": 180.0,
+   "tax_total": 32.4,
+   "grand_total": 212.4,
+   "before_round": 212.4,
+   "exempt_sales": 0.0,
+   "tax_included": 0,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 100.0
+  }
+ },
+ {
+  "case": "G2",
+  "description": "G1 with cash rounding to the nearest 1: grand 212.40 -> 212, rounding -0.40.",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ],
+     "no_disc": true
+    },
+    {
+     "key": 2,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    }
+   ],
+   "discount": 20,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "nearest_1"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 100.0,
+     "tax": 18.0,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 9.0,
+       "taxable": 100.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 9.0,
+       "taxable": 100.0,
+       "compound": false
+      }
+     ],
+     "total": 118.0,
+     "discount": 0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 100.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 80.0,
+     "tax": 14.4,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 7.2,
+       "taxable": 80.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 7.2,
+       "taxable": 80.0,
+       "compound": false
+      }
+     ],
+     "total": 94.4,
+     "discount": 20.0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 80.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [
+    {
+     "name": "CGST",
+     "rate": 9,
+     "amount": 16.2,
+     "taxable": 180.0
+    },
+    {
+     "name": "SGST",
+     "rate": 9,
+     "amount": 16.2,
+     "taxable": 180.0
+    }
+   ],
+   "discount": 20.0,
+   "rounding": -0.4,
+   "subtotal": 200.0,
+   "net_sales": 180.0,
+   "tax_total": 32.4,
+   "grand_total": 212,
+   "before_round": 212.4,
+   "exempt_sales": 0.0,
+   "tax_included": 0,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 100.0
+  }
+ },
+ {
+  "case": "G3",
+  "description": "Same bill, nothing restricted: the old rule (the discount is spread over both lines pro rata, 10 + 10). Output has NO discountable_subtotal key.",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    },
+    {
+     "key": 2,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    }
+   ],
+   "discount": 20,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 90.0,
+     "tax": 16.2,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 8.1,
+       "taxable": 90.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 8.1,
+       "taxable": 90.0,
+       "compound": false
+      }
+     ],
+     "total": 106.2,
+     "discount": 10.0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 90.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 90.0,
+     "tax": 16.2,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 8.1,
+       "taxable": 90.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 8.1,
+       "taxable": 90.0,
+       "compound": false
+      }
+     ],
+     "total": 106.2,
+     "discount": 10.0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 90.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [
+    {
+     "name": "CGST",
+     "rate": 9,
+     "amount": 16.2,
+     "taxable": 180.0
+    },
+    {
+     "name": "SGST",
+     "rate": 9,
+     "amount": 16.2,
+     "taxable": 180.0
+    }
+   ],
+   "discount": 20.0,
+   "rounding": 0.0,
+   "subtotal": 200.0,
+   "net_sales": 180.0,
+   "tax_total": 32.4,
+   "grand_total": 212.4,
+   "before_round": 212.4,
+   "exempt_sales": 0.0,
+   "tax_included": 0,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "tax_exempt_amount": 0.0
+  }
+ },
+ {
+  "case": "G4",
+  "description": "All lines restricted: the typed discount 30 is cut to 0 (pool 0), tax on the full price, discountable_subtotal 0.",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 80,
+     "qty": 2,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ],
+     "no_disc": true
+    }
+   ],
+   "discount": 30,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 160.0,
+     "tax": 28.8,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 14.4,
+       "taxable": 160.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 14.4,
+       "taxable": 160.0,
+       "compound": false
+      }
+     ],
+     "total": 188.8,
+     "discount": 0,
+     "subtotal": 160.0,
+     "inclusive": false,
+     "taxable_net": 160.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [
+    {
+     "name": "CGST",
+     "rate": 9,
+     "amount": 14.4,
+     "taxable": 160.0
+    },
+    {
+     "name": "SGST",
+     "rate": 9,
+     "amount": 14.4,
+     "taxable": 160.0
+    }
+   ],
+   "discount": 0.0,
+   "rounding": 0.0,
+   "subtotal": 160.0,
+   "net_sales": 160.0,
+   "tax_total": 28.8,
+   "grand_total": 188.8,
+   "before_round": 188.8,
+   "exempt_sales": 0.0,
+   "tax_included": 0,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 0
+  }
+ },
+ {
+  "case": "G5",
+  "description": "Mixed tax-inclusive: restricted 107 (7% inside) + unrestricted 107, discount 20: the restricted line keeps 107, the other pays 87 (its tax inside is recomputed on 87).",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 107,
+     "qty": 1,
+     "inclusive": true,
+     "comps": [
+      {
+       "name": "VAT",
+       "rate": 7,
+       "compound": false
+      }
+     ],
+     "no_disc": true
+    },
+    {
+     "key": 2,
+     "price": 107,
+     "qty": 1,
+     "inclusive": true,
+     "comps": [
+      {
+       "name": "VAT",
+       "rate": 7,
+       "compound": false
+      }
+     ]
+    }
+   ],
+   "discount": 20,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 100.0,
+     "tax": 7.0,
+     "taxes": [
+      {
+       "name": "VAT",
+       "rate": 7,
+       "amount": 7.0,
+       "taxable": 100.0,
+       "compound": false
+      }
+     ],
+     "total": 107.0,
+     "discount": 0,
+     "subtotal": 107.0,
+     "inclusive": true,
+     "taxable_net": 100.0,
+     "exempt_sales": 0.0,
+     "tax_included": 7.0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 81.31,
+     "tax": 5.69,
+     "taxes": [
+      {
+       "name": "VAT",
+       "rate": 7,
+       "amount": 5.69,
+       "taxable": 81.31,
+       "compound": false
+      }
+     ],
+     "total": 87.0,
+     "discount": 20.0,
+     "subtotal": 107.0,
+     "inclusive": true,
+     "taxable_net": 81.31,
+     "exempt_sales": 0.0,
+     "tax_included": 5.69,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [
+    {
+     "name": "VAT",
+     "rate": 7,
+     "amount": 12.69,
+     "taxable": 181.31
+    }
+   ],
+   "discount": 20.0,
+   "rounding": 0.0,
+   "subtotal": 214.0,
+   "net_sales": 181.31,
+   "tax_total": 12.69,
+   "grand_total": 194.0,
+   "before_round": 194.0,
+   "exempt_sales": 0.0,
+   "tax_included": 12.69,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 107.0
+  }
+ },
+ {
+  "case": "G6",
+  "description": "The rounding remainder goes to the largest ELIGIBLE line: a restricted 500 is the largest line of all, 33.33 / 33.33 / 33.34 share a discount of 10 -> 3.33, 3.33, 3.34 (the 33.34 line takes the extra cent).",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 500,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [],
+     "no_disc": true
+    },
+    {
+     "key": 2,
+     "price": 33.33,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    },
+    {
+     "key": 3,
+     "price": 33.33,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    },
+    {
+     "key": 4,
+     "price": 33.34,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    }
+   ],
+   "discount": 10,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 500.0,
+     "tax": 0,
+     "taxes": [],
+     "total": 500.0,
+     "discount": 0,
+     "subtotal": 500.0,
+     "inclusive": false,
+     "taxable_net": 500.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 30.0,
+     "tax": 0,
+     "taxes": [],
+     "total": 30.0,
+     "discount": 3.33,
+     "subtotal": 33.33,
+     "inclusive": false,
+     "taxable_net": 30.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 3,
+     "net": 30.0,
+     "tax": 0,
+     "taxes": [],
+     "total": 30.0,
+     "discount": 3.33,
+     "subtotal": 33.33,
+     "inclusive": false,
+     "taxable_net": 30.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 4,
+     "net": 30.0,
+     "tax": 0,
+     "taxes": [],
+     "total": 30.0,
+     "discount": 3.34,
+     "subtotal": 33.34,
+     "inclusive": false,
+     "taxable_net": 30.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [],
+   "discount": 10.0,
+   "rounding": 0.0,
+   "subtotal": 600.0,
+   "net_sales": 590.0,
+   "tax_total": 0,
+   "grand_total": 590.0,
+   "before_round": 590.0,
+   "exempt_sales": 0.0,
+   "tax_included": 0,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 100.0
+  }
+ },
+ {
+  "case": "G7",
+  "description": "Discount larger than the pool: pizza 100 (restricted) + pasta 50 + soup 30, typed discount 120 -> capped at the pool 80 (the output 'discount' is 80).",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ],
+     "no_disc": true
+    },
+    {
+     "key": 2,
+     "price": 50,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    },
+    {
+     "key": 3,
+     "price": 30,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    }
+   ],
+   "discount": 120,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 100.0,
+     "tax": 18.0,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 9.0,
+       "taxable": 100.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 9.0,
+       "taxable": 100.0,
+       "compound": false
+      }
+     ],
+     "total": 118.0,
+     "discount": 0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 100.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 0.0,
+     "tax": 0.0,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 0.0,
+       "taxable": 0.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 0.0,
+       "taxable": 0.0,
+       "compound": false
+      }
+     ],
+     "total": 0.0,
+     "discount": 50.0,
+     "subtotal": 50.0,
+     "inclusive": false,
+     "taxable_net": 0.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 3,
+     "net": 0.0,
+     "tax": 0.0,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 0.0,
+       "taxable": 0.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 0.0,
+       "taxable": 0.0,
+       "compound": false
+      }
+     ],
+     "total": 0.0,
+     "discount": 30.0,
+     "subtotal": 30.0,
+     "inclusive": false,
+     "taxable_net": 0.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [
+    {
+     "name": "CGST",
+     "rate": 9,
+     "amount": 9.0,
+     "taxable": 100.0
+    },
+    {
+     "name": "SGST",
+     "rate": 9,
+     "amount": 9.0,
+     "taxable": 100.0
+    }
+   ],
+   "discount": 80.0,
+   "rounding": 0.0,
+   "subtotal": 180.0,
+   "net_sales": 100.0,
+   "tax_total": 18.0,
+   "grand_total": 118.0,
+   "before_round": 118.0,
+   "exempt_sales": 0.0,
+   "tax_included": 0,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 80.0
+  }
+ },
+ {
+  "case": "G8",
+  "description": "Points only, nothing restricted: loyalty_discount 40 over 100 + 60 (spread pro rata before tax). Output has loyalty_discount but NO discountable_subtotal; 'discount' stays the typed part (0).",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    },
+    {
+     "key": 2,
+     "price": 60,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    }
+   ],
+   "discount": 0,
+   "loyalty_discount": 40,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 75.0,
+     "tax": 13.5,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 6.75,
+       "taxable": 75.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 6.75,
+       "taxable": 75.0,
+       "compound": false
+      }
+     ],
+     "total": 88.5,
+     "discount": 25.0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 75.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 45.0,
+     "tax": 8.1,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 4.05,
+       "taxable": 45.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 4.05,
+       "taxable": 45.0,
+       "compound": false
+      }
+     ],
+     "total": 53.1,
+     "discount": 15.0,
+     "subtotal": 60.0,
+     "inclusive": false,
+     "taxable_net": 45.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [
+    {
+     "name": "CGST",
+     "rate": 9,
+     "amount": 10.8,
+     "taxable": 120.0
+    },
+    {
+     "name": "SGST",
+     "rate": 9,
+     "amount": 10.8,
+     "taxable": 120.0
+    }
+   ],
+   "discount": 0.0,
+   "rounding": 0.0,
+   "subtotal": 160.0,
+   "net_sales": 120.0,
+   "tax_total": 21.6,
+   "grand_total": 141.6,
+   "before_round": 141.6,
+   "exempt_sales": 0.0,
+   "tax_included": 0,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "loyalty_discount": 40.0,
+   "tax_exempt_amount": 0.0
+  }
+ },
+ {
+  "case": "G9",
+  "description": "Typed 20 + points 80 on a pool of 100 (pizza restricted 100, pasta 100): both fit, the pasta is free, pizza keeps its tax.",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ],
+     "no_disc": true
+    },
+    {
+     "key": 2,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    }
+   ],
+   "discount": 20,
+   "loyalty_discount": 80,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 100.0,
+     "tax": 18.0,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 9.0,
+       "taxable": 100.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 9.0,
+       "taxable": 100.0,
+       "compound": false
+      }
+     ],
+     "total": 118.0,
+     "discount": 0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 100.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 0.0,
+     "tax": 0.0,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 0.0,
+       "taxable": 0.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 0.0,
+       "taxable": 0.0,
+       "compound": false
+      }
+     ],
+     "total": 0.0,
+     "discount": 100.0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 0.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [
+    {
+     "name": "CGST",
+     "rate": 9,
+     "amount": 9.0,
+     "taxable": 100.0
+    },
+    {
+     "name": "SGST",
+     "rate": 9,
+     "amount": 9.0,
+     "taxable": 100.0
+    }
+   ],
+   "discount": 20.0,
+   "rounding": 0.0,
+   "subtotal": 200.0,
+   "net_sales": 100.0,
+   "tax_total": 18.0,
+   "grand_total": 118.0,
+   "before_round": 118.0,
+   "exempt_sales": 0.0,
+   "tax_included": 0,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "loyalty_discount": 80.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 100.0
+  }
+ },
+ {
+  "case": "G10",
+  "description": "Typed 60 + points 40 on a pool of 80: the typed part first (60), the points take what is left of the pool (20). Total 100.",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [],
+     "no_disc": true
+    },
+    {
+     "key": 2,
+     "price": 50,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    },
+    {
+     "key": 3,
+     "price": 30,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    }
+   ],
+   "discount": 60,
+   "loyalty_discount": 40,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 100.0,
+     "tax": 0,
+     "taxes": [],
+     "total": 100.0,
+     "discount": 0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 100.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 0.0,
+     "tax": 0,
+     "taxes": [],
+     "total": 0.0,
+     "discount": 50.0,
+     "subtotal": 50.0,
+     "inclusive": false,
+     "taxable_net": 0.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 3,
+     "net": 0.0,
+     "tax": 0,
+     "taxes": [],
+     "total": 0.0,
+     "discount": 30.0,
+     "subtotal": 30.0,
+     "inclusive": false,
+     "taxable_net": 0.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [],
+   "discount": 60.0,
+   "rounding": 0.0,
+   "subtotal": 180.0,
+   "net_sales": 100.0,
+   "tax_total": 0,
+   "grand_total": 100.0,
+   "before_round": 100.0,
+   "exempt_sales": 0.0,
+   "tax_included": 0,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "loyalty_discount": 20.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 80.0
+  }
+ },
+ {
+  "case": "G11",
+  "description": "Typed 150 on a pool of 100 with points 40 on top: the typed discount is cut to the pool (100), the points get 0 (nothing left). Because points were asked for, the output carries 'loyalty_discount': 0.",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ],
+     "no_disc": true
+    },
+    {
+     "key": 2,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    }
+   ],
+   "discount": 150,
+   "loyalty_discount": 40,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 100.0,
+     "tax": 18.0,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 9.0,
+       "taxable": 100.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 9.0,
+       "taxable": 100.0,
+       "compound": false
+      }
+     ],
+     "total": 118.0,
+     "discount": 0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 100.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 0.0,
+     "tax": 0.0,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 0.0,
+       "taxable": 0.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 0.0,
+       "taxable": 0.0,
+       "compound": false
+      }
+     ],
+     "total": 0.0,
+     "discount": 100.0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 0.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [
+    {
+     "name": "CGST",
+     "rate": 9,
+     "amount": 9.0,
+     "taxable": 100.0
+    },
+    {
+     "name": "SGST",
+     "rate": 9,
+     "amount": 9.0,
+     "taxable": 100.0
+    }
+   ],
+   "discount": 100.0,
+   "rounding": 0.0,
+   "subtotal": 200.0,
+   "net_sales": 100.0,
+   "tax_total": 18.0,
+   "grand_total": 118.0,
+   "before_round": 118.0,
+   "exempt_sales": 0.0,
+   "tax_included": 0,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "loyalty_discount": 0.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 100.0
+  }
+ },
+ {
+  "case": "G12",
+  "description": "Service charge 5% (taxable) with a restricted line and a discount: the service charge is computed on the discounted value of each line (the restricted line on its full price).",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ],
+     "no_disc": true
+    },
+    {
+     "key": 2,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    }
+   ],
+   "discount": 20,
+   "sc_percent": 5,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 100.0,
+     "tax": 18.9,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 9.45,
+       "taxable": 105.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 9.45,
+       "taxable": 105.0,
+       "compound": false
+      }
+     ],
+     "total": 123.9,
+     "discount": 0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 100.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 5.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 80.0,
+     "tax": 15.12,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 7.56,
+       "taxable": 84.0,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 7.56,
+       "taxable": 84.0,
+       "compound": false
+      }
+     ],
+     "total": 99.12,
+     "discount": 20.0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 80.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 4.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [
+    {
+     "name": "CGST",
+     "rate": 9,
+     "amount": 17.01,
+     "taxable": 189.0
+    },
+    {
+     "name": "SGST",
+     "rate": 9,
+     "amount": 17.01,
+     "taxable": 189.0
+    }
+   ],
+   "discount": 20.0,
+   "rounding": 0.0,
+   "subtotal": 200.0,
+   "net_sales": 180.0,
+   "tax_total": 34.02,
+   "grand_total": 223.02,
+   "before_round": 223.02,
+   "exempt_sales": 0.0,
+   "tax_included": 0,
+   "service_charge": 9.0,
+   "senior_discount": 0.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 100.0
+  }
+ },
+ {
+  "case": "G13",
+  "description": "Compound tax + nearest 0.05 rounding + restricted inclusive line: a larger mixed bill.",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 259.27,
+     "qty": 2,
+     "inclusive": true,
+     "comps": [
+      {
+       "name": "A",
+       "rate": 5,
+       "compound": true
+      },
+      {
+       "name": "B",
+       "rate": 9,
+       "compound": false
+      }
+     ],
+     "no_disc": true
+    },
+    {
+     "key": 2,
+     "price": 516.11,
+     "qty": 2.361,
+     "inclusive": true,
+     "comps": [
+      {
+       "name": "A",
+       "rate": 5,
+       "compound": true
+      },
+      {
+       "name": "B",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    },
+    {
+     "key": 3,
+     "price": 629.95,
+     "qty": 3,
+     "inclusive": false,
+     "comps": []
+    },
+    {
+     "key": 4,
+     "price": 859.53,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "compound": false
+      }
+     ]
+    }
+   ],
+   "discount": 333.33,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "nearest_0_05"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 454.86,
+     "tax": 63.68,
+     "taxes": [
+      {
+       "name": "A",
+       "rate": 5,
+       "amount": 22.74,
+       "taxable": 454.86,
+       "compound": true
+      },
+      {
+       "name": "B",
+       "rate": 9,
+       "amount": 40.94,
+       "taxable": 454.86,
+       "compound": false
+      }
+     ],
+     "total": 518.54,
+     "discount": 0,
+     "subtotal": 518.54,
+     "inclusive": true,
+     "taxable_net": 454.86,
+     "exempt_sales": 0.0,
+     "tax_included": 63.68,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 979.1,
+     "tax": 137.08,
+     "taxes": [
+      {
+       "name": "A",
+       "rate": 5,
+       "amount": 48.96,
+       "taxable": 979.1,
+       "compound": true
+      },
+      {
+       "name": "B",
+       "rate": 9,
+       "amount": 88.12,
+       "taxable": 979.1,
+       "compound": false
+      }
+     ],
+     "total": 1116.18,
+     "discount": 102.36,
+     "subtotal": 1218.54,
+     "inclusive": true,
+     "taxable_net": 979.1,
+     "exempt_sales": 0.0,
+     "tax_included": 137.08,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 3,
+     "net": 1731.09,
+     "tax": 0,
+     "taxes": [],
+     "total": 1731.09,
+     "discount": 158.76,
+     "subtotal": 1889.85,
+     "inclusive": false,
+     "taxable_net": 1731.09,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 4,
+     "net": 787.32,
+     "tax": 141.72,
+     "taxes": [
+      {
+       "name": "CGST",
+       "rate": 9,
+       "amount": 70.86,
+       "taxable": 787.32,
+       "compound": false
+      },
+      {
+       "name": "SGST",
+       "rate": 9,
+       "amount": 70.86,
+       "taxable": 787.32,
+       "compound": false
+      }
+     ],
+     "total": 929.04,
+     "discount": 72.21,
+     "subtotal": 859.53,
+     "inclusive": false,
+     "taxable_net": 787.32,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [
+    {
+     "name": "A",
+     "rate": 5,
+     "amount": 71.7,
+     "taxable": 1433.96
+    },
+    {
+     "name": "B",
+     "rate": 9,
+     "amount": 129.06,
+     "taxable": 1433.96
+    },
+    {
+     "name": "CGST",
+     "rate": 9,
+     "amount": 70.86,
+     "taxable": 787.32
+    },
+    {
+     "name": "SGST",
+     "rate": 9,
+     "amount": 70.86,
+     "taxable": 787.32
+    }
+   ],
+   "discount": 333.33,
+   "rounding": 0.0,
+   "subtotal": 4486.46,
+   "net_sales": 3952.37,
+   "tax_total": 342.48,
+   "grand_total": 4294.85,
+   "before_round": 4294.85,
+   "exempt_sales": 0.0,
+   "tax_included": 200.76,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 3967.92
+  }
+ },
+ {
+  "case": "G14",
+  "description": "Senior / PWD share ignores the flag (statutory): a restricted line still gets the senior discount (20% of its share).",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 100,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [],
+     "no_disc": true
+    }
+   ],
+   "discount": 0,
+   "senior": {
+    "share": 1,
+    "rate": 20
+   },
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 80.0,
+     "tax": 0,
+     "taxes": [],
+     "total": 80.0,
+     "discount": 0,
+     "subtotal": 100.0,
+     "inclusive": false,
+     "taxable_net": 0.0,
+     "exempt_sales": 100.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 20.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [],
+   "discount": 0.0,
+   "rounding": 0.0,
+   "subtotal": 100.0,
+   "net_sales": 80.0,
+   "tax_total": 0,
+   "grand_total": 80.0,
+   "before_round": 80.0,
+   "exempt_sales": 100.0,
+   "tax_included": 0,
+   "service_charge": 0.0,
+   "senior_discount": 20.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 0
+  }
+ },
+ {
+  "case": "G15",
+  "description": "Many small lines: nine lines of 0.01 (one of 9.99) + a restricted 400, typed discount 0.07. Pro rata gives every 0.01 line 0.00, so the largest ELIGIBLE line (9.99) takes the whole 0.07; the restricted 400 gets 0; the parts add up exactly.",
+  "input": {
+   "lines": [
+    {
+     "key": 1,
+     "price": 400,
+     "qty": 1,
+     "inclusive": false,
+     "comps": [],
+     "no_disc": true
+    },
+    {
+     "key": 2,
+     "price": 0.01,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    },
+    {
+     "key": 3,
+     "price": 0.01,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    },
+    {
+     "key": 4,
+     "price": 0.01,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    },
+    {
+     "key": 5,
+     "price": 0.01,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    },
+    {
+     "key": 6,
+     "price": 9.99,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    },
+    {
+     "key": 7,
+     "price": 0.01,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    },
+    {
+     "key": 8,
+     "price": 0.01,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    },
+    {
+     "key": 9,
+     "price": 0.01,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    },
+    {
+     "key": 10,
+     "price": 0.01,
+     "qty": 1,
+     "inclusive": false,
+     "comps": []
+    }
+   ],
+   "discount": 0.07,
+   "sc_percent": 0,
+   "sc_taxable": true,
+   "rounding": "none"
+  },
+  "output": {
+   "lines": [
+    {
+     "key": 1,
+     "net": 400.0,
+     "tax": 0,
+     "taxes": [],
+     "total": 400.0,
+     "discount": 0,
+     "subtotal": 400.0,
+     "inclusive": false,
+     "taxable_net": 400.0,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 2,
+     "net": 0.01,
+     "tax": 0,
+     "taxes": [],
+     "total": 0.01,
+     "discount": 0.0,
+     "subtotal": 0.01,
+     "inclusive": false,
+     "taxable_net": 0.01,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 3,
+     "net": 0.01,
+     "tax": 0,
+     "taxes": [],
+     "total": 0.01,
+     "discount": 0.0,
+     "subtotal": 0.01,
+     "inclusive": false,
+     "taxable_net": 0.01,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 4,
+     "net": 0.01,
+     "tax": 0,
+     "taxes": [],
+     "total": 0.01,
+     "discount": 0.0,
+     "subtotal": 0.01,
+     "inclusive": false,
+     "taxable_net": 0.01,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 5,
+     "net": 0.01,
+     "tax": 0,
+     "taxes": [],
+     "total": 0.01,
+     "discount": 0.0,
+     "subtotal": 0.01,
+     "inclusive": false,
+     "taxable_net": 0.01,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 6,
+     "net": 9.92,
+     "tax": 0,
+     "taxes": [],
+     "total": 9.92,
+     "discount": 0.07,
+     "subtotal": 9.99,
+     "inclusive": false,
+     "taxable_net": 9.92,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 7,
+     "net": 0.01,
+     "tax": 0,
+     "taxes": [],
+     "total": 0.01,
+     "discount": 0.0,
+     "subtotal": 0.01,
+     "inclusive": false,
+     "taxable_net": 0.01,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 8,
+     "net": 0.01,
+     "tax": 0,
+     "taxes": [],
+     "total": 0.01,
+     "discount": 0.0,
+     "subtotal": 0.01,
+     "inclusive": false,
+     "taxable_net": 0.01,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 9,
+     "net": 0.01,
+     "tax": 0,
+     "taxes": [],
+     "total": 0.01,
+     "discount": 0.0,
+     "subtotal": 0.01,
+     "inclusive": false,
+     "taxable_net": 0.01,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    },
+    {
+     "key": 10,
+     "net": 0.01,
+     "tax": 0,
+     "taxes": [],
+     "total": 0.01,
+     "discount": 0.0,
+     "subtotal": 0.01,
+     "inclusive": false,
+     "taxable_net": 0.01,
+     "exempt_sales": 0.0,
+     "tax_included": 0,
+     "service_charge": 0.0,
+     "senior_discount": 0.0,
+     "tax_exempt_amount": 0.0
+    }
+   ],
+   "taxes": [],
+   "discount": 0.07,
+   "rounding": 0.0,
+   "subtotal": 410.07,
+   "net_sales": 410.0,
+   "tax_total": 0,
+   "grand_total": 410.0,
+   "before_round": 410.0,
+   "exempt_sales": 0.0,
+   "tax_included": 0,
+   "service_charge": 0.0,
+   "senior_discount": 0.0,
+   "tax_exempt_amount": 0.0,
+   "discountable_subtotal": 10.07
+  }
+ }
+]

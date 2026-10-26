@@ -19,6 +19,11 @@ export type SnapItem = {
   inclusive: boolean;
   comps: CalcComp[];
   groups: SnapGroup[];
+  /**
+   * The dish is marked "Do not allow discounts". Missing in a copy saved by an older version (read as false):
+   * the server corrects such a bill when it syncs and notes `discount_cut` on it.
+   */
+  no_discount?: boolean;
 };
 export type Snapshot = {
   taken_at: string;
@@ -49,6 +54,11 @@ export type Snapshot = {
      * delivery bills get it by default. Null when there is none; missing in a copy saved by an older version.
      */
     packing?: { product_id: string; per: string; takeaway: boolean; delivery: boolean } | null;
+    /**
+     * The loyalty add-on is on for this restaurant: an offline bill with a guest phone earns points when it syncs, and
+     * the receipt says so. Missing in a copy saved by an older version (read as off).
+     */
+    loyalty?: boolean;
   };
   receipt: {
     header: string;
@@ -80,6 +90,13 @@ export type OfflineBill = {
   guest?: { name: string; phone: string; address: string } | null;
   /** How often sending the guest details has failed after the bill itself was saved on the server. */
   guest_tries?: number;
+  /**
+   * Name and phone again as plain fields, for the server's offline sync to find or create the customer so the
+   * points are earned when the bill syncs (batch 3). Same values as `guest`; absent when none was typed or on
+   * bills queued by an older version.
+   */
+  guest_name?: string;
+  guest_phone?: string;
   /** How often the server has refused this bill itself (see offline-queue.ts), and its last reason. */
   sync_tries?: number;
   sync_error?: string;
@@ -155,10 +172,21 @@ export const writeQueue = (q: OfflineBill[]) => put(K_QUEUE, q);
 export const readStuck = () => get<OfflineBill[]>(K_STUCK) ?? [];
 export const writeStuck = (q: OfflineBill[]) => put(K_STUCK, q);
 
+/**
+ * The part of the bill a discount may come from: lines of dishes marked "Do not allow discounts" are left out.
+ * Used for the percent box and the note under it; calcBill applies the same rule.
+ */
+export function discountPool(snap: Snapshot | null, lines: { product_id: string; qty: number; unit_price: number }[]): number {
+  const byId = new Map((snap?.menu ?? []).map((m) => [m.id, m]));
+  let cents = 0;
+  for (const l of lines) if (!byId.get(l.product_id)?.no_discount) cents += Math.floor(l.unit_price * l.qty * 100 + 0.5 + 1e-9); // as calc-bill's r2 (prices are never negative)
+  return cents / 100;
+}
+
 /** Works out the bill exactly as the server does. */
 export function offlineQuote(
   snap: Snapshot,
-  lines: { product_id: string; qty: number; unit_price: number }[],
+  lines: { product_id: string; qty: number; unit_price: number; no_discount?: boolean }[],
   discount: number,
   serviceCharge: boolean | null,
 ) {
@@ -167,7 +195,8 @@ export function offlineQuote(
   return calcBill({
     lines: lines.map((l, i) => {
       const m = byId.get(l.product_id);
-      return { key: i + 1, price: l.unit_price, qty: l.qty, inclusive: m?.inclusive ?? false, comps: m?.comps ?? [] };
+      const noDisc = l.no_discount ?? m?.no_discount ?? false;
+      return { key: i + 1, price: l.unit_price, qty: l.qty, inclusive: m?.inclusive ?? false, comps: m?.comps ?? [], ...(noDisc ? { no_disc: true } : {}) };
     }),
     discount,
     sc_percent: scOn ? snap.settings.sc_percent : 0,

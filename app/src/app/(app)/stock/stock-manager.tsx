@@ -4,19 +4,55 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { money } from "@/lib/format";
-import { recordStock, saveIngredient, saveRecipe, type StockResult } from "./actions";
+import { fmtQty, foodCostTone, isAttention, parseQty, recipeCost, STATUS_LABEL, STATUS_RANK, stockStatus, STOCK_UNITS, UNIT_HINT, unitMismatchWarning, type StockStatus } from "@/lib/stock";
+import { saveIngredient, saveRecipe, type StockResult } from "./actions";
+import { StockIn } from "./stock-in";
+import { WastageForm, type RecentAdjust } from "./wastage-form";
 
 export type Level = { id: string; name: string; unit: string; cost: number; reorder: number; stock: number; used: number; wasted: number; bought: number; count_diff: number; category: string | null };
 export type FoodCost = { product: string; price: number; cost: number; cost_pct: number | null };
 type Product = { id: string; name: string; price: number };
 type RecipeRow = { product_id: string; ingredient_id: string; qty: number };
 
-const UNITS = ["kg", "g", "l", "ml", "pcs", "pack"];
-const n2 = (x: number) => (Math.round(Number(x) * 1000) / 1000).toString();
+const UNITS = STOCK_UNITS;
+const n2 = fmtQty;
+const STATUS_STYLE: Record<StockStatus, { bg: string; fg: string }> = {
+  ok: { bg: "var(--color-ok-soft)", fg: "var(--color-ok)" },
+  low: { bg: "var(--color-warn-soft)", fg: "var(--color-warn)" },
+  out: { bg: "var(--color-bad-soft)", fg: "var(--color-bad)" },
+  negative: { bg: "var(--color-bad-soft)", fg: "var(--color-bad)" },
+};
+type Tab = "levels" | "in" | "wastage" | "recipes" | "cost";
 
-export function StockManager({ currency, levels, foodCost, products, recipes }: { currency: string; levels: Level[]; foodCost: FoodCost[]; products: Product[]; recipes: RecipeRow[] }) {
+export function StockManager({
+  currency,
+  timezone,
+  levels,
+  foodCost,
+  products,
+  recipes,
+  recent,
+  canManage,
+  canAdjust,
+  initialFilter,
+}: {
+  currency: string;
+  timezone: string;
+  levels: Level[];
+  foodCost: FoodCost[];
+  products: Product[];
+  recipes: RecipeRow[];
+  recent: RecentAdjust[];
+  canManage: boolean;
+  canAdjust: boolean;
+  initialFilter?: "low";
+}) {
   const router = useRouter();
-  const [tab, setTab] = useState<"levels" | "recipes" | "cost">("levels");
+  const [tab, setTab] = useState<Tab>("levels");
+  const [lowOnly, setLowOnly] = useState(initialFilter === "low");
+  const [search, setSearch] = useState("");
+  // Ingredient chosen with the row buttons, carried to the Stock in / Wastage tab.
+  const [preset, setPreset] = useState<string>("");
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const m = (x: number) => money(Number(x), currency);
@@ -33,20 +69,29 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
     });
   }
 
-  // Stock action on one ingredient.
-  const [act, setAct] = useState<{ id: string; kind: "purchase" | "wastage" | "count" } | null>(null);
-  const [qty, setQty] = useState("");
-  const [cost, setCost] = useState("");
-  const [note, setNote] = useState("");
   // New / edit ingredient.
   const [edit, setEdit] = useState<{ id: string | null; name: string; unit: string; cost: string; reorder: string; category: string } | null>(null);
   // Recipe editor.
   const [recipeFor, setRecipeFor] = useState<string>("");
   const [recipeRows, setRecipeRows] = useState<{ ingredient_id: string; qty: string }[]>([]);
 
-  const low = levels.filter((l) => Number(l.stock) <= Number(l.reorder) && Number(l.reorder) > 0);
+  const withStatus = levels.map((l) => ({ l, status: stockStatus(Number(l.stock), Number(l.reorder)) }));
+  const low = withStatus.filter((x) => isAttention(x.status)).map((x) => x.l);
+  const needle = search.trim().toLowerCase();
+  const shown = withStatus
+    .filter((x) => (!lowOnly || isAttention(x.status)) && (!needle || x.l.name.toLowerCase().includes(needle) || (x.l.category ?? "").toLowerCase().includes(needle)))
+    .sort((a, b) => (lowOnly ? STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.l.name.localeCompare(b.l.name) : 0));
   // Groups already in use, offered as suggestions when typing a group.
   const groups = Array.from(new Set(levels.map((l) => (l.category ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+  const ingCosts = levels.map((l) => ({ id: l.id, cost: Number(l.cost) }));
+  function dishCost(p: Product): string {
+    const { pct } = recipeCost(recipes.filter((r) => r.product_id === p.id).map((r) => ({ ingredient_id: r.ingredient_id, qty: String(r.qty) })), ingCosts, p.price);
+    return pct == null ? "" : `(${pct}%)`;
+  }
+  const recipeDish = products.find((p) => p.id === recipeFor);
+  const liveCost = recipeDish ? recipeCost(recipeRows, ingCosts, recipeDish.price) : null;
+  const liveTone = liveCost ? foodCostTone(liveCost.pct) : "none";
 
   function openRecipe(pid: string) {
     setRecipeFor(pid);
@@ -55,14 +100,18 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1.5">
+      <div className="flex flex-wrap gap-1.5">
         {(
           [
-            ["levels", "Stock levels"],
-            ["recipes", "Recipes"],
-            ["cost", "Food cost"],
+            ["levels", "Stock", true],
+            ["in", "Stock in", canManage],
+            ["wastage", "Wastage / adjust", canAdjust],
+            ["recipes", "Recipes", canManage],
+            ["cost", "Food cost", true],
           ] as const
-        ).map(([k, label]) => (
+        )
+          .filter(([, , show]) => show)
+          .map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -85,106 +134,117 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
           {low.length > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm" style={{ background: "var(--color-warn-soft)" }}>
               <div className="min-w-0">
-                <b style={{ color: "var(--color-warn)" }}>Running low:</b> {low.map((l) => `${l.name} (${n2(l.stock)} ${l.unit})`).join(", ")}
+                <b style={{ color: "var(--color-warn)" }}>Needs attention:</b> {low.map((l) => `${l.name} (${n2(l.stock)} ${l.unit})`).join(", ")}
               </div>
-              <Link href="/purchases?tab=orders&low=1" className="btn btn-primary h-10 min-h-0 shrink-0 px-4 text-sm">
-                Order low stock
-              </Link>
+              {canManage && (
+                <Link href="/purchases?tab=orders&low=1" className="btn btn-primary h-10 min-h-0 shrink-0 px-4 text-sm">
+                  Order low stock
+                </Link>
+              )}
             </div>
           )}
+          <div className="flex flex-wrap items-center gap-2">
+            <input className="field h-10 min-w-0 flex-1 text-sm" style={{ minWidth: 160 }} placeholder="Search ingredient or group" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search" />
+            <label className="flex items-center gap-2 text-sm font-semibold">
+              <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} /> Low only
+            </label>
+            {canAdjust && (
+              <Link href="/stock/count" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }}>
+                Count stock
+              </Link>
+            )}
+          </div>
           <div className="card overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ color: "var(--color-ink-3)" }}>
                   <th className="px-3 py-2 text-left text-xs font-semibold">Ingredient</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold">In stock</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold">Status</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold">Used (7 days)</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold">Wasted</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold">Cost / unit</th>
-                  <th className="px-3 py-2" />
+                  {(canManage || canAdjust) && <th className="px-3 py-2" />}
                 </tr>
               </thead>
               <tbody>
-                {levels.length === 0 && (
+                {shown.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-3 py-6 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
-                      No ingredients yet. Add one below.
+                    <td colSpan={7} className="px-3 py-6 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
+                      {levels.length === 0 ? (canManage ? "No ingredients yet. Add one below." : "No ingredients yet.") : lowOnly ? "Nothing is low. Good." : "Nothing matches the search."}
                     </td>
                   </tr>
                 )}
-                {levels.map((l) => {
-                  const isLow = Number(l.reorder) > 0 && Number(l.stock) <= Number(l.reorder);
+                {shown.map(({ l, status }) => {
+                  const st = STATUS_STYLE[status];
                   return (
                     <tr key={l.id} style={{ borderTop: "1px solid var(--color-line)" }}>
                       <td className="px-3 py-2">
-                        <button className="text-left font-semibold" onClick={() => setEdit({ id: l.id, name: l.name, unit: l.unit, cost: String(l.cost), reorder: String(l.reorder), category: l.category ?? "" })}>
-                          {l.name}
-                        </button>
+                        {canManage ? (
+                          <button className="text-left font-semibold" onClick={() => setEdit({ id: l.id, name: l.name, unit: l.unit, cost: String(l.cost), reorder: String(l.reorder), category: l.category ?? "" })}>
+                            {l.name}
+                          </button>
+                        ) : (
+                          <span className="font-semibold">{l.name}</span>
+                        )}
                         {l.category && (
                           <span className="ml-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "var(--color-ground)", color: "var(--color-ink-3)" }}>
                             {l.category}
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums" style={{ color: isLow ? "var(--color-bad)" : undefined, fontWeight: isLow ? 700 : 400 }}>
+                      <td className="px-3 py-2 text-right tabular-nums" style={{ color: status === "ok" ? undefined : st.fg, fontWeight: status === "ok" ? 400 : 700 }}>
                         {n2(l.stock)} {l.unit}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: st.bg, color: st.fg }}>
+                          {STATUS_LABEL[status]}
+                        </span>
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">{n2(l.used)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{n2(l.wasted)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{m(l.cost)}</td>
-                      <td className="px-3 py-2 text-right">
-                        <div className="flex justify-end gap-1">
-                          {(["purchase", "wastage", "count"] as const).map((k) => (
-                            <button
-                              key={k}
-                              className="rounded-md border px-2 py-1 text-[11px] font-semibold"
-                              style={{ borderColor: act?.id === l.id && act.kind === k ? "var(--color-brand)" : "var(--color-line)" }}
-                              onClick={() => {
-                                setAct({ id: l.id, kind: k });
-                                setQty("");
-                                setCost("");
-                                setNote("");
-                              }}
-                            >
-                              {k === "purchase" ? "+ Bought" : k === "wastage" ? "Wasted" : "Count"}
-                            </button>
-                          ))}
-                        </div>
-                      </td>
+                      {(canManage || canAdjust) && (
+                        <td className="px-3 py-2 text-right">
+                          <div className="flex justify-end gap-1">
+                            {canManage && (
+                              <button
+                                className="rounded-md border px-2 py-1 text-[11px] font-semibold"
+                                style={{ borderColor: "var(--color-line)" }}
+                                onClick={() => {
+                                  setPreset(l.id);
+                                  setTab("in");
+                                }}
+                              >
+                                + Bought
+                              </button>
+                            )}
+                            {canAdjust && (
+                              <button
+                                className="rounded-md border px-2 py-1 text-[11px] font-semibold"
+                                style={{ borderColor: "var(--color-line)" }}
+                                onClick={() => {
+                                  setPreset(l.id);
+                                  setTab("wastage");
+                                }}
+                              >
+                                Wasted
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+          <p className="text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+            Stock can go below zero when food is billed before it is recorded: the bill is never blocked, the number turns red. {UNIT_HINT}
+          </p>
 
-          {act && (
-            <section className="card p-4">
-              <h2 className="text-sm font-bold">
-                {act.kind === "purchase" ? "Record a purchase" : act.kind === "wastage" ? "Record wastage" : "Record a stock count"} —{" "}
-                {levels.find((l) => l.id === act.id)?.name}
-              </h2>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <input className="field h-10 text-sm" inputMode="decimal" placeholder={act.kind === "count" ? "Quantity you counted" : "Quantity"} value={qty} onChange={(e) => setQty(e.target.value)} />
-                {act.kind === "purchase" && <input className="field h-10 text-sm" inputMode="decimal" placeholder="Price per unit (optional)" value={cost} onChange={(e) => setCost(e.target.value)} />}
-                <input className="field h-10 text-sm" placeholder="Note (supplier, reason…)" value={note} onChange={(e) => setNote(e.target.value)} />
-              </div>
-              <div className="mt-3 flex gap-2">
-                <button className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setAct(null)}>
-                  Cancel
-                </button>
-                <button
-                  className="btn btn-primary px-4 text-sm"
-                  disabled={pending || qty === "" || !(Number(qty) >= 0)}
-                  onClick={() => run(() => recordStock({ ingredientId: act.id, kind: act.kind, qty: Number(qty), unitCost: cost === "" ? null : Number(cost), note }), () => setAct(null))}
-                >
-                  {pending ? "Saving…" : "Save"}
-                </button>
-              </div>
-            </section>
-          )}
-
-          {edit ? (
+          {!canManage ? null : edit ? (
             <section className="card p-4">
               <h2 className="text-sm font-bold">{edit.id ? "Edit ingredient" : "New ingredient"}</h2>
               <div className="mt-3 grid gap-2 sm:grid-cols-4">
@@ -232,17 +292,23 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
         </>
       )}
 
-      {tab === "recipes" && (
+      {tab === "in" && canManage && <StockIn currency={currency} ingredients={levels.map((l) => ({ id: l.id, name: l.name, unit: l.unit, cost: Number(l.cost), reorder: Number(l.reorder), stock: Number(l.stock), category: l.category }))} presetIngredient={preset || undefined} />}
+
+      {tab === "wastage" && canAdjust && (
+        <WastageForm currency={currency} timezone={timezone} ingredients={levels.map((l) => ({ id: l.id, name: l.name, unit: l.unit, cost: Number(l.cost), reorder: Number(l.reorder), stock: Number(l.stock), category: l.category }))} recent={recent} presetIngredient={preset || undefined} />
+      )}
+
+      {tab === "recipes" && canManage && (
         <section className="card p-4">
           <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
-            For each dish, say how much of each ingredient one portion uses. Dishes without a recipe do not change stock.
+            For each dish, say how much of each ingredient one portion uses. Dishes without a recipe do not change stock. {UNIT_HINT}
           </p>
           <select className="field mt-3 h-10 text-sm" value={recipeFor} onChange={(e) => openRecipe(e.target.value)} aria-label="Dish">
             <option value="">Choose a dish…</option>
             {products.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
-                {recipes.some((r) => r.product_id === p.id) ? " ✓" : ""}
+                {recipes.some((r) => r.product_id === p.id) ? ` ✓ ${dishCost(p)}` : ""}
               </option>
             ))}
           </select>
@@ -270,7 +336,7 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
                       className="field h-10 w-28 shrink-0 text-sm"
                       style={{ flex: "none", width: 96 }}
                       inputMode="decimal"
-                      placeholder="Qty"
+                      placeholder={`Qty (${levels.find((l) => l.id === row.ingredient_id)?.unit ?? "unit"})`}
                       value={row.qty}
                       onChange={(e) => setRecipeRows(recipeRows.map((r, j) => (j === i ? { ...r, qty: e.target.value } : r)))}
                       aria-label="Quantity per portion"
@@ -281,6 +347,30 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
                   </li>
                 ))}
               </ul>
+              {recipeRows.map((row, i) => {
+                const unit = levels.find((l) => l.id === row.ingredient_id)?.unit ?? "";
+                const w = unitMismatchWarning(unit, parseQty(row.qty));
+                return w ? (
+                  <p key={i} className="mt-2 text-xs font-semibold" style={{ color: "var(--color-warn)" }} role="note">
+                    {levels.find((l) => l.id === row.ingredient_id)?.name}: {w}
+                  </p>
+                ) : null;
+              })}
+              {liveCost && recipeDish && (
+                <p className="mt-3 text-sm">
+                  Cost of one portion at today&rsquo;s prices: <b className="tabular-nums">{m(liveCost.cost)}</b> on a price of {m(recipeDish.price)}
+                  {liveCost.pct != null && (
+                    <>
+                      {" "}
+                      = food cost{" "}
+                      <b className="tabular-nums" style={{ color: liveTone === "ok" ? "var(--color-ok)" : "var(--color-bad)" }}>
+                        {liveCost.pct}%
+                      </b>
+                    </>
+                  )}
+                  {liveTone === "absurd" && <span className="block text-xs font-semibold" style={{ color: "var(--color-bad)" }}>The cost is more than the price. Check the units (grams or kg?).</span>}
+                </p>
+              )}
               <div className="mt-3 flex flex-wrap gap-2">
                 <button className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setRecipeRows([...recipeRows, { ingredient_id: "", qty: "" }])}>
                   + Ingredient
@@ -329,7 +419,7 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
                   <td className="px-3 py-2">{f.product}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{m(f.price)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{m(f.cost)}</td>
-                  <td className="px-3 py-2 text-right font-semibold tabular-nums" style={{ color: Number(f.cost_pct) > 35 ? "var(--color-bad)" : "var(--color-ok)" }}>
+                  <td className="px-3 py-2 text-right font-semibold tabular-nums" style={{ color: foodCostTone(f.cost_pct == null ? null : Number(f.cost_pct)) === "ok" ? "var(--color-ok)" : "var(--color-bad)" }}>
                     {f.cost_pct == null ? "—" : `${f.cost_pct}%`}
                   </td>
                 </tr>
@@ -337,7 +427,7 @@ export function StockManager({ currency, levels, foodCost, products, recipes }: 
             </tbody>
           </table>
           <p className="px-3 py-2 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-            Most restaurants aim for 25–35%. Costs use the latest purchase prices.
+            Most restaurants aim for 25–35%. Costs use today&rsquo;s average ingredient price. Over 100% usually means a unit mix-up (grams against kg).
           </p>
         </div>
       )}

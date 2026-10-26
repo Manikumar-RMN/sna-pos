@@ -211,6 +211,17 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   "user.access_copied": "Staff access copied",
   "tax.rate_scheduled": "Tax rate change scheduled",
   "tax.rate_schedule_cancelled": "Scheduled tax change cancelled",
+  "stock.in": "Stock received",
+  "stock.wastage": "Wastage recorded",
+  "stock.adjust": "Stock adjusted",
+  "stock.count": "Stock count applied",
+  "menu.discount_flag": "Item discount setting changed",
+  "menu.prep_time": "Item prep time changed",
+  "loyalty.redeem_discount": "Loyalty points used as a discount",
+  "loyalty.redeem_removed": "Loyalty discount removed",
+  "customer.updated": "Customer details changed",
+  "customer.forgotten": "Customer erased",
+  "customer.export": "Customer list exported",
 };
 export const AUDIT_ACTIONS = Object.keys(AUDIT_ACTION_LABEL);
 

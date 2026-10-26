@@ -25,14 +25,20 @@ export type ReportCtx = {
   showPicker: boolean;
 };
 
+/** Which extra right a report needs besides (or instead of) the sales-reports right. */
+export type ReportNeed = "financial" | "stock" | "customers";
+
 /**
  * Checks the permission, works out the date range (same business-day rule as the main Reports page) and which
  * outlet(s) are chosen. Every report page starts with this. When access is refused, `denied` is the page to show.
  * `need: "financial"` is for reports about discounts, voids and refunds.
+ * `need: "stock"` is for the inventory reports: the stock module and stock.view (the sales right is added only when `withSales`,
+ * as the Food cost report compares cost with sales). `need: "customers"` is for the customer reports: customer.view (plus the
+ * sales right when `withSales`; the Loyalty ledger does not need it).
  */
 export async function loadReport(
   sp: RangeParams,
-  opts: { title: string; need?: "financial" },
+  opts: { title: string; need?: ReportNeed; withSales?: boolean },
 ): Promise<{ ok: true; ctx: ReportCtx } | { ok: false; denied: ReactNode }> {
   const user = await requireUser();
   const deny = (text: string): { ok: false; denied: ReactNode } => ({
@@ -49,7 +55,15 @@ export async function loadReport(
       </div>
     ),
   });
-  if (!can(user, "report.view_sales")) return deny("Your role does not include viewing sales reports.");
+  const salesRight = opts.need === "stock" || opts.need === "customers" ? opts.withSales === true : true;
+  if (salesRight && !can(user, "report.view_sales")) return deny("Your role does not include viewing sales reports.");
+  if (opts.need === "stock") {
+    if (!has(user, "stock")) return deny("Stock reports are part of the Professional plan. Ask the owner to upgrade to use them.");
+    if (!can(user, "stock.view") && !can(user, "stock.manage")) return deny("Your role does not include seeing stock and its costs. Ask the owner if you need access.");
+  }
+  if (opts.need === "customers" && !can(user, "customer.view")) {
+    return deny("Your role does not include seeing the customer list and its reports. Ask the owner if you need access.");
+  }
   if (opts.need === "financial" && !can(user, "report.view_financial")) {
     return deny("Your role does not include viewing financial reports such as discounts, voids and refunds. Ask the owner if you need access.");
   }

@@ -62,3 +62,22 @@ describe("offline queue: one bad bill must not block the rest", () => {
     expect(retryStuck(r.queue, [bill("x")]).queue).toHaveLength(2);
   });
 });
+
+describe("offline queue: guest fields travel with the bill", () => {
+  const g = { guest: { name: "Asha", phone: "98765 43210", address: "" }, guest_name: "Asha", guest_phone: "98765 43210" };
+
+  it("a refused or guest-pending try keeps guest_name / guest_phone on the queued bill", () => {
+    const refused = applySyncOutcome([bill("a", g)], [], bill("a", g), { ok: false, refused: true, error: "x" });
+    expect(refused.queue[0].guest_phone).toBe("98765 43210");
+    expect(refused.queue[0].guest_name).toBe("Asha");
+    const pending = applySyncOutcome([bill("a", g)], [], bill("a", g), { ok: false, guestPending: true });
+    expect(pending.queue[0].guest_phone).toBe("98765 43210");
+    expect(pending.queue[0].guest_tries).toBe(1);
+  });
+
+  it("a stuck bill put back for another go still carries them", () => {
+    const back = retryStuck([], [bill("a", { ...g, sync_tries: 3 })]);
+    expect(back.queue[0].guest_phone).toBe("98765 43210");
+    expect(back.queue[0].sync_tries).toBe(0);
+  });
+});

@@ -142,6 +142,19 @@ function parseHsn(formData: FormData, countryCode: string | undefined): { value:
   return { value: raw, error: null };
 }
 
+/**
+ * Preparation time in minutes (1 to 240). Empty means "not set" (null).
+ * Not exported: a "use server" file can only export async functions.
+ */
+function parsePrepMinutes(raw: string): { value: number | null; error: string | null } {
+  const t = String(raw ?? "").trim();
+  if (t === "") return { value: null, error: null };
+  if (!/^[0-9]{1,3}$/.test(t)) return { value: null, error: "Preparation time is 1 to 240 minutes." };
+  const n = Number(t);
+  if (n < 1 || n > 240) return { value: null, error: "Preparation time is 1 to 240 minutes." };
+  return { value: n, error: null };
+}
+
 export async function createProduct(_prev: MenuState, formData: FormData): Promise<MenuState> {
   const { user, restaurantId, denied } = await requireMenuManager();
   if (denied) return { error: denied };
@@ -157,6 +170,8 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
   const soldBy = formData.get("sold_by") === "weight" ? "weight" : "unit";
   const trackBatches = formData.get("track_batches") === "on";
   const isOpenPrice = formData.get("is_open_price") === "on";
+  const discountRestricted = formData.get("discount_restricted") === "on";
+  const prep = parsePrepMinutes(String(formData.get("prep_minutes") ?? ""));
   const barcode = String(formData.get("barcode") ?? "").replace(/\s/g, "").slice(0, 20) || null;
   if (barcode && !/^[0-9A-Za-z-]{1,20}$/.test(barcode)) return { error: "The item code can have only letters, digits and -." };
 
@@ -164,6 +179,7 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
   if (!categoryId) return { error: "Choose a category." };
   if (!taxGroupId) return { error: "Choose a tax group." };
   if (price === null) return { error: "Enter a valid price." };
+  if (prep.error) return { error: prep.error };
   const hsn = parseHsn(formData, user?.country_code);
   if (hsn.error) return { error: hsn.error };
 
@@ -183,6 +199,8 @@ export async function createProduct(_prev: MenuState, formData: FormData): Promi
       sold_by: soldBy,
       track_batches: trackBatches,
       is_open_price: isOpenPrice,
+      discount_restricted: discountRestricted,
+      prep_minutes: prep.value,
       barcode,
       ...(hsn.value !== undefined ? { hsn_code: hsn.value } : {}),
     })
@@ -227,6 +245,17 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
   const soldBy = formData.get("sold_by") === "weight" ? "weight" : "unit";
   const trackBatches = formData.get("track_batches") === "on";
   const isOpenPrice = formData.get("is_open_price") === "on";
+  const discountRestricted = formData.get("discount_restricted") === "on";
+  const prep = parsePrepMinutes(String(formData.get("prep_minutes") ?? ""));
+  // Each flag is written only when the form carried its hidden marker, so a save from any other form can never clear it.
+  const sizeFlags = {
+    ...(formData.get("discount_restricted_present") === "1" ? { discount_restricted: discountRestricted } : {}),
+    ...(formData.get("prep_present") === "1" ? { prep_minutes: prep.value } : {}),
+  };
+  const flagFields = {
+    ...(formData.get("open_price_present") === "1" ? { is_open_price: isOpenPrice } : {}),
+    ...sizeFlags,
+  };
   const barcode = String(formData.get("barcode") ?? "").replace(/\s/g, "").slice(0, 20) || null;
   if (barcode && !/^[0-9A-Za-z-]{1,20}$/.test(barcode)) return { error: "The item code can have only letters, digits and -." };
 
@@ -235,6 +264,7 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
   if (!categoryId) return { error: "Choose a category." };
   if (!taxGroupId) return { error: "Choose a tax group." };
   if (price === null) return { error: "Enter a valid price." };
+  if (formData.get("prep_present") === "1" && prep.error) return { error: prep.error };
   const hsn = parseHsn(formData, user?.country_code);
   if (hsn.error) return { error: hsn.error };
 
@@ -246,8 +276,8 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
       name_local: nameLocal,
       sold_by: soldBy,
       track_batches: trackBatches,
-      // Only touch the flag when the form actually carried the checkbox, so a save can never clear it by accident.
-      ...(formData.get("open_price_present") === "1" ? { is_open_price: isOpenPrice } : {}),
+      // Open price, No discount and Prep time: only when the form carried the field (see flagFields).
+      ...flagFields,
       barcode,
       category_id: categoryId,
       tax_group_id: taxGroupId,
@@ -259,13 +289,14 @@ export async function updateProduct(_prev: MenuState, formData: FormData): Promi
     })
     .eq("id", id);
   if (error) return { error: /products_barcode_uq/.test(error.message) ? "Another dish already has that item code." : friendlyDbError(error) };
-  // The dish's sizes share its tax group, veg mark, kitchen station and HSN code.
+  // The dish's sizes share its tax group, veg mark, kitchen station, HSN code, and (when sent) No discount and Prep time.
   const { error: sizeError } = await supabase
     .from("products")
     .update({
       tax_group_id: taxGroupId,
       is_veg: isVeg,
       kitchen_station: station,
+      ...sizeFlags,
       ...(hsn.value !== undefined ? { hsn_code: hsn.value } : {}),
     })
     .eq("parent_id", id)
@@ -296,7 +327,7 @@ export async function addSize(parentId: string, sizeName: string, rawPrice: stri
   const supabase = await createClient();
   const { data: parent, error: readError } = await supabase
     .from("products")
-    .select("id, name, category_id, tax_group_id, is_veg, kitchen_station, hsn_code, parent_id")
+    .select("id, name, category_id, tax_group_id, is_veg, kitchen_station, hsn_code, parent_id, discount_restricted, prep_minutes")
     .eq("id", parentId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -310,6 +341,8 @@ export async function addSize(parentId: string, sizeName: string, rawPrice: stri
     is_veg: parent.is_veg,
     kitchen_station: parent.kitchen_station,
     hsn_code: parent.hsn_code,
+    discount_restricted: parent.discount_restricted ?? false,
+    prep_minutes: parent.prep_minutes ?? null,
     name: `${parent.name} (${name})`,
     price,
     parent_id: parent.id,

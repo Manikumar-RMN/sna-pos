@@ -12,6 +12,8 @@ export type KotSlip = {
   station: string;
   createdAt: string;
   printed: boolean;
+  /** The longest preparation time among the items, in minutes ("~12 min" on the slip); null/absent when none is set. */
+  prepMin?: number | null;
   items: { name: string; local: string | null; qty: number; note: string | null; cancelled: boolean }[];
 };
 
@@ -88,6 +90,7 @@ export function KotTicketsPrint({ slips, info }: { slips: KotSlip[]; info: KotPr
             </div>
             <div className="text-[12px]">
               {t.number} · Bill {info.billNumber}
+              {t.prepMin ? ` · ~${t.prepMin} min` : ""}
             </div>
             <div className="my-1 border-t border-dashed border-black" />
             {t.items.map((i, idx) => (

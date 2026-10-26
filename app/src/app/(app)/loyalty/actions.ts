@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyDbError } from "@/lib/db-error";
+import { validateLoyaltyRules } from "@/lib/customers";
 
 export async function sellGiftCard(value: number, methodId: string, phone: string, name: string, validDays: number) {
   const supabase = await createClient();
@@ -27,12 +28,16 @@ export async function checkGiftCard(code: string) {
   return { ok: true as const, ...d };
 }
 
-export async function saveLoyaltyRules(spendPerPoint: number, pointValue: number, minRedeem: number) {
+export async function saveLoyaltyRules(spendPerPoint: number, pointValue: number, minRedeem: number, mode: string, maxPercent: number) {
+  const v = validateLoyaltyRules({ spend: String(spendPerPoint), value: String(pointValue), min: String(minRedeem), mode, maxPercent: String(maxPercent) });
+  if (!v.ok) return { ok: false as const, error: v.error };
   const supabase = await createClient();
   const { error } = await supabase.rpc("save_loyalty_settings", {
-    p_spend_per_point: spendPerPoint,
-    p_point_value: pointValue,
-    p_min_redeem: minRedeem,
+    p_spend_per_point: v.spend,
+    p_point_value: v.value,
+    p_min_redeem: v.min,
+    p_mode: v.mode,
+    p_max_percent: v.maxPercent,
   });
   if (error) return { ok: false as const, error: friendlyDbError(error) };
   revalidatePath("/loyalty");

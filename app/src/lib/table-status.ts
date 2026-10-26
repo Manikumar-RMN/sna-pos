@@ -5,7 +5,9 @@
  * the next close reservation, and its own clock. This file turns the facts into one of five states. The thresholds live here only:
  *
  *   delayed      a bill has been open for more than 90 minutes
- *   kot_delayed  a kitchen ticket has been waiting (new or preparing) for more than 15 minutes
+ *   kot_delayed  a kitchen ticket has been waiting (new or preparing) longer than its prep time plus PREP_GRACE_MIN
+ *                (the database sends kot_due_at, migration 142); with no prep time on the ticket, or when the database
+ *                does not send kot_due_at (older function), the old fixed 15 minutes apply
  *   busy         an open bill, nothing late
  *   reserved     no open bill and a booking from 60 minutes before to 30 minutes after its time
  *   free         none of the above
@@ -14,7 +16,13 @@
  */
 
 export const OPEN_DELAYED_MIN = 90;
+/** The old fixed rule, still used when a ticket has no prep time (or the database sends no kot_due_at). */
 export const KOT_DELAYED_MIN = 15;
+/**
+ * Minutes of grace added to a dish's prep time before the kitchen counts as late.
+ * The same number lives in SQL (public.floor_status, migration 142); table-status.test.ts pins this side.
+ */
+export const PREP_GRACE_MIN = 5;
 /** A booking shows from this many minutes before its time ... */
 export const RESERVE_BEFORE_MIN = 60;
 /** ... until this many minutes after it (a late guest still holds the table). */
@@ -29,6 +37,12 @@ export type FloorRow = {
   oldest_open_at: string | null;
   kot_waiting: number;
   oldest_kot_at: string | null;
+  /** When the first-due waiting ticket becomes late (migration 142). Absent or null: use the fixed 15 minute rule. */
+  kot_due_at?: string | null;
+  /** The longest prep time (minutes) on that ticket; null when no item has one. */
+  kot_prep_min?: number | null;
+  /** When that same ticket started waiting. */
+  kot_ticket_at?: string | null;
   reservation_id: string | null;
   reservation_at: string | null;
   reservation_name: string | null;
@@ -70,7 +84,7 @@ export const STATE_HELP: Record<TableState, string> = {
   free: "No open bill",
   busy: "Has an open bill",
   delayed: `Bill open more than ${OPEN_DELAYED_MIN} min`,
-  kot_delayed: `Kitchen ticket waiting more than ${KOT_DELAYED_MIN} min`,
+  kot_delayed: `Kitchen ticket waiting longer than its prep time (${KOT_DELAYED_MIN} min if not set)`,
   reserved: "Booked, guests expected",
 };
 
@@ -105,7 +119,11 @@ export function classifyTable(row: FloorRow, elapsedMs = 0): TableStatus {
   const dbNow = ms(row.db_now);
   const now = (dbNow ?? Date.now()) + Math.max(0, elapsedMs);
   const openSince = ms(row.oldest_open_at);
-  const kotSince = ms(row.oldest_kot_at);
+  const dueAt = ms(row.kot_due_at ?? null);
+  // With a due time the figures describe the ticket that is due first; without it, the oldest waiting ticket.
+  const kotSince = dueAt !== null ? (ms(row.kot_ticket_at ?? null) ?? ms(row.oldest_kot_at)) : ms(row.oldest_kot_at);
+  const prepRaw = row.kot_prep_min == null ? NaN : Number(row.kot_prep_min);
+  const kotPrep = dueAt !== null && Number.isFinite(prepRaw) && prepRaw > 0 ? Math.floor(prepRaw) : null;
   const resAt = ms(row.reservation_at);
   const openBills = Math.max(0, Math.floor(Number(row.open_bills) || 0));
   const kotWaiting = Math.max(0, Math.floor(Number(row.kot_waiting) || 0));
@@ -119,14 +137,14 @@ export function classifyTable(row: FloorRow, elapsedMs = 0): TableStatus {
   let state: TableState;
   if (openBills > 0) {
     if (openMinutes > OPEN_DELAYED_MIN) state = "delayed";
-    else if (kotWaiting > 0 && kotMinutes > KOT_DELAYED_MIN) state = "kot_delayed";
+    else if (kotWaiting > 0 && (dueAt !== null ? now > dueAt : kotMinutes > KOT_DELAYED_MIN)) state = "kot_delayed";
     else state = "busy";
   } else if (inWindow) state = "reserved";
   else state = "free";
 
   let note = "";
   if (state === "delayed") note = `${openMinutes} min open`;
-  else if (state === "kot_delayed") note = `KOT ${kotMinutes} min`;
+  else if (state === "kot_delayed") note = kotPrep !== null ? `KOT ${kotMinutes} min, prep ${kotPrep}` : `KOT ${kotMinutes} min`;
   else if (state === "busy") note = `${openMinutes} min`;
   else if (state === "reserved") {
     const when = reservationInMinutes ?? 0;
@@ -178,6 +196,9 @@ export function parseFloorRows(data: unknown): FloorRow[] {
       oldest_open_at: str(r.oldest_open_at),
       kot_waiting: num(r.kot_waiting),
       oldest_kot_at: str(r.oldest_kot_at),
+      kot_due_at: str(r.kot_due_at),
+      kot_prep_min: r.kot_prep_min == null ? null : num(r.kot_prep_min),
+      kot_ticket_at: str(r.kot_ticket_at),
       reservation_id: str(r.reservation_id),
       reservation_at: str(r.reservation_at),
       reservation_name: str(r.reservation_name),

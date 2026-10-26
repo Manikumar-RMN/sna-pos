@@ -11,6 +11,7 @@
  */
 import type { ReceiptData } from "@/app/(app)/pos/receipt-view";
 import { billFormat } from "@/lib/bill-format";
+import { loyaltyLines } from "@/lib/receipt-loyalty";
 import { money, orderTypeLabel } from "@/lib/format";
 import type { OfflineBill, Snapshot } from "@/lib/offline";
 
@@ -205,6 +206,7 @@ export function billLines(data: ReceiptData): { lines: Line[]; width: number } {
   const allAdded = data.taxIncluded === 0;
   row("Subtotal", m(data.subtotal));
   if (data.discount > 0) row(data.comp ? (data.comp.kind === "complimentary" ? "Complimentary" : "Staff meal") : "Discount", `-${m(data.discount)}`);
+  if ((data.loyaltyDiscount ?? 0) > 0) row("Loyalty points discount", `-${m(data.loyaltyDiscount ?? 0)}`);
   if (data.vatRemoved > 0) row("Less: VAT (exempt)", `-${m(data.vatRemoved)}`);
   if (data.seniorDiscount > 0) row(`Less: ${data.senior?.kind === "pwd" ? "PWD" : "Senior"} 20%`, `-${m(data.seniorDiscount)}`);
   if (data.serviceCharge > 0) row(data.serviceChargeLabel, m(data.serviceCharge));
@@ -227,6 +229,12 @@ export function billLines(data: ReceiptData): { lines: Line[]; width: number } {
     }
     if (data.state === "part-paid") row("Balance to pay", m(data.balance));
     if (data.refunded > 0) row("Refunded", `-${m(data.refunded)}`);
+  }
+
+  const pts = loyaltyLines(data.loyalty);
+  if (pts.length > 0) {
+    L.push({ rule: true });
+    for (const x of pts) row(x.label, x.value);
   }
 
   if (data.showVatBreakdown) {
@@ -271,6 +279,8 @@ export type KotTicket = {
   where: string;
   token: number | null;
   bill: string;
+  /** Longest preparation time among the items, in minutes; printed as "~12 min" when set. */
+  prepMin?: number | null;
   items: { name: string; qty: number; note: string | null; cancelled: boolean }[];
 };
 
@@ -283,7 +293,7 @@ export function kotLines(tickets: KotTicket[], opts: { paper?: string; timezone:
     if (t.token != null) L.push({ text: `TOKEN ${t.token}`, align: "center", big: true });
     const time = new Date(t.createdAt).toLocaleTimeString("en-IN", { timeZone: opts.timezone, hour: "2-digit", minute: "2-digit" });
     L.push({ text: lr(t.where, time, W), bold: true });
-    L.push({ text: `${t.number} - Bill ${t.bill}` });
+    L.push({ text: `${t.number} - Bill ${t.bill}${t.prepMin ? ` - ~${t.prepMin} min` : ""}` });
     L.push({ rule: true });
     for (const i of t.items) {
       const line = `${i.qty} x ${plain(i.name) || "Item"}${i.cancelled ? " - CANCELLED" : ""}`;
@@ -319,6 +329,7 @@ export function offlineBillLines(bill: OfflineBill, snap: Snapshot): { lines: Li
   });
   if (f.guest && bill.guest && (bill.guest.name || bill.guest.phone)) L.push({ text: `Guest: ${[bill.guest.name, bill.guest.phone].filter(Boolean).join(" - ")}` });
   if (f.guest && bill.guest?.address) L.push({ text: `Deliver to: ${bill.guest.address}` });
+  if (snap.settings.loyalty && bill.guest?.phone) L.push({ text: "Points will be added after sync" });
   L.push({ rule: true });
   bill.items.forEach((it, i) => {
     const amt = (c.lines[i]?.subtotal ?? it.price * it.qty).toFixed(2);

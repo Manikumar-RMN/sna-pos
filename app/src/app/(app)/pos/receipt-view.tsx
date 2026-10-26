@@ -9,6 +9,7 @@ import { billFormat, billTextPx, paperWidth, type BillFormat } from "@/lib/bill-
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { logPrint } from "../bills/log-print";
+import { loyaltyLines, type ReceiptLoyalty } from "@/lib/receipt-loyalty";
 import { dropPrint, markAppPrint, recordDeclaredPrint, useBrowserPrint } from "@/lib/print-log";
 
 export type ReceiptData = {
@@ -72,6 +73,16 @@ export type ReceiptData = {
   guest?: { name: string | null; phone: string | null; address: string | null } | null;
   /** Token number for the day (takeaway counters), if the outlet uses tokens. */
   token?: number | null;
+  /**
+   * Loyalty points used as a discount before tax (the guest's points paid part of the bill). Shown as its own
+   * "Loyalty points discount" line; `discount` above stays the ordinary (manual) part. Absent or 0 = no line.
+   */
+  loyaltyDiscount?: number;
+  /**
+   * Points for this guest: earned and used on THIS bill, and the balance after it. Supplied by the bill screen
+   * (absent when the loyalty add-on is off or no guest is on the bill). Printed as a small block under the payments.
+   */
+  loyalty?: ReceiptLoyalty | null;
 };
 
 export function ReceiptView({
@@ -384,6 +395,7 @@ export function ReceiptView({
           {data.discount > 0 && (
             <Row label={data.comp ? (data.comp.kind === "complimentary" ? "Complimentary" : "Staff meal") : "Discount"} value={`-${m(data.discount)}`} />
           )}
+          {(data.loyaltyDiscount ?? 0) > 0 && <Row label="Loyalty points discount" value={`-${m(data.loyaltyDiscount ?? 0)}`} />}
           {data.vatRemoved > 0 && <Row label="Less: VAT (exempt)" value={`-${m(data.vatRemoved)}`} />}
           {data.seniorDiscount > 0 && (
             <Row label={`Less: ${data.senior?.kind === "pwd" ? "PWD" : "Senior"} 20%`} value={`-${m(data.seniorDiscount)}`} />
@@ -428,6 +440,17 @@ export function ReceiptView({
               ))}
               {data.state === "part-paid" && <Row label="Balance to pay" value={m(data.balance)} />}
               {data.refunded > 0 && <Row label="Refunded" value={`-${m(data.refunded)}`} />}
+            </div>
+          </>
+        )}
+
+        {loyaltyLines(data.loyalty).length > 0 && (
+          <>
+            <Rule />
+            <div className="space-y-0.5 text-[1em]">
+              {loyaltyLines(data.loyalty).map((x) => (
+                <Row key={x.label} label={x.label} value={x.value} />
+              ))}
             </div>
           </>
         )}

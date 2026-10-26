@@ -8,6 +8,7 @@ import type { Json } from "@/lib/supabase/database.types";
 import { SCREEN_COOKIE, parseScreenMode } from "@/lib/order-desk";
 
 import { friendlyDbError } from "@/lib/db-error";
+import { parseWarnings, type StockWarning } from "./stock-warning";
 export type Senior = { kind: "senior" | "pwd"; count: number; diners: number; name: string; id_no: string };
 
 export type CartItem = {
@@ -47,7 +48,12 @@ export type PlaceOrderInput = CartInput & {
 
 export type Quote = {
   subtotal: number;
+  /** The manual discount that was applied (cut to what the dishes allow). */
   discount: number;
+  /** Loyalty points used as a discount (0 or missing: none). Only bills that already exist carry one. */
+  loyalty_discount?: number;
+  /** The part of the subtotal a discount may come from: dishes marked "Do not allow discounts" are left out. Missing from an older server. */
+  discountable_subtotal?: number;
   senior_discount: number;
   tax_exempt_amount: number;
   service_charge: number;
@@ -100,6 +106,23 @@ export async function quoteOrder(input: CartInput): Promise<{ ok: true; quote: Q
   const { data, error } = await supabase.rpc("quote_order", cartArgs(input));
   if (error) return { ok: false, error: friendlyDbError(error) };
   return { ok: true, quote: data as unknown as Quote };
+}
+
+/**
+ * Will this order run an ingredient short? Only warns, never blocks. Online only; returns nothing when the stock module is off.
+ * The database function returns names and quantities, never costs, so any cashier may call it.
+ */
+export async function stockWarnings(items: { product_id: string; qty: number; options?: string[] }[]): Promise<{ ok: true; warnings: StockWarning[] } | { ok: false }> {
+  if (!items.length) return { ok: true, warnings: [] };
+  const user = await getCurrentUser();
+  if (!user || !can(user, "order.create")) return { ok: false };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("stock_warnings", {
+    p_items: items.map((i) => ({ product_id: i.product_id, qty: i.qty, options: i.options ?? [] })) as unknown as Json,
+  });
+  // A courtesy check: any failure just means no strip.
+  if (error) return { ok: false };
+  return { ok: true, warnings: parseWarnings(data) };
 }
 
 /**

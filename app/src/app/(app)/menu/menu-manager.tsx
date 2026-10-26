@@ -63,6 +63,10 @@ type Product = {
   track_batches?: boolean;
   /** Open price: the price is typed at the till each time it is sold (needs the "Enter an open price" right). */
   is_open_price?: boolean;
+  /** No discount: this dish never gets a share of a bill discount or loyalty points discount. */
+  discount_restricted?: boolean;
+  /** Preparation time in minutes (1 to 240); drives the kitchen-waiting colour. Empty = not set. */
+  prep_minutes?: number | null;
 };
 type TaxGroup = { id: string; name: string; rate?: number | null };
 /** "VAT" becomes "VAT (22%)"; a name that already shows its percentage ("Food 5%") is left alone. */
@@ -481,6 +485,12 @@ function ProductRow({
         )}
       </div>
       <div className="tabular-nums text-sm font-semibold">
+        {product.discount_restricted && (
+          <span className="mr-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--color-surface-2, #f3f4f6)", color: "var(--color-ink-2, inherit)" }}>No discount</span>
+        )}
+        {product.prep_minutes ? (
+          <span className="mr-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--color-surface-2, #f3f4f6)", color: "var(--color-ink-2, inherit)" }}>{product.prep_minutes} min</span>
+        ) : null}
         {product.is_open_price && sizes.length === 0 ? <span className="text-xs font-semibold" style={{ color: "var(--color-brand)" }}>Open price</span> : sizes.length > 0 ? `from ${money(currency, Math.min(...sizes.map((z) => z.price)))}` : money(currency, product.price)}
         {product.sold_by === "weight" && <span className="text-xs font-normal"> /kg</span>}
       </div>
@@ -889,6 +899,39 @@ function ProductModal({
             </span>
           </span>
         </label>
+
+        <label className="mb-3 flex items-start gap-2 text-sm">
+          <input type="hidden" name="discount_restricted_present" value="1" />
+          <input type="checkbox" name="discount_restricted" defaultChecked={!!product?.discount_restricted} className="mt-0.5 h-4 w-4" />
+          <span>
+            <b>Do not allow discounts on this item</b>
+            <span className="block text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+              A bill discount (or loyalty points used as a discount) never reduces this item&apos;s price. Tax is worked out on the full price.
+              No one can override this at the till; untick it here to allow discounts again. Sizes follow the dish.
+            </span>
+          </span>
+        </label>
+
+        <div className="mb-3">
+          <input type="hidden" name="prep_present" value="1" />
+          <label className="mb-1 block text-sm font-semibold" htmlFor="prep_minutes">Preparation time (minutes)</label>
+          <input
+            id="prep_minutes"
+            name="prep_minutes"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={240}
+            step={1}
+            defaultValue={product?.prep_minutes ?? ""}
+            className="field w-32"
+            placeholder="Not set"
+          />
+          <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+            How long the kitchen needs. A table turns amber when its kitchen ticket waits longer than this plus 5 minutes (15 minutes if
+            not set). Leave empty if not needed. It never changes the bill.
+          </p>
+        </div>
 
         <label className="mb-4 flex items-start gap-2 text-sm">
           <input type="checkbox" name="is_combo" defaultChecked={!!product?.is_combo} className="mt-0.5 h-4 w-4" />

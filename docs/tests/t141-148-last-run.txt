@@ -1,0 +1,230 @@
+== replaying migrations 001..140
+   failures: 0
+== t141-148-pre.sql (fixtures and results before 141)
+             ?column?             
+----------------------------------
+ pre done: golden 14, customers 1
+(1 row)
+
+== applying 141..148
+   NOTE: no 143_*.sql yet - the test-only stand-in (stock rights + stock-count tables) is applied before 148
+   141_billing_core_discount_block.sql run 1 ok
+   141_billing_core_discount_block.sql run 2 ok
+   142_floor_status_prep.sql run 1 ok
+   142_floor_status_prep.sql run 2 ok
+   145_customers_loyalty.sql run 1 ok
+   145_customers_loyalty.sql run 2 ok
+   146_customer_reports.sql run 1 ok
+   146_customer_reports.sql run 2 ok
+   147_offline_sync_customer_and_block.sql run 1 ok
+   147_offline_sync_customer_and_block.sql run 2 ok
+   stand-in 143 applied
+   148_erase_groups_and_grants.sql run 1 ok
+   148_erase_groups_and_grants.sql run 2 ok
+== t141-148.sql
+ result |                                                                                     label                                                                                     | detail 
+--------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------
+ PASS   | 1.1 golden c1 identical before/after 141..148 (byte-for-byte jsonb)                                                                                                           | 
+ PASS   | 1.2 golden c1b identical before/after 141..148 (byte-for-byte jsonb)                                                                                                          | 
+ PASS   | 1.3 golden c1c identical before/after 141..148 (byte-for-byte jsonb)                                                                                                          | 
+ PASS   | 1.4 golden c2 identical before/after 141..148 (byte-for-byte jsonb)                                                                                                           | 
+ PASS   | 1.5 golden c3 identical before/after 141..148 (byte-for-byte jsonb)                                                                                                           | 
+ PASS   | 1.6 golden comp identical before/after 141..148 (byte-for-byte jsonb)                                                                                                         | 
+ PASS   | 1.7 golden p1 identical before/after 141..148 (byte-for-byte jsonb)                                                                                                           | 
+ PASS   | 1.8 golden p2 identical before/after 141..148 (byte-for-byte jsonb)                                                                                                           | 
+ PASS   | 1.9 golden q1 identical before/after 141..148 (byte-for-byte jsonb)                                                                                                           | 
+ PASS   | 1.10 golden q2 identical before/after 141..148 (byte-for-byte jsonb)                                                                                                          | 
+ PASS   | 1.11 golden q3 identical before/after 141..148 (byte-for-byte jsonb)                                                                                                          | 
+ PASS   | 1.12 golden q4 identical before/after 141..148 (byte-for-byte jsonb)                                                                                                          | 
+ PASS   | 1.13 golden q5 identical before/after 141..148 (byte-for-byte jsonb)                                                                                                          | 
+ PASS   | 1.14 golden q6 identical before/after 141..148 (byte-for-byte jsonb)                                                                                                          | 
+ PASS   | 1.0 golden: 14 scenarios compared                                                                                                                                             | 
+ PASS   | 1.20 random bills: new calc_bill = old calc_bill for 3000 bills (0 of them are refusals, both sides refuse alike)                                                             | 
+ PASS   | 1.21 random bills with restricted lines and points (2000): restricted lines get 0, every other line equals the old function on the discountable lines, totals cap at the pool | 
+ PASS   | 2.1 quote: restricted A 100 + B 100, 18% exclusive, discount 20 -> A tax 18.00, B base 80 tax 14.40, total 212.40 (the plan says 232.40: 100+80+32.40 is 212.40)              | 
+ PASS   | 2.2 quote: per-line totals (restricted 118.00, other 94.40)                                                                                                                   | 
+ PASS   | 2.3 a quote with no restricted lines has no new keys                                                                                                                          | 
+ PASS   | 2.4 create_order: same numbers as the quote; pizza keeps full tax, pasta carries the discount; order_discounts = one fixed_amount of 20                                       | 
+ PASS   | 2.5 order_items.discount_blocked is a snapshot: pizza true, pasta false                                                                                                       | 
+ PASS   | 2.6 create_order with a discount of 150 (pool is 100): cut to 100, total 118 (pizza) + 0 (pasta)                                                                              | 
+ PASS   | 2.7 the quote for the same input gives the same grand total                                                                                                                   | 
+ PASS   | 2.8 a discount above the whole bill (250 of 200) is still refused with the old message                                                                                        | 
+ PASS   | 2.9 the refusal left no bill behind                                                                                                                                           | 
+ PASS   | 2.10 all lines restricted: a typed discount of 50 gives 0, tax on the full price, no order_discounts row                                                                      | 
+ PASS   | 2.11 adjust_order on an all-restricted bill refuses with the pool message                                                                                                     | 
+ PASS   | 2.12 adjust_order on the mixed bill: 150 of a pool of 100 refused with the pool                                                                                               | 
+ PASS   | 2.13 adjust_order to 40: pasta base 60 tax 10.80, pizza untouched, total 188.80; the fixed_amount row follows                                                                 | 
+ PASS   | 2.14 a discount exactly equal to the pool is accepted: pasta free, total = pizza 118                                                                                          | 
+ PASS   | 2.15 inclusive: restricted 107 (7% inside) + 107 unrestricted, discount 20 -> 107 + 87 = 194, tax inside 7 + 5.69                                                             | 
+ PASS   | 2.16 remainder on the largest eligible line (the restricted line is the largest of all): 10 over 33.33 / 33.33 / 33.34 -> 3.33, 3.33, 3.34                                    | 
+ PASS   | 2.17 all lines restricted: pool 0, discount 0, discountable_subtotal 0                                                                                                        | 
+ PASS   | 2.18 discount larger than the pool is capped, points take what is left of the pool                                                                                            | 
+ PASS   | 2.19 a small discount over many lines still adds up exactly on the eligible lines (fallback spread)                                                                           | 
+ PASS   | 2.20 senior/PWD share ignores the flag (statutory): a restricted line still gets the senior discount                                                                          | 
+ PASS   | 2.21 senior/PWD still cannot be combined with another discount                                                                                                                | 
+ PASS   | 2.22 ... nor with a points discount                                                                                                                                           | 
+ PASS   | 2.23 before: discount 130 of a pool of 160 (pasta 100 + cola 60)                                                                                                              | 
+ PASS   | 2.24 after cancelling the cola the pool is 100: discount cut to 100, order_discounts follows, total 118                                                                       | 
+ PASS   | 2.25 add a restricted pizza to a bill with discount 50: the discount stays 50 on the pasta, pizza full tax                                                                    | 
+ PASS   | 2.26 split_order: the cloned pizza line is still restricted, and so is the original (one pizza on each bill)                                                                  | 
+ PASS   | 2.27 move_order_items: the moved pizza keeps the restriction on the target bill                                                                                               | 
+ PASS   | 2.28 merge_orders: the restricted line moved onto the other bill is still restricted                                                                                          | 
+ PASS   | 2.29 ... and a discount on the merged bill goes to the pasta only (pizza line discount 0, pasta 30)                                                                           | 
+ PASS   | 2.30 the dish flag is copied to its sizes                                                                                                                                     | 
+ PASS   | 2.31 one audit row for the dish flag, none for the size                                                                                                                       | 
+ PASS   | 2.32 the audit row says which way it went                                                                                                                                     | 
+ PASS   | 2.33 saving the same flag again adds no audit row                                                                                                                             | 
+ PASS   | 2.34 prep time follows to the size; one audit row for the dish                                                                                                                | 
+ PASS   | 2.35 prep time 0 is refused                                                                                                                                                   | 
+ PASS   | 2.36 prep time 241 is refused                                                                                                                                                 | 
+ PASS   | 2.37 prep time 240 and then null are accepted                                                                                                                                 | 
+ PASS   | 2.38 a restricted SIZE is restricted on the bill: 40 goes to the pasta only (pool 100)                                                                                        | 
+ PASS   | 2.39 complimentary bill with a restricted line: total 0, both lines free                                                                                                      | 
+ PASS   | 2.40 ... and the flag stays on the line for the record                                                                                                                        | 
+ PASS   | 3.1 constants: grace 5, default 15                                                                                                                                            | 
+ PASS   | 3.2 columns: 13 old ones first, then kot_due_at, kot_prep_min, kot_ticket_at                                                                                                  | 
+ PASS   | 3.3 F1: pasta (20 min) + soup (none) -> longest prep 20, due = ticket + 25 min                                                                                                | 
+ PASS   | 3.4 F2: soup only (no prep time) -> no prep, due = ticket + 15 min (no grace)                                                                                                 | 
+ PASS   | 3.5 F3: two tickets - the one due first is reported (the 30-minute-old soup, due 15 min after its start; the stew is due in 66 min)                                           | 
+ PASS   | 3.6 F4: the 90-minute stew line was cancelled -> only the pasta counts (prep 20)                                                                                              | 
+ PASS   | 3.7 F5: bread (10 min) -> prep 10, due ticket + 15 min                                                                                                                        | 
+ PASS   | 3.8 a table with no waiting ticket has null kot columns                                                                                                                       | 
+ PASS   | 3.9 oldest_kot_at is still the oldest waiting ticket (F3: the soup)                                                                                                           | 
+ PASS   | 3.10 a Steward can read the floor                                                                                                                                             | 
+ PASS   | 3.11 a role without order.create cannot                                                                                                                                       | 
+ PASS   | 3.12 a ticket for a size uses the size's time, which the dish saved                                                                                                           | 
+ PASS   | 3.13 a time set on the size itself wins over the dish's                                                                                                                       | 
+ PASS   | 4.1 customer.view: exactly Owner, Manager, Cashier and every role with customer.manage                                                                                        | 
+ PASS   | 4.2 loyalty.redeem: exactly Owner, Manager, Cashier (the custom Front desk role does not get it)                                                                              | 
+ PASS   | 4.3 Chef has neither right                                                                                                                                                    | 
+ PASS   | 4.4 Front desk (custom role with customer.manage) received customer.view                                                                                                      | 
+ PASS   | 4.5 the new rights are marked sensitive                                                                                                                                       | 
+ PASS   | 4.6 a phone with +91 and spaces finds the same guest as the plain number: one customer for Rita, 2 bills                                                                      | 
+ PASS   | 4.7 earn: Rita got floor(total / 10) points on each paid bill (ledger = earn rows only so far)                                                                                | 
+ PASS   | 4.8 an open bill earns nothing (Tara)                                                                                                                                         | 
+ PASS   | 4.9 the legacy customer (made before 145) kept the points she had                                                                                                             | 
+ PASS   | 4.10 Chef reads no customers and no ledger rows; Cashier and Front desk read them; Steward (customer.manage) too; another restaurant sees none                                | 
+ PASS   | 4.11 list keys: total and rows with id, name, phone, visits, spend, avg_bill, first/last visit, points, consent                                                               | 
+ PASS   | 4.12 filter repeat = 2 or more visits                                                                                                                                         | 
+ PASS   | 4.13 filter new = exactly one visit (and not lapsed is NOT required: Uma is a first-and-only visit too)                                                                       | 
+ PASS   | 4.14 filter lapsed = visited, but not in the last 60 days                                                                                                                     | 
+ PASS   | 4.15 filter never = no paid bill yet                                                                                                                                          | 
+ PASS   | 4.16 search by name part                                                                                                                                                      | 
+ PASS   | 4.17 search by phone digits (3 or more)                                                                                                                                       | 
+ PASS   | 4.18 a search of fewer than 3 characters is ignored (the whole list)                                                                                                          | 
+ PASS   | 4.19 search by phone with +91 and spaces                                                                                                                                      | 
+ PASS   | 4.20 sort by spend: biggest first                                                                                                                                             | 
+ PASS   | 4.21 sort by name: alphabetical                                                                                                                                               | 
+ PASS   | 4.22 paging: limit 2 offset 1 gives 2 rows and the same total                                                                                                                 | 
+ PASS   | 4.23 Rita: 2 visits, spend = the two bills, 1 decimal-free average, points = what she earned                                                                                  | 
+ PASS   | 4.24 the list needs customer.view                                                                                                                                             | 
+ PASS   | 4.25 the detail too                                                                                                                                                           | 
+ PASS   | 4.26 another restaurant's list is empty                                                                                                                                       | 
+ PASS   | 4.27 and cannot open our customer                                                                                                                                             | 
+ PASS   | 4.28 visits follow the outlet scope: All outlets 2, a Manager limited to Outlet A 1                                                                                           | 
+ PASS   | 4.29 detail: profile, stats, points, 2 bills (both visits), ledger rows                                                                                                       | 
+ PASS   | 4.30 find_customer matches the last 10 digits: +91 and a leading 0 both find Rita; shows name, visits, last visit and points only                                             | 
+ PASS   | 4.31 a short number or an unknown number gives null                                                                                                                           | 
+ PASS   | 4.32 an email that is not an email is refused                                                                                                                                 | 
+ PASS   | 4.33 update_customer: saved, consent time stamped                                                                                                                             | 
+ PASS   | 4.34 Chef cannot edit a guest                                                                                                                                                 | 
+ PASS   | 4.35 the edit is in the audit trail                                                                                                                                           | 
+ PASS   | 4.36 a credit note of 20 takes back ceil(20/10) = 2 points ("reverse" row); the visit spend drops by 20                                                                       | 
+ PASS   | 5.1 before 145-style settings: mode is "tender" and the cap 100 (nobody changed silently)                                                                                     | 
+ PASS   | 5.2 the 3-argument save leaves the mode on "tender"                                                                                                                           | 
+ PASS   | 5.3 an unknown mode is refused                                                                                                                                                | 
+ PASS   | 5.4 a cap of 0 percent is refused                                                                                                                                             | 
+ PASS   | 5.5 a cap of 101 percent is refused                                                                                                                                           | 
+ PASS   | 5.6 a Cashier cannot change the rules (settings.manage)                                                                                                                       | 
+ PASS   | 5.7 the owner sets discount mode                                                                                                                                              | 
+ PASS   | 5.8 the change is in the audit trail                                                                                                                                          | 
+ PASS   | 5.10 redeem 30 points on pasta 100 + restricted pizza 100: discount 30 on the pasta only, tax 12.60 + 18.00, grand 200.60 -> 201                                              | 
+ PASS   | 5.11 the result tells the screen what happened                                                                                                                                | 
+ PASS   | 5.12 per line: pasta carries the 30, pizza none                                                                                                                               | 
+ PASS   | 5.13 the ledger has one redeem row of -30 for the bill and the balance fell                                                                                                   | 
+ PASS   | 5.14 calc_params remembers the points                                                                                                                                         | 
+ PASS   | 5.15 a second redeem on the same bill is refused                                                                                                                              | 
+ PASS   | 5.16 the old "points as a payment" is refused while the outlet is in discount mode                                                                                            | 
+ PASS   | 5.17 remove: 30 points back, the bill is the plain 236 again                                                                                                                  | 
+ PASS   | 5.18 remove with nothing to remove is refused                                                                                                                                 | 
+ PASS   | 5.19 the same reference twice: one redeem row, the second answer is the first plus repeat                                                                                     | 
+ PASS   | 5.20 the same reference on another bill is refused                                                                                                                            | 
+ PASS   | 5.21 typed discount 20 + 400 points on a pool of 100: points are cut to 80 (what is left of the pool); total = pizza 118                                                      | 
+ PASS   | 5.22 fewer than the minimum (10) is refused                                                                                                                                   | 
+ PASS   | 5.23 more than the guest has is refused with the balance                                                                                                                      | 
+ PASS   | 5.24 zero points is refused                                                                                                                                                   | 
+ PASS   | 5.25 a bill with no guest is refused                                                                                                                                          | 
+ PASS   | 5.26 a bill with only restricted lines has nothing to discount                                                                                                                | 
+ PASS   | 5.27 a senior citizen / PWD bill cannot use points                                                                                                                            | 
+ PASS   | 5.28 a paid bill cannot take points                                                                                                                                           | 
+ PASS   | 5.29 a Steward has no loyalty.redeem right                                                                                                                                    | 
+ PASS   | 5.30 ... nor can remove                                                                                                                                                       | 
+ PASS   | 5.31 a Chef neither                                                                                                                                                           | 
+ PASS   | 5.32 a bill with a part payment cannot take points (nothing to change after money was taken)                                                                                  | 
+ PASS   | 5.33 pool 160 -> 100 after the soup is cancelled: points 150 -> 100, 50 points back ("Bill changed"), order_discounts follows                                                 | 
+ PASS   | 5.34 max 50 percent of the discountable part: 300 points -> 50                                                                                                                | 
+ PASS   | 5.35 voiding a bill that used points returns them (net 0 for the bill)                                                                                                        | 
+ PASS   | 5.36 in tender mode the discount way is refused                                                                                                                               | 
+ PASS   | 5.37 ... and the old points-as-payment still works: a loyalty payment of 20, tax untouched                                                                                    | 
+ PASS   | 5.40 a Cashier cannot delete a guest without the owner's approval (settings.manage)                                                                                           | 
+ PASS   | 5.41 a reason is required                                                                                                                                                     | 
+ PASS   | 5.42 forget: name, phone and the bill's guest fields are scrubbed (even on a closed day); the bill and its money stay                                                         | 
+ PASS   | 5.43 her points were cleared by an adjust row (balance 0) and the audit trail says so                                                                                         | 
+ PASS   | 5.44 deleting twice is refused                                                                                                                                                | 
+ PASS   | 5.45 the deleted guest is no longer found by phone                                                                                                                            | 
+ PASS   | 6.1 customers report, All outlets, 2 days: the totals equal what the bills say                                                                                                | 
+ PASS   | 6.2 ... over 120 days (the lapsed guest, 90 days ago, is in)                                                                                                                  | 
+ PASS   | 6.3 Rita is a returning guest in the 2-day range (first visit 5 days ago), the others are new                                                                                 | 
+ PASS   | 6.4 repeat_rate is a percentage with one decimal                                                                                                                              | 
+ PASS   | 6.5 by_day adds up to the totals (visits and spend)                                                                                                                           | 
+ PASS   | 6.6 by_customer spend adds up to the total spend                                                                                                                              | 
+ PASS   | 6.7 the money flag is true for the owner                                                                                                                                      | 
+ PASS   | 6.8 a Manager limited to Outlet A: totals follow the outlet (Sam's bill is in B)                                                                                              | 
+ PASS   | 6.9 ... so All outlets has one more visit than Outlet A                                                                                                                       | 
+ PASS   | 6.10 a Cashier sees visits but no money: money false, spend / avg null                                                                                                        | 
+ PASS   | 6.11 a Chef is refused (customer.view)                                                                                                                                        | 
+ PASS   | 6.12 a Steward has customer.view but no sales right (report.view_sales)                                                                                                       | 
+ PASS   | 6.13 end before start                                                                                                                                                         | 
+ PASS   | 6.14 more than a year                                                                                                                                                         | 
+ PASS   | 6.15 a null date                                                                                                                                                              | 
+ PASS   | 6.20 ledger report, All outlets: totals equal the ledger (earned, redeemed, reversed, adjusted, net)                                                                          | 
+ PASS   | 6.21 rows: one per ledger row, newest first, not truncated                                                                                                                    | 
+ PASS   | 6.22 by_day adds up to the totals                                                                                                                                             | 
+ PASS   | 6.23 liability: positive balances only, valued at the point value                                                                                                             | 
+ PASS   | 6.24 rows with no bill (the test seeds) are listed as outlet "Manual"                                                                                                         | 
+ PASS   | 6.25 a Manager limited to Outlet A: only rows of Outlet A bills (no manual rows), totals follow                                                                               | 
+ PASS   | 6.26 a Chef is refused                                                                                                                                                        | 
+ PASS   | 6.27 end before start                                                                                                                                                         | 
+ PASS   | 6.28 a restaurant without the loyalty add-on is refused                                                                                                                       | 
+ PASS   | 6.29 both reports are closed to the public and anonymous roles                                                                                                                | 
+ PASS   | 6.30 ... and open to signed-in users                                                                                                                                          | 
+ PASS   | 7.1 a guest-less offline bill: the answer, flags, total, line prices and customer are the same as before 147                                                                  | 
+ PASS   | 7.2 the guest is found/started from the phone: customer, name and phone on the bill                                                                                           | 
+ PASS   | 7.3 the points are earned once, when the bill is marked paid                                                                                                                  | 
+ PASS   | 7.4 a retried sync adds nothing: one bill, one earn row, the same answer                                                                                                      | 
+ PASS   | 7.5 the same phone on a second bill joins the same customer (and keeps the name)                                                                                              | 
+ PASS   | 7.6 a too-short phone does not lose the bill: saved with no guest, flagged guest_phone_invalid, summary says so                                                               | 
+ PASS   | 7.7 an offline bill with a discount of 20 over pizza (restricted) + pasta: 20 on the pasta only; nothing cut                                                                  | 
+ PASS   | 7.8 a till that did not know the flag asks for 150: the server cuts it to the pool (100) and flags discount_cut with both numbers                                             | 
+ PASS   | 7.9 a restricted SIZE offline: the discount goes to the pasta, the Large burger keeps full price                                                                              | 
+ PASS   | 7.10 offline bills carry the snapshot flag on their lines                                                                                                                     | 
+ PASS   | 7.11 a replayed discount bill changes nothing (one bill)                                                                                                                      | 
+ PASS   | 8.1 erase_groups: the four groups exist                                                                                                                                       | 
+ PASS   | 8.2 every table named in the lists exists                                                                                                                                     | 
+ PASS   | 8.3 no table is in two groups, none twice                                                                                                                                     | 
+ PASS   | 8.4 inside each group a child table is listed before the table it references (so the deletes never hit a foreign key)                                                         | 
+ PASS   | 8.5 the stock-count tables (143) are in the transaction list, lines before counts                                                                                             | 
+ PASS   | 8.6 the new customer-facing tables stay in their old groups (customers master, loyalty ledger transaction)                                                                    | 
+ PASS   | 8.7 erase_groups is not callable by the app                                                                                                                                   | 
+ PASS   | 8.8 Chef (stock rights come from 148): stock.view and stock.adjust, in both restaurants                                                                                       | 
+ PASS   | 8.9 the custom Front desk role has customer.view but not loyalty.redeem and no stock rights                                                                                   | 
+ PASS   | 8.10 a NEW restaurant: customer.view for Owner, Manager, Cashier, Steward; loyalty.redeem for Owner, Manager, Cashier                                                         | 
+ PASS   | 8.11 a NEW restaurant: Chef has stock.view + stock.adjust, nobody lacks what they had                                                                                         | 
+ PASS   | 8.12 patched once only: the function body names the grants one time each                                                                                                      | 
+ PASS   | 8.13 every right 141..148 needs exists in permissions                                                                                                                         | 
+(198 rows)
+
+
+RESULT: 198 passed, 0 failed
+SQL errors outside t.err (must be 0): 0
+t141-148 OK

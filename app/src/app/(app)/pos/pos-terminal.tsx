@@ -6,12 +6,13 @@ import { money, orderTypeLabel, roundCash } from "@/lib/format";
 import { parseDiscountInput } from "@/lib/discount";
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
-import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, type CartItem, type PlaceOrderInput, type Quote, type Senior } from "./actions";
+import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, stockWarnings, type CartItem, type PlaceOrderInput, type Quote, type Senior } from "./actions";
 import { loadLastRound } from "./repeat-round";
 import { mapRoundToMenu } from "@/lib/repeat-round";
 import { coversError, needsInternetText, openPriceError, openPriceValue, parseCovers } from "@/lib/order-desk";
 import { cashDue, deviceKey, offlineQuote, readQueue, readSnapshot, saveSnapshot, takeNumber, writeQueue, type OfflineBill, type Snapshot } from "@/lib/offline";
 import { OfflineReceipt } from "./offline-receipt";
+import { stripText, warnedProducts, type StockWarning } from "./stock-warning";
 import { DishName, Dual } from "../lang";
 
 export type OptionGroup = {
@@ -50,6 +51,8 @@ export type MenuItem = {
   liquor?: boolean;
   /** Open price: the price is typed at the till when the dish is tapped (needs the order.open_price right and the internet). */
   is_open_price?: boolean;
+  /** Marked "Do not allow discounts": a bill discount never takes a share of this dish (the database enforces it too). */
+  no_discount?: boolean;
 };
 
 /**
@@ -190,6 +193,7 @@ export function PosTerminal({
   askCovers = false,
   canOpenPrice = false,
   onCartCount,
+  stockCheck = false,
 }: {
   currency: string;
   canDiscount: boolean;
@@ -233,6 +237,8 @@ export function PosTerminal({
   canOpenPrice?: boolean;
   /** Single order screen: how many items wait in the cart, so the screen can ask before they are thrown away. */
   onCartCount?: (n: number) => void;
+  /** The restaurant has the stock module: ask the database whether the order runs an ingredient short (a warning only, online only). */
+  stockCheck?: boolean;
   categoryParents?: Record<string, { id: string; name: string }>;
   /** Cloud kitchen / food court: category id → brand. The billing screen can show one brand at a time. */
   categoryBrands?: Record<string, { id: string; name: string }>;
@@ -322,7 +328,16 @@ export function PosTerminal({
   // The discount box takes an amount or a percent ("10%"). A percent is worked out on the same base the bill
   // calculation uses (sum of price x qty, packing charge included), so it follows the cart when lines change and
   // works the same without internet. Only the amount is ever sent.
-  const discountBase = Math.round((lines.reduce((s, l) => s + unitPrice(l) * l.qty, 0) + (packingTicked && lines.length > 0 ? packingAmount : 0)) * 100) / 100;
+  // Dishes marked "Do not allow discounts" take no share, so a percent is worked out on the POOL (the rest), not the whole
+  // subtotal. The packing charge is a dish like any other: it follows its own mark.
+  const offlineNoDisc = (id: string) => !!snap?.menu.find((x) => x.id === id)?.no_discount;
+  const noDisc = (l: CartLine) => !!l.item.no_discount || (offline && offlineNoDisc(l.item.id));
+  const packingNoDisc = !!packRule && (!!menu.find((x) => x.id === packRule.productId)?.no_discount || (offline && offlineNoDisc(packRule.productId)));
+  const packingIn = packingTicked && lines.length > 0 ? packingAmount : 0;
+  const discountBase = Math.round((lines.reduce((s, l) => s + (noDisc(l) ? 0 : unitPrice(l) * l.qty), 0) + (packingNoDisc ? 0 : packingIn)) * 100) / 100;
+  const wholeBase = Math.round((lines.reduce((s, l) => s + unitPrice(l) * l.qty, 0) + packingIn) * 100) / 100;
+  /** Something is in the cart but none of it may be discounted: the box is off. */
+  const nothingDiscountable = lines.length > 0 && discountBase === 0;
   const discountParsed = parseDiscountInput(discount, discountBase);
   const discountAmt = discountParsed.ok ? discountParsed.amount : 0;
 
@@ -415,8 +430,15 @@ export function PosTerminal({
   };
   /** The same list for the offline calculation. */
   const offlineLines = () => {
-    const out = lines.map((l) => ({ product_id: l.item.id, qty: l.qty, unit_price: unitPrice(l) }));
-    if (packRule && packingTicked && lines.length > 0) out.push({ product_id: packRule.productId, qty: packingQty, unit_price: packRule.price });
+    // no_discount: the mark on the menu this screen was loaded with; offlineQuote also reads this device's offline copy.
+    const out: { product_id: string; qty: number; unit_price: number; no_discount?: boolean }[] = lines.map((l) => ({
+      product_id: l.item.id,
+      qty: l.qty,
+      unit_price: unitPrice(l),
+      ...(l.item.no_discount ? { no_discount: true } : {}),
+    }));
+    if (packRule && packingTicked && lines.length > 0)
+      out.push({ product_id: packRule.productId, qty: packingQty, unit_price: packRule.price, ...(packingNoDisc ? { no_discount: true } : {}) });
     return out;
   };
 
@@ -541,6 +563,7 @@ export function PosTerminal({
       return {
         subtotal: c.subtotal,
         discount: c.discount,
+        discountable_subtotal: c.discountable_subtotal,
         senior_discount: 0,
         tax_exempt_amount: 0,
         service_charge: c.service_charge,
@@ -598,6 +621,31 @@ export function PosTerminal({
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cartKey, offline, snap]);
+
+  // Stock warning strip: asks the database (online only, 600 ms after the cart stops changing) whether the order runs an
+  // ingredient short. It never blocks anything: a failed or slow answer just means no strip. Replies out of order are ignored.
+  const [stockWarn, setStockWarn] = useState<StockWarning[]>([]);
+  const stockReq = useRef(0);
+  const stockKey = JSON.stringify(lines.map((l) => [l.item.id, l.qty, l.options.map((o) => o.id).sort()]));
+  useEffect(() => {
+    const id = ++stockReq.current;
+    if (!stockCheck || offline || lines.length === 0) {
+      setStockWarn((w) => (w.length ? [] : w));
+      return;
+    }
+    const t = setTimeout(async () => {
+      try {
+        const r = await stockWarnings(lines.map((l) => ({ product_id: l.item.id, qty: l.qty, options: l.options.map((o) => o.id) })));
+        if (id === stockReq.current) setStockWarn(r.ok ? r.warnings : []);
+      } catch {
+        if (id === stockReq.current) setStockWarn([]);
+      }
+    }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stockKey, stockCheck, offline]);
+  const stockStrip = offline ? null : stripText(stockWarn);
+  const warnedIds = useMemo(() => (offline ? new Set<string>() : warnedProducts(stockWarn)), [stockWarn, offline]);
 
   // Customer display (a second window on the guest-facing screen) follows the cart and the total.
   useEffect(() => {
@@ -866,6 +914,9 @@ export function PosTerminal({
       created_at: new Date().toISOString(),
       order_type: orderType,
       guest: guest && (guest.name || guest.phone || guest.address) ? guest : null,
+      // Name and phone again as plain fields: the server finds or creates the customer when the bill syncs, so points are earned then.
+      ...(guest?.phone ? { guest_phone: guest.phone } : {}),
+      ...(guest?.name ? { guest_name: guest.name } : {}),
       items: [
         ...lines.map((l) => ({
           product_id: l.item.id,
@@ -1484,6 +1535,14 @@ export function PosTerminal({
                       <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
                         {m(unitPrice(l))}
                         {l.openPrice != null && " · open price"}
+                        {noDisc(l) && (
+                          <span className="ml-1.5 rounded px-1 text-[10px] font-semibold" style={{ background: "var(--color-surface-2, #eee)", color: "var(--color-ink-2)" }} title="This item cannot be discounted">
+                            No discount
+                          </span>
+                        )}
+                        {warnedIds.has(l.item.id) && (
+                          <span className="ml-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "var(--color-warn)" }} title="An ingredient for this dish is running short" aria-label="Stock is short for this dish" />
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -1601,6 +1660,15 @@ export function PosTerminal({
 
           {addTo ? (
             <div className="border-t px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
+              {stockStrip && (
+                <div className="mb-2 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+                  {stockStrip.lines.map((t) => (
+                    <div key={t}>{t}</div>
+                  ))}
+                  {stockStrip.more > 0 && <div>and {stockStrip.more} more.</div>}
+                  <div className="font-semibold">{stockStrip.footer}</div>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span style={{ color: "var(--color-ink-3)" }}>New items {pricesIncludeTax ? "" : `(before ${taxName})`}</span>
                 <span className="font-semibold">{m(addSubtotal)}</span>
@@ -1654,8 +1722,26 @@ export function PosTerminal({
                       <label className="text-xs font-medium" style={{ color: "var(--color-ink-2)" }} htmlFor="discount">
                         Discount
                       </label>
-                      <input id="discount" className="field h-9 flex-1 text-sm" inputMode="text" placeholder="Amount or 10%" value={discount} onChange={(e) => setDiscount(e.target.value)} />
+                      <input
+                        id="discount"
+                        className="field h-9 flex-1 text-sm"
+                        inputMode="text"
+                        placeholder={nothingDiscountable ? "Not allowed on these items" : "Amount or 10%"}
+                        value={nothingDiscountable ? "" : discount}
+                        disabled={nothingDiscountable}
+                        onChange={(e) => setDiscount(e.target.value)}
+                      />
                     </div>
+                  )}
+                  {(canDiscount || canPay) && !senior && nothingDiscountable && (
+                    <p className="text-xs" role="status" style={{ color: "var(--color-ink-2)" }}>
+                      None of these items can be discounted.
+                    </p>
+                  )}
+                  {(canDiscount || canPay) && !senior && !nothingDiscountable && discountBase < wholeBase && (
+                    <p className="text-xs" role="status" style={{ color: "var(--color-ink-2)" }}>
+                      Discount applies to {m(discountBase)} of {m(wholeBase)}. Some items cannot be discounted.
+                    </p>
                   )}
                   {(canDiscount || canPay) && !senior && !discountParsed.ok && (
                     <p className="text-xs" role="alert" style={{ color: "var(--color-bad)" }}>
@@ -1686,6 +1772,15 @@ export function PosTerminal({
                 </div>
               )}
 
+              {stockStrip && (
+                <div className="mb-2 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+                  {stockStrip.lines.map((t) => (
+                    <div key={t}>{t}</div>
+                  ))}
+                  {stockStrip.more > 0 && <div>and {stockStrip.more} more.</div>}
+                  <div className="font-semibold">{stockStrip.footer}</div>
+                </div>
+              )}
               <dl className="space-y-1 text-sm" aria-live="polite">
                 <Row label="Subtotal" value={quote ? m(quote.subtotal) : lines.length ? "…" : m(0)} />
                 {quote && quote.discount > 0 && <Row label="Discount" value={`−${m(quote.discount)}`} color="var(--color-ok)" />}

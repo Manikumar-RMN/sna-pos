@@ -1,0 +1,898 @@
+{
+ "source": "Discount-block cases (batch 3). Every case was run through app.calc_bill (migration 141, PostgreSQL 16) by the integrator and matches the database to the paisa (oracle 'db'). The database leaves out discountable_subtotal when no line is restricted, so that key is not expected where it is absent. Every calc-bill.*.golden.json in this folder is run by calc-bill.test.ts.",
+ "cases": [
+  {
+   "case": "worked example: restricted A 100, B 100, 18% exclusive, discount 20 (plan 3.1; total is 212.40)",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     }
+    ],
+    "discount": 20,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 212.4,
+    "tax_total": 32.4,
+    "service_charge": 0,
+    "discount": 20,
+    "loyalty_discount": 0,
+    "discountable_subtotal": 100,
+    "senior_discount": 0,
+    "rounding": 0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18,
+      "total": 118
+     },
+     {
+      "key": 2,
+      "discount": 20,
+      "tax": 14.4,
+      "total": 94.4
+     }
+    ]
+   }
+  },
+  {
+   "case": "all lines restricted: discount is 0",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 50,
+      "qty": 2,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ],
+      "no_disc": true
+     }
+    ],
+    "discount": 30,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 236,
+    "tax_total": 36,
+    "service_charge": 0,
+    "discount": 0,
+    "loyalty_discount": 0,
+    "discountable_subtotal": 0,
+    "senior_discount": 0,
+    "rounding": 0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18,
+      "total": 118
+     },
+     {
+      "key": 2,
+      "discount": 0,
+      "tax": 18,
+      "total": 118
+     }
+    ]
+   }
+  },
+  {
+   "case": "discount larger than the pool is cut to the pool",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     }
+    ],
+    "discount": 500,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 118,
+    "tax_total": 18,
+    "service_charge": 0,
+    "discount": 100,
+    "loyalty_discount": 0,
+    "discountable_subtotal": 100,
+    "senior_discount": 0,
+    "rounding": 0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18,
+      "total": 118
+     },
+     {
+      "key": 2,
+      "discount": 100,
+      "tax": 0,
+      "total": 0
+     }
+    ]
+   }
+  },
+  {
+   "case": "discount exactly equal to the pool",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 60,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 40,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     }
+    ],
+    "discount": 100,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 118,
+    "tax_total": 18,
+    "service_charge": 0,
+    "discount": 100,
+    "loyalty_discount": 0,
+    "discountable_subtotal": 100,
+    "senior_discount": 0,
+    "rounding": 0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18,
+      "total": 118
+     },
+     {
+      "key": 2,
+      "discount": 60,
+      "tax": 0,
+      "total": 0
+     },
+     {
+      "key": 3,
+      "discount": 40,
+      "tax": 0,
+      "total": 0
+     }
+    ]
+   }
+  },
+  {
+   "case": "tax inclusive, one restricted line",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 118,
+      "qty": 1,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 118,
+      "qty": 1,
+      "inclusive": true,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     }
+    ],
+    "discount": 18,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 218,
+    "tax_total": 33.26,
+    "service_charge": 0,
+    "discount": 18,
+    "loyalty_discount": 0,
+    "discountable_subtotal": 118,
+    "senior_discount": 0,
+    "rounding": 0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18,
+      "total": 118
+     },
+     {
+      "key": 2,
+      "discount": 18,
+      "tax": 15.26,
+      "total": 100
+     }
+    ]
+   }
+  },
+  {
+   "case": "rounding remainder goes to the largest ELIGIBLE line (restricted line is larger)",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 500,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 10,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 10,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     },
+     {
+      "key": 4,
+      "price": 10,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     }
+    ],
+    "discount": 10,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 613.6,
+    "tax_total": 93.6,
+    "service_charge": 0,
+    "discount": 10,
+    "loyalty_discount": 0,
+    "discountable_subtotal": 30,
+    "senior_discount": 0,
+    "rounding": 0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 90,
+      "total": 590
+     },
+     {
+      "key": 2,
+      "discount": 3.34,
+      "tax": 1.2,
+      "total": 7.86
+     },
+     {
+      "key": 3,
+      "discount": 3.33,
+      "tax": 1.2,
+      "total": 7.87
+     },
+     {
+      "key": 4,
+      "discount": 3.33,
+      "tax": 1.2,
+      "total": 7.87
+     }
+    ]
+   }
+  },
+  {
+   "case": "tiny discount over many small eligible lines (largest-remainder fallback, eligible only)",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 900,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 0.1,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     },
+     {
+      "key": 3,
+      "price": 0.1,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     },
+     {
+      "key": 4,
+      "price": 0.1,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     },
+     {
+      "key": 5,
+      "price": 0.1,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     },
+     {
+      "key": 6,
+      "price": 0.1,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     }
+    ],
+    "discount": 0.03,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 1062.57,
+    "tax_total": 162.1,
+    "service_charge": 0,
+    "discount": 0.03,
+    "loyalty_discount": 0,
+    "discountable_subtotal": 0.5,
+    "senior_discount": 0,
+    "rounding": 0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 162,
+      "total": 1062
+     },
+     {
+      "key": 2,
+      "discount": 0.01,
+      "tax": 0.02,
+      "total": 0.11
+     },
+     {
+      "key": 3,
+      "discount": 0.01,
+      "tax": 0.02,
+      "total": 0.11
+     },
+     {
+      "key": 4,
+      "discount": 0.01,
+      "tax": 0.02,
+      "total": 0.11
+     },
+     {
+      "key": 5,
+      "discount": 0,
+      "tax": 0.02,
+      "total": 0.12
+     },
+     {
+      "key": 6,
+      "discount": 0,
+      "tax": 0.02,
+      "total": 0.12
+     }
+    ]
+   }
+  },
+  {
+   "case": "service charge on a mixed bill, taxable service charge",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 200,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 100,
+      "qty": 2,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     }
+    ],
+    "discount": 50,
+    "sc_percent": 10,
+    "sc_taxable": true,
+    "rounding": "nearest_1"
+   },
+   "expected": {
+    "grand_total": 454,
+    "tax_total": 69.3,
+    "service_charge": 35,
+    "discount": 50,
+    "loyalty_discount": 0,
+    "discountable_subtotal": 200,
+    "senior_discount": 0,
+    "rounding": -0.3,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 39.6,
+      "total": 259.6
+     },
+     {
+      "key": 2,
+      "discount": 50,
+      "tax": 29.7,
+      "total": 194.7
+     }
+    ]
+   }
+  },
+  {
+   "case": "loyalty points after a manual discount, both capped at the pool",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     }
+    ],
+    "discount": 50,
+    "loyalty_discount": 80,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 118,
+    "tax_total": 18,
+    "service_charge": 0,
+    "discount": 50,
+    "loyalty_discount": 50,
+    "discountable_subtotal": 100,
+    "senior_discount": 0,
+    "rounding": 0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18,
+      "total": 118
+     },
+     {
+      "key": 2,
+      "discount": 100,
+      "tax": 0,
+      "total": 0
+     }
+    ]
+   }
+  },
+  {
+   "case": "loyalty points alone, restricted line excluded",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ],
+      "no_disc": true
+     },
+     {
+      "key": 2,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     }
+    ],
+    "loyalty_discount": 30,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 200.6,
+    "tax_total": 30.6,
+    "service_charge": 0,
+    "discount": 0,
+    "loyalty_discount": 30,
+    "discountable_subtotal": 100,
+    "senior_discount": 0,
+    "rounding": 0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 0,
+      "tax": 18,
+      "total": 118
+     },
+     {
+      "key": 2,
+      "discount": 30,
+      "tax": 12.6,
+      "total": 82.6
+     }
+    ]
+   }
+  },
+  {
+   "case": "no restricted lines, no points: same as before",
+   "oracle": "db",
+   "input": {
+    "lines": [
+     {
+      "key": 1,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     },
+     {
+      "key": 2,
+      "price": 100,
+      "qty": 1,
+      "inclusive": false,
+      "comps": [
+       {
+        "name": "CGST",
+        "rate": 9
+       },
+       {
+        "name": "SGST",
+        "rate": 9
+       }
+      ]
+     }
+    ],
+    "discount": 20,
+    "rounding": "none"
+   },
+   "expected": {
+    "grand_total": 212.4,
+    "tax_total": 32.4,
+    "service_charge": 0,
+    "discount": 20,
+    "loyalty_discount": 0,
+    "senior_discount": 0,
+    "rounding": 0,
+    "lines": [
+     {
+      "key": 1,
+      "discount": 10,
+      "tax": 16.2,
+      "total": 106.2
+     },
+     {
+      "key": 2,
+      "discount": 10,
+      "tax": 16.2,
+      "total": 106.2
+     }
+    ]
+   }
+  }
+ ]
+}

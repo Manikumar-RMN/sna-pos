@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { orderTypeLabel } from "@/lib/format";
 import { billFormat, paperWidth } from "@/lib/bill-format";
 import type { KotPrintInfo, KotSlip } from "./kot-print";
+import { maxPrep, type PrepProduct } from "./prep";
 
 import { friendlyDbError } from "@/lib/db-error";
 /**
@@ -32,8 +33,9 @@ export async function loadKot(orderId: string): Promise<{ ok: true; slips: KotSl
   const ids = round.map((t) => t.id);
   const { data: items } = await supabase
     .from("kitchen_ticket_items")
-    .select("kitchen_ticket_id, product_name, product_name_local, quantity, note, status")
+    .select("kitchen_ticket_id, order_item_id, product_name, product_name_local, quantity, note, status")
     .in("kitchen_ticket_id", ids);
+  const prep = await prepTimes(supabase, (items ?? []).map((i) => i.order_item_id));
   return {
     ok: true,
     slips: round.map((t) => ({
@@ -42,11 +44,38 @@ export async function loadKot(orderId: string): Promise<{ ok: true; slips: KotSl
       station: t.station ?? "Kitchen",
       createdAt: t.created_at,
       printed: !!t.printed_at,
+      prepMin: maxPrep(
+        (items ?? []).filter((i) => i.kitchen_ticket_id === t.id && i.status !== "cancelled").map((i) => prep.productOf.get(i.order_item_id)),
+        prep.byId,
+      ),
       items: (items ?? [])
         .filter((i) => i.kitchen_ticket_id === t.id)
         .map((i) => ({ name: i.product_name, local: i.product_name_local, qty: Number(i.quantity), note: i.note, cancelled: i.status === "cancelled" })),
     })),
   };
+}
+
+/**
+ * Preparation times for the products behind some order lines (and their dishes, for sizes). A failed read just means no
+ * "~N min" on the slip: the ticket must always print.
+ */
+async function prepTimes(supabase: Awaited<ReturnType<typeof createClient>>, orderItemIds: string[]) {
+  const productOf = new Map<string, string>();
+  const byId = new Map<string, PrepProduct>();
+  const ids = [...new Set(orderItemIds)];
+  if (ids.length === 0) return { productOf, byId };
+  const { data: lines } = await supabase.from("order_items").select("id, product_id").in("id", ids);
+  for (const l of lines ?? []) if (l.product_id) productOf.set(l.id, l.product_id);
+  const productIds = [...new Set(productOf.values())];
+  if (productIds.length === 0) return { productOf, byId };
+  const { data: prods } = await supabase.from("products").select("id, parent_id, prep_minutes").in("id", productIds);
+  for (const p of prods ?? []) byId.set(p.id, { id: p.id, parent_id: p.parent_id, prep_minutes: p.prep_minutes });
+  const parentIds = [...new Set((prods ?? []).map((p) => p.parent_id).filter((x): x is string => !!x && !byId.has(x)))];
+  if (parentIds.length > 0) {
+    const { data: parents } = await supabase.from("products").select("id, parent_id, prep_minutes").in("id", parentIds);
+    for (const p of parents ?? []) byId.set(p.id, { id: p.id, parent_id: p.parent_id, prep_minutes: p.prep_minutes });
+  }
+  return { productOf, byId };
 }
 
 /** Marks the tickets printed and returns those nobody had printed yet; only those are printed here. */

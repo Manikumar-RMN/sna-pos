@@ -8,6 +8,7 @@ import { timeOnly } from "@/lib/format";
 import { claimForPrint, markKotSeen, markPrinted, setTicketStatus } from "./actions";
 import { playNewTicketSound, readSoundWanted, saveSoundWanted, soundReady, soundSupported, unlockSound, watchSound } from "./sound";
 import { DishName, Dual } from "../lang";
+import { kitchenLate } from "./prep";
 
 export type Ticket = {
   id: string;
@@ -21,6 +22,8 @@ export type Ticket = {
   station: string;
   printedAt: string | null;
   bill: string;
+  /** The longest prep time (minutes) among the ticket's items; null when none has one. */
+  prepMin?: number | null;
   items: { name: string; local?: string | null; qty: number; note: string | null; cancelled: boolean; changeText?: string | null }[];
   /** A waiter changed this ticket (quantity or note) and the kitchen has not tapped "Seen" yet. */
   changed?: boolean;
@@ -400,7 +403,7 @@ export function KitchenBoard({
                 )}
                 {list.map((t) => {
                   const age = minutesAgo(t.createdAt, now);
-                  const late = col.key !== "ready" && age >= 15;
+                  const late = col.key !== "ready" && kitchenLate(age, t.prepMin);
                   return (
                     <div key={t.id} className="card p-3" style={t.changed ? { borderColor: "var(--color-warn)", borderWidth: 2 } : late ? { borderColor: "var(--color-bad)" } : undefined}>
                       {t.changed && (
@@ -423,6 +426,7 @@ export function KitchenBoard({
                       <div className="mb-1 flex items-center justify-between text-[11px]" style={{ color: "var(--color-ink-3)" }}>
                         <span>
                           {t.number} · {t.station}
+                          {t.prepMin ? ` · Prep ${t.prepMin} min` : ""}
                         </span>
                         <button className="font-semibold" style={{ color: "var(--color-brand)" }} onClick={() => setPrinting([t])} aria-label={`Print ticket ${t.number}`}>
                           Print

@@ -80,7 +80,7 @@ export function coversError(input: { askCovers: boolean; orderType: string; addi
 }
 
 /** What needs the internet on the order screen, and the sentence shown when there is none. */
-export type NeedsInternet = "add_to_bill" | "tip" | "open_price" | "move_item" | "repeat_round" | "bill_action";
+export type NeedsInternet = "add_to_bill" | "tip" | "open_price" | "move_item" | "repeat_round" | "bill_action" | "loyalty_redeem";
 
 export function needsInternetText(what: NeedsInternet): string {
   switch (what) {
@@ -96,6 +96,8 @@ export function needsInternetText(what: NeedsInternet): string {
       return "Repeating the last order needs the internet.";
     case "bill_action":
       return "No internet. Changes to an open bill need the connection.";
+    case "loyalty_redeem":
+      return "Using points needs internet.";
   }
 }
 

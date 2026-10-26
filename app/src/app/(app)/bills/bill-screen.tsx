@@ -4,10 +4,11 @@ import { can, has, requireUser } from "@/lib/auth";
 import { getBill } from "@/lib/bill";
 import { createClient } from "@/lib/supabase/server";
 import { dateTime, money } from "@/lib/format";
-import { ReceiptView } from "../pos/receipt-view";
+import { ReceiptView, type ReceiptData } from "../pos/receipt-view";
 import { BillActions } from "./bill-actions";
 import { WhatsAppShare } from "./whatsapp-share";
-import { LoyaltyPanel } from "./loyalty-panel";
+import { LoyaltyPanel, type RedeemSettings } from "./loyalty-panel";
+import { discountPool, receiptLoyalty } from "./loyalty-math";
 import { GuestDetails } from "./guest-details";
 import { AccountPanel } from "./account-panel";
 import { byTableNumber } from "@/lib/table-order";
@@ -48,6 +49,28 @@ export async function BillScreen({
       guest = { name: c.name, phone: c.phone, points: (led ?? []).reduce((t, x) => t + Number(x.points), 0) };
     }
   }
+  // Batch 3: lines that cannot take a discount (bill.lines[].blocked, from order_items.discount_blocked), the points discount already on this bill
+  // (bill.adjust.loyaltyDiscount / loyaltyPoints, from orders.calc_params), the redeem rules and this bill's ledger rows for the receipt.
+  const [setRes, ledgerRes] = await Promise.all([
+    has(user, "loyalty")
+      ? supabase.from("loyalty_settings").select("point_value, min_redeem, redeem_mode, max_redeem_percent").eq("restaurant_id", user.restaurant_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    has(user, "loyalty") ? supabase.from("loyalty_ledger").select("kind, points").eq("order_id", bill.id) : Promise.resolve({ data: null }),
+  ]);
+  const pool = discountPool(bill.lines.map((l) => ({ amount: l.amount, blocked: l.blocked })));
+  const loyalApplied = { points: bill.adjust.loyaltyPoints, discount: bill.adjust.loyaltyDiscount };
+  const sRow = setRes.data;
+  const redeemSettings: RedeemSettings = {
+    mode: sRow?.redeem_mode === "discount" ? "discount" : "tender",
+    pointValue: Number(sRow?.point_value ?? 0),
+    minRedeem: Number(sRow?.min_redeem ?? 0),
+    maxPercent: Number(sRow?.max_redeem_percent ?? 100),
+  };
+  // Receipt: points earned, used and the balance (ReceiptData.loyalty).
+  const receipt: ReceiptData = guest
+    ? { ...r, loyalty: receiptLoyalty((ledgerRes.data ?? []) as { kind: string; points: number }[], guest.points) }
+    : r;
+
   const [{ data: methods }, { data: shift }, { data: tables }, { data: openBills }, { data: mergedTo }] = await Promise.all([
     supabase.from("payment_methods").select("id, name, kind, ask_reference, upi_id").eq("is_active", true).not("kind", "in", "(gift_card,loyalty)").order("display_order"),
     supabase.from("shifts").select("id").eq("status", "open").limit(1).maybeSingle(),
@@ -118,11 +141,12 @@ export async function BillScreen({
         token={r.token ?? null}
         guest={r.guest ?? null}
         delivery={r.orderType === "delivery"}
+        showPoints={has(user, "loyalty")}
         canEdit={r.state !== "voided" && !bill.dayClosed && can(user, "order.create")}
       />
 
       <ReceiptView
-        data={r}
+        data={receipt}
         backHref={from === "pos" ? "/pos" : "/bills"}
         backLabel={from === "pos" ? "New bill" : "All bills"}
         showNextBill={from === "pos" && !open}
@@ -165,7 +189,20 @@ export async function BillScreen({
       )}
 
       {has(user, "loyalty") && r.state !== "voided" && (
-        <LoyaltyPanel orderId={bill.id} open={open} canPay={can(user, "payment.take")} currency={r.currency} guest={guest} />
+        <LoyaltyPanel
+          orderId={bill.id}
+          open={open}
+          canPay={can(user, "payment.take")}
+          currency={r.currency}
+          guest={guest}
+          settings={redeemSettings}
+          applied={loyalApplied}
+          pool={pool}
+          manualDiscount={bill.adjust.discount}
+          due={bill.balance}
+          senior={bill.adjust.senior}
+          hasPayments={r.payments.length > 0}
+        />
       )}
 
       {open && accounts && (
@@ -200,6 +237,8 @@ export async function BillScreen({
         canDiscount={can(user, "order.discount")}
         canKots={open && !bill.dayClosed && can(user, "order.create")}
         adjust={bill.adjust}
+        discountPool={pool}
+        loyaltyDiscount={loyalApplied.discount}
         canChangeMode={can(user, "payment.change_mode")}
         dayClosed={bill.dayClosed}
         heldCount={bill.heldCount}

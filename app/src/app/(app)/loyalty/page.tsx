@@ -1,6 +1,8 @@
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
+import Link from "next/link";
+import { POINTS_DO_NOT_EXPIRE } from "@/lib/customers";
 import { GiftCardDesk, LoyaltyRules } from "./loyalty-forms";
 
 export default async function LoyaltyPage() {
@@ -9,23 +11,16 @@ export default async function LoyaltyPage() {
     return <p className="card p-5 text-sm">Loyalty and gift cards is an add-on. Ask for it in Settings → Plan and modules.</p>;
   }
   const supabase = await createClient();
-  const [{ data: rules }, { data: methods }, { data: cards }, { data: ledger }, { data: led }] = await Promise.all([
-    supabase.from("loyalty_settings").select("spend_per_point, point_value, min_redeem").maybeSingle(),
+  const [{ data: rules }, { data: methods }, { data: cards }, { data: ledger }] = await Promise.all([
+    supabase.from("loyalty_settings").select("*").maybeSingle(),
     supabase.from("payment_methods").select("id, name").eq("is_active", true).not("kind", "in", "(gift_card,loyalty,advance,account)").order("display_order"),
     supabase.from("gift_cards").select("id, code, value, expires_on, created_at, customers!gift_cards_customer_id_fkey(name, phone)").order("created_at", { ascending: false }).limit(50),
     supabase.from("gift_card_ledger").select("gift_card_id, amount"),
-    supabase.from("loyalty_ledger").select("customer_id, points, customers!loyalty_ledger_customer_id_fkey(name, phone)"),
   ]);
   const bal = new Map<string, number>();
   for (const l of ledger ?? []) bal.set(l.gift_card_id, (bal.get(l.gift_card_id) ?? 0) + Number(l.amount));
-  const guests = new Map<string, { name: string; phone: string; points: number }>();
-  for (const l of led ?? []) {
-    const c = l.customers as unknown as { name: string; phone: string } | null;
-    const g = guests.get(l.customer_id) ?? { name: c?.name ?? "Guest", phone: c?.phone ?? "", points: 0 };
-    g.points += Number(l.points);
-    guests.set(l.customer_id, g);
-  }
-  const top = [...guests.values()].filter((g) => g.points > 0).sort((a, b) => b.points - a.points).slice(0, 30);
+  // redeem_mode and max_redeem_percent are new columns; read them without depending on the generated types.
+  const extra = (rules ?? {}) as unknown as { redeem_mode?: string; max_redeem_percent?: number | string };
   const m = (n: number) => money(n, user.currency_code);
   const liability = [...bal.values()].reduce((a, b) => a + b, 0);
 
@@ -41,7 +36,15 @@ export default async function LoyaltyPage() {
       {can(user, "settings.manage") && (
         <LoyaltyRules
           currency={user.currency_code}
-          initial={{ spend: Number(rules?.spend_per_point ?? 100), value: Number(rules?.point_value ?? 1), min: Number(rules?.min_redeem ?? 0), saved: !!rules }}
+          initial={{
+            spend: Number(rules?.spend_per_point ?? 100),
+            value: Number(rules?.point_value ?? 1),
+            min: Number(rules?.min_redeem ?? 0),
+            // A restaurant that never saved rules starts on "discount"; one that saved before keeps what it has (payment).
+            mode: rules ? (extra.redeem_mode === "discount" ? "discount" : "tender") : "discount",
+            maxPercent: Number(extra.max_redeem_percent ?? 100),
+            saved: !!rules,
+          }}
         />
       )}
 
@@ -78,19 +81,13 @@ export default async function LoyaltyPage() {
       </section>
 
       <section className="card p-4">
-        <h2 className="mb-2 text-sm font-bold">Guests with points</h2>
-        {top.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>No points earned yet.</p>
-        ) : (
-          <ul className="grid gap-1 text-sm sm:grid-cols-2">
-            {top.map((g, i) => (
-              <li key={i} className="flex justify-between">
-                <span>{g.name} · +{g.phone}</span>
-                <b className="tabular-nums">{g.points}</b>
-              </li>
-            ))}
-          </ul>
-        )}
+        <h2 className="mb-1 text-sm font-bold">Guests with points</h2>
+        <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
+          {can(user, "customer.view") || can(user, "customer.manage") ? (
+            <>See every guest, their visits and their points in <Link className="font-semibold underline" href="/customers?sort=points">Customers</Link>. </>
+          ) : null}
+          {POINTS_DO_NOT_EXPIRE}
+        </p>
       </section>
     </div>
   );

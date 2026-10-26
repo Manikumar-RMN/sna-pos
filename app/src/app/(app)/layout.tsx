@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { lockCounter } from "@/app/counter/actions";
 import { NavLinks, NavRail, type NavItem } from "./nav-links";
-import { REPORT_LINKS } from "./reports/_components/report-links";
+import { REPORT_LINKS, canSeeReportLink } from "./reports/_components/report-links";
 import { IdleLock } from "./idle-lock";
 import { OfflineSync } from "./offline-sync";
 import { SwRegister } from "./sw-register";
@@ -46,7 +46,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const shiftsOn = !!(await (await createClient()).from("branch_settings").select("shifts_enabled").eq("branch_id", user.branch_id).maybeSingle()).data?.shifts_enabled;
   const canFinancial = can(user, "report.view_financial");
   // The Reports drop-down lists the same pages the Reports hub shows this role.
-  const reportItems = REPORT_LINKS.filter((r) => r.need === "sales" || canFinancial).map((r) => ({ href: r.href, label: r.title, group: r.group }));
+  const reportAccess = {
+    financial: canFinancial,
+    stock: has(user, "stock") && (can(user, "stock.view") || can(user, "stock.manage")),
+    customers: can(user, "customer.view"),
+  };
+  const reportItems = REPORT_LINKS.filter((r) => canSeeReportLink(r, reportAccess)).map((r) => ({ href: r.href, label: r.title, group: r.group }));
   const links = [
     { href: "/dashboard", label: "Home", show: true },
     { href: "/owner", label: "Owner", show: has(user, "owner_app") && can(user, "report.view_sales") },
@@ -56,12 +61,13 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     { href: "/deliveries", label: "Deliveries", show: can(user, "order.create") },
     { href: "/online-orders", label: "Online orders", show: can(user, "order.create") && has(user, "open_api") },
     { href: "/accounts", label: "Accounts", show: can(user, "payment.take") || can(user, "customer.manage") },
+    { href: "/customers", label: "Customers", show: can(user, "customer.view") || can(user, "customer.manage") },
     { href: "/bills", label: "Bills", show: true },
     { href: "/kitchen", label: "Kitchen", show: true },
     { href: "/table-orders", label: "Table orders", show: can(user, "order.create") && has(user, "qr_ordering") },
     { href: "/shift", label: shiftsOn ? "Shift" : "Day close", show: can(user, "shift.open") || can(user, "shift.close") || can(user, "cash.movement") || can(user, "day.close") },
     { href: "/reports", label: "Reports", show: can(user, "report.view_sales") },
-    { href: "/stock", label: "Stock", show: can(user, "stock.manage") && has(user, "stock") },
+    { href: "/stock", label: "Stock", show: (can(user, "stock.manage") || can(user, "stock.view") || can(user, "stock.adjust")) && has(user, "stock") },
     { href: "/purchases", label: "Purchases", show: can(user, "stock.manage") && has(user, "stock") },
     { href: "/reservations", label: "Bookings", show: can(user, "order.create") && has(user, "reservations") },
     { href: "/loyalty", label: "Loyalty", show: has(user, "loyalty") && (can(user, "payment.take") || can(user, "settings.manage")) },

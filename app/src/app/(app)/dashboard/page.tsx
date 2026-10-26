@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { can, requireUser } from "@/lib/auth";
+import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { dateTime, money, todayIn } from "@/lib/format";
+import { fmtQty, parseLowStock, STATUS_LABEL } from "@/lib/stock";
 
 type Summary = { bills: number; total_billed: number; average_bill: number; net_collected: number };
 
@@ -10,8 +11,9 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const today = todayIn(user.timezone);
   const canSales = can(user, "report.view_sales");
+  const canStock = (can(user, "stock.view") || can(user, "stock.manage")) && has(user, "stock");
 
-  const [report, shift, unpaid, kitchen, rest, products, staff, shiftsEver, tables, settings, billsEver, country] = await Promise.all([
+  const [report, shift, unpaid, kitchen, rest, products, staff, shiftsEver, tables, settings, billsEver, country, lowRes] = await Promise.all([
     canSales ? supabase.rpc("sales_report", { p_from: today, p_to: today }) : Promise.resolve({ data: null }),
     supabase.from("shifts").select("id, opened_at, opened_by").eq("status", "open").limit(1).maybeSingle(),
     supabase.from("orders").select("id, grand_total, paid_total").in("payment_status", ["unpaid", "partial"]).neq("status", "voided"),
@@ -24,7 +26,10 @@ export default async function DashboardPage() {
     supabase.from("branch_settings").select("shifts_enabled").eq("branch_id", user.branch_id).maybeSingle(),
     supabase.from("orders").select("id", { count: "exact", head: true }),
     supabase.from("countries").select("tax_id_label").eq("code", user.country_code).maybeSingle(),
+    // Stock running low at this outlet. Empty when the module is off; a failed call just hides the card.
+    canStock ? supabase.rpc("low_stock_items", { p_limit: 5 }) : Promise.resolve({ data: null, error: null }),
   ]);
+  const lowStock = lowRes.error ? null : parseLowStock(lowRes.data);
   // Shifts are optional (off unless the owner switches them on): without them billing is always open.
   const shiftsOn = !!settings.data?.shifts_enabled;
   const taxIdLabel = country.data?.tax_id_label ?? "tax number";
@@ -118,6 +123,35 @@ export default async function DashboardPage() {
           </div>
         </Link>
       </div>
+
+      {canStock && lowStock && (lowStock.items.length > 0 || lowStock.out + lowStock.low + lowStock.negative > 0) && (
+        <Link href="/stock?filter=low" className="card mb-4 block p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+              Low stock
+            </div>
+            <div className="text-xs font-semibold" style={{ color: "var(--color-warn)" }}>
+              {[
+                lowStock.negative > 0 ? `${lowStock.negative} below zero` : "",
+                lowStock.out > 0 ? `${lowStock.out} out` : "",
+                lowStock.low > 0 ? `${lowStock.low} low` : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          </div>
+          <ul className="mt-2 space-y-1 text-sm">
+            {lowStock.items.map((i) => (
+              <li key={i.id || i.name} className="flex items-center justify-between gap-3">
+                <span className="min-w-0 truncate">{i.name}</span>
+                <span className="shrink-0 tabular-nums font-semibold" style={{ color: i.status === "low" ? "var(--color-warn)" : "var(--color-bad)" }}>
+                  {fmtQty(i.on_hand)} {i.unit} · {STATUS_LABEL[i.status]}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Link>
+      )}
 
       {remaining.length > 0 && (
         <div className="card p-5">
