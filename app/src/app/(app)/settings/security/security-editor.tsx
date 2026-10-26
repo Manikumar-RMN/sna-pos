@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { RightGroup } from "@/lib/permissions";
-import { deleteRole, saveRole } from "./actions";
+import { ConfirmButton } from "../confirm-button";
+import { copyRoleRights, deleteRole, saveRole } from "./actions";
 
 type RoleView = { id: string; name: string; locked: boolean; people: number; rights: string[] };
 
@@ -18,6 +19,9 @@ export function SecurityEditor({ isOwner, groups, roles }: { isOwner: boolean; g
   const [ticked, setTicked] = useState<Set<string>>(new Set(selected?.rights ?? []));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  // "Start from a copy of..." (new profile) and "Copy rights from..." (existing profile)
+  const [copyFrom, setCopyFrom] = useState("");
+  const [copyMode, setCopyMode] = useState<"add" | "replace">("add");
 
   const allKeys = groups.flatMap((g) => g.rights.map((r) => r.key));
   const locked = !!selected?.locked;
@@ -33,6 +37,7 @@ export function SecurityEditor({ isOwner, groups, roles }: { isOwner: boolean; g
     setTicked(new Set(r.rights));
     setConfirmDelete(false);
     setMessage(null);
+    setCopyFrom("");
   }
   function startNew() {
     setCreating(true);
@@ -41,6 +46,37 @@ export function SecurityEditor({ isOwner, groups, roles }: { isOwner: boolean; g
     setTicked(new Set(["order.create"]));
     setConfirmDelete(false);
     setMessage(null);
+    setCopyFrom("");
+  }
+  /** The rights a profile effectively has (the Owner always has them all). */
+  function rightsOf(r: RoleView): string[] {
+    return r.locked ? allKeys : r.rights;
+  }
+  /** New profile: tick the boxes of the chosen profile as a starting point. Nothing is saved until "Create profile". */
+  function startFromCopy(id: string) {
+    setCopyFrom(id);
+    const src = roles.find((r) => r.id === id);
+    if (src) setTicked(new Set(rightsOf(src)));
+    else setTicked(new Set(["order.create"]));
+  }
+  /** Existing profile: copy another profile's rights into it right now (saved in the database, audited). */
+  function applyCopy() {
+    if (!selected || !copyFrom) return;
+    const src = roles.find((r) => r.id === copyFrom);
+    if (!src) return;
+    setMessage(null);
+    start(async () => {
+      const res = await copyRoleRights(src.id, selected.id, copyMode);
+      if (!res.ok) {
+        setMessage({ ok: false, text: res.error });
+        return;
+      }
+      setTicked(new Set(copyMode === "replace" ? rightsOf(src) : [...selected.rights, ...rightsOf(src)]));
+      setCopyFrom("");
+      const bits = [`${res.added.length} added`, copyMode === "replace" ? `${res.removed.length} removed` : null].filter(Boolean).join(", ");
+      setMessage({ ok: true, text: `Copied from ${src.name} (${bits}). ${selected.name} now has ${res.total} rights.` });
+      router.refresh();
+    });
   }
   function toggle(key: string) {
     if (readOnly) return;
@@ -161,6 +197,84 @@ export function SecurityEditor({ isOwner, groups, roles }: { isOwner: boolean; g
                 </button>
               )}
             </div>
+
+            {creating && isOwner && (
+              <label className="mb-4 flex flex-col gap-1.5 text-sm font-bold">
+                Start from a copy of…
+                <select className="field max-w-xs" value={copyFrom} onChange={(e) => startFromCopy(e.target.value)}>
+                  <option value="">Nothing (start empty)</option>
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs font-medium" style={{ color: "var(--color-ink-3)" }}>
+                  Ticks the same rights as that profile. You can change them before you create the profile.
+                </span>
+              </label>
+            )}
+
+            {!creating && isOwner && !locked && selected && (
+              <div className="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border p-3" style={{ borderColor: "var(--color-line)" }}>
+                <label className="flex min-w-[200px] flex-col gap-1.5 text-sm font-bold">
+                  Copy rights from…
+                  <select className="field" value={copyFrom} onChange={(e) => setCopyFrom(e.target.value)} disabled={dirty || pending}>
+                    <option value="">Choose a profile</option>
+                    {roles
+                      .filter((r) => r.id !== selected.id)
+                      .map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <div className="flex gap-2" role="radiogroup" aria-label="How to copy">
+                  {(
+                    [
+                      ["add", "Add to what it has"],
+                      ["replace", "Replace all"],
+                    ] as const
+                  ).map(([k, label]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      role="radio"
+                      aria-checked={copyMode === k}
+                      onClick={() => setCopyMode(k)}
+                      className="min-h-11 rounded-2xl border px-3 text-sm font-bold"
+                      style={copyMode === k ? { background: "var(--color-brand)", color: "#fff", borderColor: "var(--color-brand)" } : { borderColor: "var(--color-line)", color: "var(--color-ink-2)" }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {copyMode === "replace" ? (
+                  <ConfirmButton
+                    className="btn border text-sm"
+                    style={{ borderColor: "var(--color-line)" }}
+                    question={`Replace all rights of ${selected.name}?`}
+                    yesLabel="Yes, replace"
+                    noLabel="Keep"
+                    tone="plain"
+                    disabled={!copyFrom || dirty || pending}
+                    onConfirm={applyCopy}
+                  >
+                    Copy
+                  </ConfirmButton>
+                ) : (
+                  <button type="button" className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} disabled={!copyFrom || dirty || pending} onClick={applyCopy}>
+                    Copy
+                  </button>
+                )}
+                {dirty && (
+                  <span className="basis-full text-xs" style={{ color: "var(--color-ink-3)" }}>
+                    Save your changes first, then copy.
+                  </span>
+                )}
+              </div>
+            )}
 
             {locked && (
               <p className="mb-4 rounded-2xl px-4 py-3 text-sm" style={{ background: "var(--color-ground)", color: "var(--color-ink-2)" }}>

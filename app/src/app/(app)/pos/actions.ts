@@ -1,14 +1,24 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { can, getCurrentUser } from "@/lib/auth";
 import type { Json } from "@/lib/supabase/database.types";
+import { SCREEN_COOKIE, parseScreenMode } from "@/lib/order-desk";
 
 import { friendlyDbError } from "@/lib/db-error";
 export type Senior = { kind: "senior" | "pwd"; count: number; diners: number; name: string; id_no: string };
 
-export type CartItem = { product_id: string; qty: number; note?: string; options?: string[]; hold?: boolean };
+export type CartItem = {
+  product_id: string;
+  qty: number;
+  note?: string;
+  options?: string[];
+  hold?: boolean;
+  /** Open-priced dishes only: the price typed at the till. The database checks the right and that it is above zero. Never sent for other dishes. */
+  price?: number;
+};
 
 export type CartInput = {
   items: CartItem[];
@@ -59,7 +69,15 @@ export type PlaceOrderResult =
   | { ok: false; error: string };
 
 function itemsJson(items: CartItem[]) {
-  return items.map((i) => ({ product_id: i.product_id, qty: i.qty, note: i.note ?? "", options: i.options ?? [], hold: !!i.hold })) as unknown as Json;
+  return items.map((i) => ({
+    product_id: i.product_id,
+    qty: i.qty,
+    note: i.note ?? "",
+    options: i.options ?? [],
+    hold: !!i.hold,
+    // Only an open-priced line carries a price; for every other dish the database ignores one anyway.
+    ...(typeof i.price === "number" && Number.isFinite(i.price) ? { price: i.price } : {}),
+  })) as unknown as Json;
 }
 
 function cartArgs(input: CartInput) {
@@ -223,4 +241,15 @@ export async function syncOfflineBill(bill: unknown, opts?: { skipGuest?: boolea
     if (!refused(second.error)) return later;
   }
   return { ok: true, guestDropped: true };
+}
+
+/**
+ * Which billing screen this device uses: "one" = the single order screen, "classic" = the old Billing screen with the separate
+ * KOT / receipt / bill pages. Kept in a cookie on the device (no database setting). Only the screen changes, never any money logic.
+ */
+export async function setScreenMode(mode: string): Promise<{ ok: true; mode: "one" | "classic" }> {
+  const m = parseScreenMode(mode);
+  (await cookies()).set(SCREEN_COOKIE, m, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  revalidatePath("/pos");
+  return { ok: true, mode: m };
 }

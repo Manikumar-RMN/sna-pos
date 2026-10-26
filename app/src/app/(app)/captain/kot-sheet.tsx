@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
+import { logPrint } from "../bills/log-print";
+import { loadKotPrintInfo } from "../pos/kot/[orderId]/actions";
+import { useSlipPrinter, type KotSlip } from "../pos/kot/[orderId]/kot-print";
 import { cancelKot, cancelKotItem, loadBillKots, modifyKotItem, type Kot, type KotItem } from "./actions";
 
 type Edit =
@@ -20,6 +24,10 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // Reprint: the manager PIN prompt (for a role without the reprint right) and the ticket being reprinted.
+  const [pinFor, setPinFor] = useState<Kot | null>(null);
+  const [reprinting, setReprinting] = useState<string | null>(null);
+  const printer = useSlipPrinter();
 
   const load = useCallback(async () => {
     const r = await loadBillKots(orderId);
@@ -59,6 +67,39 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
       const r = await modifyKotItem({ orderId, itemId: edit.item.id, qty: qtyChanged ? newQty : null, note: noteChanged ? edit.note.trim() : null, reason: edit.reason });
       return r.ok ? done(r.message) : setError(r.error);
     });
+  }
+
+  /**
+   * Prints the ticket again. The reprint is logged first (log_print, migration 135): it needs the "Reprint bills and KOTs" right
+   * or a manager PIN, and the ticket is printed only once the log is written.
+   */
+  async function reprintKot(k: Kot) {
+    setNote(null);
+    setError(null);
+    setReprinting(k.id);
+    try {
+      const pi = await loadKotPrintInfo(orderId);
+      if (!pi.ok) return setError(pi.error);
+      const res = await logPrint({ kind: "kot", orderId, ticketIds: [k.id] });
+      if (!res.ok) {
+        if (neededRight(res.error) === "order.reprint") return setPinFor(k);
+        return setError(cleanMessage(res.error));
+      }
+      const slip: KotSlip = {
+        id: k.id,
+        number: k.number,
+        station: k.station,
+        createdAt: k.createdAt,
+        printed: true,
+        items: k.items.map((i) => ({ name: i.name, local: null, qty: i.qty, note: i.note, cancelled: i.cancelled })),
+      };
+      await printer.print([slip], pi.info);
+      setNote(`KOT ${k.number} printed again.`);
+    } catch {
+      setError("Could not reach the server. Check the internet and try again.");
+    } finally {
+      setReprinting(null);
+    }
   }
 
   const reduce = edit?.kind === "item-change" && Number(edit.qty) < edit.item.qty;
@@ -178,6 +219,16 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
                     </li>
                   ))}
                 </ul>
+                {k.status !== "cancelled" && items.length > 0 && (
+                  <button
+                    className="mt-3 w-full rounded-lg border py-2 text-xs font-bold"
+                    style={{ borderColor: "var(--color-line)" }}
+                    disabled={reprinting !== null}
+                    onClick={() => void reprintKot(k)}
+                  >
+                    {reprinting === k.id ? "Printing…" : "Reprint KOT"}
+                  </button>
+                )}
                 {canCancel && items.length > 0 && (
                   <button
                     className="mt-3 w-full rounded-lg border py-2 text-xs font-bold"
@@ -205,6 +256,19 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
             );
           })}
         </div>
+
+        {pinFor && (
+          <ApprovalPrompt
+            permission="order.reprint"
+            onCancel={() => setPinFor(null)}
+            onApproved={() => {
+              const k = pinFor;
+              setPinFor(null);
+              void reprintKot(k);
+            }}
+          />
+        )}
+        {printer.node}
 
         {edit && (
           <div className="mt-4 rounded-xl border-2 p-3" style={{ borderColor: edit.kind === "item-change" ? "var(--color-brand)" : "var(--color-bad)" }}>

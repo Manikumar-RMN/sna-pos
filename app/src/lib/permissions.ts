@@ -13,7 +13,8 @@ export function rightGroups(taxName = "tax"): RightGroup[] {
         { key: "order.create", label: "Take orders and send to kitchen" },
         { key: "order.discount", label: "Give discounts" },
         { key: "order.void", label: "Void bills and cancel items" },
-        { key: "order.reprint", label: "Reprint bills" },
+        { key: "order.reprint", label: "Reprint bills and KOTs", hint: "The first print is free; a reprint is logged and needs this right or a manager PIN" },
+        { key: "order.open_price", label: "Type the price of an open-priced item", hint: "For items sold at a price decided at the counter" },
       ],
     },
     {

@@ -1,5 +1,6 @@
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import { MenuManager, type OptionGroupView } from "../../menu/menu-manager";
 import { MenuUpload } from "./menu-upload";
 
@@ -13,7 +14,7 @@ export default async function MenuPage() {
       supabase.from("categories").select("id, name, display_order, parent_id").is("deleted_at", null).order("display_order").order("name"),
       supabase
         .from("products")
-        .select("id, name, price, category_id, tax_group_id, is_veg, is_available, kitchen_station, name_local, hsn_code, is_charge, parent_id, variant_name, is_combo, sold_by, barcode, track_batches")
+        .select("id, name, price, category_id, tax_group_id, is_veg, is_available, kitchen_station, name_local, hsn_code, is_charge, parent_id, variant_name, is_combo, sold_by, barcode, track_batches, is_open_price")
         .is("deleted_at", null)
         .order("name"),
       supabase.from("tax_groups").select("id, name").eq("is_active", true).order("name"),
@@ -51,6 +52,22 @@ export default async function MenuPage() {
       <p className="mt-1 mb-6 text-sm" style={{ color: "var(--color-ink-3)" }}>
         The dishes and prices your restaurant sells. These appear on the billing screen.
       </p>
+
+      {can(user, "menu.price_change") && (
+        <Link
+          href="/settings/menu/bulk-price"
+          className="card mb-4 flex min-h-14 flex-wrap items-center justify-between gap-2 p-4 text-sm font-bold"
+          style={{ color: "var(--color-brand)" }}
+        >
+          <span>
+            Change many prices at once
+            <span className="block text-xs font-medium" style={{ color: "var(--color-ink-3)" }}>
+              Raise or lower a category by a percentage or an amount, see the new prices first, and undo if needed.
+            </span>
+          </span>
+          <span aria-hidden="true">&rarr;</span>
+        </Link>
+      )}
 
       {can(user, "menu.manage") && (
         <MenuUpload

@@ -1,0 +1,111 @@
+== replaying migrations 001..137
+   failures: 0
+== 135 and 137 are re-runnable (create or replace)
+   135_log_print_reprint_audit ran again without error
+   137_copy_rights_and_access ran again without error
+== t135-137.sql
+psql:/tmp/t135137.sql:7: NOTICE:  schema "t" does not exist, skipping
+
+ result |                                                                 label                                                                  | detail 
+--------+----------------------------------------------------------------------------------------------------------------------------------------+--------
+ PASS   | 1.1 first bill print by a Steward (no reprint right) works silently, logged as bill.print #1                                           | 
+ PASS   | 1.2 the second print of the same bill is a reprint: a Steward without the right is refused, asked for the right (order.reprint)        | 
+ PASS   | 1.3 the refused reprint wrote nothing (still one print row)                                                                            | 
+ PASS   | 1.4 with a manager PIN approval the Steward may reprint: logged as bill.reprint #2                                                     | 
+ PASS   | 1.5 the approval was used up (one reprint per approval)                                                                                | 
+ PASS   | 1.6 a third reprint without a new approval is refused again                                                                            | 
+ PASS   | 1.7 a Cashier (has the right) reprints without a PIN: print #3                                                                         | 
+ PASS   | 1.8 audit trail for o1: one bill.print and two bill.reprint                                                                            | 
+ PASS   | 1.9 the reprint row says who did it and which print it was                                                                             | 
+ PASS   | 1.10 a KOT reprint by a Steward is refused (needs the right or a PIN)                                                                  | 
+ PASS   | 1.11 a Cashier reprints two tickets: kot.reprint with both ticket numbers                                                              | 
+ PASS   | 1.12 the kot.reprint row carries ticket ids                                                                                            | 
+ PASS   | 1.13 a KOT reprint with no ticket list reprints every ticket of the bill                                                               | 
+ PASS   | 1.14 a ticket that belongs to another bill is refused                                                                                  | 
+ PASS   | 1.15 a bill from another outlet is not found                                                                                           | 
+ PASS   | 1.16 a bill of another restaurant is not found                                                                                         | 
+ PASS   | 1.17 an unknown kind is refused                                                                                                        | 
+ PASS   | 1.18 an unknown bill is not found                                                                                                      | 
+ PASS   | 1.19 nobody signed in is refused                                                                                                       | 
+ PASS   | 1.20 printing never changes the bill                                                                                                   | 
+ PASS   | 1.21 the print log is also written for the Owner-less default: Stewards have no order.reprint (fixture) while Cashier/Manager/Owner do | 
+ PASS   | 2.1 a Cashier cannot preview a bulk price change                                                                                       | 
+ PASS   | 2.2 a Cashier cannot apply one                                                                                                         | 
+ PASS   | 2.3 preview +10% on Food (incl. its sub-category Starters), rounding 1: 3 base + 2 outlet lines                                        | 
+ PASS   | 2.4 preview wrote nothing: prices, batches, history and audit unchanged                                                                | 
+ PASS   | 2.5 with outlet prices switched off only the 3 base lines appear                                                                       | 
+ PASS   | 2.6 rounding 1: Tea 20 + 2.5% = 20.5 -> 21                                                                                             | 
+ PASS   | 2.7 rounding 0.5: 20.5 stays                                                                                                           | 
+ PASS   | 2.8 rounding 0.01: 20.50                                                                                                               | 
+ PASS   | 2.9 a price never goes below zero                                                                                                      | 
+ PASS   | 2.10 amount +0.40 on Soup 80 with rounding 0.5 -> 80.5                                                                                 | 
+ PASS   | 2.11 an outlet override that is null (Tea at Outlet A, only unavailable) is not a price line                                           | 
+ PASS   | 2.12 zero change refused                                                                                                               | 
+ PASS   | 2.13 bad rounding refused                                                                                                              | 
+ PASS   | 2.14 empty scope refused                                                                                                               | 
+ PASS   | 2.15 -95% refused                                                                                                                      | 
+ PASS   | 2.16 a reason is required to apply                                                                                                     | 
+ PASS   | 2.17 the preview count is checked: a stale preview is refused                                                                          | 
+ PASS   | 2.18 refused applies changed nothing                                                                                                   | 
+ PASS   | 2.19 apply returns the batch and 5 lines (same as the preview)                                                                         | 
+ PASS   | 2.20 base prices moved: Burger 110, Pizza 330, Soup 88; others untouched (Tea 20, Coffee 100, other restaurant 100)                    | 
+ PASS   | 2.21 outlet prices moved: Burger@A 121, Pizza@B 352; the null Tea@A override is still null                                             | 
+ PASS   | 2.22 the applied lines equal the preview lines (count, old and new prices)                                                             | 
+ PASS   | 2.23 exactly ONE summary audit row and NO per-dish price audit row                                                                     | 
+ PASS   | 2.24 the summary audit row has the batch id, count, reason                                                                             | 
+ PASS   | 2.25 exactly ONE owner alert for the whole batch                                                                                       | 
+ PASS   | 2.26 product_price_history still records each changed base price (3 new rows)                                                          | 
+ PASS   | 2.27 the open bill keeps the price it was rung at (Burger 100)                                                                         | 
+ PASS   | 2.28 the same client_ref again returns the first batch and changes nothing more                                                        | 
+ PASS   | 2.29 a Cashier cannot undo                                                                                                             | 
+ PASS   | 2.30 undo restores 4 lines and leaves the hand-edited Soup (99) alone                                                                  | 
+ PASS   | 2.31 prices after undo: Burger 100, Pizza 300, Soup 99, Burger@A 110, Pizza@B 320                                                      | 
+ PASS   | 2.32 batch marked undone, lines marked restored/skipped                                                                                | 
+ PASS   | 2.33 one undo audit row, no per-dish rows from the undo (the earlier hand edit of Soup has its own), one more alert                    | 
+ PASS   | 2.34 a second undo is refused                                                                                                          | 
+ PASS   | 2.35 an unknown batch is not found                                                                                                     | 
+ PASS   | 2.36 the open bill is still at 100                                                                                                     | 
+ PASS   | 2.37 with a manager PIN approval a person without the right can apply: Coffee 101, approval used                                       | 
+ PASS   | 2.38 without a new approval the Steward is refused again                                                                               | 
+ PASS   | 2.39 a person without the right still cannot change one price directly (guard intact)                                                  | 
+ PASS   | 2.40 Tea untouched by that attempt                                                                                                     | 
+ PASS   | 2.41 one direct price edit by a person with the right still writes its own per-dish audit row                                          | 
+ PASS   | 2.42 a Cashier cannot read the batch tables                                                                                            | 
+ PASS   | 2.43 a signed-in person cannot write the batch table directly                                                                          | 
+ PASS   | 2.44 a Manager reads the batches of the restaurant (2: undone festival + coffee)                                                       | 
+ PASS   | 2.44b history lists the two batches newest first with who, status, line counts                                                         | 
+ PASS   | 2.44c a Cashier cannot read the history                                                                                                | 
+ PASS   | 2.45 another restaurant sees no batches                                                                                                | 
+ PASS   | 3.1 a non-owner (even with user.manage) cannot copy rights                                                                             | 
+ PASS   | 3.2 a person without user.manage cannot                                                                                                | 
+ PASS   | 3.3 the Owner role is never a target                                                                                                   | 
+ PASS   | 3.4 a role cannot copy from itself                                                                                                     | 
+ PASS   | 3.5 a role of another restaurant is not found                                                                                          | 
+ PASS   | 3.6 an unknown mode is refused                                                                                                         | 
+ PASS   | 3.7 add: Custom {order.create, shift.open} + Template {order.create, order.discount, payment.take}                                     | 
+ PASS   | 3.8 Custom now has the union                                                                                                           | 
+ PASS   | 3.9 replace: Custom becomes exactly Template; shift.open removed                                                                       | 
+ PASS   | 3.10 Custom equals Template                                                                                                            | 
+ PASS   | 3.11 the source role is unchanged                                                                                                      | 
+ PASS   | 3.12 audit role.rights_copied: two rows, naming the source and the changes                                                             | 
+ PASS   | 3.13 the Owner role keeps its rights                                                                                                   | 
+ PASS   | 3.14 a person without user.manage cannot copy access                                                                                   | 
+ PASS   | 3.15 Stan gets Carl's role (Cashier) and outlet (A only)                                                                               | 
+ PASS   | 3.16 stored: role Cashier, one outlet row                                                                                              | 
+ PASS   | 3.17 copying from a person with no outlet limit (Nina: all outlets) clears Stan's outlet limit                                         | 
+ PASS   | 3.18 Stan: role Nobody, no outlet rows                                                                                                 | 
+ PASS   | 3.19 two audit rows user.access_copied with before and after role                                                                      | 
+ PASS   | 3.20 you cannot change your own access                                                                                                 | 
+ PASS   | 3.21 access is not copied onto an owner                                                                                                | 
+ PASS   | 3.22 access is not copied from an owner                                                                                                | 
+ PASS   | 3.23 a person of another restaurant is not found                                                                                       | 
+ PASS   | 3.24 copying from yourself is refused                                                                                                  | 
+(92 rows)
+
+
+RESULT: 92 passed, 0 failed
+ stop_if_failed 
+----------------
+               
+(1 row)
+

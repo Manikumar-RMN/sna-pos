@@ -1,0 +1,8 @@
+# WS-C -> WS-F: migration 139 / go-live notes
+- `app.erase_groups()` (last defined in migration 109): register the new tenant table `public.order_tips` (restaurant_id column; children of orders/payments, so erase it BEFORE `payments` and `orders`). WS-C did not touch erase_groups.
+- Permission grants: `order.open_price` is inserted and granted to system roles named Owner and Manager inside migration 131 itself (ON CONFLICT DO NOTHING), so 139 needs nothing for it unless you want a wider grant. Tips need no new permission (they ride on `payment.take`).
+- Migration order: 130 -> 131 -> 133 (132 is WS-B). 130 has no prerequisite besides 129; 131 replaces `app.bill_input` (copy of 121) and `app.insert_order_lines`; 133 drops the 6-argument `pay_order` and creates the 7-argument one. If another workstream also CREATE OR REPLACEs `pay_order`, `bill_input` or `insert_order_lines`, it must start from these versions.
+- Go-live file: not generated here (not trivial: 3 migrations with their own prerequisite check). Use build-go-live-129.sh as the template; the checks to put in it: refuse unless `129_report_pack_2_rpcs` is recorded; refuse if 130/131/133 already recorded.
+- Tests: `docs/tests/run-t130-133.sh` (92 checks) replays 001..129, records golden bills, applies 130/131/133, re-runs them, compares.
+- Other workstreams that read tips (WS-E report_tips): join `order_tips` to `orders` and exclude `orders.status = 'voided'`; `order_tips.business_date` is the bill's business date, `waiter_id` = coalesce(orders.waiter_id, orders.cashier_id), `method_id` is the payment method used when the tip was recorded.
+- `app/e2e/support/world.ts`: no change needed.

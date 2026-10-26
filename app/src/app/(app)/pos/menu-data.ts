@@ -20,8 +20,8 @@ export async function loadMenu(): Promise<MenuItem[]> {
     supabase.from("modifier_items").select("id, modifier_group_id, name, price_delta, display_order, product_id").eq("is_active", true).order("display_order").order("name"),
     // Dishes that have sizes (even sold-out ones): such a dish is sold only through one of its sizes.
     supabase.from("products").select("parent_id").not("parent_id", "is", null).is("deleted_at", null),
-    // Dishes sold by weight, and item codes for the barcode scanner / weighing-scale labels.
-    supabase.from("products").select("id, sold_by, barcode").is("deleted_at", null).or("sold_by.eq.weight,barcode.not.is.null"),
+    // Dishes sold by weight, item codes for the barcode scanner / weighing-scale labels, and open-priced dishes (price typed at the till).
+    supabase.from("products").select("id, sold_by, barcode, is_open_price").is("deleted_at", null).or("sold_by.eq.weight,barcode.not.is.null,is_open_price.eq.true"),
     // Dishes counted in batches: how many are left today at this outlet.
     supabase.rpc("batch_stock"),
     // Bars: tax groups whose dishes go on separate liquor bills.
@@ -90,6 +90,8 @@ export async function loadMenu(): Promise<MenuItem[]> {
         byWeight: codeOf.get(x.id as string)?.sold_by === "weight" || undefined,
         /** Item code: scanning it (or a scale label carrying it) adds this dish. */
         barcode: codeOf.get(x.id as string)?.barcode ?? undefined,
+        /** Open price: the price is typed at the till (needs the order.open_price right and the internet). */
+        is_open_price: codeOf.get(x.id as string)?.is_open_price || undefined,
         /** Counted in batches: how many are left today. */
         left: (x.id as string) in left ? Number(left[x.id as string]) : undefined,
         /** Bars: liquor, billed only on separate liquor bills. */

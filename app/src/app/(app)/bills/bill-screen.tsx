@@ -13,8 +13,22 @@ import { AccountPanel } from "./account-panel";
 import { byTableNumber } from "@/lib/table-order";
 import { describeOfflineFlags } from "@/lib/offline-flags";
 
-/** One bill: printable receipt, its history, and the actions the user may take. */
-export async function BillScreen({ orderId, from, splitPay = false }: { orderId: string; from: "pos" | "bills"; splitPay?: boolean }) {
+/**
+ * One bill: printable receipt, its history, and the actions the user may take.
+ * `embedded` = shown as the right-hand panel of the single order screen (/pos?bill=...): no "back" link of its own, and the
+ * links and follow-up pages it would open (split, merged bill, add items) stay on that screen.
+ */
+export async function BillScreen({
+  orderId,
+  from,
+  splitPay = false,
+  embedded = false,
+}: {
+  orderId: string;
+  from: "pos" | "bills";
+  splitPay?: boolean;
+  embedded?: boolean;
+}) {
   const user = await requireUser();
   const bill = await getBill(orderId);
   if (!bill) notFound();
@@ -81,7 +95,7 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
       {mergedTo && (
         <div className="no-print card mx-auto mb-3 max-w-sm p-3 text-sm">
           This bill was merged into{" "}
-          <Link href={`/bills/${mergedTo.id}`} className="font-semibold" style={{ color: "var(--color-brand)" }}>
+          <Link href={embedded ? `/pos?bill=${mergedTo.id}` : `/bills/${mergedTo.id}`} className="font-semibold" style={{ color: "var(--color-brand)" }}>
             bill {mergedTo.bill_number}
           </Link>
           .
@@ -112,6 +126,8 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
         backHref={from === "pos" ? "/pos" : "/bills"}
         backLabel={from === "pos" ? "New bill" : "All bills"}
         showNextBill={from === "pos" && !open}
+        orderId={bill.id}
+        hideBack={embedded}
       />
 
       {(bill.refunds.length > 0 || bill.voidedAt || bill.cancelled.length > 0 || bill.creditNotes.length > 0) && (
@@ -195,6 +211,7 @@ export async function BillScreen({ orderId, from, splitPay = false }: { orderId:
         shiftOpen={!!shift}
         cashRounding={bill.cashRoundingMode}
         splitPay={splitPay}
+        embedded={embedded}
         lines={bill.lines}
         hasDiscount={bill.hasDiscount}
         hasPayments={r.payments.length > 0}

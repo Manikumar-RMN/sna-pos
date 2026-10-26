@@ -1,5 +1,6 @@
 import { dateTime, money, orderTypeLabel } from "@/lib/format";
 import { reportRpcError } from "@/lib/reports-pack";
+import { paymentStatusLabel } from "@/lib/reports-pack-3";
 import { compLabel, csvWithFooter, parseBillsDetail, paymentsText, truncationNote } from "@/lib/reports-pack-2";
 import { Empty, Err, Note } from "../_components/ui";
 import { loadReport } from "../_components/report-context";
@@ -31,7 +32,7 @@ export default async function BillsDetailPage({ searchParams }: { searchParams: 
     b.waiter ?? b.cashier ?? "—",
     b.covers == null ? "—" : String(b.covers),
     ...(scope.all ? [b.outletName] : []),
-    compLabel(b.compKind) || (b.paymentStatus && b.paymentStatus !== "paid" ? b.paymentStatus : ""),
+    compLabel(b.compKind) || paymentStatusLabel(b.paymentStatus),
   ];
   const textCols = [...lead.map((_, i) => i), head.length - 1];
 

@@ -267,3 +267,10 @@ Rebuild check re-run through 116: identical (3,093 objects).
 - Left on purpose: SNA console dates (SNA's own day), report-send housekeeping, the licence-notice "morning/afternoon" key (device clock, cosmetic).
 - Tests: 12 database, 5 browser, 4 unit tests for this; all suites pass (database 153, browser 76, unit 36). Rebuild check through 118 identical (3,099 objects).
 - App changes need deploying.
+
+## One-batch change set: migrations 130-139 (25 Oct 2026, integration branch `one-batch`, NOT yet on live)
+- Features: scheduled tax rates (130), open-priced items and tax by business day (131), move one item to another table (132), tips as a memo (133), table colours (134), print/reprint log with `order.reprint` enforced (135), bulk price change with undo (136), copy role rights / staff access (137), covers / reprints / tips reports and fixed pending KOT / pending bills (138), erase lists (139).
+- Go to live in one step: paste `docs/go-live-130-139.sql` (needs 129 recorded; refuses if any of the ten is already recorded; all-or-nothing). Proved on a scratch PostgreSQL 16: first run succeeds, second run refuses and changes nothing; the workstream tests t129 (151), t130-133 (92), t132-134 (75), t135-137 (92), t138 (58) all pass on the post-go-live database.
+- `t129.sql` was adjusted: since 138, unpaid dine-in bills show as kind `open` (they were `unsettled`); the checks now accept both and compare open + unsettled (completed bills) with `sales_report` unpaid bills.
+- Founder decisions applied: tips memo-only; Stewards do NOT get `order.reprint` (manager PIN); open price by role right (Owner, Manager) only.
+- App code (WS-B/C/D/E screens and actions) is merged but the single order screen (WS-A) is not built yet; app code was never compiled or run in a browser (no node_modules in the build sandbox). `database.types.ts` now has the new tables, columns and RPCs.

@@ -1,7 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import type { KotSlip } from "./kot-printer";
+import { requireUser } from "@/lib/auth";
+import { orderTypeLabel } from "@/lib/format";
+import { billFormat, paperWidth } from "@/lib/bill-format";
+import type { KotPrintInfo, KotSlip } from "./kot-print";
 
 import { friendlyDbError } from "@/lib/db-error";
 /**
@@ -53,4 +56,31 @@ export async function claimTickets(ids: string[]): Promise<string[]> {
   const { data, error } = await supabase.rpc("claim_tickets_for_print", { p_ids: ids });
   if (error || !Array.isArray(data)) return [];
   return data as string[];
+}
+
+/**
+ * What a kitchen ticket needs around its items when it is printed on request (the "Sent KOTs" sheet): the bill, where it is,
+ * the token, the time zone and this outlet's ticket layout. Read-only.
+ */
+export async function loadKotPrintInfo(orderId: string): Promise<{ ok: true; info: KotPrintInfo } | { ok: false; error: string }> {
+  if (!/^[0-9a-f-]{36}$/i.test(orderId)) return { ok: false, error: "Bill not found." };
+  const user = await requireUser();
+  const supabase = await createClient();
+  const [{ data: order, error }, { data: settings }] = await Promise.all([
+    supabase.from("orders").select("id, bill_number, order_type, dining_table_id, token_no, guest_name").eq("id", orderId).maybeSingle(),
+    supabase.from("branch_settings").select("bill_format").eq("branch_id", user.branch_id).maybeSingle(),
+  ]);
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  if (!order) return { ok: false, error: "Bill not found." };
+  const { data: table } = order.dining_table_id
+    ? await supabase.from("dining_tables").select("table_number").eq("id", order.dining_table_id).maybeSingle()
+    : { data: null as { table_number: string } | null };
+  const type = orderTypeLabel[order.order_type ?? ""] ?? "";
+  const guest = order.order_type === "takeaway" || order.order_type === "delivery" ? (order.guest_name ?? "").trim() : "";
+  const where = table?.table_number ? `Table ${table.table_number}` : guest ? `${type} · ${guest}` : type;
+  const format = billFormat(settings?.bill_format);
+  return {
+    ok: true,
+    info: { billNumber: order.bill_number, where, token: order.token_no ?? null, timezone: user.timezone, printMm: paperWidth(format).printMm, largePrint: format.kot_text === "large" },
+  };
 }

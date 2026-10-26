@@ -198,6 +198,18 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   "order.adjust": "Discount / bill adjusted",
   "order.complimentary": "Complimentary / staff meal",
   "approval.granted": "Manager PIN approval",
+  "bill.print": "Bill printed",
+  "bill.reprint": "Bill reprinted",
+  "kot.reprint": "Kitchen ticket reprinted",
+  "order.tip": "Tip recorded",
+  "order.open_price": "Open-priced item sold",
+  "order.move_item": "Item moved to another table",
+  "menu.bulk_price_change": "Prices changed in bulk",
+  "menu.bulk_price_undo": "Bulk price change undone",
+  "role.rights_copied": "Role rights copied",
+  "user.access_copied": "Staff access copied",
+  "tax.rate_scheduled": "Tax rate change scheduled",
+  "tax.rate_schedule_cancelled": "Scheduled tax change cancelled",
 };
 export const AUDIT_ACTIONS = Object.keys(AUDIT_ACTION_LABEL);
 
@@ -231,6 +243,14 @@ export function auditDetail(action: string, newValue: unknown, oldValue: unknown
       return { bill, detail: str(n.kind) === "staff_meal" ? "Staff meal" : "Complimentary", reason, amount: n.value == null ? null : num(n.value) };
     case "approval.granted":
       return { bill: "", detail: `${str(n.approver)} approved ${str(n.permission)}`.trim(), reason: "", amount: null };
+    case "order.tip":
+      return { bill, detail: "Tip", reason, amount: n.amount == null ? null : num(n.amount) };
+    case "order.open_price":
+      return { bill, detail: `${str(n.qty) || "1"} × ${str(n.product ?? n.item)}`.trim(), reason, amount: n.price == null ? null : num(n.price) };
+    case "bill.print":
+    case "bill.reprint":
+    case "kot.reprint":
+      return { bill, detail: AUDIT_ACTION_LABEL[action] ?? "", reason, amount: null };
     default:
       return { bill, detail: "", reason, amount: null };
   }

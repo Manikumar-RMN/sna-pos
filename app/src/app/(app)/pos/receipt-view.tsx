@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { readDevicePrint } from "@/lib/device-print";
 import { billLines, sendToRawbt } from "@/lib/rawbt";
 import { money, orderTypeLabel } from "@/lib/format";
 import { billFormat, billTextPx, paperWidth, type BillFormat } from "@/lib/bill-format";
 import { UpiQr } from "../upi-qr";
+import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
+import { logPrint } from "../bills/log-print";
 
 export type ReceiptData = {
   invoiceTitle: string | null;
@@ -76,12 +78,21 @@ export function ReceiptView({
   backHref = "/pos",
   backLabel = "New bill",
   showNextBill = true,
+  orderId,
+  hideBack = false,
 }: {
   data: ReceiptData;
   backHref?: string;
   backLabel?: string;
   showNextBill?: boolean;
+  /** The bill's id. When given, every print is recorded first (first print silent, later ones are reprints: right or manager PIN). */
+  orderId?: string;
+  /** The single order screen shows the receipt in a side panel and has its own way back. */
+  hideBack?: boolean;
 }) {
+  const [needsPin, setNeedsPin] = useState(false);
+  const printedHere = useRef(false);
+  const [printError, setPrintError] = useState<string | null>(null);
   const c = data.currency;
   const m = (n: number) => money(n, c);
   const f = billFormat(data.format);
@@ -95,11 +106,33 @@ export function ReceiptView({
     url.searchParams.delete("print");
     window.history.replaceState(null, "", url.toString());
     if (readDevicePrint().bills && (data.state === "paid" || data.state === "part-paid")) {
-      const t = setTimeout(() => printBill(), 300);
+      const t = setTimeout(() => void printBillLogged(), 300);
       return () => clearTimeout(t);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.state]);
+
+  /**
+   * Print button and the print after payment. The database counts earlier prints (log_print, migration 135): the first print of a
+   * bill is silent, a later one is a reprint that needs the right or a manager PIN and is written to the audit log. Prints only
+   * when the log is written. Ctrl+P / the browser's own menu cannot be seen, and a bill shown without an id (the layout preview) is not logged.
+   */
+  async function printBillLogged() {
+    setPrintError(null);
+    if (!orderId) return printBill();
+    let res: Awaited<ReturnType<typeof logPrint>>;
+    try {
+      res = await logPrint({ kind: "bill", orderId, isReprint: printedHere.current });
+    } catch {
+      return setPrintError("Could not record the print. Check the internet and try again.");
+    }
+    if (!res.ok) {
+      if (neededRight(res.error) === "order.reprint") return setNeedsPin(true);
+      return setPrintError(cleanMessage(res.error));
+    }
+    printedHere.current = true; // any later press on this screen is declared a reprint, whatever the log shows
+    printBill();
+  }
 
   /** Prints the bill the way this device is set up to (Settings → Printers). */
   function printBill() {
@@ -133,14 +166,31 @@ export function ReceiptView({
         }
       `}</style>
 
-      <div className="no-print mb-3 flex items-center justify-between">
-        <Link href={backHref} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
-          ← {backLabel}
-        </Link>
-        <button onClick={printBill} className="btn btn-primary h-10 px-4 text-sm">
+      {needsPin && (
+        <ApprovalPrompt
+          permission="order.reprint"
+          onCancel={() => setNeedsPin(false)}
+          onApproved={() => {
+            setNeedsPin(false);
+            void printBillLogged();
+          }}
+        />
+      )}
+      <div className={`no-print mb-3 flex items-center ${hideBack ? "justify-end" : "justify-between"}`}>
+        {!hideBack && (
+          <Link href={backHref} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
+            ← {backLabel}
+          </Link>
+        )}
+        <button onClick={() => void printBillLogged()} className="btn btn-primary h-10 px-4 text-sm">
           Print
         </button>
       </div>
+      {printError && (
+        <p className="no-print mb-3 rounded-lg px-3 py-2 text-sm" role="alert" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
+          {printError}
+        </p>
+      )}
 
       <div
         id="receipt"

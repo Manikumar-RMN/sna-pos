@@ -17,12 +17,15 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Sales", href: "/reports/sales-day-book", title: "Sales day book", blurb: "One line per day: bills, tax, cash and other payments.", need: "financial" },
   { group: "Sales", href: "/reports/sales-month-book", title: "Sales day book monthwise", blurb: "The same book, one line per month.", need: "financial" },
   { group: "Sales", href: "/reports/settlement", title: "Settlement", blurb: "Payments by mode, refunds, net collected and payment list.", need: "financial" },
+  { group: "Sales", href: "/reports/covers", title: "Cover analysis", blurb: "Guests and sales per guest, by day, outlet and waiter.", need: "sales" },
+  { group: "Sales", href: "/reports/tips", title: "Tips", blurb: "Tips by day, payment mode and waiter. Not part of sales.", need: "financial" },
   { group: "Sales", href: "/reports/tax", title: "Tax report", blurb: "Taxable amount and tax for each tax and rate.", need: "financial" },
   { group: "Items & staff", href: "/reports/popular-items", title: "Popular items", blurb: "The items that sell the most, by units and amount.", need: "sales" },
   { group: "Items & staff", href: "/reports/slow-items", title: "Slow and unsold items", blurb: "Menu items that sold the least, or not at all.", need: "sales" },
   { group: "Items & staff", href: "/reports/waiter-sales", title: "Waiter-wise sales", blurb: "Bills, covers and sales for each waiter or cashier.", need: "sales" },
   { group: "Items & staff", href: "/reports/discounts", title: "Discounts", blurb: "Who gave discounts, how much, and on which days.", need: "financial" },
   { group: "Audit", href: "/reports/audit", title: "Voids, cancels and refunds", blurb: "Voided bills, cancelled items, refunds and credit notes.", need: "financial" },
+  { group: "Audit", href: "/reports/reprints", title: "Reprints", blurb: "Bills and kitchen tickets printed again, and by whom.", need: "sales" },
 ];
 
 /** The links this person may see, split under their headings in order (the Sales summary has no heading). */

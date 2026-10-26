@@ -61,6 +61,8 @@ type Product = {
   barcode?: string | null;
   /** Ready-made goods counted in batches (made on, best before). */
   track_batches?: boolean;
+  /** Open price: the price is typed at the till each time it is sold (needs the "Enter an open price" right). */
+  is_open_price?: boolean;
 };
 type TaxGroup = { id: string; name: string; rate?: number | null };
 /** "VAT" becomes "VAT (22%)"; a name that already shows its percentage ("Food 5%") is left alone. */
@@ -479,7 +481,7 @@ function ProductRow({
         )}
       </div>
       <div className="tabular-nums text-sm font-semibold">
-        {sizes.length > 0 ? `from ${money(currency, Math.min(...sizes.map((z) => z.price)))}` : money(currency, product.price)}
+        {product.is_open_price && sizes.length === 0 ? <span className="text-xs font-semibold" style={{ color: "var(--color-brand)" }}>Open price</span> : sizes.length > 0 ? `from ${money(currency, Math.min(...sizes.map((z) => z.price)))}` : money(currency, product.price)}
         {product.sold_by === "weight" && <span className="text-xs font-normal"> /kg</span>}
       </div>
 
@@ -871,6 +873,19 @@ function ProductModal({
             <span className="block text-[11px]" style={{ color: "var(--color-ink-3)" }}>
               For ready-made goods (cakes, puffs, sweets): record each batch made with its best-before date on the Batches screen. Sales take
               from the oldest batch, and the billing screen shows how many are left.
+            </span>
+          </span>
+        </label>
+
+        <label className="mb-3 flex items-start gap-2 text-sm">
+          <input type="hidden" name="open_price_present" value="1" />
+          <input type="checkbox" name="is_open_price" defaultChecked={!!product?.is_open_price} className="mt-0.5 h-4 w-4" />
+          <span>
+            <b>Open price</b>
+            <span className="block text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+              The price is typed at the billing screen each time (for example a special, or a dish priced by the day). Only people with the
+              right to enter an open price can sell it, and every sale is recorded. Tax is worked out on the price typed. The price above is
+              not used. Not available on QR, online or offline bills.
             </span>
           </span>
         </label>

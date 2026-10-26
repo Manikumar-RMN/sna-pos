@@ -9,6 +9,8 @@ import {
   savePackingCharge,
   saveSettings,
   saveTaxGroup,
+  scheduleTaxGroup,
+  cancelScheduledTax,
   setPaymentMethod,
   setPricesIncludeTax,
   type Result,
@@ -21,6 +23,7 @@ import {
 import { ConfirmButton } from "./confirm-button";
 
 import { useTz } from "../tz";
+import { checkEffectiveFrom, friendlyDate, scheduleBounds, type PendingRate } from "./taxes/schedule";
 function useRunner() {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -399,7 +402,7 @@ export function TokensForm({ initial, canEdit }: { initial: string; canEdit: boo
 
 /* ---------------------------------------------------------------------- tax */
 
-export type TaxGroupView = { id: string; name: string; items: number; comps: TaxComponent[] };
+export type TaxGroupView = { id: string; name: string; items: number; comps: TaxComponent[]; pending?: PendingRate | null };
 
 function describe(comps: TaxComponent[], isIndia: boolean) {
   const main = comps.filter((c) => c.applies_when !== "inter_region");
@@ -415,12 +418,15 @@ export function TaxForm({
   isIndia,
   taxName,
   pricesInclude,
+  today,
 }: {
   groups: TaxGroupView[];
   canEdit: boolean;
   isIndia: boolean;
   taxName: string;
   pricesInclude: boolean;
+  /** The restaurant's calendar date (YYYY-MM-DD); the earliest scheduled start is the day after. */
+  today: string;
 }) {
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const { pending, msg, run } = useRunner();
@@ -429,7 +435,7 @@ export function TaxForm({
     <section className="card p-5">
       <h2 className="text-base font-bold">{taxName} and other taxes</h2>
       <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-        Every menu item belongs to one tax group. Changes apply to new bills from today; bills already issued keep the tax they were charged.
+        Every menu item belongs to one tax group. A change applies to new bills from now, or from a date you choose; bills already issued keep the tax they were charged.
         Confirm rates with your accountant.
       </p>
 
@@ -452,8 +458,12 @@ export function TaxForm({
                 initialComps={g.comps}
                 isIndia={isIndia}
                 pending={pending}
+                today={today}
+                canSchedule={!g.pending}
                 onCancel={() => setEditing(null)}
-                onSave={(name, comps) => run(() => saveTaxGroup(g.id, name, comps), () => setEditing(null))}
+                onSave={(name, comps, from) =>
+                  run(() => (from ? scheduleTaxGroup(g.id, comps, from) : saveTaxGroup(g.id, name, comps)), () => setEditing(null))
+                }
               />
             </li>
           ) : (
@@ -463,6 +473,25 @@ export function TaxForm({
                 <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
                   {describe(g.comps, isIndia)} · {g.items} item{g.items === 1 ? "" : "s"}
                 </div>
+                {g.pending && (
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: "var(--color-warn)" }}>
+                    <span>
+                      Applies from {friendlyDate(g.pending.from)}: {describe(g.pending.comps, isIndia)}
+                    </span>
+                    {canEdit && (
+                      <ConfirmButton
+                        question="Cancel this scheduled change?"
+                        yesLabel="Yes, cancel it"
+                        noLabel="Keep"
+                        disabled={pending}
+                        ariaLabel={`Cancel the change scheduled for ${friendlyDate(g.pending.from)}`}
+                        onConfirm={() => run(() => cancelScheduledTax(g.id))}
+                      >
+                        Cancel schedule
+                      </ConfirmButton>
+                    )}
+                  </div>
+                )}
               </div>
               {canEdit && (
                 <button className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--color-line)" }} onClick={() => setEditing(g.id)}>
@@ -482,6 +511,8 @@ export function TaxForm({
               initialComps={[{ name: taxName, rate: 0, compound: false, applies_when: "always" }]}
               isIndia={isIndia}
               pending={pending}
+              today={today}
+              canSchedule={false}
               onCancel={() => setEditing(null)}
               onSave={(name, comps) => run(() => saveTaxGroup(null, name, comps), () => setEditing(null))}
             />
@@ -501,6 +532,8 @@ function GroupEditor({
   initialComps,
   isIndia,
   pending,
+  today,
+  canSchedule,
   onCancel,
   onSave,
 }: {
@@ -508,13 +541,20 @@ function GroupEditor({
   initialComps: TaxComponent[];
   isIndia: boolean;
   pending: boolean;
+  today: string;
+  /** An existing group with nothing scheduled yet can take a start date. */
+  canSchedule: boolean;
   onCancel: () => void;
-  onSave: (name: string, comps: TaxComponent[]) => void;
+  /** from is null for "change now", otherwise the start date (YYYY-MM-DD). */
+  onSave: (name: string, comps: TaxComponent[], from: string | null) => void;
 }) {
   const [name, setName] = useState(initialName);
+  const [from, setFrom] = useState("");
+  const dateError = canSchedule ? checkEffectiveFrom(from, today) : null;
+  const bounds = scheduleBounds(today);
   const [rows, setRows] = useState(initialComps.map((c) => ({ ...c, rate: String(c.rate) })));
   const update = (i: number, patch: Partial<(typeof rows)[number]>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const valid = name.trim() && rows.every((r) => r.name.trim() && r.rate !== "" && Number(r.rate) >= 0 && Number(r.rate) <= 40);
+  const valid = !dateError && name.trim() && rows.every((r) => r.name.trim() && r.rate !== "" && Number(r.rate) >= 0 && Number(r.rate) <= 40);
 
   return (
     <div className="space-y-3 rounded-lg border p-3" style={{ borderColor: "var(--color-brand)" }}>
@@ -559,6 +599,23 @@ function GroupEditor({
           </div>
         ))}
       </div>
+      {canSchedule && (
+        <Field
+          label="Effective from (optional)"
+          hint={
+            from
+              ? `The new rate starts with the business day of ${friendlyDate(from)}. Leave the name as it is: a scheduled change only changes the rates.`
+              : "Leave empty to change the rate now."
+          }
+        >
+          <input type="date" className="field h-10 text-sm" value={from} min={bounds.min} max={bounds.max} onChange={(e) => setFrom(e.target.value)} />
+          {dateError && (
+            <span className="mt-1 block text-[11px]" role="alert" style={{ color: "var(--color-bad)" }}>
+              {dateError}
+            </span>
+          )}
+        </Field>
+      )}
       <button
         className="text-xs font-semibold"
         style={{ color: "var(--color-brand)" }}
@@ -578,10 +635,11 @@ function GroupEditor({
             onSave(
               name.trim(),
               rows.map((r, i) => ({ name: r.name.trim(), rate: Number(r.rate), compound: i > 0 && r.compound, applies_when: r.applies_when })),
+              canSchedule && from ? from : null,
             )
           }
         >
-          {pending ? "Saving…" : "Save"}
+          {pending ? "Saving…" : canSchedule && from ? "Schedule" : "Save"}
         </button>
       </div>
     </div>

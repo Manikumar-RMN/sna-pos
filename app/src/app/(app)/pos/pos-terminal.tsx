@@ -7,6 +7,9 @@ import { parseDiscountInput } from "@/lib/discount";
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, type CartItem, type PlaceOrderInput, type Quote, type Senior } from "./actions";
+import { loadLastRound } from "./repeat-round";
+import { mapRoundToMenu } from "@/lib/repeat-round";
+import { coversError, needsInternetText, openPriceError, openPriceValue, parseCovers } from "@/lib/order-desk";
 import { cashDue, deviceKey, offlineQuote, readQueue, readSnapshot, saveSnapshot, takeNumber, writeQueue, type OfflineBill, type Snapshot } from "@/lib/offline";
 import { OfflineReceipt } from "./offline-receipt";
 import { DishName, Dual } from "../lang";
@@ -45,6 +48,8 @@ export type MenuItem = {
   left?: number;
   /** Bars: liquor goes only on separate liquor bills (its own numbers and VAT). */
   liquor?: boolean;
+  /** Open price: the price is typed at the till when the dish is tapped (needs the order.open_price right and the internet). */
+  is_open_price?: boolean;
 };
 
 /**
@@ -80,19 +85,24 @@ export type PackingRule = {
   delivery: boolean;
 };
 export type ChosenOption = { id: string; name: string; price: number };
-type CartLine = { key: string; item: MenuItem; qty: number; options: ChosenOption[]; note: string; hold?: boolean };
+/** openPrice: the price typed for an open-priced dish. Lines with different typed prices are different lines. */
+type CartLine = { key: string; item: MenuItem; qty: number; options: ChosenOption[]; note: string; hold?: boolean; openPrice?: number };
 
 /** One-tap kitchen notes; staff can also type their own. */
 const QUICK_NOTES = ["No onion", "No garlic", "Less spicy", "Extra spicy", "Less oil", "Parcel"];
 /** The optional guest boxes are smaller than the usual input so they do not push the bill down. */
 const GUEST_FIELD = { minHeight: 40, padding: "0 12px" } as const;
-export type AddTo = { id: string; billNumber: string; table: string | null };
+/** where / token: only the single order screen uses them, to print the kitchen ticket without leaving the screen. */
+export type AddTo = { id: string; billNumber: string; table: string | null; where?: string; token?: number | null };
 
-function lineKey(productId: string, options: ChosenOption[]) {
-  return productId + "|" + options.map((o) => o.id).sort().join(",");
+/** The single order screen asks to print the kitchen ticket of a bill that was just sent. */
+export type KotDone = { orderId: string; billNumber: string; where: string; token: number | null; kind: "new" | "add" };
+
+function lineKey(productId: string, options: ChosenOption[], openPrice?: number) {
+  return productId + "|" + options.map((o) => o.id).sort().join(",") + (openPrice != null ? `|p${openPrice.toFixed(2)}` : "");
 }
-function unitPrice(l: { item: MenuItem; options: ChosenOption[] }) {
-  return Math.round((l.item.price + l.options.reduce((s, o) => s + o.price, 0)) * 100) / 100;
+function unitPrice(l: { item: MenuItem; options: ChosenOption[]; openPrice?: number }) {
+  return Math.round(((l.openPrice ?? l.item.price) + l.options.reduce((s, o) => s + o.price, 0)) * 100) / 100;
 }
 /**
  * "Add to this bill" opens this screen again for that bill, which starts it empty. The items already
@@ -128,7 +138,7 @@ function takeCarried(billId: string, menu: MenuItem[], packingId: string | null,
   let dropped = 0;
   saved.lines.forEach((x: unknown, i: number) => {
     const l = (x && typeof x === "object" ? x : {}) as { [K in keyof CarriedLine]?: unknown };
-    const item = menu.find((it) => it.id === l.p && it.id !== packingId);
+    const item = menu.find((it) => it.id === l.p && it.id !== packingId && !it.is_open_price);
     const ids = Array.isArray(l.o) ? [...new Set<unknown>(l.o)] : null;
     const qty = l.q;
     // The chosen options, as today's menu has them and in the order the option picker gives them.
@@ -174,6 +184,12 @@ export function PosTerminal({
   categoryBrands = {},
   orderTypes = [],
   startType,
+  lockedTable = null,
+  inline = false,
+  onKotDone,
+  askCovers = false,
+  canOpenPrice = false,
+  onCartCount,
 }: {
   currency: string;
   canDiscount: boolean;
@@ -205,6 +221,18 @@ export function PosTerminal({
   orderTypes?: OrderType[];
   /** The kind of bill the screen starts on. */
   startType?: string | null;
+  /** Single order screen: the table was chosen on the table strip, so this is a dine-in bill for it (no table chips, no bill-type buttons). */
+  lockedTable?: { id: string; number: string; separate?: boolean } | null;
+  /** Single order screen: drawn inside that screen (narrower cart, no own "back" buttons, "Charge" opens the bill beside it). */
+  inline?: boolean;
+  /** Single order screen: called instead of moving to the KOT page once the order is saved; the screen prints the ticket in an overlay. */
+  onKotDone?: (done: KotDone) => void;
+  /** Single order screen: ask for the number of guests on a dine-in bill (at least 1; a screen rule only). */
+  askCovers?: boolean;
+  /** The person has the order.open_price right (the database checks it again). */
+  canOpenPrice?: boolean;
+  /** Single order screen: how many items wait in the cart, so the screen can ask before they are thrown away. */
+  onCartCount?: (n: number) => void;
   categoryParents?: Record<string, { id: string; name: string }>;
   /** Cloud kitchen / food court: category id → brand. The billing screen can show one brand at a time. */
   categoryBrands?: Record<string, { id: string; name: string }>;
@@ -220,11 +248,18 @@ export function PosTerminal({
   // The kinds of bill this outlet uses (Settings → Service charge); the screen starts on the outlet's choice.
   const kinds: OrderType[] = orderTypes.length ? orderTypes : ["dine_in", "takeaway", "delivery"];
   const [orderType, setOrderType] = useState<OrderType>(() =>
-    startType && kinds.includes(startType as OrderType) ? (startType as OrderType) : kinds[0],
+    lockedTable ? "dine_in" : startType && kinds.includes(startType as OrderType) ? (startType as OrderType) : kinds[0],
   );
-  const [tableId, setTableId] = useState<string | null>(null);
+  const [tableId, setTableId] = useState<string | null>(lockedTable?.id ?? null);
   /** The cashier chose to start a second bill on a table that already has an open one. */
-  const [separateBill, setSeparateBill] = useState(false);
+  const [separateBill, setSeparateBill] = useState(!!lockedTable?.separate);
+  // Single order screen: guests at the table (dine-in), asked before the order is sent.
+  const [covers, setCovers] = useState("");
+  const coversNum = parseCovers(covers);
+  // Open-priced dish: the price box, and the price chosen while its options are being picked.
+  const [pricing, setPricing] = useState<MenuItem | null>(null);
+  const [pickPrice, setPickPrice] = useState<number | null>(null);
+  const [repeating, setRepeating] = useState(false);
   // Guest details for takeaway and delivery bills. All optional.
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
@@ -358,11 +393,23 @@ export function PosTerminal({
 
   /** Items in the cart; a weighed line counts as one. */
   const itemCount = lines.reduce((s, l) => s + (l.item.byWeight ? 1 : l.qty), 0);
+  useEffect(() => {
+    onCartCount?.(itemCount);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemCount]);
   const qtyInCart = (productId: string) => lines.filter((l) => l.item.id === productId).reduce((s, l) => s + (l.item.byWeight ? 1 : l.qty), 0);
   // The same list goes to the live total and to the saved bill, so the two always agree.
   // The packing charge, when ticked, is one more item at the end: no note, no options, never held.
   const itemsPayload = () => {
-    const items: CartItem[] = lines.map((l) => ({ product_id: l.item.id, qty: l.qty, options: l.options.map((o) => o.id), note: l.note.trim() || undefined, hold: !!l.hold }));
+    // An open-priced line carries the price typed at the till; no other line ever sends a price.
+    const items: CartItem[] = lines.map((l) => ({
+      product_id: l.item.id,
+      qty: l.qty,
+      options: l.options.map((o) => o.id),
+      note: l.note.trim() || undefined,
+      hold: !!l.hold,
+      ...(l.openPrice != null ? { price: l.openPrice } : {}),
+    }));
     if (packRule && packingTicked && lines.length > 0) items.push({ product_id: packRule.productId, qty: packingQty });
     return items;
   };
@@ -487,6 +534,7 @@ export function PosTerminal({
   function localQuote(): Quote | string {
     if (!snap) return "No internet, and this device has no offline copy of the menu yet. Open Billing once while online.";
     if (senior) return "The senior citizen / PWD discount needs the internet.";
+    if (lines.some((l) => l.openPrice != null)) return needsInternetText("open_price");
     try {
       const c = offlineQuote(snap, offlineLines(), snap.rights.discount ? discountAmt : 0, scChoice);
       const scOn = (scChoice ?? snap.settings.sc_default_on) && snap.settings.sc_percent > 0;
@@ -591,13 +639,30 @@ export function PosTerminal({
       } else if (item.variants.length > 1) setSizing(item);
       return;
     }
+    // Open price: ask for the price first. Needs the internet (the database checks the right) and the order.open_price right.
+    if (item.is_open_price) {
+      if (offline) return setError(needsInternetText("open_price"));
+      if (!canOpenPrice) return setError(`Only a manager or owner can enter a price for ${item.name}. Ask them to bill it.`);
+      setPricing(item);
+      return;
+    }
     // Sold by weight: ask for the weight (a scale label brings it already).
     if (item.byWeight) {
       setWeighing({ item });
       return;
     }
-    if (item.groups.length > 0) setPicking(item);
-    else addLine(item, []);
+    if (item.groups.length > 0) {
+      setPickPrice(null);
+      setPicking(item);
+    } else addLine(item, []);
+  }
+  /** The price typed for an open-priced dish: on to its options, or straight into the cart. */
+  function priceChosen(item: MenuItem, price: number) {
+    if (savedRef.current) return;
+    if (item.groups.length > 0) {
+      setPickPrice(price);
+      setPicking(item);
+    } else addLine(item, [], price);
   }
   /** A weighed line: each weighing is its own line. */
   function addWeighed(item: MenuItem, kg: number, key?: string) {
@@ -630,16 +695,53 @@ export function PosTerminal({
     }
     return false;
   }
-  function addLine(item: MenuItem, options: ChosenOption[]) {
-    const base = lineKey(item.id, options);
+  function addLine(item: MenuItem, options: ChosenOption[], openPrice?: number) {
+    const base = lineKey(item.id, options, openPrice);
     setCart((c) => {
       // Same item again goes onto the line without a note; a line with a kitchen
       // note ("no onion") stays separate so the kitchen sees exactly which one.
+      // (An open-priced dish with another typed price is another line: the price is part of the key.)
       const plain = Object.values(c).find((l) => l.key.split("#")[0] === base && l.note.trim() === "" && !l.hold);
       if (plain) return { ...c, [plain.key]: { ...plain, qty: plain.qty + 1 } };
       const key = c[base] ? `${base}#${Date.now()}` : base;
-      return { ...c, [key]: { key, item, options, qty: 1, note: "" } };
+      return { ...c, [key]: { key, item, options, qty: 1, note: "", ...(openPrice != null ? { openPrice } : {}) } };
     });
+  }
+
+  /** "Repeat last order": puts the newest kitchen round of this bill back into the cart at TODAY's menu prices (nothing is priced here). */
+  async function repeatLastRound() {
+    if (!addTo || savedRef.current || repeating) return;
+    if (offline) return setError(needsInternetText("repeat_round"));
+    setRepeating(true);
+    setError(null);
+    try {
+      const res = await loadLastRound(addTo.id);
+      if (!res.ok) return setError(res.error);
+      if (res.lines.length === 0) return setError("Nothing has been sent to the kitchen on this bill yet.");
+      const mapped = mapRoundToMenu(res.lines, menu, packing?.productId ?? null);
+      // An open-priced dish needs a price typed again: it is not repeated.
+      const needPrice = mapped.lines.filter((l) => l.item.is_open_price);
+      const usable = mapped.lines.filter((l) => !l.item.is_open_price);
+      const priceNote = needPrice.length > 0 ? `${needPrice.map((l) => l.item.name).join(", ")} ${needPrice.length === 1 ? "needs" : "need"} a new price: tap ${needPrice.length === 1 ? "it" : "them"} on the menu.` : null;
+      if (usable.length === 0) return setError([mapped.message, priceNote].filter(Boolean).join(" ") || "None of those items can be repeated.");
+      setCart((c) => {
+        const next = { ...c };
+        usable.forEach((l, i) => {
+          const base = lineKey(l.item.id, l.options);
+          // Weighed dishes are one line per weighing; others add onto the same dish + options if it is already in the cart.
+          const key = l.item.byWeight ? `${base}#w${Date.now()}${i}` : base;
+          const cur = next[key];
+          next[key] = cur ? { ...cur, qty: cur.qty + l.qty } : { key, item: l.item, options: l.options, qty: l.qty, note: l.note };
+        });
+        return next;
+      });
+      const note = [mapped.message, priceNote].filter(Boolean).join(" ");
+      if (note) setError(note);
+    } catch {
+      setError("Could not reach the server. Check the internet and try again.");
+    } finally {
+      setRepeating(false);
+    }
   }
   function toggleHold(key: string) {
     setCart((c) => (c[key] ? { ...c, [key]: { ...c[key], hold: !c[key].hold } } : c));
@@ -674,8 +776,10 @@ export function PosTerminal({
     setDiscountReason("");
     setTendered("");
     setReference("");
-    setTableId(null);
-    setSeparateBill(false);
+    // On the single order screen the table was chosen outside this component and stays; the guests start again.
+    setTableId(lockedTable?.id ?? null);
+    setSeparateBill(!!lockedTable?.separate);
+    setCovers("");
     setGuestName("");
     setGuestPhone("");
     setGuestAddress("");
@@ -736,6 +840,7 @@ export function PosTerminal({
       return setError("The SNA POS licence for this restaurant has ended, so new bills cannot be made. Please contact SNA to renew.");
     }
     if (!snap || !quote) return setError("No internet, and this device has no offline copy of the menu yet.");
+    if (lines.some((l) => l.openPrice != null)) return setError(needsInternetText("open_price"));
     if (mode !== "pay") return setError("Without internet only paid bills can be made. Take the payment now.");
     if (!canPay) return setError("Without internet only the cashier can make bills here.");
     const method = paymentMethods.find((p) => p.id === methodId);
@@ -817,6 +922,8 @@ export function PosTerminal({
     if (mixedLiquor) return setError("Liquor and food go on separate bills. Remove the food or the drinks, save this bill, then bill the rest.");
     if (!quote || quoting) return setError("Please wait a moment — the total is being checked.");
     if (needSeparate) return setError(`Table ${chosenTable?.number ?? ""} already has an open bill. Add to it, or tick “Start a separate bill for this table”.`);
+    const guestsProblem = coversError({ askCovers, orderType, adding: !!addTo, offline, text: covers });
+    if (guestsProblem) return setError(guestsProblem);
     if (offline) return submitOffline(mode);
     const payNow = mode === "pay";
     if (payNow && !methodId) return setError("Choose how the customer paid.");
@@ -835,7 +942,13 @@ export function PosTerminal({
       reference: payNow && askRef ? reference : null,
       // Only what the cashier can see is sent: no guest details on dine-in, an address only on delivery.
       guest: orderType === "dine_in" ? null : { name: guestName, phone: guestPhone, address: orderType === "delivery" ? guestAddress : "" },
+      // Guests are asked on the single order screen only; the classic screen sends none, as before.
+      ...(askCovers && orderType === "dine_in" && coversNum ? { covers: coversNum } : {}),
     };
+    // Where the bill is, for the kitchen ticket: "Table 5", or "Takeaway · Name".
+    const typeText = orderTypeLabel[orderType] ?? "";
+    const whereText =
+      orderType === "dine_in" && chosenTable ? `Table ${chosenTable.number}` : orderType !== "dine_in" && guestName.trim() ? `${typeText} · ${guestName.trim()}` : typeText;
     // The same submission keeps its id; any difference at all (items, table, guest, discount, payment…) makes a new one.
     // Known limit, not solvable from the browser: if an attempt did reach the server but its reply was lost, and the
     // cashier then changes anything before pressing again (for example pays by another method), that is a new id and
@@ -864,12 +977,22 @@ export function PosTerminal({
       // Saved. The screen is locked until it has moved on to the bill; the id is kept on purpose, so that even
       // a tap that slipped through would be answered with this same bill and not make another.
       // KOT (saved unpaid): print the kitchen ticket and go on to the next order; the bill is paid later.
+      // On the single order screen the bill opens beside the menu (/pos?bill=...) and the kitchen ticket prints in an overlay.
       const next =
-        mode === "split" ? `/bills/${res.orderId}?pay=split` : mode === "unpaid" ? `/pos/kot/${res.orderId}` : `/pos/receipt/${res.orderId}?print=1`;
+        mode === "split"
+          ? inline
+            ? `/pos?bill=${res.orderId}&pay=split`
+            : `/bills/${res.orderId}?pay=split`
+          : mode === "unpaid"
+            ? `/pos/kot/${res.orderId}`
+            : inline
+              ? `/pos?bill=${res.orderId}&print=1`
+              : `/pos/receipt/${res.orderId}?print=1`;
       savedRef.current = true;
       setMaybeSaved(false);
       setSaved(next);
-      router.push(next);
+      if (mode === "unpaid" && onKotDone) onKotDone({ orderId: res.orderId, billNumber: res.billNumber, where: whereText, token: res.tokenNo, kind: "new" });
+      else router.push(next);
     });
   }
 
@@ -886,7 +1009,7 @@ export function PosTerminal({
   function submitAdd() {
     if (!addTo || savedRef.current || sending.current) return;
     setError(null);
-    if (offline) return setError("Adding to an open bill needs the internet.");
+    if (offline) return setError(needsInternetText("add_to_bill"));
     if (lines.length === 0) return setError("Add at least one item.");
     const items = itemsPayload();
     const key = JSON.stringify(items);
@@ -908,15 +1031,18 @@ export function PosTerminal({
       savedRef.current = true;
       // The added items go to the kitchen: print their KOT here, then back to the bill.
       setSaved(`/pos/kot/${addTo.id}?then=bill`);
-      router.push(`/pos/kot/${addTo.id}?then=bill`);
+      if (onKotDone) onKotDone({ orderId: addTo.id, billNumber: addTo.billNumber, where: addTo.where ?? (addTo.table ? `Table ${addTo.table}` : ""), token: addTo.token ?? null, kind: "add" });
+      else router.push(`/pos/kot/${addTo.id}?then=bill`);
     });
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+    <div className={inline ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]" : "grid gap-4 lg:grid-cols-[1fr_360px]"}>
       <div>
         <div className="mb-3 flex flex-wrap items-center gap-x-3">
-          <h1 className="text-xl font-bold tracking-tight">{addTo ? `Add items to bill ${addTo.billNumber}` : "Billing"}</h1>
+          <h1 className="text-xl font-bold tracking-tight">
+            {addTo ? `Add items to bill ${addTo.billNumber}` : lockedTable ? `Table ${lockedTable.number}: new order` : "Billing"}
+          </h1>
           {offline && (
             <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
               OFFLINE — paid bills only
@@ -1090,7 +1216,7 @@ export function PosTerminal({
                             {m(item.listPrice)}
                           </s>
                         )}
-                        {item.variants?.length ? `from ${m(item.variants[0].price)}` : m(item.price)}
+                        {item.variants?.length ? `from ${m(item.variants[0].price)}` : item.is_open_price ? "open price" : m(item.price)}
                         {item.byWeight && "/kg"}
                         {item.left != null && (
                           <span className="ml-1 text-[11px] font-semibold" style={{ color: item.left - qtyInCart(item.id) > 0 ? "var(--color-ink-3)" : "var(--color-bad)" }}>
@@ -1133,7 +1259,7 @@ export function PosTerminal({
       {lines.length > 0 && (
         <button
           type="button"
-          className="fixed inset-x-3 bottom-3 z-40 flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold shadow-lg lg:hidden"
+          className={`fixed inset-x-3 bottom-3 z-40 flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold shadow-lg ${inline ? "xl:hidden" : "lg:hidden"}`}
           style={{ background: "var(--color-brand)", color: "#fff" }}
           onClick={() => document.getElementById("cart")?.scrollIntoView({ behavior: "smooth" })}
         >
@@ -1144,13 +1270,29 @@ export function PosTerminal({
         </button>
       )}
 
-      <div id="cart" className="scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0">
+      <div id="cart" className={inline ? "scroll-mt-4 pb-20 xl:sticky xl:top-4 xl:self-start xl:pb-0" : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
         <div className="card flex max-h-[calc(100vh-2rem)] flex-col">
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
             <div className="text-sm font-bold">{addTo ? "Items to add" : "Current bill"}</div>
             {addTo ? (
-              <span className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+              <span className="flex items-center gap-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                {!offline && (
+                  <button
+                    type="button"
+                    className="rounded-md border px-2 py-1 text-xs font-semibold"
+                    style={{ borderColor: "var(--color-line)", color: "var(--color-ink-2)" }}
+                    onClick={repeatLastRound}
+                    disabled={repeating || pending || !!saved}
+                    title="Put the items of the last kitchen round back in the list, at today's prices"
+                  >
+                    {repeating ? "Loading…" : "Repeat last order"}
+                  </button>
+                )}
                 {addTo.table ? `Table ${addTo.table} · ` : ""}bill {addTo.billNumber}
+              </span>
+            ) : lockedTable ? (
+              <span className="text-xs font-semibold" style={{ color: "var(--color-ink-2)" }}>
+                <Dual text="Dine in" /> · T{lockedTable.number}
               </span>
             ) : (
               <div className="flex overflow-hidden rounded-lg border" style={{ borderColor: "var(--color-line)" }}>
@@ -1169,7 +1311,63 @@ export function PosTerminal({
             )}
           </div>
 
-          {!addTo && orderType === "dine_in" && tables.length > 0 && (
+          {!addTo && lockedTable && (
+            <div className="border-b px-4 py-2 text-xs" style={{ borderColor: "var(--color-line)", color: "var(--color-ink-2)" }}>
+              New bill for table <b>{lockedTable.number}</b>
+              {lockedTable.separate ? ": a separate bill, this table already has one." : "."}
+              {offline && <span className="mt-1 block" style={{ color: "var(--color-warn)" }}>No internet: a bill made now is paid at once and is not put on the table.</span>}
+            </div>
+          )}
+
+          {askCovers && !addTo && orderType === "dine_in" && !offline && (
+            <div className="border-b px-4 py-2" style={{ borderColor: "var(--color-line)" }}>
+              <div className="flex items-center justify-between gap-2">
+                <label htmlFor="covers" className="text-xs font-semibold">
+                  Guests
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    className="grid h-9 w-9 place-items-center rounded-md border text-base"
+                    style={{ borderColor: "var(--color-line)" }}
+                    aria-label="One guest less"
+                    disabled={coversNum === null || coversNum <= 1}
+                    onClick={() => setCovers(String(Math.max(1, (coversNum ?? 1) - 1)))}
+                  >
+                    −
+                  </button>
+                  <input
+                    id="covers"
+                    className="field h-9 w-14 text-center text-sm"
+                    inputMode="numeric"
+                    placeholder="0"
+                    aria-label="Number of guests"
+                    value={covers}
+                    maxLength={2}
+                    autoComplete="off"
+                    onChange={(e) => setCovers(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                  />
+                  <button
+                    type="button"
+                    className="grid h-9 w-9 place-items-center rounded-md border text-base"
+                    style={{ borderColor: "var(--color-line)" }}
+                    aria-label="One guest more"
+                    disabled={coversNum !== null && coversNum >= 99}
+                    onClick={() => setCovers(String(Math.min(99, (coversNum ?? 0) + 1)))}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              {coversNum === null && lines.length > 0 && (
+                <p className="mt-1 text-[11px]" style={{ color: "var(--color-warn)" }}>
+                  Enter the number of guests before you send the order.
+                </p>
+              )}
+            </div>
+          )}
+
+          {!addTo && !inline && orderType === "dine_in" && tables.length > 0 && (
             <div className="border-b px-4 py-2" style={{ borderColor: "var(--color-line)" }}>
               <div className="mb-1.5 text-[11px] font-semibold" style={{ color: "var(--color-ink-3)" }}>
                 Table
@@ -1285,6 +1483,7 @@ export function PosTerminal({
                       )}
                       <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
                         {m(unitPrice(l))}
+                        {l.openPrice != null && " · open price"}
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -1411,15 +1610,22 @@ export function PosTerminal({
               </p>
               {offline && !saved && (
                 <p className="mt-3 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
-                  No connection. Adding to an open bill needs it; your items stay here and can be added as soon as it is back.
+                  No connection. {needsInternetText("add_to_bill")}
                 </p>
               )}
               {error && !saved && <ErrorBox text={error} />}
               {saved && <SavedBox text="Added and sent to the kitchen. Printing the KOT…" slow={savedSlow} onOpen={() => router.push(saved)} />}
               <div className="mt-3 flex gap-2">
-                <button onClick={() => router.push(`/bills/${addTo.id}`)} disabled={pending} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
-                  Back to bill
-                </button>
+                {!inline && (
+                  <button onClick={() => router.push(`/bills/${addTo.id}`)} disabled={pending} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
+                    Back to bill
+                  </button>
+                )}
+                {inline && (
+                  <button onClick={clearAll} disabled={pending || lines.length === 0 || !!saved} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
+                    Clear
+                  </button>
+                )}
                 <button onClick={submitAdd} disabled={pending || lines.length === 0 || offline || !!saved} className="btn btn-primary flex-1">
                   {pending ? "Adding…" : `KOT · add ${itemCount || ""} to bill`}
                 </button>
@@ -1572,7 +1778,7 @@ export function PosTerminal({
                       style={{ borderColor: "var(--color-brand)", background: "var(--color-surface)", color: "var(--color-brand-strong, var(--color-brand))" }}
                       title="Send the order to the kitchen and print the KOT. The bill stays open: print it and take the payment later."
                     >
-                      KOT
+                      {inline ? "Send KOT" : "KOT"}
                     </button>
                     <button onClick={() => submit("pay")} disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved} className="btn btn-pay flex-1 text-base">
                       {pending ? "Saving…" : <Dual text="Charge" />}
@@ -1586,7 +1792,7 @@ export function PosTerminal({
                     className="btn btn-primary flex-1 text-base"
                     title="Send the order to the kitchen and print the KOT. The cashier takes the payment later."
                   >
-                    {pending ? "Saving…" : "KOT"}
+                    {pending ? "Saving…" : inline ? "Send KOT" : "KOT"}
                   </button>
                 )}
               </div>
@@ -1633,6 +1839,19 @@ export function PosTerminal({
         />
       )}
 
+      {pricing && (
+        <OpenPricePicker
+          item={pricing}
+          currency={currency}
+          onCancel={() => setPricing(null)}
+          onDone={(price) => {
+            const item = pricing;
+            setPricing(null);
+            priceChosen(item, price);
+          }}
+        />
+      )}
+
       {weighing && (
         <WeightPicker
           item={weighing.item}
@@ -1662,15 +1881,69 @@ export function PosTerminal({
 
       {picking && (
         <OptionPicker
-          item={picking}
+          item={pickPrice != null ? { ...picking, price: pickPrice } : picking}
           currency={currency}
           onCancel={() => setPicking(null)}
           onAdd={(opts) => {
-            addLine(picking, opts);
+            addLine(picking, opts, pickPrice ?? undefined);
             setPicking(null);
+            setPickPrice(null);
           }}
         />
       )}
+    </div>
+  );
+}
+
+/** The price of an open-priced dish, typed at the till: more than zero, two decimals at most. The database checks the right again. */
+export function OpenPricePicker({
+  item,
+  currency,
+  onCancel,
+  onDone,
+}: {
+  item: MenuItem;
+  currency: string;
+  onCancel: () => void;
+  onDone: (price: number) => void;
+}) {
+  const [text, setText] = useState("");
+  const problem = text.trim() === "" ? "" : openPriceError(text);
+  const ok = text.trim() !== "" && !problem;
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center p-4" style={{ background: "rgba(10,8,20,.55)" }} onClick={(e) => e.target === e.currentTarget && onCancel()}>
+      <div className="card w-full max-w-sm p-5" style={{ background: "var(--color-surface)" }} role="dialog" aria-label={`Price of ${item.name}`}>
+        <h3 className="text-lg font-bold">{item.name}</h3>
+        <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
+          Open price: type the price for one ({currency}).
+        </p>
+        <label className="mt-4 block text-sm font-semibold">
+          Price
+          <input
+            className="field mt-1.5 text-lg"
+            inputMode="decimal"
+            autoFocus
+            value={text}
+            onChange={(e) => setText(e.target.value.replace(/[^0-9.]/g, "").slice(0, 11))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && ok) onDone(openPriceValue(text));
+              if (e.key === "Escape") onCancel();
+            }}
+            placeholder="0.00"
+          />
+        </label>
+        <p className="mt-2 min-h-5 text-sm font-semibold" style={{ color: problem ? "var(--color-bad)" : undefined }} role={problem ? "alert" : undefined}>
+          {problem ? problem : ok ? money(openPriceValue(text), currency) : " "}
+        </p>
+        <div className="mt-3 flex gap-2">
+          <button className="btn" style={{ flex: "none", padding: "0 16px" }} onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" style={{ flex: 1 }} disabled={!ok} onClick={() => onDone(openPriceValue(text))}>
+            Add
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -4,43 +4,25 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { readDevicePrint, rememberPrinted } from "@/lib/device-print";
+import { ApprovalPrompt, cleanMessage, neededRight } from "../../../approval";
+import { logPrint } from "../../../bills/log-print";
 import { claimTickets, loadKot } from "./actions";
-import { kotLines, sendToRawbt } from "@/lib/rawbt";
+import { KotTicketsPrint, runPrint, type KotSlip } from "./kot-print";
 
-export type KotSlip = {
-  id: string;
-  number: string;
-  station: string;
-  createdAt: string;
-  printed: boolean;
-  items: { name: string; local: string | null; qty: number; note: string | null; cancelled: boolean }[];
-};
+export type { KotSlip } from "./kot-print";
 
 /** Seconds before the screen moves on by itself, once printing is over. */
 const MOVE_ON_AFTER = 3;
-
-/** Opens the print window and waits until it is closed (Chrome blocks; Safari and others tell us with "afterprint"). */
-function printAndWait(): Promise<void> {
-  return new Promise((resolve) => {
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      window.removeEventListener("afterprint", finish);
-      resolve();
-    };
-    window.addEventListener("afterprint", finish);
-    window.print();
-    // A browser that neither blocks nor says "afterprint": do not wait for ever.
-    window.setTimeout(finish, 20_000);
-  });
-}
 
 /**
  * KOT pressed: the order's new items go to the kitchen and their ticket prints here, then the
  * screen goes on to the next order (or back to the bill). The ticket looks the same as the one the
  * Kitchen screen prints. Tickets are claimed before printing, so the Kitchen screen of another
  * device does not print them as well.
+ *
+ * `embedded` is the single order screen (pos/order-desk.tsx): the same work happens in an overlay on top of that screen and,
+ * instead of moving to another page, `onDone` is called when printing is over. "Print KOT again" is a reprint: it is logged
+ * (log_print, migration 135) and needs the reprint right or a manager PIN. The first print after KOT is never logged.
  */
 export function KotPrinter({
   orderId,
@@ -51,6 +33,8 @@ export function KotPrinter({
   timezone,
   printMm,
   largePrint,
+  embedded = false,
+  onDone,
 }: {
   orderId: string;
   billNumber: string;
@@ -60,6 +44,8 @@ export function KotPrinter({
   timezone: string;
   printMm: number;
   largePrint: boolean;
+  embedded?: boolean;
+  onDone?: () => void;
 }) {
   const router = useRouter();
   const [slips, setSlips] = useState<KotSlip[] | null>(null);
@@ -68,9 +54,19 @@ export function KotPrinter({
   const [status, setStatus] = useState<"loading" | "printing" | "done">("loading");
   const [deviceOff, setDeviceOff] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [printError, setPrintError] = useState<string | null>(null);
+  const [needsPin, setNeedsPin] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const started = useRef(false);
   const next = backToBill ? `/bills/${orderId}` : "/pos";
+  const info = { billNumber, where, token, timezone, printMm, largePrint };
+
+  /** Leaves this screen: back to the order screen (embedded) or on to the next page. */
+  function finish() {
+    if (embedded) onDone?.();
+    else router.replace(next);
+  }
 
   // Once: send to the kitchen, then claim and print this round's tickets if this device prints KOTs.
   useEffect(() => {
@@ -109,22 +105,14 @@ export function KotPrinter({
       setPrinting(mine);
       setStatus("printing");
     })();
-  }, [orderId]);
+  }, [orderId, attempt]);
 
   // The tickets are on the page: print them, wait for the print window to close, then move on.
   useEffect(() => {
     if (printing.length === 0) return;
     let alive = true;
     const t = window.setTimeout(async () => {
-      if (readDevicePrint().method === "rawbt") {
-        // The RawBT app prints; give it a moment to take the job.
-        const { lines, width } = kotLines(
-          printing.map((s) => ({ ...s, bill: billNumber, where, token })),
-          { paper: printMm === 58 ? "58" : "80", timezone, large: largePrint },
-        );
-        sendToRawbt(lines, width);
-        await new Promise((r) => window.setTimeout(r, 1500));
-      } else await printAndWait();
+      await runPrint(printing, info);
       if (!alive) return;
       rememberPrinted(printing.map((s) => s.id));
       setPrintedHere(printing);
@@ -142,145 +130,149 @@ export function KotPrinter({
   useEffect(() => {
     if (countdown === null) return;
     if (countdown <= 0) {
-      router.replace(next);
+      finish();
       return;
     }
     const t = window.setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
     return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown, next, router]);
 
-  function printAgain() {
+  /** Print again = a reprint: logged first; a role without the right gets the manager PIN prompt. Prints only when the log is written. */
+  async function printAgain() {
     setCountdown(null);
+    setPrintError(null);
     const again = printedHere.length > 0 ? printedHere : (slips ?? []);
-    if (again.length > 0) setPrinting(again);
+    if (again.length === 0) return;
+    let res: Awaited<ReturnType<typeof logPrint>>;
+    try {
+      res = await logPrint({ kind: "kot", orderId, ticketIds: again.map((s) => s.id) });
+    } catch {
+      return setPrintError("Could not record the reprint. Check the internet and try again.");
+    }
+    if (!res.ok) {
+      if (neededRight(res.error) === "order.reprint") return setNeedsPin(true);
+      return setPrintError(cleanMessage(res.error));
+    }
+    setPrinting(again);
   }
 
   function retry() {
+    if (embedded) {
+      // Stay on the order screen: ask the server again (nothing is sent twice).
+      started.current = false;
+      setError(null);
+      setStatus("loading");
+      setAttempt((a) => a + 1);
+      return;
+    }
     // Start this page again: it sends to the kitchen once more (nothing is sent twice).
     window.location.reload();
   }
 
-  const itemPx = largePrint ? 20 : 16;
-  const subPx = largePrint ? 18 : 14;
   const list = slips ?? [];
   const dishes = list.reduce((n, s) => n + s.items.filter((i) => !i.cancelled).reduce((a, i) => a + i.qty, 0), 0);
 
+  const card = (
+    <div className="card p-6 text-center" style={embedded ? { background: "var(--color-surface)" } : undefined} role={embedded ? "dialog" : undefined} aria-label={embedded ? "Sending to the kitchen" : undefined}>
+      <div className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--color-ink-3)" }}>
+        KOT
+      </div>
+      <h1 className="mt-1 text-2xl font-bold">
+        {status === "loading" ? "Sending to the kitchen…" : error ? "Saved, not sent yet" : list.length > 0 ? "Sent to the kitchen" : "Saved"}
+      </h1>
+      <p className="mt-1 text-sm" style={{ color: "var(--color-ink-2)" }}>
+        {where ? `${where} · ` : ""}Bill {billNumber}
+        {token != null ? ` · Token ${token}` : ""}
+      </p>
+
+      {error && (
+        <p className="mt-3 rounded-lg px-3 py-2 text-sm" role="alert" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
+          {error}
+        </p>
+      )}
+      {printError && (
+        <p className="mt-3 rounded-lg px-3 py-2 text-sm" role="alert" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
+          {printError}
+        </p>
+      )}
+      {!error && status !== "loading" && list.length === 0 && (
+        <p className="mt-3 rounded-lg px-3 py-2 text-sm" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+          Nothing new went to the kitchen: the items are held for a later course. Send them from the bill when it is time.
+        </p>
+      )}
+      {!error && list.length > 0 && (
+        <p className="mt-3 text-sm" style={{ color: "var(--color-ink-3)" }}>
+          {dishes} {dishes === 1 ? "item" : "items"} on {list.length} {list.length === 1 ? "ticket" : "tickets"}.{" "}
+          {status === "printing"
+            ? "Printing the KOT…"
+            : deviceOff
+              ? "This device is set not to print KOTs (Settings → Printers); the kitchen prints them."
+              : printedHere.length > 0
+                ? "KOT printed here."
+                : "The KOT was already printed by another printer."}
+        </p>
+      )}
+      <p className="mt-3 text-sm" style={{ color: "var(--color-ink-3)" }}>
+        The bill stays open. Print it and take the payment from {embedded || backToBill ? "the bill" : "Bills or the table"} when the guest is ready.
+      </p>
+
+      <div className="mt-5 grid gap-2">
+        {error ? (
+          <button className="btn btn-primary text-base" onClick={retry}>
+            Send to kitchen again
+          </button>
+        ) : (
+          <button className="btn btn-primary text-base" disabled={status !== "done"} onClick={finish}>
+            {embedded ? "Done" : backToBill ? "Back to the bill" : "Next order"}
+            {countdown !== null && countdown > 0 ? ` (${countdown})` : ""}
+          </button>
+        )}
+        <div className={embedded ? "grid gap-2" : "grid grid-cols-2 gap-2"}>
+          {embedded ? (
+            error && (
+              <button className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} onClick={finish}>
+                Open the bill
+              </button>
+            )
+          ) : (
+            <Link href={`/bills/${orderId}`} className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setCountdown(null)}>
+              {backToBill ? "Back to the bill" : "Open the bill"}
+            </Link>
+          )}
+          <button className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} disabled={status !== "done" || list.length === 0} onClick={printAgain}>
+            Print KOT again
+          </button>
+        </div>
+        {countdown !== null && countdown > 0 && (
+          <button className="text-xs font-semibold underline" style={{ color: "var(--color-ink-3)" }} onClick={() => setCountdown(null)}>
+            Stay on this page
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <>
-      <style>{`
-        @media print {
-          body * { visibility: hidden !important; }
-          #kot-print, #kot-print * { visibility: visible !important; }
-          #kot-print { position: absolute !important; left: 0 !important; top: 0 !important; width: ${printMm}mm; }
-          .kot-page { page-break-after: always; }
-        }
-      `}</style>
-      <div id="kot-print" aria-hidden="true" className="pointer-events-none fixed left-[-9999px] top-0" style={{ width: `${printMm}mm`, color: "#000", background: "#fff" }}>
-        {printing.map((t) => (
-          <div key={t.id} className="kot-page p-2 font-mono">
-            <div className="text-center text-[18px] font-bold">KOT · {t.station}</div>
-            {token != null && <div className="text-center text-[28px] font-bold leading-tight">Token {token}</div>}
-            <div className="flex justify-between gap-2 text-[14px] font-bold">
-              <span>{where}</span>
-              <span className="shrink-0">{new Date(t.createdAt).toLocaleTimeString("en-IN", { timeZone: timezone, hour: "2-digit", minute: "2-digit" })}</span>
-            </div>
-            <div className="text-[12px]">
-              {t.number} · Bill {billNumber}
-            </div>
-            <div className="my-1 border-t border-dashed border-black" />
-            {t.items.map((i, idx) => (
-              <div key={idx} className="leading-tight" style={{ fontSize: itemPx, textDecoration: i.cancelled ? "line-through" : undefined }}>
-                <b>{i.qty} ×</b> {i.name}
-                {i.local && (
-                  <span className="block pl-5" style={{ fontSize: subPx }}>
-                    {i.local}
-                  </span>
-                )}
-                {i.cancelled && " — CANCELLED"}
-                {i.note && (
-                  <div className="pl-5 font-bold" style={{ fontSize: subPx }}>
-                    ** {i.note}
-                  </div>
-                )}
-              </div>
-            ))}
-            <div className="my-1 border-t border-dashed border-black" />
-          </div>
-        ))}
-      </div>
-
-      <div className="mx-auto max-w-md">
-        <div className="card p-6 text-center">
-          <div className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--color-ink-3)" }}>
-            KOT
-          </div>
-          <h1 className="mt-1 text-2xl font-bold">
-            {status === "loading" ? "Sending to the kitchen…" : error ? "Saved, not sent yet" : list.length > 0 ? "Sent to the kitchen" : "Saved"}
-          </h1>
-          <p className="mt-1 text-sm" style={{ color: "var(--color-ink-2)" }}>
-            {where ? `${where} · ` : ""}Bill {billNumber}
-            {token != null ? ` · Token ${token}` : ""}
-          </p>
-
-          {error && (
-            <p className="mt-3 rounded-lg px-3 py-2 text-sm" role="alert" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
-              {error}
-            </p>
-          )}
-          {!error && status !== "loading" && list.length === 0 && (
-            <p className="mt-3 rounded-lg px-3 py-2 text-sm" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
-              Nothing new went to the kitchen: the items are held for a later course. Send them from the bill when it is time.
-            </p>
-          )}
-          {!error && list.length > 0 && (
-            <p className="mt-3 text-sm" style={{ color: "var(--color-ink-3)" }}>
-              {dishes} {dishes === 1 ? "item" : "items"} on {list.length} {list.length === 1 ? "ticket" : "tickets"}.{" "}
-              {status === "printing"
-                ? "Printing the KOT…"
-                : deviceOff
-                  ? "This device is set not to print KOTs (Settings → Printers); the kitchen prints them."
-                  : printedHere.length > 0
-                    ? "KOT printed here."
-                    : "The KOT was already printed by another printer."}
-            </p>
-          )}
-          <p className="mt-3 text-sm" style={{ color: "var(--color-ink-3)" }}>
-            The bill stays open. Print it and take the payment from {backToBill ? "the bill" : "Bills or the table"} when the guest is ready.
-          </p>
-
-          <div className="mt-5 grid gap-2">
-            {error ? (
-              <button className="btn btn-primary text-base" onClick={retry}>
-                Send to kitchen again
-              </button>
-            ) : (
-              <button className="btn btn-primary text-base" disabled={status !== "done"} onClick={() => router.replace(next)}>
-                {backToBill ? "Back to the bill" : "Next order"}
-                {countdown !== null && countdown > 0 ? ` (${countdown})` : ""}
-              </button>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              {!backToBill ? (
-                <Link href={`/bills/${orderId}`} className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setCountdown(null)}>
-                  Open the bill
-                </Link>
-              ) : (
-                <Link href={`/bills/${orderId}`} className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setCountdown(null)}>
-                  Back to the bill
-                </Link>
-              )}
-              <button className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} disabled={status !== "done" || list.length === 0} onClick={printAgain}>
-                Print KOT again
-              </button>
-            </div>
-            {countdown !== null && countdown > 0 && (
-              <button className="text-xs font-semibold underline" style={{ color: "var(--color-ink-3)" }} onClick={() => setCountdown(null)}>
-                Stay on this page
-              </button>
-            )}
-          </div>
+      {printing.length > 0 && <KotTicketsPrint slips={printing} info={info} />}
+      {needsPin && (
+        <ApprovalPrompt
+          permission="order.reprint"
+          onCancel={() => setNeedsPin(false)}
+          onApproved={() => {
+            setNeedsPin(false);
+            void printAgain();
+          }}
+        />
+      )}
+      {embedded ? (
+        <div className="no-print fixed inset-0 z-40 grid place-items-center p-4" style={{ background: "rgba(10,8,20,.55)" }}>
+          <div className="w-full max-w-md">{card}</div>
         </div>
-      </div>
+      ) : (
+        <div className="mx-auto max-w-md">{card}</div>
+      )}
     </>
   );
 }

@@ -9,6 +9,11 @@ import { UpiQr } from "../upi-qr";
 import { Dual } from "../lang";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { KotSheet } from "../captain/kot-sheet";
+import { useOnline } from "@/lib/use-online";
+import { needsInternetText } from "@/lib/order-desk";
+import { MoveItemPanel } from "./move-item-panel";
+import { TipField } from "./tip-field";
+import { tipError, tipForRequest } from "./tip";
 import { adjustBill, makeComplimentary, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
 
 type Method = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
@@ -16,7 +21,7 @@ type PaymentRow = { id: string; methodId: string; methodName: string; amount: nu
 type Line = { id: string; name: string; options: string | null; qty: number; amount: number };
 type TableOpt = { id: string; number: string; busy: boolean };
 type OtherBill = { id: string; billNumber: string; total: number; table: string | null; mergeable: boolean };
-type Panel = null | "split" | "move" | "merge" | "cancel" | "adjust" | "comp";
+type Panel = null | "split" | "move" | "moveItem" | "merge" | "cancel" | "adjust" | "comp";
 type Adjust = { discount: number; subtotal: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
 
 export function BillActions({
@@ -52,6 +57,7 @@ export function BillActions({
   tables,
   otherBills,
   canMerge = true,
+  embedded = false,
 }: {
   orderId: string;
   billNumber: string;
@@ -92,8 +98,11 @@ export function BillActions({
   otherBills: OtherBill[];
   /** Professional: join two tables into one bill. */
   canMerge?: boolean;
+  /** Shown inside the single order screen (/pos): "+ Add items" and a split go to that screen instead of the old pages. */
+  embedded?: boolean;
 }) {
   const router = useRouter();
+  const online = useOnline();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -126,6 +135,7 @@ export function BillActions({
   const [cnMethod, setCnMethod] = useState(paymentList[0]?.methodId ?? methods[0]?.id ?? "");
   const [approval, setApproval] = useState<null | { permission: string; retry: () => void }>(null);
   const [payRef, setPayRef] = useState(() => crypto.randomUUID());
+  const [tip, setTip] = useState("");
   // Split and credit note: the same id while the same request is retried, a new one when
   // what is asked changes or after it is done. A repeat is answered once by the server.
   const splitRef = useRef<{ key: string; id: string } | null>(null);
@@ -235,6 +245,12 @@ export function BillActions({
         </p>
       )}
 
+      {!online && (
+        <p className="rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+          {needsInternetText("bill_action")}
+        </p>
+      )}
+
       {showFire && (
         <button className="btn btn-pay w-full text-sm" disabled={pending} onClick={() => run(() => fireHeld(orderId))}>
           {pending ? "Sending…" : `Send ${heldCount} held item${heldCount === 1 ? "" : "s"} to the kitchen (next course)`}
@@ -338,9 +354,11 @@ export function BillActions({
                   </span>
                 </div>
               )}
+              {/* A tip is a memo for the report: it is not part of "Take ..." or of the change. */}
+              <TipField value={tip} onChange={setTip} base={due} disabled={pending} offline={!online} />
               <button
                 className="btn btn-pay mt-3 w-full text-base"
-                disabled={pending || !methodId || (part !== null && !(part > 0)) || (part !== null && part > balance) || (isCash && tendered !== "" && Number(tendered) < due)}
+                disabled={pending || !methodId || (part !== null && !(part > 0)) || (part !== null && part > balance) || (isCash && tendered !== "" && Number(tendered) < due) || (online && tipError(tip) !== null)}
                 onClick={() =>
                   run(() =>
                     payBill({
@@ -350,8 +368,12 @@ export function BillActions({
                       amount: isFull ? null : part,
                       reference: askRef && !isCash ? reference : null,
                       clientRef: payRef,
+                      tip: online ? tipForRequest(tip) : undefined,
                     }),
-                    () => setPayRef(crypto.randomUUID()),
+                    () => {
+                      setPayRef(crypto.randomUUID());
+                      setTip("");
+                    },
                   )
                 }
               >
@@ -367,11 +389,30 @@ export function BillActions({
           <h2 className="text-sm font-bold">Table &amp; items</h2>
 
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <Link href={`/pos?add=${orderId}`} className="btn btn-primary text-sm">
-              + Add items
-            </Link>
+            {embedded ? (
+              <button
+                type="button"
+                className="btn btn-primary text-sm"
+                disabled={!online}
+                title={online ? undefined : needsInternetText("add_to_bill")}
+                onClick={() => window.dispatchEvent(new Event("sna-desk-order"))}
+              >
+                + Add items
+              </button>
+            ) : (
+              <Link href={`/pos?add=${orderId}`} className="btn btn-primary text-sm">
+                + Add items
+              </Link>
+            )}
             <PanelButton label="Split bill" active={panel === "split"} onClick={() => setPanel(panel === "split" ? null : "split")} />
             <PanelButton label="Move table" active={panel === "move"} onClick={() => setPanel(panel === "move" ? null : "move")} />
+            <PanelButton
+              label="Move item"
+              active={panel === "moveItem"}
+              disabled={!online}
+              title={online ? undefined : needsInternetText("move_item")}
+              onClick={() => setPanel(panel === "moveItem" ? null : "moveItem")}
+            />
             {canMerge && <PanelButton label="Merge bills" active={panel === "merge"} onClick={() => setPanel(panel === "merge" ? null : "merge")} />}
             {showAdjust && (
               <PanelButton
@@ -384,6 +425,12 @@ export function BillActions({
               <PanelButton label="Complimentary / staff meal" active={panel === "comp"} onClick={() => setPanel(panel === "comp" ? null : "comp")} />
             )}
           </div>
+
+          {!online && (
+            <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
+              {needsInternetText("add_to_bill")} {needsInternetText("move_item")}
+            </p>
+          )}
 
           {panel === "comp" && (
             <div className="mt-3 space-y-2 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
@@ -551,7 +598,7 @@ export function BillActions({
                         }
                         if (!res.ok) return setError(res.error);
                         splitRef.current = null;
-                        router.push(`/bills/${res.newOrderId}`);
+                        router.push(embedded ? `/pos?bill=${res.newOrderId}` : `/bills/${res.newOrderId}`);
                       });
                     }}
                   >
@@ -598,6 +645,29 @@ export function BillActions({
                   </button>
                 </>
               )}
+            </div>
+          )}
+
+          {panel === "moveItem" && online && (
+            <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
+              <MoveItemPanel
+                orderId={orderId}
+                billNumber={billNumber}
+                lines={lines}
+                tables={tables}
+                currentTableId={tableId}
+                blocked={
+                  hasPayments
+                    ? "This bill already has a payment, so items cannot be moved off it. Split the payment instead."
+                    : hasDiscount
+                      ? "This bill has a discount, so items cannot be moved. Remove the discount first or split the payment."
+                      : null
+                }
+                onMoved={() => {
+                  setPanel(null);
+                  router.refresh();
+                }}
+              />
             </div>
           )}
 
@@ -883,10 +953,12 @@ export function BillActions({
   );
 }
 
-function PanelButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function PanelButton({ label, active, onClick, disabled = false, title }: { label: string; active: boolean; onClick: () => void; disabled?: boolean; title?: string }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
+      title={title}
       aria-expanded={active}
       className="btn border text-sm"
       style={{

@@ -53,7 +53,7 @@ describe.skipIf(!haveUi())("a cashier at the till (real app, real browser)", () 
     await page.waitForTimeout(600);
     expect(await cartText(page)).toContain("Change ₹177.00");
     await page.getByRole("button", { name: /^Charge/ }).click();
-    await page.waitForURL(/\/pos\/receipt\//, { timeout: 30000 });
+    await page.waitForURL(/\/pos\?bill=|\/pos\/receipt\//, { timeout: 30000 });
     await page.getByText("Thank you").first().waitFor({ timeout: 30000 });   // the page has finished drawing the receipt
     const receipt = await page.locator("body").innerText();
     for (const s of ["TAX INVOICE", "Masala Dosa", "₹240.00", "Cola", "CGST (2.5%)", "SGST (2.5%)", "CGST (9%)", "TOTAL", "₹323.00", "Paid (Cash)", "Tendered", "₹500.00", "₹177.00"]) expect(receipt.toLowerCase(), s).toContain(s.toLowerCase()); // the heading is upper-cased by the stylesheet, which may not have loaded yet
@@ -71,7 +71,7 @@ describe.skipIf(!haveUi())("a cashier at the till (real app, real browser)", () 
     await tile(page, "Veg Thali").click();
     await page.getByPlaceholder("Cash received").fill("500");
     await page.getByRole("button", { name: /^Charge/ }).click();
-    await page.waitForURL(/\/pos\/receipt\//, { timeout: 30000 });
+    await page.waitForURL(/\/pos\?bill=|\/pos\/receipt\//, { timeout: 30000 });
     const after = await lastOrder();
     expect(Number(after.bill_number.split("-").pop())).toBe(Number(before.bill_number.split("-").pop()) + 1);
     expect(cents(after.grand_total)).toBe(35000); // 333.33 + 5% GST = 349.99, rounded to the rupee
@@ -85,7 +85,7 @@ describe.skipIf(!haveUi())("a cashier at the till (real app, real browser)", () 
     const ref = page.getByPlaceholder(/Reference, e\.g\. UPI txn ID/);
     await ref.fill("UPI-REF-8842");
     await page.getByRole("button", { name: /^Charge/ }).click();
-    await page.waitForURL(/\/pos\/receipt\//, { timeout: 30000 });
+    await page.waitForURL(/\/pos\?bill=|\/pos\/receipt\//, { timeout: 30000 });
     const o = await lastOrder();
     const [p] = await admin("select reference_no, payment_method_id from public.payments where order_id = $1", [o.id]);
     expect(p.reference_no).toBe("UPI-REF-8842");
@@ -95,9 +95,10 @@ describe.skipIf(!haveUi())("a cashier at the till (real app, real browser)", () 
 
   it("a dine-in bill is saved unpaid to the kitchen, listed in Bills, then paid from the bill screen", async () => {
     await openPos(page);
-    await page.getByRole("button", { name: "TT1" }).click();
+    await page.getByRole("button", { name: /^Table T1,/ }).click();            // the coloured table strip of the single order screen
     await tile(page, "Masala Dosa").click(); await tile(page, "Cola").click();
-    await page.getByRole("button", { name: "KOT", exact: true }).click();
+    await page.getByLabel("Number of guests").fill("2");                        // a dine-in bill needs at least one guest
+    await page.getByRole("button", { name: "Send KOT", exact: true }).click();
     await page.waitForTimeout(2500);
     const o = await lastOrder();
     expect([o.payment_status, o.order_type], "saved to the kitchen, not yet paid").toEqual(["unpaid", "dine_in"]);

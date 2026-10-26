@@ -1,0 +1,117 @@
+== replaying migrations 001..129
+   failures: 0
+== capturing golden 'before' results
+psql:/tmp/t130pre.sql:7: NOTICE:  schema "t" does not exist, skipping
+          ?column?          
+----------------------------
+ golden before recorded: 13
+(1 row)
+
+== applying migrations 130..133
+   failures: 0
+== migrations 130, 131, 133 re-run (must be re-runnable)
+   130_tax_rate_schedule.sql ran again without error
+   131_open_price_and_business_date_tax.sql ran again without error
+   133_order_tips.sql ran again without error
+== t130-133.sql
+                                                     ?column?                                                     
+------------------------------------------------------------------------------------------------------------------
+ PASS golden c1 identical before/after (byte-for-byte jsonb)
+ PASS golden c1b identical before/after (byte-for-byte jsonb)
+ PASS golden c1c identical before/after (byte-for-byte jsonb)
+ PASS golden c2 identical before/after (byte-for-byte jsonb)
+ PASS golden c3 identical before/after (byte-for-byte jsonb)
+ PASS golden p1 identical before/after (byte-for-byte jsonb)
+ PASS golden p2 identical before/after (byte-for-byte jsonb)
+ PASS golden q1 identical before/after (byte-for-byte jsonb)
+ PASS golden q2 identical before/after (byte-for-byte jsonb)
+ PASS golden q3 identical before/after (byte-for-byte jsonb)
+ PASS golden q4 identical before/after (byte-for-byte jsonb)
+ PASS golden q5 identical before/after (byte-for-byte jsonb)
+ PASS golden q6 identical before/after (byte-for-byte jsonb)
+ PASS golden: 13 scenarios compared
+ PASS bill_input is still STABLE
+ PASS old 6-argument pay_order is gone, one pay_order remains
+ PASS no order_items row is flagged open_price by ordinary bills
+ PASS no open_price audit rows from ordinary bills
+ PASS cashier cannot schedule a tax change
+ PASS cashier cannot cancel
+ PASS start date today is refused
+ PASS start date in the past is refused
+ PASS more than a year ahead is refused
+ PASS rate above 40 refused
+ PASS unknown group refused
+ PASS another restaurant's group refused
+ PASS cancel with nothing pending
+ PASS pending rate row exists from the start date, open-ended
+ PASS current rate was closed the day before
+ PASS pending rate has its two components
+ PASS audit tax.rate_scheduled written
+ PASS a second pending change for the same group is refused
+ PASS quote today still at 5% (before the start date)
+ PASS quote on the start date uses 12% (6+6 on 240)
+ PASS grand total on the start date
+ PASS the day before the start date still 5%
+ PASS bills already written keep their tax snapshot
+ PASS no existing order line carries the 12% rate
+ PASS cancel removes the pending row and its components
+ PASS cancel reopens the current rate (valid_to null)
+ PASS audit tax.rate_schedule_cancelled written
+ PASS immediate change removed the pending schedule
+ PASS immediate change left exactly one open-ended current rate of 6%
+ PASS immediate change bills at once at 6%
+ PASS rate restored: quote equals golden q1 again
+ PASS immediate change with the business day still yesterday applies to that day
+ PASS rates back to normal
+ PASS group history rows never overlap
+ PASS authenticated can run schedule_tax_group (grant), the permission check is what refuses
+ PASS Owner and Manager were granted order.open_price, Cashier was not
+ PASS manager: open price 200 x 2 gets tax on the typed price (5% of 400 = 20)
+ PASS fractional typed price is rounded to 2 places
+ PASS missing price refused
+ PASS zero price refused
+ PASS negative price refused
+ PASS text price refused
+ PASS huge price refused
+ PASS cashier without the right is refused
+ PASS cashier cannot create a bill with an open price either
+ PASS a stray price on an ordinary item is ignored (quote equals golden q1)
+ PASS bill stores the typed price and flags only that line
+ PASS one audit row per open-priced line, with product, price, qty, who
+ PASS add_order_items with an open item is audited too (2 rows total)
+ PASS open-priced lines add into the bill: subtotal 575, tax 28.76 (2.5% + 2.5% rounded per tax)
+ PASS cashier adding an open item to a bill is refused
+ PASS the cashier refusal does not name the right in brackets (the app would offer a PIN prompt that cannot work)
+ PASS flag change audited as menu.open_price_flag
+ PASS open flag off: product is an ordinary 0-priced item (price key ignored)
+ PASS negative tip refused
+ PASS a refused tip leaves the bill unpaid with no payment
+ PASS pay_order result carries the tip, balance stays zero
+ PASS payment amount is exactly the bill (tip not in payments.amount)
+ PASS bill paid_total / covered exclude the tip
+ PASS tip row stored with method, waiter/cashier, shift, business date, payment link
+ PASS audit order.tip written
+ PASS replay with the same client_ref writes no second tip
+ PASS zero tip: result has no tip key
+ PASS zero and null tips write no order_tips row
+ PASS part payments: one tip row per payment
+ PASS part payments: paid_total is the bill only
+ PASS shift expected cash = cash payments (tips excluded)
+ PASS Z report payments equal payments.amount (tips excluded)
+ PASS tax is untouched by tips: orders.tax_total = sum of line tax
+ PASS tip on a voided bill is excluded by the reporting join (status <> voided)
+ PASS credit notes do not touch order_tips (no code path)
+ PASS cashier can read this restaurant's tips
+ PASS direct insert refused
+ PASS direct update refused
+ PASS direct delete refused
+ PASS another restaurant sees none of these tips
+ PASS amount > 0 is a table check
+ PASS anon has no access to order_tips
+(92 rows)
+
+         ?column?          
+---------------------------
+ TOTAL 92 checks, 0 failed
+(1 row)
+

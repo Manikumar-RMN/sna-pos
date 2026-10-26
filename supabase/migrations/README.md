@@ -151,3 +151,18 @@ when the live database changes.
 | `115_fix_menu_view_permission.sql` | 20261014122317 | applied to live on 14 Oct 2026; fixes the empty billing menu (v_menu / rule_price) |
 | `114_offline_sync_enforce_prices_discounts_and_report.sql` | 20261014112036 | applied to live on 14 Oct 2026; changes `sync_offline_bill` and `audit_to_alert` only |
 | `113_revoke_direct_writes_on_money_tables.sql` | 20261014110331 | applied to live on 14 Oct 2026 |
+
+The ten changes below (one-batch set) go to live together with `docs/go-live-130-139.sql` (built by `docs/tests/build-go-live-130-139.sh`, proved by `docs/tests/run-golive-130-139.sh`); the file is all-or-nothing and refuses a second run. Version numbers shown are placeholders: the go-live file records its own consecutive versions when it runs.
+
+| File | Version | Note |
+|---|---|---|
+| `130_tax_rate_schedule.sql` | recorded by the go-live file | a tax rate change can be scheduled for a future date (schedule_tax_group, cancel_scheduled_tax); an immediate change clears pending ones |
+| `131_open_price_and_business_date_tax.sql` | recorded by the go-live file | open-priced items (products.is_open_price, order_items.open_price, right order.open_price for Owner/Manager); bill_input picks the tax rate by business day |
+| `132_move_order_items.sql` | recorded by the go-live file | move one item (or part of a line) to another table's bill (move_order_items) |
+| `133_order_tips.sql` | recorded by the go-live file | order_tips table (tips as a memo, never in cash or tax); pay_order gains p_tip (7-argument, old 6-argument dropped) |
+| `134_floor_status.sql` | recorded by the go-live file | floor_status(): per-table open bills, waiting KOT, next reservation, for table colours |
+| `135_log_print_reprint_audit.sql` | recorded by the go-live file | log_print(): first bill print logged, reprints need order.reprint (or manager PIN) and are audited |
+| `136_bulk_price_change.sql` | recorded by the go-live file | price_change_batches / price_change_lines, bulk_price_preview / apply / undo / history; guard_product_change knows the bulk flag |
+| `137_copy_rights_and_access.sql` | recorded by the go-live file | copy_role_rights, copy_staff_access |
+| `138_report_pack_3_covers_reprints_tips.sql` | recorded by the go-live file | report_covers, report_reprints, report_tips; pending KOT and pending bills fixed (unpaid dine-in bills are 'open') |
+| `139_erase_groups_tips_and_price_changes.sql` | recorded by the go-live file | app.erase_groups() lists order_tips, price_change_lines, price_change_batches |

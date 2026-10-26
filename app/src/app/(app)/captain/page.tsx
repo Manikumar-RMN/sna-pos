@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { byTableNumber } from "@/lib/table-order";
 import { OpenShiftForm } from "../shift/shift-panel";
 import { loadMenu, subCategoryParents } from "../pos/menu-data";
+import { loadFloor } from "../floor/load-floor";
 import { Captain, type CaptainTable } from "./captain";
 
 /** Captain app: waiters take orders on a phone at the table and send them to the kitchen. No payment here. */
@@ -16,7 +17,7 @@ export default async function CaptainPage() {
     );
   }
   const supabase = await createClient();
-  const [{ data: bs }, { data: tables }, { data: open }, items, parents] = await Promise.all([
+  const [{ data: bs }, { data: tables }, { data: open }, items, parents, floor] = await Promise.all([
     supabase.from("branch_settings").select("shifts_enabled, packing_product_id").eq("branch_id", user.branch_id).maybeSingle(),
     supabase.from("dining_tables").select("id, table_number, seats").eq("is_active", true).eq("is_kiosk", false),
     supabase
@@ -28,7 +29,9 @@ export default async function CaptainPage() {
       .order("created_at"),
     loadMenu(),
     subCategoryParents(),
+    loadFloor(),
   ]);
+  const floorById = new Map(floor.map((f) => [f.table_id, f]));
   if (bs?.shifts_enabled) {
     const { data: shift } = await supabase.from("shifts").select("id").eq("status", "open").limit(1).maybeSingle();
     if (!shift) {
@@ -48,6 +51,7 @@ export default async function CaptainPage() {
       id: t.id,
       number: t.table_number,
       seats: t.seats ?? null,
+      floor: floorById.get(t.id) ?? null,
       bills: (open ?? [])
         .filter((o) => o.dining_table_id === t.id)
         .map((o) => ({ id: o.id, billNumber: o.bill_number, total: Number(o.grand_total ?? 0), since: o.created_at, covers: o.covers ?? null })),

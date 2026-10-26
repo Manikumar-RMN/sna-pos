@@ -31,6 +31,8 @@ export async function payBill(input: {
   reference?: string | null;
   /** Same id on a retry = the same payment, never a second one. */
   clientRef?: string;
+  /** Optional tip: a memo recorded next to the payment (migration 133), never part of the bill or the cash drawer. Omit for none. */
+  tip?: number;
 }): Promise<ActionResult> {
   if (!input.paymentMethodId) return { ok: false, error: "Choose how the customer paid." };
   const supabase = await createClient();
@@ -41,15 +43,17 @@ export async function payBill(input: {
     p_amount: input.amount ?? undefined,
     p_reference: input.reference?.trim() ? input.reference.trim().slice(0, 60) : undefined,
     p_client_ref: input.clientRef && /^[0-9a-f-]{36}$/i.test(input.clientRef) ? input.clientRef : undefined,
+    p_tip: input.tip && input.tip > 0 ? input.tip : undefined,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   refresh(input.orderId);
-  const res = (data ?? {}) as { change?: number; balance?: number; paid?: boolean; repeat?: boolean };
+  const res = (data ?? {}) as { change?: number; balance?: number; paid?: boolean; repeat?: boolean; tip?: number };
   if (res.repeat) return { ok: true, message: "This payment was already recorded." };
   const change = Number(res.change ?? 0);
   const changeText = change > 0 ? ` Give back change of ${change.toFixed(2)}.` : "";
-  if (res.paid === false) return { ok: true, message: `Part payment taken. ${Number(res.balance ?? 0).toFixed(2)} still to pay.${changeText}` };
-  return { ok: true, message: `Paid in full.${changeText}` };
+  const tipNote = Number(res.tip ?? 0) > 0 ? ` Tip ${Number(res.tip).toFixed(2)} recorded.` : "";
+  if (res.paid === false) return { ok: true, message: `Part payment taken. ${Number(res.balance ?? 0).toFixed(2)} still to pay.${changeText}${tipNote}` };
+  return { ok: true, message: `Paid in full.${changeText}${tipNote}` };
 }
 
 /** Discount and / or service charge on an unpaid bill. The database checks the rights and recalculates. */

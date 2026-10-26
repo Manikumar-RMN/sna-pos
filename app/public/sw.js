@@ -1,7 +1,7 @@
 /* SNA POS service worker: keeps the Billing and Kitchen screens usable when the internet drops.
    Screens are always fetched fresh when online; the last copy is used only when offline. */
-const PAGES = "sna-pages-v1";
-const STATIC = "sna-static-v1";
+const PAGES = "sna-pages-v2";
+const STATIC = "sna-static-v2";
 const OFFLINE_PAGES = ["/pos", "/kitchen"];
 
 self.addEventListener("install", () => self.skipWaiting());

@@ -11,6 +11,8 @@ const SCREENS = [
   "/settings", "/settings/company", "/settings/bill", "/settings/taxes", "/settings/charges", "/settings/payments", "/settings/printers",
   "/settings/tables", "/settings/tables/qr", "/settings/users", "/settings/security", "/settings/day", "/settings/counters", "/settings/offers",
   "/settings/reports", "/settings/outlets", "/settings/brands", "/settings/plan", "/settings/api", "/settings/menu", "/account/password",
+  // one-batch additions: the three new reports and the bulk price change screen
+  "/reports/covers", "/reports/reprints", "/reports/tips", "/settings/menu/bulk-price",
 ];
 
 describe.skipIf(!haveUi())("every screen opens without an error page or a refused database request (real app, real browser)", () => {

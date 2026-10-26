@@ -1,0 +1,94 @@
+== replaying migrations 001..129, 132, 134
+   failures: 0
+== the new migrations are re-runnable (create or replace)
+   132_move_order_items.sql ran again without error
+   134_floor_status.sql ran again without error
+== t132-134.sql
+psql:/tmp/t132-134.sql:8: NOTICE:  schema "t" does not exist, skipping
+
+ result |                                                                                   label                                                                                    | detail 
+--------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------
+ PASS   | 1.0 setup: bill A has 3 lines, a kitchen ticket with 3 items, no payment                                                                                                   | 
+ PASS   | 1.1 a new bill was opened on T2 (unpaid, dine-in, on table T2)                                                                                                             | 
+ PASS   | 1.2 totals: source + target after = total before (to the paisa, before rounding)                                                                                           | 
+ PASS   | 1.2b the rounded totals differ by at most 1 (one rupee of rounding)                                                                                                        | 
+ PASS   | 1.3 subtotal and tax are conserved across both bills (equal to the sum of the lines)                                                                                       | 
+ PASS   | 1.4 the biryani line itself moved (same line id, same price, same tax snapshot)                                                                                            | 
+ PASS   | 1.5 its tax rows follow it (order_item_taxes on the new bill)                                                                                                              | 
+ PASS   | 1.6 source bill kept two lines                                                                                                                                             | 
+ PASS   | 1.7 kitchen: the biryani kitchen line now sits on a ticket of the NEW bill; the other two stay on the old ticket                                                           | 
+ PASS   | 1.8 the new ticket has a number of the new bill and keeps the status                                                                                                       | 
+ PASS   | 1.9 audit row order.move_item written once                                                                                                                                 | 
+ PASS   | 1.10 the audit row names both bills, both tables and the item                                                                                                              | 
+ PASS   | 1.11 replay with the same request id returns repeat=true and the same target bill                                                                                          | 
+ PASS   | 1.12 replay moved nothing more (line count unchanged) and wrote no second audit row                                                                                        | 
+ PASS   | 1.13 still one audit row                                                                                                                                                   | 
+ PASS   | 1.14 the same request id on another bill is refused                                                                                                                        | 
+ PASS   | 2.1 lands on the EXISTING open bill of T2 (no new bill)                                                                                                                    | 
+ PASS   | 2.2 amount due before rounding is identical across both bills (to the paisa); the rounded totals differ by at most 1 (one rupee of rounding) (each bill rounds on its own) | 
+ PASS   | 2.2b rounded total before and after differ by at most 1 (one rupee of rounding)                                                                                            | 
+ PASS   | 2.3 the cola copy on T2 has quantity 1, same unit price and tax snapshot; the source line has quantity 2                                                                   | 
+ PASS   | 2.4 the copy has its own tax rows and a computed total                                                                                                                     | 
+ PASS   | 2.5 kitchen: the copy has a kitchen line of 1 on a ticket of the T2 bill; the source kitchen line is now 2                                                                 | 
+ PASS   | 2.6 the shared old ticket was not emptied of its other items (dosa + cola still on the old bill ticket)                                                                    | 
+ PASS   | 2.7 every kitchen ticket belongs to the bill that holds its items (no ticket points at a bill that does not hold its lines)                                                | 
+ PASS   | 2.8 moving the rest of the line keeps the rounded total within 1 of the start                                                                                              | 
+ PASS   | 2.9 the source bill now has one line (dosa)                                                                                                                                | 
+ PASS   | 2.10 a ticket whose items ALL moved is repointed (no copy): the cola ticket items of bill A moved with their ticket                                                        | 
+ PASS   | 3.1 ready alerts list tickets for table T2 (the moved food) and for T1 (the rest), each with the right table                                                               | 
+ PASS   | 3.2 no ready alert names T1 for an item that now sits on T2                                                                                                                | 
+ PASS   | 4.1 a paid bill refuses                                                                                                                                                    | 
+ PASS   | 4.2 a part-paid bill refuses                                                                                                                                               | 
+ PASS   | 4.3 a discounted bill refuses                                                                                                                                              | 
+ PASS   | 4.4 moving onto a discounted bill refuses                                                                                                                                  | 
+ PASS   | 4.5 a voided bill refuses                                                                                                                                                  | 
+ PASS   | 4.6 moving every item off a bill refuses (leave at least one)                                                                                                              | 
+ PASS   | 4.7 moving onto the table it is already on refuses                                                                                                                         | 
+ PASS   | 4.8 more than the line holds refuses                                                                                                                                       | 
+ PASS   | 4.9 an item of another bill refuses                                                                                                                                        | 
+ PASS   | 4.10 an empty list refuses                                                                                                                                                 | 
+ PASS   | 4.11 a kiosk, an inactive table and a table of another outlet are not targets                                                                                              | 
+ PASS   | 4.12 inactive table                                                                                                                                                        | 
+ PASS   | 4.13 table of another outlet                                                                                                                                               | 
+ PASS   | 4.14 a role without order.create is refused                                                                                                                                | 
+ PASS   | 4.15 another restaurant cannot touch our bill                                                                                                                              | 
+ PASS   | 4.16 not signed in                                                                                                                                                         | 
+ PASS   | 5.1 first item valid, second invalid -> error                                                                                                                              | 
+ PASS   | 5.2 nothing changed: lines, quantities, totals identical                                                                                                                   | 
+ PASS   | 5.3 the bill number series did not advance (the new bill never existed)                                                                                                    | 
+ PASS   | 5.4 no bill was created on T3 by the failed move                                                                                                                           | 
+ PASS   | 6.0 setup: beer went on a liquor bill                                                                                                                                      | 
+ PASS   | 6.1 a food item moved to a table that has only a LIQUOR bill opens a separate food bill (liquor bill untouched)                                                            | 
+ PASS   | 7.1 three round trips of one cola: amount due (before rounding) of the two bills unchanged to the paisa                                                                    | 
+ PASS   | 7.2 and the cola quantity across the two bills is unchanged (3)                                                                                                            | 
+ PASS   | F1 only active, non-kiosk tables of this outlet, in table order (T1, T10, T2, T3, T4)                                                                                      | 
+ PASS   | F2 T1: two open bills, total = sum of both grand totals                                                                                                                    | 
+ PASS   | F3 T1: oldest open is the 100-minute-old bill                                                                                                                              | 
+ PASS   | F4 T1: tickets are ready, so no KOT waiting                                                                                                                                | 
+ PASS   | F5 T1: a booking 45 minutes ago is outside the window (no reservation)                                                                                                     | 
+ PASS   | F6 T2: one bill, one KOT waiting, oldest KOT about 20 min                                                                                                                  | 
+ PASS   | F7 T2: a cancelled booking does not count                                                                                                                                  | 
+ PASS   | F8 T3: the open bill is found although its status is completed (payment unpaid)                                                                                            | 
+ PASS   | F9 T3: bill time is the offline client time (40 min), KOT time the client time (5 min), not created_at                                                                     | 
+ PASS   | F10 T3: a booking two hours away is not shown                                                                                                                              | 
+ PASS   | F11 T4: voided, merged-away and paid bills are not open: free table                                                                                                        | 
+ PASS   | F12 T4: a booking that started 20 minutes ago is inside the window                                                                                                         | 
+ PASS   | F13 T10: nearest booking in the window (Rita, +45 min); +90 min and a seated one are ignored                                                                               | 
+ PASS   | F14 every row carries the database clock                                                                                                                                   | 
+ PASS   | F15 a role without order.create is refused                                                                                                                                 | 
+ PASS   | F16 not signed in is refused                                                                                                                                               | 
+ PASS   | F17 the other restaurant sees none of our tables                                                                                                                           | 
+ PASS   | F18 owner sees the same 5 tables                                                                                                                                           | 
+ PASS   | F18b an owner who switched to outlet B sees only outlet B tables (X1)                                                                                                      | 
+ PASS   | F19 floor_status is read only (stable)                                                                                                                                     | 
+ PASS   | F20 floor_status is not callable by anon                                                                                                                                   | 
+ PASS   | F21 move_order_items is not callable by anon                                                                                                                               | 
+(75 rows)
+
+
+RESULT: 75 passed, 0 failed
+ stop_if_failed 
+----------------
+               
+(1 row)
+

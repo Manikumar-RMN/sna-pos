@@ -2973,6 +2973,7 @@ export type Database = {
           line_tax: number
           line_total: number
           modifier_total: number
+          open_price: boolean
           net_amount: number
           options_text: string | null
           order_id: string
@@ -3005,6 +3006,7 @@ export type Database = {
           line_tax?: number
           line_total: number
           modifier_total?: number
+          open_price?: boolean
           net_amount?: number
           options_text?: string | null
           order_id: string
@@ -3037,6 +3039,7 @@ export type Database = {
           line_tax?: number
           line_total?: number
           modifier_total?: number
+          open_price?: boolean
           net_amount?: number
           options_text?: string | null
           order_id?: string
@@ -3116,6 +3119,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      order_tips: {
+        Row: {
+          amount: number
+          branch_id: string | null
+          business_date: string | null
+          created_at: string
+          id: string
+          method_id: string | null
+          order_id: string
+          payment_id: string | null
+          received_by: string | null
+          restaurant_id: string
+          shift_id: string | null
+          waiter_id: string | null
+        }
+        Insert: {
+          amount: number
+          branch_id?: string | null
+          business_date?: string | null
+          created_at?: string
+          id?: string
+          method_id?: string | null
+          order_id: string
+          payment_id?: string | null
+          received_by?: string | null
+          restaurant_id: string
+          shift_id?: string | null
+          waiter_id?: string | null
+        }
+        Update: {
+          amount?: number
+          branch_id?: string | null
+          business_date?: string | null
+          created_at?: string
+          id?: string
+          method_id?: string | null
+          order_id?: string
+          payment_id?: string | null
+          received_by?: string | null
+          restaurant_id?: string
+          shift_id?: string | null
+          waiter_id?: string | null
+        }
+        Relationships: []
       }
       orders: {
         Row: {
@@ -4065,6 +4113,105 @@ export type Database = {
           },
         ]
       }
+      price_change_batches: {
+        Row: {
+          branch_id: string | null
+          client_ref: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          include_branch: boolean
+          line_count: number
+          mode: string
+          reason: string
+          restaurant_id: string
+          rounding: number
+          scope: Json
+          status: string
+          undo_restored: number | null
+          undo_skipped: number | null
+          undone_at: string | null
+          undone_by: string | null
+          value: number
+        }
+        Insert: {
+          branch_id?: string | null
+          client_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          include_branch?: boolean
+          line_count?: number
+          mode: string
+          reason: string
+          restaurant_id: string
+          rounding: number
+          scope?: Json
+          status?: string
+          undo_restored?: number | null
+          undo_skipped?: number | null
+          undone_at?: string | null
+          undone_by?: string | null
+          value: number
+        }
+        Update: {
+          branch_id?: string | null
+          client_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          include_branch?: boolean
+          line_count?: number
+          mode?: string
+          reason?: string
+          restaurant_id?: string
+          rounding?: number
+          scope?: Json
+          status?: string
+          undo_restored?: number | null
+          undo_skipped?: number | null
+          undone_at?: string | null
+          undone_by?: string | null
+          value?: number
+        }
+        Relationships: []
+      }
+      price_change_lines: {
+        Row: {
+          batch_id: string
+          branch_id: string | null
+          id: number
+          new_price: number
+          old_price: number
+          product_id: string
+          restaurant_id: string
+          scope: string
+          undo_state: string | null
+        }
+        Insert: {
+          batch_id: string
+          branch_id?: string | null
+          id?: number
+          new_price: number
+          old_price: number
+          product_id: string
+          restaurant_id: string
+          scope: string
+          undo_state?: string | null
+        }
+        Update: {
+          batch_id?: string
+          branch_id?: string | null
+          id?: number
+          new_price?: number
+          old_price?: number
+          product_id?: string
+          restaurant_id?: string
+          scope?: string
+          undo_state?: string | null
+        }
+        Relationships: []
+      }
       price_rules: {
         Row: {
           branch_id: string | null
@@ -4418,6 +4565,7 @@ export type Database = {
           is_available: boolean
           is_charge: boolean
           is_combo: boolean
+          is_open_price: boolean
           is_veg: boolean | null
           kitchen_station: string | null
           name: string
@@ -4447,6 +4595,7 @@ export type Database = {
           is_available?: boolean
           is_charge?: boolean
           is_combo?: boolean
+          is_open_price?: boolean
           is_veg?: boolean | null
           kitchen_station?: string | null
           name: string
@@ -4476,6 +4625,7 @@ export type Database = {
           is_available?: boolean
           is_charge?: boolean
           is_combo?: boolean
+          is_open_price?: boolean
           is_veg?: boolean | null
           kitchen_station?: string | null
           name?: string
@@ -6882,6 +7032,37 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: Json
       }
+      bulk_price_apply: {
+        Args: {
+          p_client_ref?: string
+          p_expect_lines?: number
+          p_include_branch: boolean
+          p_mode: string
+          p_reason: string
+          p_rounding: number
+          p_scope: Json
+          p_value: number
+        }
+        Returns: Json
+      }
+      bulk_price_history: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
+      bulk_price_preview: {
+        Args: {
+          p_include_branch?: boolean
+          p_mode: string
+          p_rounding?: number
+          p_scope?: Json
+          p_value: number
+        }
+        Returns: Json
+      }
+      bulk_price_undo: {
+        Args: { p_batch: string; p_reason?: string }
+        Returns: Json
+      }
       cancel_goods_receipt: {
         Args: { p_id: string; p_reason: string }
         Returns: Json
@@ -6904,6 +7085,7 @@ export type Database = {
         Returns: Json
       }
       cancel_plan_request: { Args: { p_id: string }; Returns: undefined }
+      cancel_scheduled_tax: { Args: { p_group: string }; Returns: Json }
       category_set_brand: {
         Args: { p_brand: string; p_category: string }
         Returns: undefined
@@ -6928,6 +7110,14 @@ export type Database = {
         Returns: Json
       }
       create_api_key: { Args: { p_name: string }; Returns: Json }
+      copy_role_rights: {
+        Args: { p_from_role: string; p_mode?: string; p_to_role: string }
+        Returns: Json
+      }
+      copy_staff_access: {
+        Args: { p_from_user: string; p_to_user: string }
+        Returns: Json
+      }
       create_order: {
         Args: {
           p_client_ref?: string
@@ -6986,6 +7176,24 @@ export type Database = {
       gift_card_lookup: { Args: { p_code: string }; Returns: Json }
       gst_register: { Args: { p_from: string; p_to: string }; Returns: Json }
       import_menu: { Args: { p_apply?: boolean; p_rows: Json }; Returns: Json }
+      floor_status: {
+        Args: never
+        Returns: {
+          table_id: string
+          table_number: string
+          seats: number
+          open_bills: number
+          open_total: number
+          oldest_open_at: string | null
+          kot_waiting: number
+          oldest_kot_at: string | null
+          reservation_id: string | null
+          reservation_at: string | null
+          reservation_name: string | null
+          reservation_party: number | null
+          db_now: string
+        }[]
+      }
       invite_staff: {
         Args: {
           p_email: string
@@ -7020,6 +7228,10 @@ export type Database = {
       kiosk_remove: { Args: { p_id: string }; Returns: undefined }
       kiosk_set_auto: { Args: { p_id: string; p_user: string }; Returns: undefined }
       liquor_prefix_info: { Args: never; Returns: Json }
+      log_print: {
+        Args: { p_kind: string; p_order: string; p_ticket_ids?: string[]; p_is_reprint?: boolean }
+        Returns: Json
+      }
       login_staff: {
         Args: { p_client_code: string; p_password: string; p_username: string }
         Returns: Json
@@ -7031,6 +7243,15 @@ export type Database = {
       mark_tickets_printed: { Args: { p_ids: string[] }; Returns: number }
       merge_orders: {
         Args: { p_source_id: string; p_target_id: string }
+        Returns: Json
+      }
+      move_order_items: {
+        Args: {
+          p_client_ref?: string
+          p_items: Json
+          p_order_id: string
+          p_to_table: string
+        }
         Returns: Json
       }
       move_order_table: {
@@ -7073,6 +7294,7 @@ export type Database = {
           p_payment_method_id: string
           p_reference?: string
           p_tendered?: number
+          p_tip?: number
         }
         Returns: Json
       }
@@ -7203,6 +7425,7 @@ export type Database = {
       remove_report_schedule: { Args: { p_id: string }; Returns: undefined }
       reopen_day: { Args: { p_reason: string }; Returns: Json }
       report_bills_detail: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_covers: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_discounts: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_pending_bills: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_pending_kot: { Args: { p_from: string; p_to: string }; Returns: Json }
@@ -7210,6 +7433,7 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: Json
       }
+      report_reprints: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_sales_day_book: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_sales_month_book: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_schedules_list: { Args: never; Returns: Json }
@@ -7224,6 +7448,7 @@ export type Database = {
         Returns: undefined
       }
       report_tax: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_tips: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_unsold_items: {
         Args: { p_from: string; p_to: string }
         Returns: Json
@@ -7347,6 +7572,10 @@ export type Database = {
       save_tax_group: {
         Args: { p_components: Json; p_group_id: string; p_name: string }
         Returns: string
+      }
+      schedule_tax_group: {
+        Args: { p_components: Json; p_effective_from: string; p_group: string }
+        Returns: Json
       }
       send_report_now: { Args: { p_id: string }; Returns: Json }
       send_to_kitchen: { Args: { p_order: string }; Returns: Json }

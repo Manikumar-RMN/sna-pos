@@ -265,9 +265,9 @@ begin
     (select coalesce(jsonb_agg(jsonb_build_array(e -> 'component', e -> 'rate', e -> 'taxable', e -> 'tax') order by ord), '[]'::jsonb) from jsonb_array_elements(sr -> 'tax') with ordinality x(e, ord))::text);
   perform t.same(p_label || ' tax report: line total = bill-header tax total = sales_report tax',
     jsonb_build_object('lines', tx #> '{totals,tax}', 'hdr', tx #> '{totals,orders_tax_total}'), jsonb_build_object('lines', s -> 'tax', 'hdr', s -> 'tax')::text);
-  perform t.same(p_label || ' pending bills: unsettled rows = sales_report unpaid_bills / unpaid_amount',
-    jsonb_build_object('n', (select count(*) from jsonb_array_elements(pb -> 'rows') r where r ->> 'kind' = 'unsettled'),
-                       'bal', (select coalesce(sum((r ->> 'balance')::numeric), 0) from jsonb_array_elements(pb -> 'rows') r where r ->> 'kind' = 'unsettled')),
+  perform t.same(p_label || ' pending bills: unpaid completed bills (kind open or unsettled together; 138 labels unpaid dine-in bills open) = sales_report unpaid_bills / unpaid_amount',
+    jsonb_build_object('n', (select count(*) from jsonb_array_elements(pb -> 'rows') r where r ->> 'kind' in ('open', 'unsettled') and r ->> 'order_status' = 'completed'),
+                       'bal', (select coalesce(sum((r ->> 'balance')::numeric), 0) from jsonb_array_elements(pb -> 'rows') r where r ->> 'kind' in ('open', 'unsettled') and r ->> 'order_status' = 'completed')),
     jsonb_build_object('n', s -> 'unpaid_bills', 'bal', s -> 'unpaid_amount')::text);
 end $$;
 
@@ -288,9 +288,9 @@ select t.same('1.1b pending KOT items (by line order, then name) and totals', js
 select t.eq('1.1c minutes pending: k14a created 90 min ago -> 90, k16b 24 h ago -> 1440, k20 10 min -> 10',
   jsonb_build_array((:'kot'::jsonb -> 'rows' -> 1 ->> 'minutes_pending')::int between 90 and 91, (:'kot'::jsonb -> 'rows' -> 0 ->> 'minutes_pending')::int between 1440 and 1441, (:'kot'::jsonb -> 'rows' -> 2 ->> 'minutes_pending')::int between 10 and 11), '[true,true,true]');
 
-select t.same('1.2a pending bills (All): unsettled o12 420 and o13 600 (paid 249.6, balance 350.4), open o16 120, o14 180 (advance 50 -> 130), o15 90, o20 60 in B; not o17 (after range), not the paid / voided bills',
-  t.pick(:'pb'::jsonb -> 'rows', array['bill_number','kind','amount','paid','balance','outlet_name']),
-  '[["O12","unsettled",420,0,420,"Outlet A"],["O13","unsettled",600,249.6,350.4,"Outlet A"],["O16","open",120,0,120,"Outlet A"],["O14","open",180,50,130,"Outlet A"],["O15","open",90,0,90,"Outlet A"],["O20","open",60,0,60,"Outlet B"]]');
+select t.same('1.2a pending bills (All): o12 420 and o13 600 (paid 249.6, balance 350.4; unpaid dine-in bills are labelled open since 138, were unsettled), open o16 120, o14 180 (advance 50 -> 130), o15 90, o20 60 in B; not o17 (after range), not the paid / voided bills',
+  replace(t.pick(:'pb'::jsonb -> 'rows', array['bill_number','kind','amount','paid','balance','outlet_name'])::text, '"unsettled"', '"open"')::jsonb,   -- 129 said unsettled, 138 says open: both accepted
+  '[["O12","open",420,0,420,"Outlet A"],["O13","open",600,249.6,350.4,"Outlet A"],["O16","open",120,0,120,"Outlet A"],["O14","open",180,50,130,"Outlet A"],["O15","open",90,0,90,"Outlet A"],["O20","open",60,0,60,"Outlet B"]]');
 select t.same('1.2b pending bills totals', :'pb'::jsonb -> 'totals', '{"bills":6,"amount":1470,"paid":299.6,"balance":1170.4}');
 select t.same('1.2c pending bills o14: table, waiter, cashier, status, age (created 2 h ago)',
   (select jsonb_build_array(r ->> 'table_number', r ->> 'waiter', r ->> 'cashier', r ->> 'order_status', r ->> 'payment_status', (r ->> 'age_minutes')::int between 120 and 121) from jsonb_array_elements(:'pb'::jsonb -> 'rows') r where r ->> 'bill_number' = 'O14'),

@@ -108,6 +108,26 @@ export async function saveTaxGroup(groupId: string | null, name: string, compone
   return done("Tax saved. New bills use it from now on; past bills keep the tax they were charged.");
 }
 
+/** Schedule a new rate for an existing tax group from a future date (YYYY-MM-DD, after today). Name changes are not part of a schedule. */
+export async function scheduleTaxGroup(groupId: string, components: TaxComponent[], effectiveFrom: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("schedule_tax_group", {
+    p_group: groupId,
+    p_components: components as unknown as Json,
+    p_effective_from: effectiveFrom,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  return done("Tax change scheduled. It starts with the business day of that date; bills before it keep the current rate.");
+}
+
+/** Cancel the tax change that is waiting for its date. The current rate carries on. */
+export async function cancelScheduledTax(groupId: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_scheduled_tax", { p_group: groupId });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  return done("Scheduled tax change cancelled. The current rate carries on.");
+}
+
 export async function setPricesIncludeTax(inclusive: boolean): Promise<Result> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_prices_include_tax", { p_inclusive: inclusive });

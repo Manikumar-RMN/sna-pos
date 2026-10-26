@@ -129,3 +129,19 @@ export async function resetPassword(userId: string, name: string): Promise<Staff
   revalidatePath("/welcome");
   return { ok: true, tempPassword: temp, name };
 }
+
+/**
+ * Gives a person the same role and the same outlets as another person ("Copy access from..."). People hold one role,
+ * so this is the way to set someone up like a colleague. The database stops you copying onto yourself, onto or from
+ * an owner, and writes the audit log (user.access_copied).
+ */
+export async function copyAccess(fromUserId: string, toUserId: string, toName: string): Promise<StaffResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("copy_staff_access", { p_from_user: fromUserId, p_to_user: toUserId });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/settings/users");
+  revalidatePath("/welcome");
+  const r = (data ?? {}) as { role?: string; all_outlets?: boolean; outlets?: string[] };
+  const where = r.all_outlets ? "all outlets" : `${r.outlets?.length ?? 0} ${(r.outlets?.length ?? 0) === 1 ? "outlet" : "outlets"}`;
+  return { ok: true, message: `${toName} now has the ${r.role ?? "same"} role and works in ${where}. It applies the next time they open a screen.` };
+}

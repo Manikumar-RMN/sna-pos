@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addPinStaff, cancelInvite, changeRole, inviteStaff, newInviteCode, removePin, resetPassword, setActive, setPin, type StaffResult } from "./actions";
+import { addPinStaff, cancelInvite, changeRole, copyAccess, inviteStaff, newInviteCode, removePin, resetPassword, setActive, setPin, type StaffResult } from "./actions";
 import { ConfirmButton } from "../confirm-button";
 
 type Staff = {
@@ -42,6 +42,9 @@ export function StaffManager({
   const [confirmReset, setConfirmReset] = useState<string | null>(null);
   const [pinName, setPinName] = useState("");
   const [pinRole, setPinRole] = useState("");
+  // "Copy access from..." : the person being set up, and the colleague chosen as the model
+  const [copyFor, setCopyFor] = useState<string | null>(null);
+  const [copySrc, setCopySrc] = useState("");
 
   const assignable = roles.filter((r) => r.name !== "Owner");
   const [name, setName] = useState("");
@@ -199,6 +202,48 @@ export function StaffManager({
                         <SmallBtn danger={s.active} disabled={pending} onClick={() => run(() => setActive(s.id, !s.active))}>
                           {s.active ? "Switch off access" : "Switch on access"}
                         </SmallBtn>
+                      )}
+                      {!locked && s.active && (
+                        <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1.5">
+                          {copyFor === s.id ? (
+                            <>
+                              <select className="field h-9 w-44 text-sm" aria-label={`Copy access to ${s.name} from`} value={copySrc} onChange={(e) => setCopySrc(e.target.value)}>
+                                <option value="">Copy from…</option>
+                                {staff
+                                  .filter((o) => o.id !== s.id && o.active && o.roleName !== "Owner")
+                                  .map((o) => (
+                                    <option key={o.id} value={o.id}>
+                                      {o.name} ({o.roleName})
+                                    </option>
+                                  ))}
+                              </select>
+                              <SmallBtn
+                                disabled={pending || !copySrc}
+                                onClick={() =>
+                                  run(() => copyAccess(copySrc, s.id, s.name), () => {
+                                    setCopyFor(null);
+                                    setCopySrc("");
+                                  })
+                                }
+                              >
+                                Copy role and outlets
+                              </SmallBtn>
+                              <SmallBtn disabled={pending} onClick={() => setCopyFor(null)}>
+                                Cancel
+                              </SmallBtn>
+                            </>
+                          ) : (
+                            <SmallBtn
+                              disabled={pending}
+                              onClick={() => {
+                                setCopyFor(s.id);
+                                setCopySrc("");
+                              }}
+                            >
+                              Copy access from…
+                            </SmallBtn>
+                          )}
+                        </div>
                       )}
                       {s.active && (s.isMe || s.roleName !== "Owner" || isOwner) && (
                         <div className="mt-1.5 flex flex-wrap justify-end gap-1.5">

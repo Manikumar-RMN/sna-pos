@@ -1,0 +1,86 @@
+== replaying migrations 001..137 that exist (138 is applied last)
+   failures: 0
+== t129.sql BEFORE 138 (baseline, must be all green)
+RESULT: 151 passed, 0 failed
+== applying 138 (twice: the file must be re-runnable)
+   run 1 ok
+   run 2 ok
+== t138.sql
+psql:/tmp/t138.sql:9: NOTICE:  schema "t" does not exist, skipping
+psql:/tmp/t138.sql:123: NOTICE:  STAND-IN order_tips created
+
+ result |                                                                                         label                                                                                         | detail 
+--------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------
+ PASS   | 1.1 covers totals: dine-in completed non-merged bills c1 c2 c3 c7 c10 (takeaway, voided, merged, other day, other restaurant left out)                                                | 
+ PASS   | 1.2 covers by day (sales = bills that have covers only)                                                                                                                               | 
+ PASS   | 1.3 covers by outlet (All outlets)                                                                                                                                                    | 
+ PASS   | 1.4 covers by waiter: waiter or else cashier (Carl has c3 without covers); most guests first                                                                                          | 
+ PASS   | 1.5 money flag true for the owner                                                                                                                                                     | 
+ PASS   | 1.6 Carl (restricted to A, no financial right): outlet A only, money false, sales and sales per cover null, guests still shown                                                        | 
+ PASS   | 2.1 pending KOT: k1 (completed+unpaid), k2 (completed+paid), k6 (outlet B); not voided k3, merged k4, ready k5. Ordered by KOT time                                                   | 
+ PASS   | 2.2 pending KOT totals and shape keys unchanged                                                                                                                                       | 
+ PASS   | 2.3 pending KOT time = client_created_at (30 min), not the row time (3 h): k1 minutes_pending 30..31, k2 20..21                                                                       | 
+ PASS   | 2.4 pending KOT oldest first by the client time: k1 (30 min), k2 (20 min), k6 (10 min)                                                                                                | 
+ PASS   | 3.1 pending bills: unpaid dine-in bills are OPEN (p1 400, d2 600 paid 200, d5 legacy open 90; p6 in B 80); takeaway d3 stays unsettled; not paid d4, voided p3, merged p4, paid/other | 
+ PASS   | 3.2 pending bills totals                                                                                                                                                              | 
+ PASS   | 3.3 pending bills shape keys unchanged                                                                                                                                                | 
+ PASS   | 4.1 reprints (All outlets, Kolkata days): newest first; bill.print, before/after range and other restaurant left out; the 00:30 row counts for 21 Oct                                 | 
+ PASS   | 4.2 reprints totals and by user                                                                                                                                                       | 
+ PASS   | 4.3 reprint detail passes the audit new_value through                                                                                                                                 | 
+ PASS   | 4.4 reprints, Carl (restricted to A): outlet A rows only                                                                                                                              | 
+ PASS   | 5.1 tips totals: 50+30+20+40 = 140 over 4 tips on 4 bills (voided c5 tip 99, before-range 77 and other restaurant 66 left out)                                                        | 
+ PASS   | 5.2 tips by day                                                                                                                                                                       | 
+ PASS   | 5.3 tips by payment mode (biggest first)                                                                                                                                              | 
+ PASS   | 5.4 tips by waiter: waiter, else the person who received it (Carl got the 30 with no waiter)                                                                                          | 
+ PASS   | 5.5 tips by outlet                                                                                                                                                                    | 
+ PASS   | 5.6 Carl (sales only) refused the tips report                                                                                                                                         | 
+ PASS   | 5.7 empty period: empty arrays and zero totals (never null)                                                                                                                           | 
+ PASS   | 6.1 Nina (no report rights) refused report_covers                                                                                                                                     | 
+ PASS   | 6.1 Nina (no report rights) refused report_reprints                                                                                                                                   | 
+ PASS   | 6.1 Nina (no report rights) refused report_tips                                                                                                                                       | 
+ PASS   | 6.1 Nina (no report rights) refused report_pending_kot                                                                                                                                | 
+ PASS   | 6.1 Nina (no report rights) refused report_pending_bills                                                                                                                              | 
+ PASS   | 6.2 Carl (sales only) may use report_covers                                                                                                                                           | 
+ PASS   | 6.2 Carl (sales only) may use report_reprints                                                                                                                                         | 
+ PASS   | 6.2 Carl (sales only) may use report_pending_kot                                                                                                                                      | 
+ PASS   | 6.2 Carl (sales only) may use report_pending_bills                                                                                                                                    | 
+ PASS   | 6.3 366-day limit: report_covers                                                                                                                                                      | 
+ PASS   | 6.3 366-day limit: report_reprints                                                                                                                                                    | 
+ PASS   | 6.3 366-day limit: report_tips                                                                                                                                                        | 
+ PASS   | 6.4 reversed range: report_covers                                                                                                                                                     | 
+ PASS   | 6.4 reversed range: report_reprints                                                                                                                                                   | 
+ PASS   | 6.4 reversed range: report_tips                                                                                                                                                       | 
+ PASS   | 6.5 null date: report_covers                                                                                                                                                          | 
+ PASS   | 6.5 null date: report_reprints                                                                                                                                                        | 
+ PASS   | 6.5 null date: report_tips                                                                                                                                                            | 
+ PASS   | 6.6 exactly 366 days is allowed: report_covers                                                                                                                                        | 
+ PASS   | 6.6 exactly 366 days is allowed: report_reprints                                                                                                                                      | 
+ PASS   | 6.6 exactly 366 days is allowed: report_tips                                                                                                                                          | 
+ PASS   | 6.7 empty covers period: empty arrays, zero totals, sales per cover null                                                                                                              | 
+ PASS   | 6.8 empty reprints period                                                                                                                                                             | 
+ PASS   | 6.9 signed in as nobody: refused report_covers                                                                                                                                        | 
+ PASS   | 6.9 signed in as nobody: refused report_reprints                                                                                                                                      | 
+ PASS   | 6.9 signed in as nobody: refused report_tips                                                                                                                                          | 
+ PASS   | 6.10 anon has no execute right on report_covers                                                                                                                                       | 
+ PASS   | 6.10 anon has no execute right on report_reprints                                                                                                                                     | 
+ PASS   | 6.10 anon has no execute right on report_tips                                                                                                                                         | 
+ PASS   | 6.10 anon has no execute right on report_pending_kot                                                                                                                                  | 
+ PASS   | 6.10 anon has no execute right on report_pending_bills                                                                                                                                | 
+ PASS   | 7.1 reprints: 2105 rows -> 2000 shown, truncated, totals over all                                                                                                                     | 
+ PASS   | 8.1 all five are STABLE SECURITY DEFINER with a fixed search_path                                                                                                                     | 
+ PASS   | 8.2 no report function left a temp table behind                                                                                                                                       | 
+(58 rows)
+
+
+RESULT: 58 passed, 0 failed
+ stop_if_failed 
+----------------
+               
+(1 row)
+
+== t129.sql AFTER 138 (informational: failures here are 129 expectations that the pending KOT / bills fix intentionally changes)
+ FAIL   | 1.2a pending bills (All): unsettled o12 420 and o13 600 (paid 249.6, balance 350.4), open o16 120, o14 180 (advance 50 -> 130), o15 90, o20 60 in B; not o17 (after range), not the paid / voided bills                                                   
+ FAIL   | 1.8 [All] pending bills: unsettled rows = sales_report unpaid_bills / unpaid_amount                                                                                                                                                                       
+ FAIL   | 2.3 [outlet A] pending bills: unsettled rows = sales_report unpaid_bills / unpaid_amount                                                                                                                                                                  
+ FAIL   | 4.2 [Maya, restricted] pending bills: unsettled rows = sales_report unpaid_bills / unpaid_amount                                                                                                                                                          
+RESULT: 147 passed, 4 failed

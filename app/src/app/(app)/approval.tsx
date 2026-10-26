@@ -13,6 +13,9 @@ const LABELS: Record<string, string> = {
   "day.reopen": "reopen the day",
   "cash.movement": "record cash in / out",
   "shift.close": "close the shift",
+  "order.reprint": "reprint this bill or kitchen ticket",
+  "order.create": "change this order",
+  "menu.price_change": "change prices",
 };
 
 /** Finds "(order.discount)"-style right names that the database puts in "not allowed" messages. */

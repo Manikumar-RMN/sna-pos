@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
+import { STATE_LABEL, STATE_ORDER, STATE_STYLE, classifyTable, type FloorRow, type TableState } from "@/lib/table-status";
+import { useFloorClock } from "../floor/use-floor-clock";
 import { DishName } from "../lang";
 import { addToBill, placeOrder, type CartItem } from "../pos/actions";
 import { KotSheet } from "./kot-sheet";
@@ -14,6 +16,8 @@ export type CaptainTable = {
   id: string;
   number: string;
   seats: number | null;
+  /** Facts from public.floor_status for the colours; null when not available (plain free / busy then). */
+  floor?: FloorRow | null;
   bills: { id: string; billNumber: string; total: number; since: string; covers: number | null }[];
 };
 type Line = { key: string; item: MenuItem; options: ChosenOption[]; qty: number; note: string };
@@ -38,6 +42,8 @@ export function Captain({
   const [asking, setAsking] = useState<CaptainTable | null>(null); // free table: how many guests / which bill
   const [done, setDone] = useState<string | null>(null);
   const m = (n: number) => money(n, currency);
+  // Table colours: the database clock plus the time since this list arrived (no trust in the phone's clock).
+  const elapsed = useFloorClock(tables);
 
   // The floor changes as other staff work: refresh the tables every 20 seconds while they are shown.
   useEffect(() => {
@@ -93,6 +99,9 @@ export function Captain({
             const total = t.bills.reduce((s, b) => s + b.total, 0);
             const oldest = t.bills[0];
             const isBusy = t.bills.length > 0;
+            const st = t.floor ? classifyTable(t.floor, elapsed) : null;
+            const state: TableState = st ? st.state : isBusy ? "busy" : "free";
+            const tint = STATE_STYLE[state];
             return (
               <button
                 key={t.id}
@@ -101,16 +110,37 @@ export function Captain({
                   if (t.bills.length === 1) setTarget({ table: t, billId: t.bills[0].id, billNumber: t.bills[0].billNumber, covers: t.bills[0].covers });
                   else setAsking(t);
                 }}
+                aria-label={`Table ${t.number}, ${STATE_LABEL[state]}${st?.note ? `, ${st.note}` : ""}`}
                 className="tap card flex min-h-24 flex-col items-start justify-between p-3 text-left"
-                style={{ borderColor: isBusy ? "var(--color-brand)" : "var(--color-line)", background: isBusy ? "var(--color-brand-soft)" : undefined }}
+                style={{ ...tint, borderWidth: 2 }}
               >
-                <span className="text-lg font-bold">{t.number}</span>
-                {isBusy ? (
+                <span className="flex w-full items-start justify-between gap-1">
+                  <span className="text-lg font-bold">{t.number}</span>
+                  {state !== "free" && state !== "busy" && (
+                    <span className="rounded px-1 text-[10px] font-bold" style={{ background: "var(--color-surface)", color: "var(--color-ink-2)" }}>
+                      {STATE_LABEL[state]}
+                    </span>
+                  )}
+                  {st?.reservedSoon && (
+                    <span className="rounded px-1 text-[10px] font-bold" style={{ background: "var(--color-accent)", color: "var(--color-accent-ink)" }}>
+                      Booked
+                    </span>
+                  )}
+                </span>
+                {state === "reserved" ? (
+                  <span className="text-[11px] leading-tight" style={{ color: "var(--color-ink-2)" }}>
+                    {st?.reservationName ?? "Booked"}
+                    {st?.reservationParty ? ` · ${st.reservationParty} guests` : ""}
+                    <br />
+                    {st?.note}
+                  </span>
+                ) : isBusy ? (
                   <span className="text-[11px] leading-tight" style={{ color: "var(--color-ink-2)" }}>
                     {m(total)}
                     <br />
                     {minutesSince(oldest.since)} min{oldest.covers ? ` · ${oldest.covers} guests` : ""}
                     {t.bills.length > 1 ? ` · ${t.bills.length} bills` : ""}
+                    {st && st.kotWaiting > 0 ? ` · ${st.kotWaiting} KOT waiting` : ""}
                   </span>
                 ) : (
                   <span className="text-[11px]" style={{ color: "var(--color-ink-3)" }}>
@@ -121,6 +151,20 @@ export function Captain({
             );
           })}
         </div>
+      )}
+      {tables.length > 0 && (
+        <ul className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px]" style={{ color: "var(--color-ink-3)" }} aria-label="Table colours">
+          {STATE_ORDER.map((s) => (
+            <li key={s} className="flex items-center gap-1">
+              <span
+                aria-hidden
+                className="inline-block h-3 w-3 rounded-sm"
+                style={{ borderWidth: 2, borderStyle: STATE_STYLE[s].borderStyle ?? "solid", borderColor: STATE_STYLE[s].borderColor, background: STATE_STYLE[s].background }}
+              />
+              {STATE_LABEL[s]}
+            </li>
+          ))}
+        </ul>
       )}
       {asking && (
         <StartSheet
