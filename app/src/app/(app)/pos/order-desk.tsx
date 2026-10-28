@@ -196,7 +196,7 @@ export function OrderDesk({
         </div>
       )}
 
-      <div className={hasBill ? "grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]" : ""}>
+      <div className={hasBill ? "grid gap-4 lg:grid-cols-[400px_minmax(0,1fr)]" : ""}>
         <div id="order-menu" className={hasBill && tab !== "order" ? "hidden lg:block" : undefined}>
           <PosTerminal
             key={`${selKey}:${nonce}`}
@@ -214,7 +214,7 @@ export function OrderDesk({
           />
         </div>
         {hasBill && (
-          <aside className={`${tab === "bill" ? "" : "hidden"} lg:block lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto`} aria-label="Running bill">
+          <aside className={`${tab === "bill" ? "" : "hidden"} lg:order-first lg:block lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto`} aria-label="Running bill">
             {billPanel}
           </aside>
         )}

@@ -8,6 +8,7 @@ import {
   STATE_LABEL,
   STATE_ORDER,
   STATE_STYLE,
+  OPEN_DELAYED_MIN,
   classifyTable,
   countStates,
   type FloorRow,
@@ -121,7 +122,7 @@ export function TableStrip({
                   </span>
                 )}
               </span>
-              <span className="text-[11px] leading-tight" style={{ color: "var(--color-ink-2)" }}>
+              <span className="text-[11px] leading-tight" style={{ color: style.color ?? "var(--color-ink-2)" }}>
                 {state === "free" ? (
                   <>Free{t.seats ? ` · ${t.seats} seats` : ""}</>
                 ) : state === "reserved" ? (
@@ -141,6 +142,14 @@ export function TableStrip({
                   </>
                 )}
               </span>
+              {state !== "free" && state !== "reserved" && st && (
+                <span aria-hidden className="mt-1 block h-1 w-full rounded-full" style={{ background: "rgba(255,255,255,.35)" }}>
+                  <span
+                    className="block h-1 rounded-full"
+                    style={{ background: "#FFFFFF", width: `${state === "billed" ? 100 : Math.min(100, Math.round((st.openMinutes / OPEN_DELAYED_MIN) * 100))}%` }}
+                  />
+                </span>
+              )}
             </button>
           );
         })}
@@ -189,7 +198,7 @@ const SELECTED_RING = "0 0 0 2px var(--color-surface, #fff), 0 0 0 5px var(--col
 /** Small "Selected" marker with a check, so selection does not rely on the ring alone. */
 function SelectedMark() {
   return (
-    <span className="rounded px-1 text-[10px] font-bold leading-4" style={{ background: "var(--color-ink)", color: "#fff" }}>
+    <span className="rounded px-1 text-[10px] font-bold leading-4" style={{ background: "#fff", color: "var(--color-ink)" }}>
       <span aria-hidden>✓ </span>Selected
     </span>
   );

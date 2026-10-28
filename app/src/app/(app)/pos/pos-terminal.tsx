@@ -1209,7 +1209,7 @@ export function PosTerminal({
   }
 
   return (
-    <div className={inline ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]" : "grid gap-4 lg:grid-cols-[1fr_360px]"}>
+    <div className={inline ? "grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]" : "grid gap-4 lg:grid-cols-[1fr_360px]"}>
       <div>
         <div className="mb-3 flex flex-wrap items-center gap-x-3">
           <h1 className="text-xl font-bold tracking-tight">
@@ -1442,7 +1442,7 @@ export function PosTerminal({
         </button>
       )}
 
-      <div id="cart" className={inline ? "scroll-mt-4 pb-20 xl:sticky xl:top-4 xl:self-start xl:pb-0" : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
+      <div id="cart" className={inline ? "scroll-mt-4 pb-20 xl:order-first xl:sticky xl:top-4 xl:self-start xl:pb-0" : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
         <div className="card flex max-h-[calc(100vh-2rem)] flex-col">
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
             <div className="text-sm font-bold">{addTo ? "Items to add" : "Current bill"}</div>
@@ -1994,7 +1994,7 @@ export function PosTerminal({
                       style={{ borderColor: "var(--color-brand)", background: "var(--color-surface)", color: "var(--color-brand-strong, var(--color-brand))" }}
                       title="Send the order to the kitchen and print the KOT. The bill stays open: print it and take the payment later."
                     >
-                      {inline ? "Send KOT" : "KOT"}
+                      {inline ? "Send to kitchen" : "KOT"}
                     </button>
                     <button onClick={() => submit("pay")} disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved} className="btn btn-pay flex-1 text-base">
                       {pending ? "Saving…" : <Dual text="Charge" />}
@@ -2008,7 +2008,7 @@ export function PosTerminal({
                     className="btn btn-primary flex-1 text-base"
                     title="Send the order to the kitchen and print the KOT. The cashier takes the payment later."
                   >
-                    {pending ? "Saving…" : inline ? "Send KOT" : "KOT"}
+                    {pending ? "Saving…" : inline ? "Send to kitchen" : "KOT"}
                   </button>
                 )}
               </div>

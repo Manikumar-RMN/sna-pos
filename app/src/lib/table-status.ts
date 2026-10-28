@@ -101,13 +101,13 @@ export const STATE_HELP: Record<TableState, string> = {
 
 export const STATE_ORDER: TableState[] = ["free", "busy", "billed", "delayed", "kot_delayed", "reserved"];
 
-/** Colours as theme tokens that already exist in globals.css (no new variables). */
-export const STATE_STYLE: Record<TableState, { borderColor: string; background?: string; borderStyle?: "solid" | "dashed" }> = {
+export const STATE_STYLE: Record<TableState, { borderColor: string; background?: string; borderStyle?: "solid" | "dashed"; color?: string }> = {
   free: { borderColor: "var(--color-line)" },
-  busy: { borderColor: "var(--color-bad)", background: "var(--color-bad-soft)" },
-  billed: { borderColor: "var(--color-info)", background: "var(--color-info-soft)" },
-  delayed: { borderColor: "var(--color-bad-strong)", background: "var(--color-bad-mid)" },
-  kot_delayed: { borderColor: "var(--color-warn)", background: "var(--color-warn-soft)" },
+  // Solid, dark tiles with white text (founder, 28 Oct 2026): red = KOT sent, blue = bill printed, maroon = open too long.
+  busy: { borderColor: "#8F1B14", background: "#B3261E", color: "#FFFFFF" },
+  billed: { borderColor: "#0F3A78", background: "#1D4F9F", color: "#FFFFFF" },
+  delayed: { borderColor: "#2E0805", background: "#6E120C", color: "#FFFFFF" },
+  kot_delayed: { borderColor: "#4F3204", background: "#8A5A00", color: "#FFFFFF" },
   reserved: { borderColor: "var(--color-accent-strong)", background: "var(--color-surface-2)", borderStyle: "dashed" },
 };
 

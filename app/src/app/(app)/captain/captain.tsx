@@ -128,14 +128,14 @@ export function Captain({
                   )}
                 </span>
                 {state === "reserved" ? (
-                  <span className="text-[11px] leading-tight" style={{ color: "var(--color-ink-2)" }}>
+                  <span className="text-[11px] leading-tight" style={{ color: tint.color ?? "var(--color-ink-2)" }}>
                     {st?.reservationName ?? "Booked"}
                     {st?.reservationParty ? ` · ${st.reservationParty} guests` : ""}
                     <br />
                     {st?.note}
                   </span>
                 ) : isBusy ? (
-                  <span className="text-[11px] leading-tight" style={{ color: "var(--color-ink-2)" }}>
+                  <span className="text-[11px] leading-tight" style={{ color: tint.color ?? "var(--color-ink-2)" }}>
                     {m(total)}
                     <br />
                     {minutesSince(oldest.since)} min{oldest.covers ? ` · ${oldest.covers} guests` : ""}
