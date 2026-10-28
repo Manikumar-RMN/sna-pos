@@ -98,7 +98,7 @@ describe.skipIf(!haveUi())("a cashier at the till (real app, real browser)", () 
     await page.getByRole("button", { name: /^Table T1,/ }).click();            // the coloured table strip of the single order screen
     await tile(page, "Masala Dosa").click(); await tile(page, "Cola").click();
     await page.getByLabel("Number of guests").fill("2");                        // a dine-in bill needs at least one guest
-    await page.getByRole("button", { name: "Send KOT", exact: true }).click();
+    await page.getByRole("button", { name: "Send to kitchen", exact: true }).click();
     await page.waitForTimeout(2500);
     const o = await lastOrder();
     expect([o.payment_status, o.order_type], "saved to the kitchen, not yet paid").toEqual(["unpaid", "dine_in"]);
