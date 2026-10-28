@@ -364,6 +364,18 @@ export function BillActions({
                   </span>
                 </div>
               )}
+              {isCash && due > 0 && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs" role="group" aria-label="Cash received quick amounts">
+                  <button className="rounded-md border px-2 py-1 font-semibold" style={{ borderColor: "var(--color-line)" }} onClick={() => setTendered(due.toFixed(2))}>
+                    Exact {m(due)}
+                  </button>
+                  {Array.from(new Set([10, 50, 100, 500, 1000].map((step) => Math.ceil(due / step) * step))).filter((v) => v > due).slice(0, 4).map((v) => (
+                    <button key={v} className="rounded-md border px-2 py-1 font-semibold" style={{ borderColor: "var(--color-line)" }} onClick={() => setTendered(String(v))}>
+                      {m(v)}
+                    </button>
+                  ))}
+                </div>
+              )}
               {/* A tip is a memo for the report: it is not part of "Take ..." or of the change. */}
               <TipField value={tip} onChange={setTip} base={due} disabled={pending} offline={!online} />
               <button

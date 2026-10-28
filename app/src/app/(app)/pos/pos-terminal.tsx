@@ -326,6 +326,9 @@ export function PosTerminal({
   const [pending, startTransition] = useTransition();
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [search, setSearch] = useState("");
+  /** The quick "Code" box: the item code typed from memory (the same code the barcode scanner uses). */
+  const [code, setCode] = useState("");
+  const [codeMsg, setCodeMsg] = useState<string | null>(null);
   /** Category tab; null = All. Not remembered between visits. */
   const [tab, setTab] = useState<string | null>(null);
   /** Sub-category tab inside the chosen main category; null = all of it. */
@@ -1260,20 +1263,54 @@ export function PosTerminal({
             <span>Review →</span>
           </a>
         )}
-        <input
-          className="field mb-3"
-          placeholder="Search the menu or scan a barcode…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => {
-            // A barcode scanner types the code and presses Enter.
-            if (e.key === "Enter" && scan(search)) {
+        <div className="mb-3 flex gap-2">
+          <input
+            className="field min-w-0 flex-1"
+            placeholder="Search the menu or scan a barcode…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              // A barcode scanner types the code and presses Enter.
+              if (e.key === "Enter" && scan(search)) {
+                e.preventDefault();
+                setSearch("");
+              }
+            }}
+            autoComplete="off"
+          />
+          <input
+            className="field w-28 shrink-0"
+            aria-label="Item code"
+            placeholder="Code + Enter"
+            value={code}
+            maxLength={20}
+            onChange={(e) => {
+              setCode(e.target.value);
+              setCodeMsg(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
               e.preventDefault();
-              setSearch("");
-            }
-          }}
-          autoComplete="off"
-        />
+              const c = code.trim();
+              if (!c) return;
+              const item = menu.find((x) => x.barcode && x.barcode.trim().toLowerCase() === c.toLowerCase());
+              if (item) {
+                tapItem(item);
+                setCode("");
+                setCodeMsg(null);
+              } else if (scan(c)) {
+                setCode("");
+                setCodeMsg(null);
+              } else setCodeMsg(`No item has the code “${c}”. Set an item code on the Menu screen.`);
+            }}
+            autoComplete="off"
+          />
+        </div>
+        {codeMsg && (
+          <p className="-mt-2 mb-3 text-xs font-semibold" role="status" style={{ color: "var(--color-bad)" }}>
+            {codeMsg}
+          </p>
+        )}
         {brandTabs.length > 1 && (
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Brands">
             {[{ id: null as string | null, name: "All brands" }, ...brandTabs].map((b) => {

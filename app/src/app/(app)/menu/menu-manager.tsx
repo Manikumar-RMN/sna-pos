@@ -868,7 +868,7 @@ function ProductModal({
             <label className="mb-1.5 block text-sm font-semibold">
               Item code <span className="font-normal" style={{ color: "var(--color-ink-3)" }}>(optional)</span>
             </label>
-            <input name="barcode" defaultValue={product?.barcode ?? ""} className="field" maxLength={20} placeholder="Barcode or scale code" />
+            <input name="barcode" defaultValue={product?.barcode ?? ""} className="field" maxLength={20} placeholder="Item code (e.g. 12), barcode or scale code" />
           </div>
         </div>
         <p className="-mt-2 mb-4 text-[11px]" style={{ color: "var(--color-ink-3)" }}>

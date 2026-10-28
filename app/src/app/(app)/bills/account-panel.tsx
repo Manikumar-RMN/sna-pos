@@ -21,7 +21,7 @@ export function AccountPanel({ orderId, accounts, currency }: { orderId: string;
     <div className="no-print card mx-auto mt-3 max-w-sm p-4">
       {!open ? (
         <button className="w-full text-left text-sm font-semibold" style={{ color: "var(--color-brand)" }} onClick={() => setOpen(true)}>
-          Charge to a customer account (pay later) →
+          Due: charge to a customer account (pay later) →
         </button>
       ) : (
         <>
