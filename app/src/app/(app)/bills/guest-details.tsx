@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { findCustomer, setGuestDetails, type RegularGuest } from "./actions";
+import { customerFavourites, findCustomer, setGuestDetails, type GuestFavourites, type RegularGuest } from "./actions";
 import { useOnline } from "@/lib/use-online";
 import { regularChipText } from "./loyalty-math";
 
@@ -58,6 +58,22 @@ export function GuestDetails({
     };
   }, [lookupPhone, online]);
   const chip = regular ? regularChipText(regular, showPoints) : null;
+  // Favourite dishes of a regular guest (hint only).
+  const [favs, setFavs] = useState<GuestFavourites | null>(null);
+  const regularId = regular?.id ?? null;
+  useEffect(() => {
+    if (!regularId || !online) {
+      setFavs(null);
+      return;
+    }
+    let live = true;
+    customerFavourites(regularId)
+      .then((f) => live && setFavs(f))
+      .catch(() => live && setFavs(null));
+    return () => {
+      live = false;
+    };
+  }, [regularId, online]);
 
   const hasGuest = !!(guest?.name || guest?.phone || guest?.address);
   if (token == null && !hasGuest && !canEdit) return null;
@@ -102,6 +118,11 @@ export function GuestDetails({
               <span className="inline-block rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: "var(--color-brand-soft)", color: "var(--color-brand-strong)" }} data-testid="regular-guest-chip">
                 {chip}
               </span>
+            </div>
+          )}
+          {favs && favs.favourites.length > 0 && !open && (
+            <div className="mt-1 text-xs" style={{ color: "var(--color-ink-2)" }} data-testid="guest-favourites">
+              Usually orders: {favs.favourites.map((f) => `${f.name} (${Math.round(f.qty)})`).join(", ")}
             </div>
           )}
           {guest?.address && <div style={{ color: "var(--color-ink-2)" }}>Deliver to: {guest.address}</div>}

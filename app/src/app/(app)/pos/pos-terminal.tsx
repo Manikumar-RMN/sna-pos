@@ -7,6 +7,8 @@ import { parseDiscountInput } from "@/lib/discount";
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, stockWarnings, type CartItem, type PlaceOrderInput, type Quote, type Senior } from "./actions";
+import { customerFavourites, findCustomer, type GuestFavourites, type RegularGuest } from "../bills/actions";
+import { regularChipText } from "../bills/loyalty-math";
 import { loadLastRound } from "./repeat-round";
 import { mapRoundToMenu } from "@/lib/repeat-round";
 import { coversError, deskCarryUsable, needsInternetText, openPriceError, openPriceValue, parseCovers } from "@/lib/order-desk";
@@ -376,6 +378,36 @@ export function PosTerminal({
   // Offline billing: a copy of the menu and tax rules on this device.
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [offline, setOffline] = useState(false);
+  // A returning guest typed in the phone box (takeaway / delivery): a hint with favourite dishes that can be added with one tap. Never blocks the order.
+  const [regular, setRegular] = useState<RegularGuest | null>(null);
+  const [favs, setFavs] = useState<GuestFavourites | null>(null);
+  useEffect(() => {
+    if (offline || orderType === "dine_in" || guestPhone.replace(/\D/g, "").length < 7) {
+      setRegular(null);
+      setFavs(null);
+      return;
+    }
+    let live = true;
+    const t = setTimeout(() => {
+      findCustomer(guestPhone)
+        .then(async (g) => {
+          if (!live) return;
+          setRegular(g);
+          const f = g ? await customerFavourites(g.id) : null;
+          if (live) setFavs(f);
+        })
+        .catch(() => {
+          if (live) {
+            setRegular(null);
+            setFavs(null);
+          }
+        });
+    }, 600);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [guestPhone, orderType, offline]);
   const [offlineBill, setOfflineBill] = useState<OfflineBill | null>(null);
   // After a bill is saved (or items are added) the screen moves on to the bill. Until it has, nothing more may
   // be saved from here: the buttons would otherwise work again for a moment, and a second tap made a second bill.
@@ -1652,6 +1684,34 @@ export function PosTerminal({
                   onChange={(e) => setGuestPhone(e.target.value)}
                 />
               </div>
+              {regular && regularChipText(regular, true) && (
+                <div className="mt-1.5 text-xs font-semibold" style={{ color: "var(--color-brand-strong)" }} data-testid="terminal-regular-chip">
+                  {regular.name ? `${regular.name} · ` : ""}
+                  {regularChipText(regular, true)}
+                </div>
+              )}
+              {favs && favs.favourites.length > 0 && (
+                <div className="mt-1 flex flex-wrap items-center gap-1.5" role="group" aria-label="Favourite dishes of this guest">
+                  <span className="text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                    Usually orders:
+                  </span>
+                  {favs.favourites.map((f) => {
+                    const item = menu.find((x) => x.id === f.productId);
+                    if (!item) return null;
+                    return (
+                      <button
+                        key={f.productId}
+                        type="button"
+                        className="rounded-full border px-2.5 py-1 text-xs font-semibold"
+                        style={{ borderColor: "var(--color-line)", background: "var(--color-brand-soft)", color: "var(--color-brand-strong)" }}
+                        onClick={() => tapItem(item)}
+                      >
+                        + {f.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               {orderType === "delivery" && (
                 <input
                   className="field mt-1.5 text-sm"

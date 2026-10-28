@@ -287,6 +287,24 @@ export async function findCustomer(phone: string): Promise<RegularGuest | null> 
   return { id: d.id, name: d.name ?? null, visits: Number(d.visits ?? 0), lastVisitOn: d.last_visit_on ?? null, points: Number(d.points ?? 0) };
 }
 
+export type GuestFavourites = {
+  favourites: { productId: string; name: string; qty: number }[];
+  recent: { billNumber: string; on: string | null; total: number }[];
+};
+
+/** A guest's 3 favourite dishes and last 5 bills (read only; never fails the screen). */
+export async function customerFavourites(customerId: string): Promise<GuestFavourites | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(customerId)) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("customer_favourites", { p_customer: customerId });
+  if (error || !data) return null;
+  const d = data as { favourites?: { product_id?: string; name?: string; qty?: number | string }[]; recent?: { bill_number?: string; on?: string | null; total?: number | string }[] };
+  return {
+    favourites: (d.favourites ?? []).filter((f) => f.product_id && f.name).map((f) => ({ productId: String(f.product_id), name: String(f.name), qty: Number(f.qty ?? 0) })),
+    recent: (d.recent ?? []).filter((r) => r.bill_number).map((r) => ({ billNumber: String(r.bill_number), on: r.on ?? null, total: Number(r.total ?? 0) })),
+  };
+}
+
 /** Use points as a discount before tax. The same client ref on a retry = the same redeem, never two. */
 export async function redeemPointsDiscount(input: { orderId: string; points: number; clientRef?: string }): Promise<ActionResult> {
   if (!Number.isInteger(input.points) || input.points <= 0) return { ok: false, error: "Enter a whole number of points." };

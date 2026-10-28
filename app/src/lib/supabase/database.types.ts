@@ -7186,6 +7186,7 @@ export type Database = {
         }
         Returns: Json
       }
+      customer_favourites: { Args: { p_customer: string }; Returns: Json }
       find_customer: { Args: { p_phone: string }; Returns: Json }
       forget_customer: {
         Args: { p_customer: string; p_reason: string }
