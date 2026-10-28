@@ -7213,6 +7213,8 @@ export type Database = {
       }
       remove_points_discount: { Args: { p_order: string }; Returns: Json }
       report_customers: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_leakage: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_table_turnaround: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_food_cost: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_loyalty_ledger: {
         Args: { p_from: string; p_to: string }

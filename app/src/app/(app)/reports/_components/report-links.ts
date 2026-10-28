@@ -32,6 +32,8 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Customers", href: "/reports/loyalty-ledger", title: "Loyalty ledger", blurb: "Points earned, used and reversed, and the points still owed.", need: "customers" },
   { group: "Audit", href: "/reports/audit", title: "Voids, cancels and refunds", blurb: "Voided bills, cancelled items, refunds and credit notes.", need: "financial" },
   { group: "Audit", href: "/reports/reprints", title: "Reprints", blurb: "Bills and kitchen tickets printed again, and by whom.", need: "sales" },
+  { group: "Audit", href: "/reports/leakage", title: "Leakage summary", blurb: "Voids, cancels, credit notes, discounts, free meals, reprints and moves in one place.", need: "sales" },
+  { group: "Sales", href: "/reports/table-turnaround", title: "Table turnaround time", blurb: "How long each table stays occupied, by day and by table.", need: "sales" },
 ];
 
 /** What the signed-in person may see on the hub: financial reports, stock reports (stock.view) and customer reports (customer.view). */

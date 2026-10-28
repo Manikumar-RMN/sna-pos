@@ -538,3 +538,73 @@ export function parseLoyaltyLedger(json: unknown): LoyaltyLedgerReport {
     liability: { pointsOutstanding: num(l.points_outstanding), rupeeValue: numOrNull(l.rupee_value), customersWithPoints: int(l.customers_with_points) },
   };
 }
+
+// ---------- Leakage summary and Table turnaround (migration 151) ----------
+
+export type LeakageLine = { key: string; label: string; count: number; value: number | null };
+export type LeakageStaff = {
+  userId: string;
+  staffName: string;
+  voids: number;
+  cancelledItems: number;
+  cancelledKots: number;
+  creditNotes: number;
+  complimentary: number;
+  reprints: number;
+  moves: number;
+  total: number;
+};
+export type LeakageReport = { money: boolean; summary: LeakageLine[]; byStaff: LeakageStaff[] };
+
+/** Report_leakage JSON to a safe shape. Rupee values the database hides stay null. */
+export function parseLeakage(json: unknown): LeakageReport {
+  const o = obj(json);
+  return {
+    money: o.money === true,
+    summary: list(o.summary).map((r) => ({ key: text(r.key), label: text(r.label, "Other"), count: int(r.count), value: numOrNull(r.value) })),
+    byStaff: list(o.by_staff).map((r) => {
+      const s = {
+        userId: text(r.user_id),
+        staffName: text(r.staff_name, "Unknown"),
+        voids: int(r.voids),
+        cancelledItems: int(r.cancelled_items),
+        cancelledKots: int(r.cancelled_kots),
+        creditNotes: int(r.credit_notes),
+        complimentary: int(r.complimentary),
+        reprints: int(r.reprints),
+        moves: int(r.moves),
+      };
+      return { ...s, total: s.voids + s.cancelledItems + s.cancelledKots + s.creditNotes + s.complimentary + s.reprints + s.moves };
+    }),
+  };
+}
+
+export type TurnaroundReport = {
+  byDay: { businessDate: string; bills: number; avgMinutes: number | null }[];
+  byTable: { tableNumber: string; bills: number; avgMinutes: number | null; longestMinutes: number | null }[];
+  totals: { bills: number; avgMinutes: number | null; medianMinutes: number | null; longestMinutes: number | null };
+};
+
+/** Report_table_turnaround JSON to a safe shape. */
+export function parseTurnaround(json: unknown): TurnaroundReport {
+  const o = obj(json);
+  const t = obj(o.totals);
+  return {
+    byDay: list(o.by_day).map((r) => ({ businessDate: text(r.business_date), bills: int(r.bills), avgMinutes: numOrNull(r.avg_minutes) })),
+    byTable: list(o.by_table).map((r) => ({
+      tableNumber: text(r.table_number, "?"),
+      bills: int(r.bills),
+      avgMinutes: numOrNull(r.avg_minutes),
+      longestMinutes: numOrNull(r.longest_minutes),
+    })),
+    totals: { bills: int(t.bills), avgMinutes: numOrNull(t.avg_minutes), medianMinutes: numOrNull(t.median_minutes), longestMinutes: numOrNull(t.longest_minutes) },
+  };
+}
+
+/** Minutes for a table cell: "42 min", "1 h 05 min"; null is a dash. */
+export function minutesText(m: number | null): string {
+  if (m === null || !Number.isFinite(m)) return "—";
+  const r = Math.round(m);
+  if (r < 60) return `${r} min`;
+  return `${Math.floor(r / 60)} h ${String(r % 60).padStart(2, "0")} min`;
+}
