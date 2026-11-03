@@ -1,4 +1,4 @@
--- 156: one read for the Front Office setup screen and the booking form (SNA Hospitality). Depends on 152. Additive only.
+-- 164: one read for the Front Office setup screen and the booking form (SNA Hospitality). Depends on 160. Additive only.
 -- Room types (restaurant-wide), this outlet's rooms and its settings, in one call. Read only; needs fo.view or fo.manage.
 -- Safe to run again.
 create or replace function public.fo_setup() returns jsonb

@@ -1,4 +1,4 @@
--- 153: Front Office stay lifecycle (SNA Hospitality). Depends on 152. Additive only.
+-- 161: Front Office stay lifecycle (SNA Hospitality). Depends on 160. Additive only.
 --
 -- Every write to a folio goes through one of these SECURITY DEFINER functions. The rules they enforce, and why:
 --   * A reservation cannot arrive before the business date. Back-dating a stay would move revenue into a night the

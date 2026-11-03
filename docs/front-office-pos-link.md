@@ -2,7 +2,7 @@
 
 Status: **not implemented.** Written 2026-11-03 so the work can be done safely once `npm run test:e2e` can run.
 
-## Why it is not in migrations 152–157
+## Why it is not in migrations 160–164
 
 A "Charge to room" payment is the same shape as "Charge to account" (migration 100): the bill is marked paid by a hidden
 payment, and the amount lands on someone's tab instead of the till. Everything that already special-cases the `account`

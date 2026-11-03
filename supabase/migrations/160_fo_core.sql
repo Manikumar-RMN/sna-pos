@@ -1,11 +1,11 @@
--- 152: Front Office core (SNA Hospitality, module 1 of 6). Additive only: no existing table, function or policy is changed.
+-- 160: Front Office core (SNA Hospitality, module 1 of 6). Additive only: no existing table, function or policy is changed.
 --
 -- Model
 --   A hotel is a restaurant row (the tenant). A property is a branch row. Rooms belong to a branch, guests and room types to
 --   the restaurant, so a group can share a guest list across properties and keep its room inventory per property.
 --   The business date is app.business_today(branch) -- the SAME date the POS uses. Front Office does NOT keep a date pointer of
 --   its own: if it did, a room charge and a restaurant bill posted on the same evening could land on different days and the MIS
---   module would never reconcile. The night audit (154) is a per-date action, not a clock the user winds forward.
+--   module would never reconcile. The night audit (162) is a per-date action, not a clock the user winds forward.
 --   Folio payments reuse public.payment_methods, so cash/card/UPI mean the same thing in the POS and at reception.
 --
 -- Rights: fo.view (see the board, folios and reports), fo.manage (reservations, check-in, charges, payments, check-out),
@@ -17,7 +17,7 @@
 --   add-on needs an explicit public.restaurant_modules row, so a restaurant sees nothing until a hotel is actually sold one.
 --
 -- Writes: these tables have SELECT only for `authenticated` and no write policy. Every change goes through a SECURITY DEFINER
---   function (153 for the stay lifecycle, 154 for the night audit), same rule as migration 113.
+--   function (161 for the stay lifecycle, 162 for the night audit), same rule as migration 113.
 --
 -- Tax defaults (5% to 7500, 18% above) follow Indian GST room-tariff slabs. NOT yet confirmed by a tax adviser -- they are
 --   configuration in fo_branch_settings, changeable per property without a migration.

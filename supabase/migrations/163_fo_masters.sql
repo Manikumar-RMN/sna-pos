@@ -1,4 +1,4 @@
--- 155: Front Office masters (SNA Hospitality). Depends on 152. Additive only.
+-- 163: Front Office masters (SNA Hospitality). Depends on 160. Additive only.
 -- Room types, rooms and the per-property settings, so the module can be set up from the Settings screen without SQL.
 -- A room type or room is never deleted once a stay has used it; it is switched off (active = false) so history stays readable.
 -- Safe to run again.

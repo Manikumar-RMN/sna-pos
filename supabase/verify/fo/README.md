@@ -1,4 +1,4 @@
-# Front Office tests (migrations 152–155)
+# Front Office tests (migrations 160–164)
 
 `./run_fo_tests.sh` starts a throw-away PostgreSQL, replays every migration, builds a hotel with an owner and a
 cashier through the real tenant-creation function, and then exercises the money paths as a signed-in user
@@ -13,7 +13,7 @@ tax, retry idempotency on `client_ref`, voids needing a reason, check-out refusi
 collect-and-close in one call, cancellation against an advance, out-of-service needing a reason, the night audit
 (room charges, GST slab, ADR / RevPAR / occupancy, no-shows, no second run) and tenant isolation under RLS.
 
-Run it after changing anything in 152–155:
+Run it after changing anything in 160–164:
 
     supabase/verify/fo/run_fo_tests.sh
 
