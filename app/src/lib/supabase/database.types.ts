@@ -7187,6 +7187,71 @@ export type Database = {
         Returns: Json
       }
       customer_favourites: { Args: { p_customer: string }; Returns: Json }
+      // Front Office (migrations 152-155). Written by hand until types are regenerated from the database.
+      fo_availability: { Args: { p_arrival: string; p_departure: string }; Returns: Json }
+      fo_cancel_stay: { Args: { p_reason: string; p_stay: string }; Returns: Json }
+      fo_change_room: { Args: { p_reason: string; p_room_id: string; p_stay: string }; Returns: Json }
+      fo_check_in: { Args: { p_room_id?: string; p_stay: string }; Returns: Json }
+      fo_check_out: { Args: { p_client_ref?: string; p_payment_method_id?: string; p_stay: string }; Returns: Json }
+      fo_create_stay: {
+        Args: {
+          p_adults?: number
+          p_arrival: string
+          p_children?: number
+          p_client_ref?: string
+          p_departure: string
+          p_guest_id: string
+          p_nightly_rate?: number
+          p_notes?: string
+          p_room_type_id: string
+          p_source?: string
+        }
+        Returns: Json
+      }
+      fo_day_sheet: { Args: { p_business_date?: string }; Returns: Json }
+      fo_folio: { Args: { p_stay: string }; Returns: Json }
+      fo_mark_no_show: { Args: { p_reason?: string; p_stay: string }; Returns: Json }
+      fo_night_audit_run: { Args: { p_business_date?: string }; Returns: Json }
+      fo_post_charge: {
+        Args: { p_client_ref?: string; p_description: string; p_kind: string; p_quantity?: number; p_stay: string; p_unit_amount: number }
+        Returns: Json
+      }
+      fo_room_board: { Args: Record<PropertyKey, never>; Returns: Json }
+      fo_setup: { Args: Record<PropertyKey, never>; Returns: Json }
+      fo_save_guest: {
+        Args: {
+          p_address?: string
+          p_city?: string
+          p_country?: string
+          p_email?: string
+          p_full_name: string
+          p_guest_id?: string
+          p_id_number?: string
+          p_id_type?: string
+          p_notes?: string
+          p_phone?: string
+        }
+        Returns: Json
+      }
+      fo_save_room: {
+        Args: { p_active?: boolean; p_floor_label?: string; p_room_id?: string; p_room_number: string; p_room_type_id: string }
+        Returns: Json
+      }
+      fo_save_room_type: {
+        Args: { p_active?: boolean; p_base_rate?: number; p_code: string; p_display_order?: number; p_max_occupancy?: number; p_name: string; p_room_type_id?: string }
+        Returns: Json
+      }
+      fo_save_settings: {
+        Args: { p_check_in_time?: string; p_check_out_time?: string; p_other_tax_pct?: number; p_room_tax_pct?: number; p_room_tax_pct_high?: number; p_room_tax_threshold?: number }
+        Returns: Json
+      }
+      fo_set_room_status: { Args: { p_housekeeping?: string; p_out_of_service?: boolean; p_reason?: string; p_room: string }; Returns: Json }
+      fo_take_payment: {
+        Args: { p_amount: number; p_client_ref?: string; p_is_refund?: boolean; p_payment_method_id?: string; p_reference?: string; p_stay: string }
+        Returns: Json
+      }
+      fo_void_charge: { Args: { p_charge: string; p_reason: string }; Returns: Json }
+      fo_void_payment: { Args: { p_payment: string; p_reason: string }; Returns: Json }
       find_customer: { Args: { p_phone: string }; Returns: Json }
       forget_customer: {
         Args: { p_customer: string; p_reason: string }
