@@ -7230,8 +7230,15 @@ export type Database = {
       fo_groups_list: { Args: { p_include_past?: boolean }; Returns: Json }
       fo_stay_group: { Args: { p_stay: string }; Returns: Json }
       fo_cancel_group: { Args: { p_group: string; p_reason: string }; Returns: Json }
-      fo_issue_invoice: { Args: { p_bill_to_address?: string; p_bill_to_gstin?: string; p_bill_to_name?: string; p_bill_to_state_code?: string; p_stay: string }; Returns: Json }
-      fo_invoice_for_stay: { Args: { p_stay: string }; Returns: Json }
+      fo_issue_invoice: { Args: { p_bill_to_address?: string; p_bill_to_gstin?: string; p_bill_to_name?: string; p_bill_to_state_code?: string; p_party?: string; p_stay: string }; Returns: Json }
+      fo_invoice_for_stay: { Args: { p_party?: string; p_stay: string }; Returns: Json }
+      fo_save_company: { Args: { p_active?: boolean; p_address?: string; p_company_id?: string; p_contact_name?: string; p_credit_days?: number; p_credit_limit?: number; p_email?: string; p_gstin?: string; p_name: string; p_phone?: string; p_state_code?: string }; Returns: Json }
+      fo_companies_list: { Args: { p_include_inactive?: boolean }; Returns: Json }
+      fo_set_stay_company: { Args: { p_company?: string; p_scope?: string; p_stay: string }; Returns: Json }
+      fo_set_group_company: { Args: { p_company?: string; p_group: string; p_scope?: string }; Returns: Json }
+      fo_take_company_payment: { Args: { p_amount: number; p_client_ref?: string; p_company: string; p_payment_method_id?: string; p_reference?: string }; Returns: Json }
+      fo_void_company_payment: { Args: { p_payment: string; p_reason: string }; Returns: Json }
+      fo_company_ledger: { Args: { p_company: string }; Returns: Json }
       fo_reg_card: { Args: { p_stay: string }; Returns: Json }
       fo_invoice_register: { Args: { p_from: string; p_to: string }; Returns: Json }
       fo_day_sheet: { Args: { p_business_date?: string }; Returns: Json }

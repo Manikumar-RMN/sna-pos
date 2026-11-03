@@ -48,6 +48,8 @@ export type RoomTypeAvail = { room_type_id: string; code: string; name: string; 
 export type FolioCharge = {
   charge_id: string; on: string; kind: string; description: string; quantity: number; unit_amount: number;
   net_amount: number; tax_pct: number; tax_amount: number; total: number; order_id: string | null; voided: boolean; void_reason: string | null;
+  /** True when this charge is on the company's side of the folio. */
+  to_company: boolean;
 };
 export type FolioPayment = { payment_id: string; on: string; amount: number; method: string; is_refund: boolean; reference: string | null; voided: boolean; void_reason: string | null };
 export type Folio = {
@@ -56,11 +58,13 @@ export type Folio = {
     arrival: string; departure: string; nights: number; adults: number; children: number; nightly_rate: number;
     source: string; notes: string | null; room_id: string | null; room_number: string | null; room_type: string | null;
     rate_plan: string | null; rate_plan_code: string | null; meal_plan: string | null; rate_schedule: { night: string; rate: number }[];
+    company: { company_id: string; name: string; scope: "room" | "all" } | null;
     guest: { guest_id: string; full_name: string; phone: string | null; email: string | null };
   };
   charges: FolioCharge[];
   payments: FolioPayment[];
-  totals: { charged: number; paid: number; refunded: number; balance: number };
+  /** charged and balance are the guest's side only; company_charged is what the company is billed. */
+  totals: { charged: number; company_charged: number; paid: number; refunded: number; balance: number };
 };
 
 /** Charge kinds a receptionist may post by hand ("room" is posted by the night audit only). */
@@ -123,6 +127,7 @@ export type BusinessDetails = {
 
 /** The issued tax invoice, as stored (fo_invoice_for_stay). */
 export type InvoiceSnapshot = {
+  party?: "guest" | "company";
   property: { legal_name: string; gstin: string | null; state_code: string | null; address: string; phone: string | null; email: string | null; footer: string | null };
   bill_to: { name: string; gstin: string | null; address: string | null; state_code: string | null };
   guest: { name: string; phone: string | null };
@@ -134,8 +139,8 @@ export type InvoiceSnapshot = {
   supply: { type: string; place_of_supply_state_code: string | null; reverse_charge: boolean };
 };
 export type InvoiceState =
-  | { issued: true; invoice_id: string; invoice_no: string; invoice_date: string; total: number; snapshot: InvoiceSnapshot }
-  | { issued: false; ready: boolean; status: string; has_business_details: boolean; has_gstin: boolean; prefill: { name: string | null; gstin: string | null; address: string | null; state_code: string | null } };
+  | { issued: true; party: "guest" | "company"; invoice_id: string; invoice_no: string; invoice_date: string; total: number; snapshot: InvoiceSnapshot }
+  | { issued: false; party: "guest" | "company"; has_lines: boolean; ready: boolean; status: string; has_business_details: boolean; has_gstin: boolean; prefill: { name: string | null; gstin: string | null; address: string | null; state_code: string | null } };
 
 /** The registration card (fo_reg_card). */
 export type RegCard = {
@@ -150,10 +155,25 @@ export type GroupRow = { group_id: string; group_no: number; name: string; statu
 export type GroupStay = {
   stay_id: string; stay_no: number; status: "reserved" | "inhouse" | "checked_out" | "cancelled" | "no_show";
   guest_id: string; guest_name: string; room_type: string; room_number: string | null; rate: number; adults: number; children: number;
+  company: string | null; company_scope: "none" | "room" | "all"; company_part: number;
   charged: number; paid: number; balance: number;
 };
 export type GroupView = {
   group: { group_id: string; group_no: number; name: string; status: "active" | "cancelled"; arrival: string; departure: string; nights: number; notes: string | null; contact_guest_id: string; contact_name: string; cancel_reason: string | null };
   stays: GroupStay[];
-  totals: { rooms: number; charged: number; paid: number; balance: number };
+  totals: { rooms: number; charged: number; company_part: number; paid: number; balance: number };
 };
+
+/** Companies that pay for stays (fo_companies_list, fo_company_ledger). */
+export type Company = {
+  company_id: string; name: string; gstin: string | null; state_code: string | null; address: string | null;
+  contact_name: string | null; phone: string | null; email: string | null; credit_days: number; credit_limit: number | null;
+  active: boolean; outstanding: number;
+};
+export type CompanyLedger = {
+  company: Omit<Company, "state_code" | "outstanding">;
+  stays: { stay_id: string; stay_no: number; status: string; guest_name: string; room_number: string | null; arrival: string; departure: string; charged: number; scope: string; invoice_no: string | null; due_date: string }[];
+  payments: { payment_id: string; on: string; amount: number; method: string; reference: string | null; voided: boolean; void_reason: string | null }[];
+  summary: { charged: number; paid: number; outstanding: number; overdue: number; over_limit: boolean };
+};
+export const COMPANY_SCOPE_LABEL: Record<string, string> = { room: "Room charges", all: "Everything" };

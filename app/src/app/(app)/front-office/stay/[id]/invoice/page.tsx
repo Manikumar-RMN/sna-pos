@@ -7,12 +7,13 @@ import type { InvoiceState } from "@/lib/fo";
 import { PrintButton } from "../../../../print-button";
 
 /** The issued GST tax invoice for a stay, laid out for A4. */
-export default async function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function InvoicePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ party?: string }> }) {
   const { id } = await params;
+  const party = (await searchParams).party === "company" ? "company" : "guest";
   if (!/^[0-9a-f-]{36}$/i.test(id)) redirect("/front-office");
   const user = await requireUser();
   if (!has(user, "front_office") || !(can(user, "fo.view") || can(user, "fo.manage"))) redirect("/front-office");
-  const { data } = await (await createClient()).rpc("fo_invoice_for_stay", { p_stay: id });
+  const { data } = await (await createClient()).rpc("fo_invoice_for_stay", { p_stay: id, p_party: party });
   const inv = data as unknown as InvoiceState | null;
   if (!inv || !inv.issued) redirect(`/front-office/stay/${id}`);
   const s = inv.snapshot;

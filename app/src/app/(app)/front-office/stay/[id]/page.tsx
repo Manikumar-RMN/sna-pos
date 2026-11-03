@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { UpgradeNote } from "../../../upgrade-note";
-import type { Folio, InvoiceState } from "@/lib/fo";
+import type { Company, Folio, InvoiceState } from "@/lib/fo";
 import { FolioView } from "./folio";
 
 export default async function StayPage({ params }: { params: Promise<{ id: string }> }) {
@@ -28,15 +28,24 @@ export default async function StayPage({ params }: { params: Promise<{ id: strin
   if (!folio) notFound();
   const { data: grp } = await supabase.rpc("fo_stay_group", { p_stay: id });
   const group = (grp as unknown as { group_id: string; group_no: number; name: string } | null) ?? null;
-  let invoice: InvoiceState | null = null;
+  const invoices: { guest: InvoiceState | null; company: InvoiceState | null } = { guest: null, company: null };
   if (folio.stay.status === "checked_out") {
-    const { data: inv } = await supabase.rpc("fo_invoice_for_stay", { p_stay: id });
-    invoice = (inv as unknown as InvoiceState | null) ?? null;
+    const [g, c] = await Promise.all([
+      supabase.rpc("fo_invoice_for_stay", { p_stay: id, p_party: "guest" }),
+      folio.stay.company ? supabase.rpc("fo_invoice_for_stay", { p_stay: id, p_party: "company" }) : Promise.resolve({ data: null }),
+    ]);
+    invoices.guest = (g.data as unknown as InvoiceState | null) ?? null;
+    invoices.company = (c.data as unknown as InvoiceState | null) ?? null;
+  }
+  let companies: Company[] = [];
+  if ((folio.stay.status === "reserved" || folio.stay.status === "inhouse") && can(user, "fo.manage")) {
+    const { data: co } = await supabase.rpc("fo_companies_list", { p_include_inactive: false });
+    companies = (co ?? []) as unknown as Company[];
   }
   return (
     <div className="mx-auto max-w-3xl">
       <Link href="/front-office" className="text-sm underline">← Front office</Link>
-      <FolioView folio={folio} methods={(methods.data ?? []) as { id: string; name: string }[]} currency={user.currency_code} canManage={can(user, "fo.manage")} invoice={invoice} group={group} />
+      <FolioView folio={folio} methods={(methods.data ?? []) as { id: string; name: string }[]} currency={user.currency_code} canManage={can(user, "fo.manage")} invoices={invoices} group={group} companies={companies} />
     </div>
   );
 }

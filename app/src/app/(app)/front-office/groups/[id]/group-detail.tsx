@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { money } from "@/lib/format";
-import { STATUS_LABEL, type GroupView } from "@/lib/fo";
-import { addGroupRooms, cancelGroup, setStayGuest } from "../../actions";
+import { STATUS_LABEL, type Company, type GroupView } from "@/lib/fo";
+import { addGroupRooms, cancelGroup, setGroupCompany, setStayGuest } from "../../actions";
 import { RoomLines, linesValid, newLine, toLines, type LineState, type PlanOpt, type TypeOpt } from "../room-lines";
 
-export function GroupDetail({ data, types, plans, currency, canManage }: { data: GroupView; types: TypeOpt[]; plans: PlanOpt[]; currency: string; canManage: boolean }) {
+export function GroupDetail({ data, types, plans, currency, canManage, companies }: { data: GroupView; types: TypeOpt[]; plans: PlanOpt[]; currency: string; canManage: boolean; companies: Company[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -17,6 +17,8 @@ export function GroupDetail({ data, types, plans, currency, canManage }: { data:
   const [naming, setNaming] = useState<string | null>(null);
   const [gName, setGName] = useState("");
   const [gPhone, setGPhone] = useState("");
+  const [coId, setCoId] = useState("");
+  const [coScope, setCoScope] = useState<"room" | "all">("room");
   const { group, stays, totals } = data;
   const live = group.status === "active";
 
@@ -45,7 +47,7 @@ export function GroupDetail({ data, types, plans, currency, canManage }: { data:
           <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: "var(--color-brand-soft)", color: "var(--color-brand)" }}>{live ? "Active" : "Cancelled"}</span>
         </div>
         <p className="mt-2 text-sm">
-          {totals.rooms} room{totals.rooms === 1 ? "" : "s"} · Charged {money(totals.charged, currency)} · Paid {money(totals.paid, currency)} · <b style={{ color: totals.balance > 0 ? "var(--color-bad)" : "var(--color-ok)" }}>{totals.balance > 0 ? `Owes ${money(totals.balance, currency)}` : totals.balance < 0 ? `In credit ${money(-totals.balance, currency)}` : "Settled"}</b>
+          {totals.rooms} room{totals.rooms === 1 ? "" : "s"} · Guests charged {money(totals.charged, currency)}{totals.company_part > 0 ? ` · Companies pay ${money(totals.company_part, currency)}` : ""} · Paid {money(totals.paid, currency)} · <b style={{ color: totals.balance > 0 ? "var(--color-bad)" : "var(--color-ok)" }}>{totals.balance > 0 ? `Owes ${money(totals.balance, currency)}` : totals.balance < 0 ? `In credit ${money(-totals.balance, currency)}` : "Settled"}</b>
         </p>
       </header>
 
@@ -60,7 +62,7 @@ export function GroupDetail({ data, types, plans, currency, canManage }: { data:
                 <span>
                   <Link href={`/front-office/stay/${s.stay_id}`} className="font-semibold underline">#{s.stay_no} · {s.guest_name}</Link>
                   <span className="block text-xs" style={{ color: "var(--color-ink-3)" }}>
-                    {s.room_type}{s.room_number ? ` · Room ${s.room_number}` : ""} · {money(s.rate, currency)}/night · {s.adults} adult{s.adults === 1 ? "" : "s"}{s.children ? `, ${s.children} child${s.children === 1 ? "" : "ren"}` : ""} · {STATUS_LABEL[s.status]}
+                    {s.room_type}{s.room_number ? ` · Room ${s.room_number}` : ""} · {money(s.rate, currency)}/night · {s.adults} adult{s.adults === 1 ? "" : "s"}{s.children ? `, ${s.children} child${s.children === 1 ? "" : "ren"}` : ""} · {STATUS_LABEL[s.status]}{s.company ? ` · ${s.company} pays ${s.company_scope === "all" ? "everything" : "the room"}` : ""}
                   </span>
                 </span>
                 <span className="flex items-center gap-3">
@@ -83,6 +85,26 @@ export function GroupDetail({ data, types, plans, currency, canManage }: { data:
         </ul>
         <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>Each room has its own folio, check-in, check-out and tax invoice. Open a room to take a payment or check the guest in.</p>
       </section>
+
+      {canManage && live && (
+        <section className="card p-4">
+          <h2 className="text-sm font-bold">Bill the group to a company</h2>
+          <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-3)" }}>Sets the company on every room that has not checked out or been cancelled. A room that already has a tax invoice stops this, and nothing changes.</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-[2fr_1.5fr_auto]">
+            <select className="field h-10 text-sm" value={coId} onChange={(e) => setCoId(e.target.value)} aria-label="Company">
+              <option value="">No company (guests pay)</option>
+              {companies.map((c) => <option key={c.company_id} value={c.company_id}>{c.name}</option>)}
+            </select>
+            <select className="field h-10 text-sm" value={coScope} onChange={(e) => setCoScope(e.target.value as "room" | "all")} aria-label="What the company pays" disabled={!coId}>
+              <option value="room">Company pays the room</option>
+              <option value="all">Company pays everything</option>
+            </select>
+            <button className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }} disabled={pending}
+              onClick={() => act(() => setGroupCompany(group.group_id, coId || null, coScope))}>Apply to all rooms</button>
+          </div>
+          {companies.length === 0 && <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}><Link href="/front-office/companies" className="underline">Add a company</Link> first.</p>}
+        </section>
+      )}
 
       {canManage && live && (
         <section className="card space-y-3 p-4">

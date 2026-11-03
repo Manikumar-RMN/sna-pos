@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyDbError } from "@/lib/db-error";
-import type { DaySheet, Folio, GroupView, GuestRow, Quote, RoomCard, RoomTypeAvail } from "@/lib/fo";
+import type { Company, CompanyLedger, DaySheet, Folio, GroupView, GuestRow, Quote, RoomCard, RoomTypeAvail } from "@/lib/fo";
 
 export type FoResult<T = Record<string, unknown>> = ({ ok: true; message?: string } & T) | { ok: false; error: string };
 
@@ -318,10 +318,10 @@ export async function saveBusiness(input: {
   return { ok: true, message: "Business details saved." };
 }
 
-export async function issueInvoice(stayId: string, billTo: { name: string; gstin: string; address: string; stateCode: string }): Promise<FoResult<{ invoiceNo: string }>> {
+export async function issueInvoice(stayId: string, billTo: { name: string; gstin: string; address: string; stateCode: string }, party: "guest" | "company" = "guest"): Promise<FoResult<{ invoiceNo: string }>> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("fo_issue_invoice", {
-    p_stay: stayId, p_bill_to_name: billTo.name || undefined, p_bill_to_gstin: billTo.gstin || undefined,
+    p_stay: stayId, p_party: party, p_bill_to_name: billTo.name || undefined, p_bill_to_gstin: billTo.gstin || undefined,
     p_bill_to_address: billTo.address || undefined, p_bill_to_state_code: billTo.stateCode || undefined,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
@@ -389,4 +389,69 @@ export async function loadGroup(groupId: string): Promise<GroupView | null> {
   const supabase = await createClient();
   const { data } = await supabase.rpc("fo_group_view", { p_group: groupId });
   return (data as unknown as GroupView | null) ?? null;
+}
+
+// ------------------------------------------------------------------ companies (bill to company)
+export async function saveCompany(input: {
+  id: string | null; name: string; gstin: string; stateCode: string; address: string; contactName: string; phone: string; email: string;
+  creditDays: number; creditLimit: number | null; active: boolean;
+}): Promise<FoResult<{ companyId: string }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fo_save_company", {
+    p_name: input.name, p_gstin: input.gstin || undefined, p_state_code: input.stateCode || undefined, p_address: input.address || undefined,
+    p_contact_name: input.contactName || undefined, p_phone: input.phone || undefined, p_email: input.email || undefined,
+    p_credit_days: input.creditDays, p_credit_limit: input.creditLimit ?? undefined, p_active: input.active, p_company_id: input.id ?? undefined,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/front-office/companies");
+  return { ok: true, companyId: (data as unknown as { company_id: string }).company_id, message: "Company saved." };
+}
+
+export async function loadCompanies(): Promise<Company[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("fo_companies_list", { p_include_inactive: false });
+  return (data ?? []) as unknown as Company[];
+}
+
+/** Links a stay to a company (scope "room" or "all"), or unlinks it when companyId is null. */
+export async function setStayCompany(stayId: string, companyId: string | null, scope: "room" | "all"): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_set_stay_company", { p_stay: stayId, p_company: companyId ?? undefined, p_scope: scope });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath(`/front-office/stay/${stayId}`);
+  return { ok: true, message: companyId ? "Company set on the stay." : "Company removed from the stay." };
+}
+
+export async function setGroupCompany(groupId: string, companyId: string | null, scope: "room" | "all"): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_set_group_company", { p_group: groupId, p_company: companyId ?? undefined, p_scope: scope });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath(`/front-office/groups/${groupId}`);
+  return { ok: true, message: companyId ? "Company set on every open room of the group." : "Company removed from the group's open rooms." };
+}
+
+export async function takeCompanyPayment(companyId: string, amount: number, methodId: string | null, reference: string, clientRef: string): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_take_company_payment", {
+    p_company: companyId, p_amount: amount, p_payment_method_id: methodId ?? undefined, p_reference: reference || undefined, p_client_ref: clientRef,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath(`/front-office/companies/${companyId}`);
+  revalidatePath("/front-office/companies");
+  return { ok: true, message: "Payment recorded." };
+}
+
+export async function voidCompanyPayment(companyId: string, paymentId: string, reason: string): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_void_company_payment", { p_payment: paymentId, p_reason: reason });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath(`/front-office/companies/${companyId}`);
+  revalidatePath("/front-office/companies");
+  return { ok: true, message: "Payment voided." };
+}
+
+export async function loadCompanyLedger(companyId: string): Promise<CompanyLedger | null> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("fo_company_ledger", { p_company: companyId });
+  return (data as unknown as CompanyLedger | null) ?? null;
 }

@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { money } from "@/lib/format";
-import { MANUAL_CHARGE_KINDS, STATUS_LABEL, type Folio, type InvoiceState } from "@/lib/fo";
+import { MANUAL_CHARGE_KINDS, STATUS_LABEL, type Company, type Folio, type InvoiceState } from "@/lib/fo";
 import { InvoicePanel } from "./invoice-panel";
-import { amendStay, cancelStay, checkIn, checkOut, moveCharge, postCharge, takePayment, voidCharge, voidPayment } from "../../actions";
+import { amendStay, cancelStay, checkIn, checkOut, moveCharge, postCharge, setStayCompany, takePayment, voidCharge, voidPayment } from "../../actions";
 
 type Method = { id: string; name: string };
 
-export function FolioView({ folio, methods, currency, canManage, invoice, group }: { folio: Folio; methods: Method[]; currency: string; canManage: boolean; invoice: InvoiceState | null; group: { group_id: string; group_no: number; name: string } | null }) {
+export function FolioView({ folio, methods, currency, canManage, invoices, group, companies }: { folio: Folio; methods: Method[]; currency: string; canManage: boolean; invoices: { guest: InvoiceState | null; company: InvoiceState | null }; group: { group_id: string; group_no: number; name: string } | null; companies: Company[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -28,6 +28,9 @@ export function FolioView({ folio, methods, currency, canManage, invoice, group 
   const [newDep, setNewDep] = useState(stay.departure);
   const [newRate, setNewRate] = useState(String(stay.nightly_rate));
   const [why, setWhy] = useState("");
+  const [coId, setCoId] = useState(stay.company?.company_id ?? "");
+  const [coScope, setCoScope] = useState<"room" | "all">(stay.company?.scope ?? "room");
+  const hasInvoice = (invoices.guest?.issued ?? false) || (invoices.company?.issued ?? false);
   const chargeRef = useRef(crypto.randomUUID());
   const payRef = useRef(crypto.randomUUID());
   const outRef = useRef(crypto.randomUUID());
@@ -81,7 +84,7 @@ export function FolioView({ folio, methods, currency, canManage, invoice, group 
           {folio.charges.length === 0 && <li className="py-2" style={{ color: "var(--color-ink-3)" }}>Nothing posted yet. Room charges appear after each night audit.</li>}
           {folio.charges.map((c) => (
             <li key={c.charge_id} className="flex items-center justify-between gap-2 py-2" style={c.voided ? { opacity: 0.5, textDecoration: "line-through" } : undefined}>
-              <span>{c.on} · {c.description}{c.order_id ? " (restaurant bill)" : ""}<span className="block text-xs" style={{ color: "var(--color-ink-3)" }}>{money(c.net_amount, currency)} + tax {money(c.tax_amount, currency)}{c.void_reason ? ` · voided: ${c.void_reason}` : ""}</span></span>
+              <span>{c.on} · {c.description}{c.order_id ? " (restaurant bill)" : ""}{c.to_company ? <b className="ml-1 rounded px-1.5 py-0.5 text-[10px]" style={{ background: "var(--color-brand-soft)", color: "var(--color-brand)" }}>Company pays</b> : null}<span className="block text-xs" style={{ color: "var(--color-ink-3)" }}>{money(c.net_amount, currency)} + tax {money(c.tax_amount, currency)}{c.void_reason ? ` · voided: ${c.void_reason}` : ""}</span></span>
               <span className="flex items-center gap-2">
                 <b>{money(c.total, currency)}</b>
                 {canManage && open && !c.voided && !c.order_id && (
@@ -128,6 +131,36 @@ export function FolioView({ folio, methods, currency, canManage, invoice, group 
         </section>
       )}
 
+      {(stay.company || (canManage && open && !hasInvoice)) && (
+        <section className="card p-4">
+          <h2 className="text-sm font-bold">Bill to company</h2>
+          {stay.company && (
+            <p className="mt-1 text-sm">
+              <Link href={`/front-office/companies/${stay.company.company_id}`} className="font-semibold underline">{stay.company.name}</Link>{" "}
+              pays {stay.company.scope === "all" ? "everything on this folio" : "the room charges and their tax"}. The guest pays the rest. The company is billed {money(totals.company_charged, currency)} so far.
+            </p>
+          )}
+          {canManage && open && !hasInvoice && (
+            <div className="mt-2 grid gap-2 sm:grid-cols-[2fr_1.5fr_auto]">
+              <select className="field h-10 text-sm" value={coId} onChange={(e) => setCoId(e.target.value)} aria-label="Company">
+                <option value="">No company (guest pays)</option>
+                {companies.map((c) => <option key={c.company_id} value={c.company_id}>{c.name}</option>)}
+              </select>
+              <select className="field h-10 text-sm" value={coScope} onChange={(e) => setCoScope(e.target.value as "room" | "all")} aria-label="What the company pays" disabled={!coId}>
+                <option value="room">Company pays the room</option>
+                <option value="all">Company pays everything</option>
+              </select>
+              <button className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }}
+                disabled={pending || (coId === (stay.company?.company_id ?? "") && (!coId || coScope === stay.company?.scope))}
+                onClick={() => act(() => setStayCompany(stay.stay_id, coId || null, coScope))}>Save</button>
+            </div>
+          )}
+          {canManage && open && companies.length === 0 && !stay.company && (
+            <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>No companies yet. <Link href="/front-office/companies" className="underline">Add a company</Link> first.</p>
+          )}
+        </section>
+      )}
+
       <section className="card p-4">
         <h2 className="text-sm font-bold">Payments</h2>
         <ul className="mt-2 divide-y text-sm" style={{ borderColor: "var(--color-line)" }}>
@@ -160,7 +193,7 @@ export function FolioView({ folio, methods, currency, canManage, invoice, group 
 
       <section className="card flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
-          <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>Charged {money(totals.charged, currency)} · Paid {money(totals.paid, currency)}{totals.refunded > 0 ? ` · Refunded ${money(totals.refunded, currency)}` : ""}</div>
+          <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>{stay.company ? "Guest charged" : "Charged"} {money(totals.charged, currency)}{totals.company_charged > 0 ? ` · Company pays ${money(totals.company_charged, currency)}` : ""} · Paid {money(totals.paid, currency)}{totals.refunded > 0 ? ` · Refunded ${money(totals.refunded, currency)}` : ""}</div>
           <b className="text-xl" style={{ color: owes ? "var(--color-bad)" : credit ? "var(--color-warn)" : "var(--color-ok)" }}>
             {owes ? `Owes ${money(totals.balance, currency)}` : credit ? `In credit ${money(-totals.balance, currency)}` : "Settled"}
           </b>
@@ -187,7 +220,8 @@ export function FolioView({ folio, methods, currency, canManage, invoice, group 
         )}
       </section>
 
-      {stay.status === "checked_out" && invoice && <InvoicePanel stayId={stay.stay_id} state={invoice} canManage={canManage} />}
+      {stay.status === "checked_out" && invoices.guest && <InvoicePanel stayId={stay.stay_id} state={invoices.guest} canManage={canManage} party="guest" />}
+      {stay.status === "checked_out" && stay.company && invoices.company && <InvoicePanel stayId={stay.stay_id} state={invoices.company} canManage={canManage} party="company" companyName={stay.company.name} />}
     </div>
   );
 }

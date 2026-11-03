@@ -38,7 +38,7 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
           <tbody>
             {f.charges.map((x) => (
               <tr key={x.charge_id} style={{ borderBottom: "1px solid #ddd", ...(x.voided ? { textDecoration: "line-through", color: "#777" } : {}) }}>
-                <td className="py-1">{x.on}</td><td>{x.description}{x.voided && x.void_reason ? ` (void: ${x.void_reason})` : ""}</td>
+                <td className="py-1">{x.on}</td><td>{x.description}{x.to_company ? " (billed to company)" : ""}{x.voided && x.void_reason ? ` (void: ${x.void_reason})` : ""}</td>
                 <td className="text-right">{money(x.net_amount, c)}</td><td className="text-right">{money(x.tax_amount, c)}</td><td className="text-right">{money(x.total, c)}</td>
               </tr>
             ))}
@@ -57,7 +57,8 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
           </tbody>
         </table>
         <div className="ml-auto mt-4 w-64 space-y-0.5">
-          <div className="flex justify-between"><span>Charged</span><span>{money(totals.charged, c)}</span></div>
+          <div className="flex justify-between"><span>Charged to guest</span><span>{money(totals.charged, c)}</span></div>
+          {totals.company_charged > 0 && <div className="flex justify-between"><span>Billed to {stay.company?.name ?? "company"}</span><span>{money(totals.company_charged, c)}</span></div>}
           <div className="flex justify-between"><span>Paid</span><span>{money(totals.paid, c)}</span></div>
           {totals.refunded > 0 && <div className="flex justify-between"><span>Refunded</span><span>{money(totals.refunded, c)}</span></div>}
           <div className="flex justify-between border-t pt-1 text-base font-extrabold" style={{ borderColor: "#111" }}><span>{totals.balance > 0 ? "Balance due" : totals.balance < 0 ? "In credit" : "Settled"}</span><span>{money(Math.abs(totals.balance), c)}</span></div>
