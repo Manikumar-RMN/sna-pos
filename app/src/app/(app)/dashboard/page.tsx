@@ -2,6 +2,7 @@ import Link from "next/link";
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { dateTime, money, todayIn } from "@/lib/format";
+import { modulesFor } from "../modules";
 import { fmtQty, parseLowStock, STATUS_LABEL } from "@/lib/stock";
 
 type Summary = { bills: number; total_billed: number; average_bill: number; net_collected: number };
@@ -66,6 +67,15 @@ export default async function DashboardPage() {
             Open billing
           </Link>
         )}
+      </div>
+
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {modulesFor(user).map((m) => (
+          <Link key={m.key} href={m.href} className="card block p-4">
+            <p className="text-base font-bold">{m.title}</p>
+            <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>{m.blurb}</p>
+          </Link>
+        ))}
       </div>
 
       {canSales && s && (
