@@ -14,8 +14,8 @@ select set_config('request.jwt.claims', '{"sub":"' || :'owner' || '","role":"aut
 select public.fo_save_room_type('PLX', 'Plan Room', 3000, 3, 9) ->> 'room_type_id' as plx \gset
 select public.fo_save_room('401', :'plx', 'Fourth') ->> 'room_id' as r401 \gset
 select public.fo_save_room('402', :'plx', 'Fourth') ->> 'room_id' as r402 \gset
-select public.fo_save_guest('Meera Iyer', '9876500066') ->> 'guest_id' as gm \gset
-select public.fo_save_guest('Vikram Shah', '9876500077') ->> 'guest_id' as gv \gset
+select public.fo_save_guest('Meera Iyer', '9876500166') ->> 'guest_id' as gm \gset
+select public.fo_save_guest('Vikram Shah', '9876500177') ->> 'guest_id' as gv \gset
 
 -- ---- the plan and its rules
 select t.must_fail('a plan needs a code', $$select public.fo_save_rate_plan('', 'x')$$, 'code');
