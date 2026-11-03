@@ -74,3 +74,29 @@ export const MANUAL_CHARGE_KINDS: { value: string; label: string }[] = [
 export const STATUS_LABEL: Record<string, string> = {
   reserved: "Reserved", inhouse: "In-house", checked_out: "Checked out", cancelled: "Cancelled", no_show: "No-show",
 };
+
+/** Housekeeping list row (fo_hk_list). */
+export type HkTask = "departure" | "stayover" | "vacant_dirty" | "to_inspect" | "ready" | "out_of_service";
+export type HkRow = {
+  room_id: string; room_number: string; floor: string | null; room_type: string;
+  housekeeping: "clean" | "dirty"; inspected: boolean; out_of_service: boolean; oos_reason: string | null; note: string | null;
+  attendant_id: string | null; attendant: string | null; occupied: boolean; guest_name: string | null; vip: boolean;
+  departure: string | null; arriving_today: boolean; task: HkTask;
+};
+export const HK_TASK_LABEL: Record<HkTask, string> = {
+  departure: "Departure: clean", stayover: "Stay-over", vacant_dirty: "Vacant, dirty", to_inspect: "Clean, to inspect", ready: "Ready", out_of_service: "Out of service",
+};
+
+/** Stay chart (fo_chart). */
+export type ChartStay = { stay_id: string; stay_no: number; guest_name: string; vip: boolean; status: "reserved" | "inhouse" | "checked_out"; arrival: string; departure: string };
+export type ChartData = {
+  from: string; days: number;
+  rooms: { room_id: string; room_number: string; room_type: string; out_of_service: boolean; stays: ChartStay[] }[];
+  unassigned: { stay_id: string; stay_no: number; guest_name: string; room_type: string; arrival: string; departure: string }[];
+};
+
+/** Guest search row (fo_find_guests). */
+export type GuestRow = {
+  guest_id: string; full_name: string; phone: string | null; email: string | null; city: string | null;
+  vip: boolean; blocked: boolean; blocked_reason: string | null; preferences: string | null; stays: number; last_stay: string | null;
+};

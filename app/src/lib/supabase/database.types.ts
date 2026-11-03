@@ -7188,6 +7188,13 @@ export type Database = {
       }
       customer_favourites: { Args: { p_customer: string }; Returns: Json }
       // Front Office (migrations 152-155). Written by hand until types are regenerated from the database.
+      fo_amend_stay: { Args: { p_departure?: string; p_nightly_rate?: number; p_notes?: string; p_reason?: string; p_stay: string }; Returns: Json }
+      fo_chart: { Args: { p_days?: number; p_from?: string }; Returns: Json }
+      fo_find_guests: { Args: { p_query: string }; Returns: Json }
+      fo_hk_assign: { Args: { p_attendant: string; p_note?: string; p_rooms: string[] }; Returns: Json }
+      fo_hk_list: { Args: Record<PropertyKey, never>; Returns: Json }
+      fo_move_charge: { Args: { p_charge: string; p_reason: string; p_to_stay: string }; Returns: Json }
+      fo_set_guest_flags: { Args: { p_blocked?: boolean; p_blocked_reason?: string; p_guest: string; p_preferences?: string; p_vip?: boolean }; Returns: Json }
       fo_availability: { Args: { p_arrival: string; p_departure: string }; Returns: Json }
       fo_cancel_stay: { Args: { p_reason: string; p_stay: string }; Returns: Json }
       fo_change_room: { Args: { p_reason: string; p_room_id: string; p_stay: string }; Returns: Json }

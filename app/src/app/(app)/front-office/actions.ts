@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyDbError } from "@/lib/db-error";
-import type { DaySheet, Folio, RoomCard, RoomTypeAvail } from "@/lib/fo";
+import type { DaySheet, Folio, GuestRow, RoomCard, RoomTypeAvail } from "@/lib/fo";
 
 export type FoResult<T = Record<string, unknown>> = ({ ok: true; message?: string } & T) | { ok: false; error: string };
 
@@ -80,7 +80,7 @@ export async function checkIn(stayId: string, roomId: string | null): Promise<Fo
   return { ok: true, message: "Checked in." };
 }
 
-export async function setRoomStatus(roomId: string, patch: { housekeeping?: "clean" | "dirty"; outOfService?: boolean; reason?: string }): Promise<FoResult> {
+export async function setRoomStatus(roomId: string, patch: { housekeeping?: "clean" | "dirty" | "inspected"; outOfService?: boolean; reason?: string }): Promise<FoResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("fo_set_room_status", {
     p_room: roomId,
@@ -207,4 +207,51 @@ export async function saveTaxSettings(input: { roomTax: number; roomTaxHigh: num
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/front-office/setup");
   return { ok: true, message: "Tax settings saved." };
+}
+
+export async function assignRooms(roomIds: string[], attendantId: string | null, note: string): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_hk_assign", { p_rooms: roomIds, p_attendant: attendantId as unknown as string, p_note: note || undefined });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/front-office/housekeeping");
+  return { ok: true, message: "Rooms assigned." };
+}
+
+export async function amendStay(stayId: string, departure: string | null, rate: number | null, reason: string): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_amend_stay", {
+    p_stay: stayId, p_departure: departure ?? undefined, p_nightly_rate: rate ?? undefined, p_reason: reason,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  touch();
+  revalidatePath(`/front-office/stay/${stayId}`);
+  return { ok: true, message: "Stay changed." };
+}
+
+/** Moves a charge to the folio of another stay, found by its stay number. */
+export async function moveCharge(stayId: string, chargeId: string, toStayNo: number, reason: string): Promise<FoResult> {
+  const supabase = await createClient();
+  const t = await supabase.from("fo_stays").select("id").eq("stay_no", toStayNo).maybeSingle();
+  if (t.error) return { ok: false, error: friendlyDbError(t.error) };
+  if (!t.data) return { ok: false, error: `No stay number ${toStayNo} was found.` };
+  const { error } = await supabase.rpc("fo_move_charge", { p_charge: chargeId, p_to_stay: t.data.id, p_reason: reason });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath(`/front-office/stay/${stayId}`);
+  return { ok: true, message: `Moved to stay ${toStayNo}.` };
+}
+
+export async function findGuests(query: string): Promise<FoResult<{ guests: GuestRow[] }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fo_find_guests", { p_query: query });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  return { ok: true, guests: (data ?? []) as unknown as GuestRow[] };
+}
+
+export async function setGuestFlags(guestId: string, patch: { vip?: boolean; preferences?: string; blocked?: boolean; blockedReason?: string }): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_set_guest_flags", {
+    p_guest: guestId, p_vip: patch.vip, p_preferences: patch.preferences, p_blocked: patch.blocked, p_blocked_reason: patch.blockedReason,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  return { ok: true, message: "Guest updated." };
 }

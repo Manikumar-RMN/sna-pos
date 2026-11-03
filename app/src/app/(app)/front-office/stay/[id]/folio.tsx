@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { money } from "@/lib/format";
 import { MANUAL_CHARGE_KINDS, STATUS_LABEL, type Folio } from "@/lib/fo";
-import { cancelStay, checkIn, checkOut, postCharge, takePayment, voidCharge, voidPayment } from "../../actions";
+import { amendStay, cancelStay, checkIn, checkOut, moveCharge, postCharge, takePayment, voidCharge, voidPayment } from "../../actions";
 
 type Method = { id: string; name: string };
 
@@ -23,6 +23,9 @@ export function FolioView({ folio, methods, currency, canManage }: { folio: Foli
   const [qty, setQty] = useState("1");
   const [pay, setPay] = useState("");
   const [method, setMethod] = useState(methods[0]?.id ?? "");
+  const [newDep, setNewDep] = useState(stay.departure);
+  const [newRate, setNewRate] = useState(String(stay.nightly_rate));
+  const [why, setWhy] = useState("");
   const chargeRef = useRef(crypto.randomUUID());
   const payRef = useRef(crypto.randomUUID());
   const outRef = useRef(crypto.randomUUID());
@@ -76,6 +79,9 @@ export function FolioView({ folio, methods, currency, canManage }: { folio: Foli
                 {canManage && open && !c.voided && !c.order_id && (
                   <button className="text-xs underline" disabled={pending} onClick={() => { const r = ask("Why are you voiding this charge?"); if (r) act(() => voidCharge(stay.stay_id, c.charge_id, r)); }}>Void</button>
                 )}
+                {canManage && open && !c.voided && !c.order_id && c.kind !== "room" && (
+                  <button className="text-xs underline" disabled={pending} onClick={() => { const n = Number(ask("Move to which stay number?")); if (!(n > 0)) return; const r = ask("Why is it being moved?"); if (r) act(() => moveCharge(stay.stay_id, c.charge_id, n, r)); }}>Move</button>
+                )}
               </span>
             </li>
           ))}
@@ -96,6 +102,23 @@ export function FolioView({ folio, methods, currency, canManage }: { folio: Foli
           </div>
         )}
       </section>
+
+      {canManage && open && (
+        <section className="card p-4">
+          <h2 className="text-sm font-bold">Extend, shorten or change the rate</h2>
+          <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>A new rate applies to nights not yet charged. Nights already on the folio stay as they are.</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_2fr_auto]">
+            <input type="date" className="field h-10 text-sm" value={newDep} onChange={(e) => setNewDep(e.target.value)} aria-label="New departure date" />
+            <input className="field h-10 text-sm" inputMode="decimal" value={newRate} onChange={(e) => setNewRate(e.target.value)} aria-label="Rate per night before tax" />
+            <input className="field h-10 text-sm" placeholder="Reason" value={why} onChange={(e) => setWhy(e.target.value)} aria-label="Reason" />
+            <button
+              className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }}
+              disabled={pending || !why.trim() || !(Number(newRate) >= 0) || (newDep === stay.departure && Number(newRate) === stay.nightly_rate)}
+              onClick={() => act(() => amendStay(stay.stay_id, newDep !== stay.departure ? newDep : null, Number(newRate) !== stay.nightly_rate ? Number(newRate) : null, why.trim()), () => setWhy(""))}
+            >Save change</button>
+          </div>
+        </section>
+      )}
 
       <section className="card p-4">
         <h2 className="text-sm font-bold">Payments</h2>

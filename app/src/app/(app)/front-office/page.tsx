@@ -43,11 +43,16 @@ export default async function FrontOfficePage() {
     <div className="mx-auto max-w-6xl">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h1 className="text-xl font-extrabold">Front office</h1>
-        {can(user, "fo.manage") && (
-          <Link href="/front-office/setup" className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }}>
-            Rooms and rates
-          </Link>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <Link href="/front-office/chart" className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }}>Stay chart</Link>
+          <Link href="/front-office/housekeeping" className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }}>Housekeeping</Link>
+          <Link href="/front-office/guests" className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }}>Guests</Link>
+          {can(user, "fo.manage") && (
+            <Link href="/front-office/setup" className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }}>
+              Rooms and rates
+            </Link>
+          )}
+        </div>
       </div>
       <FrontOfficeBoard
         rooms={(rooms.data ?? []) as unknown as RoomCard[]}
