@@ -26,6 +26,8 @@ export default async function StayPage({ params }: { params: Promise<{ id: strin
   ]);
   const folio = data as unknown as Folio | null;
   if (!folio) notFound();
+  const { data: grp } = await supabase.rpc("fo_stay_group", { p_stay: id });
+  const group = (grp as unknown as { group_id: string; group_no: number; name: string } | null) ?? null;
   let invoice: InvoiceState | null = null;
   if (folio.stay.status === "checked_out") {
     const { data: inv } = await supabase.rpc("fo_invoice_for_stay", { p_stay: id });
@@ -34,7 +36,7 @@ export default async function StayPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="mx-auto max-w-3xl">
       <Link href="/front-office" className="text-sm underline">← Front office</Link>
-      <FolioView folio={folio} methods={(methods.data ?? []) as { id: string; name: string }[]} currency={user.currency_code} canManage={can(user, "fo.manage")} invoice={invoice} />
+      <FolioView folio={folio} methods={(methods.data ?? []) as { id: string; name: string }[]} currency={user.currency_code} canManage={can(user, "fo.manage")} invoice={invoice} group={group} />
     </div>
   );
 }

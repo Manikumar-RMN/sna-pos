@@ -7223,6 +7223,13 @@ export type Database = {
       fo_save_rate_rule: { Args: { p_extra_adult?: number; p_extra_child?: number; p_included_adults?: number; p_plan_id: string; p_rate: number; p_room_type_id: string; p_rule_id?: string; p_single_rate?: number; p_valid_from?: string; p_valid_to?: string; p_weekend_rate?: number }; Returns: Json }
       fo_delete_rate_rule: { Args: { p_rule_id: string }; Returns: Json }
       fo_save_business: { Args: { p_address?: string; p_email?: string; p_gstin?: string; p_invoice_footer?: string; p_invoice_prefix?: string; p_legal_name?: string; p_phone?: string; p_room_tax_exempt_below?: number; p_state_code?: string }; Returns: Json }
+      fo_create_group: { Args: { p_arrival: string; p_client_ref?: string; p_contact_guest: string; p_departure: string; p_name: string; p_notes?: string; p_rooms: Json; p_source?: string }; Returns: Json }
+      fo_group_add_rooms: { Args: { p_group: string; p_rooms: Json; p_source?: string }; Returns: Json }
+      fo_set_stay_guest: { Args: { p_guest: string; p_stay: string }; Returns: Json }
+      fo_group_view: { Args: { p_group: string }; Returns: Json }
+      fo_groups_list: { Args: { p_include_past?: boolean }; Returns: Json }
+      fo_stay_group: { Args: { p_stay: string }; Returns: Json }
+      fo_cancel_group: { Args: { p_group: string; p_reason: string }; Returns: Json }
       fo_issue_invoice: { Args: { p_bill_to_address?: string; p_bill_to_gstin?: string; p_bill_to_name?: string; p_bill_to_state_code?: string; p_stay: string }; Returns: Json }
       fo_invoice_for_stay: { Args: { p_stay: string }; Returns: Json }
       fo_reg_card: { Args: { p_stay: string }; Returns: Json }

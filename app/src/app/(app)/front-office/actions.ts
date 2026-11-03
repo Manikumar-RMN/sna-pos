@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyDbError } from "@/lib/db-error";
-import type { DaySheet, Folio, GuestRow, Quote, RoomCard, RoomTypeAvail } from "@/lib/fo";
+import type { DaySheet, Folio, GroupView, GuestRow, Quote, RoomCard, RoomTypeAvail } from "@/lib/fo";
 
 export type FoResult<T = Record<string, unknown>> = ({ ok: true; message?: string } & T) | { ok: false; error: string };
 
@@ -328,4 +328,65 @@ export async function issueInvoice(stayId: string, billTo: { name: string; gstin
   revalidatePath(`/front-office/stay/${stayId}`);
   const r = data as unknown as { invoice_no: string };
   return { ok: true, invoiceNo: r.invoice_no, message: `Invoice ${r.invoice_no} issued.` };
+}
+
+// ------------------------------------------------------------------ group bookings
+export type GroupRoomLine = { roomTypeId: string; qty: number; adults: number; children: number; ratePlanId: string | null; rate: number | null };
+const linesJson = (lines: GroupRoomLine[]) =>
+  lines.map((l) => ({ room_type_id: l.roomTypeId, qty: l.qty, adults: l.adults, children: l.children, rate_plan_id: l.ratePlanId, rate: l.rate }));
+
+export async function createGroup(input: {
+  name: string; contactName: string; contactPhone: string; arrival: string; departure: string; notes: string; rooms: GroupRoomLine[]; clientRef: string;
+}): Promise<FoResult<{ groupId: string }>> {
+  const supabase = await createClient();
+  const g = await supabase.rpc("fo_save_guest", { p_full_name: input.contactName, p_phone: input.contactPhone || undefined });
+  if (g.error) return { ok: false, error: friendlyDbError(g.error) };
+  const guestId = (g.data as unknown as { guest_id: string }).guest_id;
+  const r = await supabase.rpc("fo_create_group", {
+    p_name: input.name, p_contact_guest: guestId, p_arrival: input.arrival, p_departure: input.departure,
+    p_rooms: linesJson(input.rooms), p_notes: input.notes || undefined, p_client_ref: input.clientRef,
+  });
+  if (r.error) return { ok: false, error: friendlyDbError(r.error) };
+  touch();
+  revalidatePath("/front-office/groups");
+  const d = r.data as unknown as { group_id: string; group_no: number };
+  return { ok: true, groupId: d.group_id, message: `Group #${d.group_no} booked.` };
+}
+
+export async function addGroupRooms(groupId: string, rooms: GroupRoomLine[]): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_group_add_rooms", { p_group: groupId, p_rooms: linesJson(rooms) });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  touch();
+  revalidatePath(`/front-office/groups/${groupId}`);
+  return { ok: true, message: "Rooms added to the group." };
+}
+
+/** Puts a real guest (found or created by name and phone) on one reserved room of a group. */
+export async function setStayGuest(groupId: string, stayId: string, fullName: string, phone: string): Promise<FoResult> {
+  const supabase = await createClient();
+  const g = await supabase.rpc("fo_save_guest", { p_full_name: fullName, p_phone: phone || undefined });
+  if (g.error) return { ok: false, error: friendlyDbError(g.error) };
+  const guestId = (g.data as unknown as { guest_id: string }).guest_id;
+  const { error } = await supabase.rpc("fo_set_stay_guest", { p_stay: stayId, p_guest: guestId });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath(`/front-office/groups/${groupId}`);
+  revalidatePath(`/front-office/stay/${stayId}`);
+  return { ok: true, message: "Guest saved on the room." };
+}
+
+export async function cancelGroup(groupId: string, reason: string): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_cancel_group", { p_group: groupId, p_reason: reason });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  touch();
+  revalidatePath("/front-office/groups");
+  revalidatePath(`/front-office/groups/${groupId}`);
+  return { ok: true, message: "Group cancelled." };
+}
+
+export async function loadGroup(groupId: string): Promise<GroupView | null> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("fo_group_view", { p_group: groupId });
+  return (data as unknown as GroupView | null) ?? null;
 }

@@ -144,3 +144,16 @@ export type RegCard = {
   guest: { full_name: string; phone: string | null; email: string | null; id_type: string | null; id_number: string | null; address: string | null; city: string | null; country: string | null; vip: boolean; preferences: string | null; company: string | null; company_gstin: string | null };
   advance_paid: number;
 };
+
+/** Group bookings (fo_groups_list, fo_group_view). */
+export type GroupRow = { group_id: string; group_no: number; name: string; status: "active" | "cancelled"; arrival: string; departure: string; contact_name: string; rooms: number; in_house: number };
+export type GroupStay = {
+  stay_id: string; stay_no: number; status: "reserved" | "inhouse" | "checked_out" | "cancelled" | "no_show";
+  guest_id: string; guest_name: string; room_type: string; room_number: string | null; rate: number; adults: number; children: number;
+  charged: number; paid: number; balance: number;
+};
+export type GroupView = {
+  group: { group_id: string; group_no: number; name: string; status: "active" | "cancelled"; arrival: string; departure: string; nights: number; notes: string | null; contact_guest_id: string; contact_name: string; cancel_reason: string | null };
+  stays: GroupStay[];
+  totals: { rooms: number; charged: number; paid: number; balance: number };
+};

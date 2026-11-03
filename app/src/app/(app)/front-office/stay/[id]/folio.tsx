@@ -10,7 +10,7 @@ import { amendStay, cancelStay, checkIn, checkOut, moveCharge, postCharge, takeP
 
 type Method = { id: string; name: string };
 
-export function FolioView({ folio, methods, currency, canManage, invoice }: { folio: Folio; methods: Method[]; currency: string; canManage: boolean; invoice: InvoiceState | null }) {
+export function FolioView({ folio, methods, currency, canManage, invoice, group }: { folio: Folio; methods: Method[]; currency: string; canManage: boolean; invoice: InvoiceState | null; group: { group_id: string; group_no: number; name: string } | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -57,6 +57,7 @@ export function FolioView({ folio, methods, currency, canManage, invoice }: { fo
             <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
               Stay #{stay.stay_no} · {stay.room_type}{stay.room_number ? ` · Room ${stay.room_number}` : ""} · {stay.arrival} → {stay.departure} ({stay.nights} night{stay.nights === 1 ? "" : "s"}) · {money(stay.nightly_rate, currency)}/night
             </p>
+            {group && <p className="text-sm">Group: <Link href={`/front-office/groups/${group.group_id}`} className="underline">#{group.group_no} · {group.name}</Link></p>}
             {stay.rate_plan && <p className="text-sm">Rate plan: {stay.rate_plan}{stay.meal_plan ? ` (${stay.meal_plan})` : ""}</p>}
             {stay.guest.phone && <p className="text-sm">{stay.guest.phone}</p>}
             <p className="mt-1 flex flex-wrap gap-3 text-sm">
