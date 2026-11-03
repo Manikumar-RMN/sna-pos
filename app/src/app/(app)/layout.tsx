@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { lockCounter } from "@/app/counter/actions";
 import { NavLinks, NavRail, type NavItem } from "./nav-links";
+import { ModuleSidebar, type SideGroup } from "./module-sidebar";
 import { REPORT_LINKS, canSeeReportLink } from "./reports/_components/report-links";
 import { IdleLock } from "./idle-lock";
 import { OfflineSync } from "./offline-sync";
@@ -52,7 +53,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     customers: can(user, "customer.view"),
   };
   const reportItems = REPORT_LINKS.filter((r) => canSeeReportLink(r, reportAccess)).map((r) => ({ href: r.href, label: r.title, group: r.group }));
-  const links = [
+  const visibleLinksAll = [
     { href: "/dashboard", label: "Home", show: true },
     { href: "/owner", label: "Owner", show: has(user, "owner_app") && can(user, "report.view_sales") },
     { href: "/pos", label: "Bill", show: can(user, "order.create") },
@@ -76,9 +77,35 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     // Menu, users and security profiles live inside Settings.
     { href: "/settings", label: "Settings", show: true },
     { href: "/help", label: "Help", show: true },
-  ]
-    .filter((l) => l.show)
-    .map(({ href, label }): NavItem => (href === "/reports" ? { href, label, children: reportItems } : { href, label }));
+  ];
+  const visibleLinks = visibleLinksAll.filter((l) => l.show);
+  const links = visibleLinks.map(({ href, label }): NavItem => (href === "/reports" ? { href, label, children: reportItems } : { href, label }));
+
+  // Hotels (front office module on) get the Winsar-style side menu: one block per module.
+  const hospitality = has(user, "front_office") && !isCounter;
+  const pick = (hrefs: string[]) => visibleLinks.filter((l) => hrefs.includes(l.href)).map(({ href, label }) => ({ href, label }));
+  const foAllowed = has(user, "front_office") && (can(user, "fo.view") || can(user, "fo.manage") || can(user, "fo.housekeeping"));
+  const foItems = foAllowed
+    ? [
+        { href: "/front-office", label: "Room board" },
+        ...(can(user, "fo.view") || can(user, "fo.manage") ? [{ href: "/front-office/chart", label: "Stay chart" }] : []),
+        { href: "/front-office/housekeeping", label: "Housekeeping" },
+        ...(can(user, "fo.view") || can(user, "fo.manage") ? [{ href: "/front-office/guests", label: "Guests" }] : []),
+        ...(can(user, "fo.manage") ? [{ href: "/front-office/setup", label: "Rooms and rates" }] : []),
+      ]
+    : [];
+  const sideGroups: SideGroup[] = [
+    { key: "home", title: "Home", icon: "home", items: [{ href: "/dashboard", label: "Home" }] },
+    { key: "front_office", title: "Front office", icon: "front_office", items: foItems },
+    {
+      key: "pos", title: "POS", icon: "pos",
+      items: pick(["/pos", "/captain", "/table-orders", "/kitchen", "/bills", "/preorders", "/deliveries", "/online-orders", "/accounts", "/customers", "/reservations", "/loyalty", "/shift", "/timesheets"]),
+    },
+    { key: "inventory", title: "Purchase and inventory", icon: "inventory", items: pick(["/stock", "/purchases"]) },
+    { key: "reports", title: "Reports and MIS", icon: "reports", items: pick(["/owner", "/reports"]) },
+    { key: "setup", title: "Setup", icon: "setup", items: pick(["/settings"]) },
+    { key: "help", title: "Help", icon: "help", items: pick(["/help"]) },
+  ].filter((g) => g.items.length > 0);
 
   // The licence: a reminder from 15 days before the end date, read-only after it.
   const licence = await getLicence();
@@ -137,13 +164,13 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     <div className="min-h-screen md:flex md:gap-3 md:p-3">
       {/* Tablet and desktop: green icon rail */}
       <aside
-        className="kolam sticky top-3 hidden h-[calc(100vh-24px)] w-[76px] shrink-0 flex-col items-center gap-3 overflow-y-auto rounded-[22px] py-3.5 md:flex"
+        className={`kolam sticky top-3 hidden h-[calc(100vh-24px)] shrink-0 flex-col items-center gap-3 overflow-y-auto rounded-[22px] py-3.5 md:flex ${hospitality ? "w-[236px] px-2" : "w-[76px]"}`}
         style={{ background: "var(--color-brand)" }}
       >
         <Link href="/dashboard" aria-label="SNA POS home" className="mb-1">
           <Mark />
         </Link>
-        <NavRail links={links} />
+        {hospitality ? <ModuleSidebar groups={sideGroups} /> : <NavRail links={links} />}
         <div className="flex-1" />
         <div
           className="grid h-11 w-11 shrink-0 place-items-center rounded-full font-display font-bold text-white"
