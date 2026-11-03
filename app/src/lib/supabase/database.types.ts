@@ -7211,11 +7211,22 @@ export type Database = {
           p_guest_id: string
           p_nightly_rate?: number
           p_notes?: string
+          p_rate_plan_id?: string
           p_room_type_id: string
           p_source?: string
         }
         Returns: Json
       }
+      fo_quote: { Args: { p_adults?: number; p_arrival: string; p_children?: number; p_departure: string; p_room_type: string }; Returns: Json }
+      fo_rate_setup: { Args: Record<PropertyKey, never>; Returns: Json }
+      fo_save_rate_plan: { Args: { p_active?: boolean; p_code: string; p_description?: string; p_display_order?: number; p_meal_plan?: string; p_name: string; p_plan_id?: string }; Returns: Json }
+      fo_save_rate_rule: { Args: { p_extra_adult?: number; p_extra_child?: number; p_included_adults?: number; p_plan_id: string; p_rate: number; p_room_type_id: string; p_rule_id?: string; p_single_rate?: number; p_valid_from?: string; p_valid_to?: string; p_weekend_rate?: number }; Returns: Json }
+      fo_delete_rate_rule: { Args: { p_rule_id: string }; Returns: Json }
+      fo_save_business: { Args: { p_address?: string; p_email?: string; p_gstin?: string; p_invoice_footer?: string; p_invoice_prefix?: string; p_legal_name?: string; p_phone?: string; p_room_tax_exempt_below?: number; p_state_code?: string }; Returns: Json }
+      fo_issue_invoice: { Args: { p_bill_to_address?: string; p_bill_to_gstin?: string; p_bill_to_name?: string; p_bill_to_state_code?: string; p_stay: string }; Returns: Json }
+      fo_invoice_for_stay: { Args: { p_stay: string }; Returns: Json }
+      fo_reg_card: { Args: { p_stay: string }; Returns: Json }
+      fo_invoice_register: { Args: { p_from: string; p_to: string }; Returns: Json }
       fo_day_sheet: { Args: { p_business_date?: string }; Returns: Json }
       fo_folio: { Args: { p_stay: string }; Returns: Json }
       fo_mark_no_show: { Args: { p_reason?: string; p_stay: string }; Returns: Json }

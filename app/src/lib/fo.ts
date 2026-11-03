@@ -55,6 +55,7 @@ export type Folio = {
     stay_id: string; stay_no: number; status: "reserved" | "inhouse" | "checked_out" | "cancelled" | "no_show";
     arrival: string; departure: string; nights: number; adults: number; children: number; nightly_rate: number;
     source: string; notes: string | null; room_id: string | null; room_number: string | null; room_type: string | null;
+    rate_plan: string | null; rate_plan_code: string | null; meal_plan: string | null; rate_schedule: { night: string; rate: number }[];
     guest: { guest_id: string; full_name: string; phone: string | null; email: string | null };
   };
   charges: FolioCharge[];
@@ -99,4 +100,47 @@ export type ChartData = {
 export type GuestRow = {
   guest_id: string; full_name: string; phone: string | null; email: string | null; city: string | null;
   vip: boolean; blocked: boolean; blocked_reason: string | null; preferences: string | null; stays: number; last_stay: string | null;
+};
+
+
+/** Rate plans (fo_rate_setup) and the booking price list (fo_quote). */
+export type RateRule = {
+  id: string; room_type_id: string; valid_from: string | null; valid_to: string | null; rate: number;
+  weekend_rate: number | null; single_rate: number | null; included_adults: number; extra_adult: number; extra_child: number;
+};
+export type RatePlan = { id: string; code: string; name: string; meal_plan: "EP" | "CP" | "MAP" | "AP"; description: string | null; display_order: number; active: boolean; rules: RateRule[] };
+export const MEAL_PLAN_LABEL: Record<string, string> = { EP: "Room only", CP: "With breakfast", MAP: "Breakfast and one meal", AP: "All meals" };
+export type QuoteOption =
+  | { rate_plan_id: string | null; code: string; name: string; meal_plan: string; available: true; total: number; average: number; nights: { night: string; rate: number }[] }
+  | { rate_plan_id: string | null; code: string; name: string; meal_plan: string; available: false; reason: string };
+export type Quote = { room_type: string; nights: number; options: QuoteOption[] };
+
+/** Business details used on the tax invoice (part of fo_setup settings). */
+export type BusinessDetails = {
+  legal_name: string | null; gstin: string | null; state_code: string | null; address: string | null;
+  phone: string | null; email: string | null; invoice_prefix: string; invoice_footer: string | null; room_tax_exempt_below: number;
+};
+
+/** The issued tax invoice, as stored (fo_invoice_for_stay). */
+export type InvoiceSnapshot = {
+  property: { legal_name: string; gstin: string | null; state_code: string | null; address: string; phone: string | null; email: string | null; footer: string | null };
+  bill_to: { name: string; gstin: string | null; address: string | null; state_code: string | null };
+  guest: { name: string; phone: string | null };
+  stay: { stay_no: number; arrival: string; departure: string; nights: number; adults: number; children: number; room_number: string | null; room_type: string | null; rate_plan: string | null; checked_out_at: string | null };
+  lines: { on: string; kind: string; description: string; sac: string; quantity: number; unit_amount: number; taxable: number; tax_pct: number; tax: number; total: number }[];
+  tax_summary: { sac: string; tax_pct: number; taxable: number; tax: number; cgst: number; sgst: number }[];
+  payments: { on: string; method: string; amount: number; is_refund: boolean; reference: string | null }[];
+  totals: { taxable: number; tax: number; total: number };
+  supply: { type: string; place_of_supply_state_code: string | null; reverse_charge: boolean };
+};
+export type InvoiceState =
+  | { issued: true; invoice_id: string; invoice_no: string; invoice_date: string; total: number; snapshot: InvoiceSnapshot }
+  | { issued: false; ready: boolean; status: string; has_business_details: boolean; has_gstin: boolean; prefill: { name: string | null; gstin: string | null; address: string | null; state_code: string | null } };
+
+/** The registration card (fo_reg_card). */
+export type RegCard = {
+  property: { legal_name: string | null; name: string | null; gstin: string | null; address: string | null; phone: string | null; email: string | null; check_in_time: string; check_out_time: string };
+  stay: { stay_no: number; status: string; arrival: string; departure: string; nights: number; adults: number; children: number; source: string; nightly_rate: number; notes: string | null; room_number: string | null; room_type: string | null; rate_plan: string | null; meal_plan: string | null };
+  guest: { full_name: string; phone: string | null; email: string | null; id_type: string | null; id_number: string | null; address: string | null; city: string | null; country: string | null; vip: boolean; preferences: string | null; company: string | null; company_gstin: string | null };
+  advance_paid: number;
 };

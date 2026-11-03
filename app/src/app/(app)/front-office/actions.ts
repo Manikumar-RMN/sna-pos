@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyDbError } from "@/lib/db-error";
-import type { DaySheet, Folio, GuestRow, RoomCard, RoomTypeAvail } from "@/lib/fo";
+import type { DaySheet, Folio, GuestRow, Quote, RoomCard, RoomTypeAvail } from "@/lib/fo";
 
 export type FoResult<T = Record<string, unknown>> = ({ ok: true; message?: string } & T) | { ok: false; error: string };
 
@@ -35,6 +35,7 @@ export async function bookStay(input: {
   arrival: string;
   departure: string;
   rate: number | null;
+  ratePlanId: string | null;
   adults: number;
   children: number;
   source: string;
@@ -57,6 +58,7 @@ export async function bookStay(input: {
     p_source: input.source,
     p_notes: input.notes || undefined,
     p_client_ref: input.clientRef,
+    p_rate_plan_id: input.ratePlanId ?? undefined,
   });
   if (s.error) return { ok: false, error: friendlyDbError(s.error) };
   const stay = s.data as unknown as { stay_id: string; stay_no: number };
@@ -69,6 +71,14 @@ export async function bookStay(input: {
   }
   touch();
   return { ok: true, stayId: stay.stay_id, stayNo: stay.stay_no, message: `Stay ${stay.stay_no} booked.` };
+}
+
+/** The price list for one room type and dates: the standard rate plus every rate plan that can price every night. */
+export async function quoteStay(roomTypeId: string, arrival: string, departure: string, adults: number, children: number): Promise<FoResult<{ quote: Quote }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fo_quote", { p_room_type: roomTypeId, p_arrival: arrival, p_departure: departure, p_adults: adults, p_children: children });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  return { ok: true, quote: data as unknown as Quote };
 }
 
 export async function checkIn(stayId: string, roomId: string | null): Promise<FoResult> {
@@ -254,4 +264,68 @@ export async function setGuestFlags(guestId: string, patch: { vip?: boolean; pre
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   return { ok: true, message: "Guest updated." };
+}
+
+// ---- rate plans, business details and the tax invoice
+
+export async function saveRatePlan(input: { id: string | null; code: string; name: string; mealPlan: string; description: string; active: boolean }): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_save_rate_plan", {
+    p_plan_id: input.id ?? undefined, p_code: input.code, p_name: input.name, p_meal_plan: input.mealPlan,
+    p_description: input.description || undefined, p_active: input.active,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/front-office/setup");
+  return { ok: true, message: "Rate plan saved." };
+}
+
+export async function saveRateRule(input: {
+  planId: string; roomTypeId: string; rate: number; weekendRate: number | null; singleRate: number | null;
+  includedAdults: number; extraAdult: number; extraChild: number; validFrom: string | null; validTo: string | null;
+}): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_save_rate_rule", {
+    p_plan_id: input.planId, p_room_type_id: input.roomTypeId, p_rate: input.rate,
+    p_weekend_rate: input.weekendRate ?? undefined, p_single_rate: input.singleRate ?? undefined,
+    p_included_adults: input.includedAdults, p_extra_adult: input.extraAdult, p_extra_child: input.extraChild,
+    p_valid_from: input.validFrom ?? undefined, p_valid_to: input.validTo ?? undefined,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/front-office/setup");
+  return { ok: true, message: "Rate saved." };
+}
+
+export async function deleteRateRule(ruleId: string): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_delete_rate_rule", { p_rule_id: ruleId });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/front-office/setup");
+  return { ok: true, message: "Rate removed. Stays already booked keep their rates." };
+}
+
+export async function saveBusiness(input: {
+  legalName: string; gstin: string; stateCode: string; address: string; phone: string; email: string;
+  invoicePrefix: string; invoiceFooter: string; noGstBelow: number;
+}): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_save_business", {
+    p_legal_name: input.legalName, p_gstin: input.gstin, p_state_code: input.stateCode, p_address: input.address,
+    p_phone: input.phone, p_email: input.email, p_invoice_prefix: input.invoicePrefix, p_invoice_footer: input.invoiceFooter,
+    p_room_tax_exempt_below: input.noGstBelow,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/front-office/setup");
+  return { ok: true, message: "Business details saved." };
+}
+
+export async function issueInvoice(stayId: string, billTo: { name: string; gstin: string; address: string; stateCode: string }): Promise<FoResult<{ invoiceNo: string }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fo_issue_invoice", {
+    p_stay: stayId, p_bill_to_name: billTo.name || undefined, p_bill_to_gstin: billTo.gstin || undefined,
+    p_bill_to_address: billTo.address || undefined, p_bill_to_state_code: billTo.stateCode || undefined,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath(`/front-office/stay/${stayId}`);
+  const r = data as unknown as { invoice_no: string };
+  return { ok: true, invoiceNo: r.invoice_no, message: `Invoice ${r.invoice_no} issued.` };
 }

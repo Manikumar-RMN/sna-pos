@@ -1,14 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { money } from "@/lib/format";
-import { MANUAL_CHARGE_KINDS, STATUS_LABEL, type Folio } from "@/lib/fo";
+import { MANUAL_CHARGE_KINDS, STATUS_LABEL, type Folio, type InvoiceState } from "@/lib/fo";
+import { InvoicePanel } from "./invoice-panel";
 import { amendStay, cancelStay, checkIn, checkOut, moveCharge, postCharge, takePayment, voidCharge, voidPayment } from "../../actions";
 
 type Method = { id: string; name: string };
 
-export function FolioView({ folio, methods, currency, canManage }: { folio: Folio; methods: Method[]; currency: string; canManage: boolean }) {
+export function FolioView({ folio, methods, currency, canManage, invoice }: { folio: Folio; methods: Method[]; currency: string; canManage: boolean; invoice: InvoiceState | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -55,7 +57,12 @@ export function FolioView({ folio, methods, currency, canManage }: { folio: Foli
             <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
               Stay #{stay.stay_no} · {stay.room_type}{stay.room_number ? ` · Room ${stay.room_number}` : ""} · {stay.arrival} → {stay.departure} ({stay.nights} night{stay.nights === 1 ? "" : "s"}) · {money(stay.nightly_rate, currency)}/night
             </p>
+            {stay.rate_plan && <p className="text-sm">Rate plan: {stay.rate_plan}{stay.meal_plan ? ` (${stay.meal_plan})` : ""}</p>}
             {stay.guest.phone && <p className="text-sm">{stay.guest.phone}</p>}
+            <p className="mt-1 flex flex-wrap gap-3 text-sm">
+              <Link href={`/front-office/stay/${stay.stay_id}/regcard`} className="underline">Registration card</Link>
+              <Link href={`/front-office/stay/${stay.stay_id}/statement`} className="underline">Print statement</Link>
+            </p>
           </div>
           <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: "var(--color-brand-soft)", color: "var(--color-brand)" }}>{STATUS_LABEL[stay.status]}</span>
         </div>
@@ -178,6 +185,8 @@ export function FolioView({ folio, methods, currency, canManage }: { folio: Foli
           </div>
         )}
       </section>
+
+      {stay.status === "checked_out" && invoice && <InvoicePanel stayId={stay.stay_id} state={invoice} canManage={canManage} />}
     </div>
   );
 }

@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { money } from "@/lib/format";
-import type { DaySheet, RoomCard, RoomTypeAvail } from "@/lib/fo";
-import { bookStay, checkAvailability, checkIn, markNoShow, runNightAudit, setRoomStatus, cancelStay } from "./actions";
+import { MEAL_PLAN_LABEL, type DaySheet, type Quote, type RoomCard, type RoomTypeAvail } from "@/lib/fo";
+import { bookStay, checkAvailability, checkIn, markNoShow, quoteStay, runNightAudit, setRoomStatus, cancelStay } from "./actions";
 
 type Props = {
   rooms: RoomCard[];
@@ -293,7 +293,23 @@ function BookingDialog({ roomTypes, today, onClose, onBooked }: { roomTypes: Pro
   const [source, setSource] = useState("walk_in");
   const [avail, setAvail] = useState<RoomTypeAvail[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [planId, setPlanId] = useState<string | null>(null);
   const clientRef = useRef(crypto.randomUUID());
+
+  // The price list follows the room type, the dates and the number of guests.
+  useEffect(() => {
+    let live = true;
+    if (!typeId || departure <= arrival) { setQuote(null); return; }
+    quoteStay(typeId, arrival, departure, adults, kids).then((r) => {
+      if (!live) return;
+      if (r.ok) {
+        setQuote(r.quote);
+        setPlanId((cur) => (r.quote.options.some((o) => o.available && o.rate_plan_id === cur) ? cur : null));
+      } else setQuote(null);
+    });
+    return () => { live = false; };
+  }, [typeId, arrival, departure, adults, kids]);
 
   function look() {
     setErr(null);
@@ -308,14 +324,13 @@ function BookingDialog({ roomTypes, today, onClose, onBooked }: { roomTypes: Pro
     start(async () => {
       const r = await bookStay({
         fullName: name, phone, roomTypeId: typeId, arrival, departure,
-        rate: rate.trim() === "" ? null : Number(rate), adults, children: kids, source, notes: "",
+        rate: rate.trim() === "" ? null : Number(rate), ratePlanId: planId, adults, children: kids, source, notes: "",
         clientRef: clientRef.current, checkInNow,
       });
       if (r.ok) onBooked(r.message ?? "Booked.");
       else setErr(r.error);
     });
   }
-  const t = roomTypes.find((x) => x.id === typeId);
   const ready = name.trim() && typeId && departure > arrival && (rate.trim() === "" || Number(rate) >= 0);
 
   return (
@@ -333,7 +348,7 @@ function BookingDialog({ roomTypes, today, onClose, onBooked }: { roomTypes: Pro
           <select className="field h-10 text-sm" value={typeId} onChange={(e) => setTypeId(e.target.value)} aria-label="Room type">
             {roomTypes.map((x) => <option key={x.id} value={x.id}>{x.name} · {x.base_rate}</option>)}
           </select>
-          <input className="field h-10 text-sm" inputMode="decimal" placeholder={t ? `Rate per night (default ${t.base_rate})` : "Rate per night"} value={rate} onChange={(e) => setRate(e.target.value)} aria-label="Rate per night" />
+          <input className="field h-10 text-sm" inputMode="decimal" placeholder="Type a rate only to override the price below" value={rate} onChange={(e) => setRate(e.target.value)} aria-label="Override rate per night" />
           <label className="text-xs">Adults<input type="number" min={1} className="field h-10 w-full text-sm" value={adults} onChange={(e) => setAdults(Math.max(1, Number(e.target.value) || 1))} /></label>
           <label className="text-xs">Children<input type="number" min={0} className="field h-10 w-full text-sm" value={kids} onChange={(e) => setKids(Math.max(0, Number(e.target.value) || 0))} /></label>
           <select className="field h-10 text-sm sm:col-span-2" value={source} onChange={(e) => setSource(e.target.value)} aria-label="Booked how">
@@ -341,6 +356,25 @@ function BookingDialog({ roomTypes, today, onClose, onBooked }: { roomTypes: Pro
             <option value="ota">Online agent</option><option value="corporate">Company</option><option value="other">Other</option>
           </select>
         </div>
+        {quote && (
+          <fieldset className="space-y-1">
+            <legend className="text-xs font-bold">Price for {quote.nights} night{quote.nights === 1 ? "" : "s"}</legend>
+            {quote.options.map((o) => (
+              <label key={o.code} className="flex items-start gap-2 rounded-lg p-2 text-sm" style={{ border: "1px solid var(--color-line)", opacity: o.available ? 1 : 0.5 }}>
+                <input type="radio" name="plan" className="mt-1" disabled={!o.available} checked={o.available && planId === o.rate_plan_id} onChange={() => setPlanId(o.rate_plan_id)} />
+                <span className="flex-1">
+                  <b>{o.name}</b> <span style={{ color: "var(--color-ink-3)" }}>{o.code} · {MEAL_PLAN_LABEL[o.meal_plan] ?? o.meal_plan}</span>
+                  {!o.available && <span className="block text-xs">{o.reason}</span>}
+                  {o.available && o.nights.length > 1 && new Set(o.nights.map((n) => n.rate)).size > 1 && (
+                    <span className="block text-xs" style={{ color: "var(--color-ink-3)" }}>{o.nights.map((n) => `${n.night.slice(5)}: ${n.rate}`).join(" · ")}</span>
+                  )}
+                </span>
+                {o.available && <span className="text-right"><b>{o.total}</b><span className="block text-xs" style={{ color: "var(--color-ink-3)" }}>{o.average}/night</span></span>}
+              </label>
+            ))}
+            <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>Prices are before tax. GST is added to each night by that night&apos;s rate.</p>
+          </fieldset>
+        )}
         <button className="text-sm underline" onClick={look} disabled={pending}>Check what is free for these dates</button>
         {avail && (
           <ul className="space-y-1 text-sm">

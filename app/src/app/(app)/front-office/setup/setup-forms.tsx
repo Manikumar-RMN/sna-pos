@@ -2,12 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import type { BusinessDetails, RatePlan } from "@/lib/fo";
 import { saveRoom, saveRoomType, saveTaxSettings } from "../actions";
+import { BusinessForm } from "./business-form";
+import { RatePlans } from "./rate-plans";
 
 type RT = { id: string; code: string; name: string; base_rate: number; max_occupancy: number; active: boolean };
 type RM = { id: string; room_number: string; room_type_id: string; floor: string | null; active: boolean };
-type Settings = { room_tax_pct: number; room_tax_pct_high: number; room_tax_threshold: number; other_tax_pct: number };
-export type SetupData = { room_types: RT[]; rooms: RM[]; settings: Settings };
+type Settings = { room_tax_pct: number; room_tax_pct_high: number; room_tax_threshold: number; other_tax_pct: number } & Partial<BusinessDetails>;
+export type SetupData = { room_types: RT[]; rooms: RM[]; settings: Settings; plans?: RatePlan[] };
 
 export function SetupForms({ data, currency }: { data: SetupData; currency: string }) {
   const router = useRouter();
@@ -105,6 +108,18 @@ export function SetupForms({ data, currency }: { data: SetupData; currency: stri
         <button className="btn btn-primary mt-3 h-10 min-h-0 px-4 text-sm" disabled={pending}
           onClick={() => act(() => saveTaxSettings({ roomTax: Number(tax.roomTax), roomTaxHigh: Number(tax.roomTaxHigh), threshold: Number(tax.threshold), otherTax: Number(tax.otherTax) }))}>Save tax settings</button>
       </section>
+
+      <RatePlans plans={data.plans ?? []} roomTypes={data.room_types} currency={currency} />
+
+      <BusinessForm
+        currency={currency}
+        initial={{
+          legal_name: data.settings.legal_name ?? null, gstin: data.settings.gstin ?? null, state_code: data.settings.state_code ?? null,
+          address: data.settings.address ?? null, phone: data.settings.phone ?? null, email: data.settings.email ?? null,
+          invoice_prefix: data.settings.invoice_prefix ?? "FO", invoice_footer: data.settings.invoice_footer ?? null,
+          room_tax_exempt_below: data.settings.room_tax_exempt_below ?? 1000,
+        }}
+      />
     </div>
   );
 }
