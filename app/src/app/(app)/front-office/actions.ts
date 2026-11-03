@@ -231,10 +231,10 @@ export async function amendStay(stayId: string, departure: string | null, rate: 
 /** Moves a charge to the folio of another stay, found by its stay number. */
 export async function moveCharge(stayId: string, chargeId: string, toStayNo: number, reason: string): Promise<FoResult> {
   const supabase = await createClient();
-  const t = await supabase.from("fo_stays").select("id").eq("stay_no", toStayNo).maybeSingle();
+  const t = await supabase.rpc("fo_stay_by_no", { p_stay_no: toStayNo });
   if (t.error) return { ok: false, error: friendlyDbError(t.error) };
   if (!t.data) return { ok: false, error: `No stay number ${toStayNo} was found.` };
-  const { error } = await supabase.rpc("fo_move_charge", { p_charge: chargeId, p_to_stay: t.data.id, p_reason: reason });
+  const { error } = await supabase.rpc("fo_move_charge", { p_charge: chargeId, p_to_stay: t.data, p_reason: reason });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath(`/front-office/stay/${stayId}`);
   return { ok: true, message: `Moved to stay ${toStayNo}.` };

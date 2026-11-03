@@ -7194,6 +7194,7 @@ export type Database = {
       fo_hk_assign: { Args: { p_attendant: string; p_note?: string; p_rooms: string[] }; Returns: Json }
       fo_hk_list: { Args: Record<PropertyKey, never>; Returns: Json }
       fo_move_charge: { Args: { p_charge: string; p_reason: string; p_to_stay: string }; Returns: Json }
+      fo_stay_by_no: { Args: { p_stay_no: number }; Returns: string }
       fo_set_guest_flags: { Args: { p_blocked?: boolean; p_blocked_reason?: string; p_guest: string; p_preferences?: string; p_vip?: boolean }; Returns: Json }
       fo_availability: { Args: { p_arrival: string; p_departure: string }; Returns: Json }
       fo_cancel_stay: { Args: { p_reason: string; p_stay: string }; Returns: Json }
