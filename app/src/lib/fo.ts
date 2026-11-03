@@ -177,3 +177,37 @@ export type CompanyLedger = {
   summary: { charged: number; paid: number; outstanding: number; overdue: number; over_limit: boolean };
 };
 export const COMPANY_SCOPE_LABEL: Record<string, string> = { room: "Room charges", all: "Everything" };
+
+// ---------------------------------------------------------------- requests, messages, wake-up calls (migration 171)
+export type RequestKind = "request" | "message" | "wakeup";
+export const REQUEST_KIND_LABEL: Record<RequestKind, string> = { request: "Request", message: "Message", wakeup: "Wake-up call" };
+export type FoRequest = {
+  id: string; kind: RequestKind; text: string; status: "open" | "done" | "cancelled"; note: string | null;
+  due_date: string | null; due_time: string | null; created_at: string; closed_at: string | null;
+  stay_id: string; stay_no: number; stay_status: string; room: string | null; guest: string; overdue: boolean; due_today: boolean;
+};
+export type RequestList = { today: string; rows: FoRequest[] };
+
+// ---------------------------------------------------------------- reports (migration 171)
+export type PerfReport = {
+  from: string; to: string; rooms_available: number; days_in_range: number;
+  days: { dt: string; rooms_sold: number; room_revenue: number; other_revenue: number; tax: number; occupancy_pct: number; adr: number }[];
+  room_types: { code: string; name: string; rooms_sold: number; room_revenue: number; adr: number; other_revenue: number }[];
+  sources: { source: string; bookings: number; cancelled: number; no_shows: number; nights: number }[];
+  lost: { stay_no: number; guest: string; arrival: string; departure: string; status: string; source: string; reason: string | null; nights: number; value: number }[];
+  totals: { rooms_sold: number; room_revenue: number; other_revenue: number; tax: number; days_with_sales: number; occupancy_pct: number; adr: number; revpar: number };
+};
+export type OutstandingReport = {
+  guests: { stay_id: string; stay_no: number; status: string; guest: string; room: string | null; arrival: string; departure: string; balance: number }[];
+  companies: { company_id: string; name: string; credit_days: number; credit_limit: number | null; outstanding: number }[];
+  guest_owed: number; deposits_held: number; company_owed: number;
+};
+export type GstReport = {
+  from: string; to: string;
+  rows: { sac: string; tax_pct: number; taxable: number; cgst: number; sgst: number; tax: number }[];
+  totals: { b2b_count: number; b2b_taxable: number; b2b_tax: number; b2c_count: number; b2c_taxable: number; b2c_tax: number; invoices: number; taxable: number; tax: number; total: number };
+};
+export type InvoiceRegister = {
+  rows: { invoice_no: string; date: string; bill_to: string | null; gstin: string | null; state_code: string | null; taxable: number; tax: number; total: number; cgst: number; sgst: number; stay_id: string }[];
+  totals: { taxable: number; tax: number; total: number; count: number };
+};

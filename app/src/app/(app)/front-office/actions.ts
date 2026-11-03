@@ -455,3 +455,22 @@ export async function loadCompanyLedger(companyId: string): Promise<CompanyLedge
   const { data } = await supabase.rpc("fo_company_ledger", { p_company: companyId });
   return (data as unknown as CompanyLedger | null) ?? null;
 }
+
+// ------------------------------------------------------------------ requests, messages, wake-up calls
+export async function addRequest(stayId: string, kind: "request" | "message" | "wakeup", text: string, dueDate?: string, dueTime?: string): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_add_request", {
+    p_stay: stayId, p_kind: kind, p_text: text, p_due_date: dueDate || undefined, p_due_time: dueTime || undefined, p_client_ref: crypto.randomUUID(),
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/front-office/requests");
+  return { ok: true, message: kind === "wakeup" ? "Wake-up call saved." : kind === "message" ? "Message saved." : "Request saved." };
+}
+
+export async function closeRequest(requestId: string, status: "done" | "cancelled", note?: string): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_close_request", { p_request: requestId, p_status: status, p_note: note || undefined });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/front-office/requests");
+  return { ok: true, message: status === "done" ? "Marked done." : "Cancelled." };
+}

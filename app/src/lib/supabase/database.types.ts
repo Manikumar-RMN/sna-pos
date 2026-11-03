@@ -7241,6 +7241,12 @@ export type Database = {
       fo_company_ledger: { Args: { p_company: string }; Returns: Json }
       fo_reg_card: { Args: { p_stay: string }; Returns: Json }
       fo_invoice_register: { Args: { p_from: string; p_to: string }; Returns: Json }
+      fo_add_request: { Args: { p_client_ref?: string; p_due_date?: string; p_due_time?: string; p_kind: string; p_stay: string; p_text: string }; Returns: Json }
+      fo_close_request: { Args: { p_note?: string; p_request: string; p_status: string }; Returns: Json }
+      fo_requests_list: { Args: { p_scope?: string }; Returns: Json }
+      fo_report_performance: { Args: { p_from: string; p_to: string }; Returns: Json }
+      fo_report_outstanding: { Args: Record<PropertyKey, never>; Returns: Json }
+      fo_report_gst: { Args: { p_from: string; p_to: string }; Returns: Json }
       fo_day_sheet: { Args: { p_business_date?: string }; Returns: Json }
       fo_folio: { Args: { p_stay: string }; Returns: Json }
       fo_mark_no_show: { Args: { p_reason?: string; p_stay: string }; Returns: Json }
