@@ -7362,6 +7362,30 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_discount_settings: { Args: Record<PropertyKey, never>; Returns: { max_discount_percent: number }[] }
+      list_discount_presets: {
+        Args: { p_order_type?: string }
+        Returns: { id: string; name: string; kind: string; value: number; valid_from: string | null; valid_to: string | null; order_types: string[] | null; outlet_ids: string[] | null; sort_order: number }[]
+      }
+      list_discount_presets_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: { id: string; name: string; kind: string; value: number; valid_from: string | null; valid_to: string | null; order_types: string[] | null; outlet_ids: string[] | null; is_active: boolean; sort_order: number; created_at: string }[]
+      }
+      list_reasons: {
+        Args: { p_purpose?: string }
+        Returns: { id: string; name: string; purposes: string[]; is_active: boolean; sort_order: number }[]
+      }
+      report_reasons_summary: {
+        Args: { p_from: string; p_to: string }
+        Returns: { source: string; reason: string; staff: string; n: number; amount: number }[]
+      }
+      save_discount_preset: {
+        Args: { p_active?: boolean; p_id?: string; p_kind: string; p_name: string; p_order_types?: string[]; p_outlet_ids?: string[]; p_sort?: number; p_valid_from?: string; p_valid_to?: string; p_value: number }
+        Returns: string
+      }
+      save_reason: { Args: { p_active?: boolean; p_id?: string; p_name: string; p_purposes?: string[]; p_sort?: number }; Returns: string }
+      set_day_close_not_before: { Args: { p_branch?: string; p_time: string }; Returns: undefined }
+      set_max_discount: { Args: { p_percent: number }; Returns: number }
       waiter_ready_alerts: { Args: Record<PropertyKey, never>; Returns: Json }
       waiter_ready_seen: { Args: { p_ticket_id: string }; Returns: undefined }
       cancel_order_item: {
