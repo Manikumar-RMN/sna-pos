@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
-import type { InvoiceState } from "@/lib/fo";
+import type { CreditOptions, InvoiceState } from "@/lib/fo";
 import { PrintButton } from "../../../../print-button";
+import { CreditNotePanel } from "./credit-note-panel";
 
 /** The issued GST tax invoice for a stay, laid out for A4. */
 export default async function InvoicePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ party?: string }> }) {
@@ -17,6 +18,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
   const inv = data as unknown as InvoiceState | null;
   if (!inv || !inv.issued) redirect(`/front-office/stay/${id}`);
   const s = inv.snapshot;
+  const opts = (await (await createClient()).rpc("fo_credit_note_options", { p_invoice: inv.invoice_id })).data as unknown as CreditOptions | null;
   const c = user.currency_code;
   const intra = s.supply.type === "intra";
 
@@ -120,6 +122,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
         <div className="mt-8 flex justify-between text-[11px]"><span>Guest signature</span><span>For {s.property.legal_name}</span></div>
         <p className="mt-2 text-[10px]" style={{ color: "#666" }}>This is a computer-generated invoice.</p>
       </div>
+      {opts && <CreditNotePanel options={opts} stayId={id} currency={c} canManage={can(user, "fo.manage")} />}
     </div>
   );
 }

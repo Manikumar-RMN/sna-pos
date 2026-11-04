@@ -474,3 +474,21 @@ export async function closeRequest(requestId: string, status: "done" | "cancelle
   revalidatePath("/front-office/requests");
   return { ok: true, message: status === "done" ? "Marked done." : "Cancelled." };
 }
+
+// ------------------------------------------------------------------ credit notes and stay fees
+export async function issueCreditNote(invoiceId: string, stayId: string, reason: string, lines: { sac: string; tax_pct: number; taxable: number }[], clientRef: string): Promise<FoResult<{ noteId: string }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fo_issue_credit_note", { p_invoice: invoiceId, p_reason: reason, p_lines: lines, p_client_ref: clientRef });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath(`/front-office/stay/${stayId}/invoice`);
+  const r = data as unknown as { note_id: string; note_no: string };
+  return { ok: true, noteId: r.note_id, message: `Credit note ${r.note_no} issued.` };
+}
+
+export async function postStayFee(stayId: string, fee: "early_checkin" | "late_checkout", percent: number, clientRef: string): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_post_stay_fee", { p_stay: stayId, p_fee: fee, p_percent: percent, p_client_ref: clientRef });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath(`/front-office/stay/${stayId}`);
+  return { ok: true, message: fee === "late_checkout" ? "Late check-out fee posted." : "Early check-in fee posted." };
+}

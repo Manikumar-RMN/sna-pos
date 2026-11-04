@@ -2,7 +2,7 @@ import Link from "next/link";
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
-import type { DaySheet, GstReport, InvoiceRegister, OutstandingReport, PerfReport } from "@/lib/fo";
+import type { CreditNoteRegister, DaySheet, GstReport, InvoiceRegister, OutstandingReport, PerfReport } from "@/lib/fo";
 import { UpgradeNote } from "../../upgrade-note";
 import { PrintButton } from "../../print-button";
 
@@ -22,17 +22,19 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const to = sp.to && DATE.test(sp.to) ? sp.to : today;
   const c = user.currency_code;
 
-  const [perf, os, gst, reg] = await Promise.all([
+  const [perf, os, gst, reg, cnr] = await Promise.all([
     supabase.rpc("fo_report_performance", { p_from: from, p_to: to }),
     supabase.rpc("fo_report_outstanding"),
     supabase.rpc("fo_report_gst", { p_from: from, p_to: to }),
     supabase.rpc("fo_invoice_register", { p_from: from, p_to: to }),
+    supabase.rpc("fo_credit_note_register", { p_from: from, p_to: to }),
   ]);
   const err = perf.error?.message ?? gst.error?.message ?? reg.error?.message ?? null;
   const p = perf.data as unknown as PerfReport | null;
   const o = os.data as unknown as OutstandingReport | null;
   const g = gst.data as unknown as GstReport | null;
   const r = reg.data as unknown as InvoiceRegister | null;
+  const cn = cnr.data as unknown as CreditNoteRegister | null;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -158,6 +160,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                   ))}</tbody>
                 </table>
                 <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                  {g.credit_totals && g.credit_totals.count > 0 && <>Credit notes: {g.credit_totals.count}, taxable {money(g.credit_totals.taxable, c)}, tax {money(g.credit_totals.tax, c)}. After credit notes: taxable {money(g.net.taxable, c)}, tax {money(g.net.tax, c)}. </>}
                   {g.totals.invoices} invoices · taxable {money(g.totals.taxable, c)} · tax {money(g.totals.tax, c)} · B2B {g.totals.b2b_count} ({money(g.totals.b2b_taxable, c)}) · B2C {g.totals.b2c_count} ({money(g.totals.b2c_taxable, c)}). Rates are the hotel&apos;s settings; have an accountant confirm them before filing.
                 </p>
               </>
@@ -177,6 +180,19 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                 <tfoot><tr className="font-bold"><td colSpan={4}>{r.totals.count} invoices</td><td className="text-right">{money(r.totals.taxable, c)}</td><td className="text-right" colSpan={2}>{money(r.totals.tax, c)}</td><td className="text-right">{money(r.totals.total, c)}</td></tr></tfoot>
               </table></div>
             )}
+          </section>
+        )}
+
+        {cn && cn.rows.length > 0 && (
+          <section className="card p-4">
+            <h2 className="text-sm font-bold">Credit note register</h2>
+            <div className="mt-2 overflow-x-auto"><table className="w-full text-sm">
+              <thead><tr className="text-left text-xs" style={{ color: "var(--color-ink-3)" }}><th>Credit note</th><th>Date</th><th>Against</th><th>Reason</th><th className="text-right">Taxable</th><th className="text-right">CGST</th><th className="text-right">SGST</th><th className="text-right">Total</th></tr></thead>
+              <tbody>{cn.rows.map((x) => (
+                <tr key={x.note_no}><td><Link href={`/front-office/stay/${x.stay_id}/credit-note/${x.note_id}`} className="underline">{x.note_no}</Link></td><td>{x.date}</td><td>{x.invoice_no}</td><td>{x.reason}</td><td className="text-right">{money(x.taxable, c)}</td><td className="text-right">{money(x.cgst, c)}</td><td className="text-right">{money(x.sgst, c)}</td><td className="text-right">{money(x.total, c)}</td></tr>
+              ))}</tbody>
+              <tfoot><tr className="font-bold"><td colSpan={4}>{cn.totals.count} credit notes</td><td className="text-right">{money(cn.totals.taxable, c)}</td><td className="text-right" colSpan={2}>{money(cn.totals.tax, c)}</td><td className="text-right">{money(cn.totals.total, c)}</td></tr></tfoot>
+            </table></div>
           </section>
         )}
       </div>

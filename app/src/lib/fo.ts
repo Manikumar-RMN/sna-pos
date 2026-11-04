@@ -206,8 +206,31 @@ export type GstReport = {
   from: string; to: string;
   rows: { sac: string; tax_pct: number; taxable: number; cgst: number; sgst: number; tax: number }[];
   totals: { b2b_count: number; b2b_taxable: number; b2b_tax: number; b2c_count: number; b2c_taxable: number; b2c_tax: number; invoices: number; taxable: number; tax: number; total: number };
+  credit_rows: { sac: string; tax_pct: number; taxable: number; cgst: number; sgst: number; tax: number }[];
+  credit_totals: { count: number; taxable: number; tax: number; total: number };
+  net: { taxable: number; tax: number };
 };
 export type InvoiceRegister = {
   rows: { invoice_no: string; date: string; bill_to: string | null; gstin: string | null; state_code: string | null; taxable: number; tax: number; total: number; cgst: number; sgst: number; stay_id: string }[];
+  totals: { taxable: number; tax: number; total: number; count: number };
+};
+
+// ---------------------------------------------------------------- credit notes (migration 172)
+export type CreditOptions = {
+  invoice_id: string; invoice_no: string; invoice_date: string; party: "guest" | "company"; bill_to: string; total: number; stay_id: string; deadline: string;
+  rows: { sac: string; tax_pct: number; taxable: number; tax: number; credited_taxable: number; credited_tax: number; remaining_taxable: number; remaining_tax: number }[];
+  notes: { id: string; note_no: string; date: string; total: number; reason: string }[];
+};
+export type CreditNote = {
+  note_id: string; note_no: string; date: string; stay_id: string; invoice_id: string; total: number;
+  snapshot: {
+    property: InvoiceSnapshot["property"]; bill_to: InvoiceSnapshot["bill_to"]; guest: InvoiceSnapshot["guest"]; stay: InvoiceSnapshot["stay"];
+    against: { invoice_no: string; invoice_date: string; invoice_total: number }; reason: string;
+    lines: { sac: string; tax_pct: number; taxable: number; tax: number; cgst: number; sgst: number; total: number }[];
+    totals: { taxable: number; tax: number; total: number };
+  };
+};
+export type CreditNoteRegister = {
+  rows: { note_id: string; note_no: string; date: string; invoice_no: string; bill_to: string | null; reason: string; taxable: number; tax: number; total: number; cgst: number; sgst: number; stay_id: string }[];
   totals: { taxable: number; tax: number; total: number; count: number };
 };

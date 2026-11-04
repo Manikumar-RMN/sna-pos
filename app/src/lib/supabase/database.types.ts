@@ -7241,6 +7241,11 @@ export type Database = {
       fo_company_ledger: { Args: { p_company: string }; Returns: Json }
       fo_reg_card: { Args: { p_stay: string }; Returns: Json }
       fo_invoice_register: { Args: { p_from: string; p_to: string }; Returns: Json }
+      fo_credit_note_options: { Args: { p_invoice: string }; Returns: Json }
+      fo_issue_credit_note: { Args: { p_client_ref?: string; p_invoice: string; p_lines: Json; p_reason: string }; Returns: Json }
+      fo_credit_note_get: { Args: { p_note: string }; Returns: Json }
+      fo_credit_note_register: { Args: { p_from: string; p_to: string }; Returns: Json }
+      fo_post_stay_fee: { Args: { p_amount?: number; p_client_ref?: string; p_fee: string; p_percent?: number; p_stay: string }; Returns: Json }
       fo_add_request: { Args: { p_client_ref?: string; p_due_date?: string; p_due_time?: string; p_kind: string; p_stay: string; p_text: string }; Returns: Json }
       fo_close_request: { Args: { p_note?: string; p_request: string; p_status: string }; Returns: Json }
       fo_requests_list: { Args: { p_scope?: string }; Returns: Json }

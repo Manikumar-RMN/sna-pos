@@ -6,7 +6,7 @@ import { useRef, useState, useTransition } from "react";
 import { money } from "@/lib/format";
 import { MANUAL_CHARGE_KINDS, STATUS_LABEL, type Company, type Folio, type InvoiceState } from "@/lib/fo";
 import { InvoicePanel } from "./invoice-panel";
-import { amendStay, cancelStay, checkIn, checkOut, moveCharge, postCharge, setStayCompany, takePayment, voidCharge, voidPayment } from "../../actions";
+import { amendStay, cancelStay, checkIn, checkOut, moveCharge, postCharge, postStayFee, setStayCompany, takePayment, voidCharge, voidPayment } from "../../actions";
 
 type Method = { id: string; name: string };
 
@@ -23,6 +23,8 @@ export function FolioView({ folio, methods, currency, canManage, invoices, group
   const [desc, setDesc] = useState("");
   const [amt, setAmt] = useState("");
   const [qty, setQty] = useState("1");
+  const [feeKind, setFeeKind] = useState<"early_checkin" | "late_checkout">("late_checkout");
+  const [feePct, setFeePct] = useState("50");
   const [pay, setPay] = useState("");
   const [method, setMethod] = useState(methods[0]?.id ?? "");
   const [newDep, setNewDep] = useState(stay.departure);
@@ -110,6 +112,20 @@ export function FolioView({ folio, methods, currency, canManage, invoices, group
               disabled={pending || !desc.trim() || !(Number(amt) >= 0) || amt.trim() === "" || !(Number(qty) > 0)}
               onClick={() => act(() => postCharge(stay.stay_id, kind, desc, Number(amt), Number(qty), chargeRef.current), () => { chargeRef.current = crypto.randomUUID(); setDesc(""); setAmt(""); setQty("1"); })}
             >Post</button>
+          </div>
+        )}
+        {canManage && open && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-xs font-semibold">Fee</span>
+            <select className="field h-10 text-sm" value={feeKind} onChange={(e) => setFeeKind(e.target.value as "early_checkin" | "late_checkout")} aria-label="Fee type">
+              <option value="late_checkout">Late check-out</option>
+              <option value="early_checkin">Early check-in</option>
+            </select>
+            <input className="field h-10 w-20 text-sm" inputMode="decimal" value={feePct} onChange={(e) => setFeePct(e.target.value)} aria-label="Percent of the nightly rate" />
+            <span className="text-xs">% of the room rate</span>
+            <button className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }}
+              disabled={pending || !(Number(feePct) > 0 && Number(feePct) <= 100)}
+              onClick={() => act(() => postStayFee(stay.stay_id, feeKind, Number(feePct), crypto.randomUUID()))}>Post fee</button>
           </div>
         )}
       </section>
