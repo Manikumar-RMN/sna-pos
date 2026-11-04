@@ -7042,6 +7042,8 @@ export type Database = {
         Returns: Json
       }
       account_date: { Args: never; Returns: Json }
+      fo_charge_bill_to_room: { Args: { p_note?: string; p_order: string; p_stay: string }; Returns: Json }
+      fo_inhouse_for_pos: { Args: never; Returns: Json }
       account_save: {
         Args: {
           p_company?: string

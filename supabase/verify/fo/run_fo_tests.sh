@@ -32,7 +32,7 @@ for f in $(cd "$SB/migrations" && LC_ALL=C ls *.sql | LC_ALL=C sort); do
 done
 
 # One session: psql variables set by \gset do not survive a reconnect.
-cat "$S/fo_tests.sql" "$S/fo_world.sql" "$S/fo_body.sql" "$S/fo_batch_a.sql" "$S/fo_batch_b.sql" "$S/fo_batch_b2.sql" "$S/fo_batch_c.sql" "$S/fo_batch_c2.sql" "$S/fo_batch_d.sql" "$S/fo_batch_e.sql" > "$WORK/all.sql"
+cat "$S/fo_tests.sql" "$S/fo_world.sql" "$S/fo_body.sql" "$S/fo_batch_a.sql" "$S/fo_batch_b.sql" "$S/fo_batch_b2.sql" "$S/fo_batch_c.sql" "$S/fo_batch_c2.sql" "$S/fo_batch_d.sql" "$S/fo_batch_e.sql" "$S/fo_batch_f.sql" > "$WORK/all.sql"
 echo "Running tests"
 $P -d fo -f "$WORK/all.sql" > "$WORK/out.log" 2>&1
 grep -E "^(psql:|ERROR)" "$WORK/out.log" | grep -v "already exists" | head -10
