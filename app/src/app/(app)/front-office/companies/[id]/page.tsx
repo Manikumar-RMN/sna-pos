@@ -15,7 +15,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
   const supabase = await createClient();
   const [{ data }, methods] = await Promise.all([
     supabase.rpc("fo_company_ledger", { p_company: id }),
-    supabase.from("payment_methods").select("id, name").eq("is_active", true).order("display_order"),
+    supabase.from("payment_methods").select("id, name").eq("is_active", true).not("kind", "in", "(gift_card,loyalty,advance,account,room)").order("display_order"),
   ]);
   const ledger = data as unknown as CompanyLedger | null;
   if (!ledger) notFound();

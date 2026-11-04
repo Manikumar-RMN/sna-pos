@@ -22,7 +22,7 @@ export default async function StayPage({ params }: { params: Promise<{ id: strin
   const supabase = await createClient();
   const [{ data }, methods] = await Promise.all([
     supabase.rpc("fo_folio", { p_stay: id }),
-    supabase.from("payment_methods").select("id, name").eq("is_active", true).order("display_order"),
+    supabase.from("payment_methods").select("id, name").eq("is_active", true).not("kind", "in", "(gift_card,loyalty,advance,account,room)").order("display_order"),
   ]);
   const folio = data as unknown as Folio | null;
   if (!folio) notFound();
