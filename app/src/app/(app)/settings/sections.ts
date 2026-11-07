@@ -6,26 +6,27 @@ import type { SettingsLink } from "./settings-nav";
 /** Settings sections this person may open, in menu order. */
 export function settingsSections(user: CurrentUser, taxName: string): SettingsLink[] {
   const setup = can(user, "settings.manage") || can(user, "tax.manage");
+  const pos = has(user, "pos");
   const all: (SettingsLink & { show: boolean })[] = [
     { href: "/settings/company", label: "Company", hint: "Name, address, bill details", group: "General", show: setup },
-    { href: "/settings/bill", label: "Bill layout", hint: "Logo, paper size, what is printed", group: "POS", show: can(user, "settings.manage") },
+    { href: "/settings/bill", label: "Bill layout", hint: "Logo, paper size, what is printed", group: "POS", show: pos && (can(user, "settings.manage")) },
     { href: "/settings/taxes", label: "Taxes", hint: `${taxName} rates and groups`, group: "General", show: setup },
-    { href: "/settings/charges", label: "Service charge", hint: "Kinds of bill, service and packing charge, tokens", group: "POS", show: setup },
-    { href: "/settings/day", label: "Day and sessions", hint: "Shifts on/off, day end, meal sessions", group: "POS", show: can(user, "settings.manage") },
+    { href: "/settings/charges", label: "Service charge", hint: "Kinds of bill, service and packing charge, tokens", group: "POS", show: pos && (setup) },
+    { href: "/settings/day", label: "Day and sessions", hint: "Shifts on/off, day end, meal sessions", group: "POS", show: pos && (can(user, "settings.manage")) },
     {
       href: "/settings/reports",
       label: "Daily summary",
       hint: "Send the day's figures by email or phone alert",
       group: "Reports and MIS",
-      show: can(user, "settings.manage") && can(user, "report.view_sales"),
+      show: has(user, "reports_mis") && can(user, "settings.manage") && can(user, "report.view_sales"),
     },
-    { href: "/settings/tables", label: "Tables", hint: "Dine-in tables", group: "POS", show: setup },
+    { href: "/settings/tables", label: "Tables", hint: "Dine-in tables", group: "POS", show: pos && (setup) },
     { href: "/settings/payments", label: "Payment methods", hint: "Cash, UPI, card and more", group: "General", show: setup },
-    { href: "/settings/counters", label: "Counter tablets", hint: "Shared tablets with PIN", group: "POS", show: setup },
+    { href: "/settings/counters", label: "Counter tablets", hint: "Shared tablets with PIN", group: "POS", show: pos && (setup) },
     { href: "/settings/printers", label: "Printers", hint: "What this device prints", group: "General", show: true },
-    { href: "/settings/menu", label: "Menu", hint: "Dishes, prices, add-ons", group: "POS", show: true },
-    { href: "/settings/offers", label: "Happy hours and offers", hint: "Lower prices by day and time", group: "POS", show: can(user, "menu.manage") },
-    { href: "/settings/brands", label: "Brands and stalls", hint: "Cloud-kitchen brands, food-court stalls, settlement", group: "POS", show: setup || can(user, "report.view_sales") },
+    { href: "/settings/menu", label: "Menu", hint: "Dishes, prices, add-ons", group: "POS", show: pos && (true) },
+    { href: "/settings/offers", label: "Happy hours and offers", hint: "Lower prices by day and time", group: "POS", show: pos && (can(user, "menu.manage")) },
+    { href: "/settings/brands", label: "Brands and stalls", hint: "Cloud-kitchen brands, food-court stalls, settlement", group: "POS", show: pos && (setup || can(user, "report.view_sales")) },
     { href: "/settings/users", label: "Users", hint: "People, PINs, passwords", group: "General", show: true },
     { href: "/settings/security", label: "Security profiles", hint: "What each role can do", group: "General", show: can(user, "user.manage") },
     { href: "/settings/outlets", label: "Outlets", hint: "Prices per outlet, who works where", group: "General", show: user.outlet_count > 1 || has(user, "multi_outlet") },

@@ -23,7 +23,7 @@ export function modulesFor(user: CurrentUser): ModuleCard[] {
       title: "POS",
       blurb: "Billing, tables, kitchen, shifts and day close",
       href: "/pos",
-      show: can(user, "order.create") || can(user, "shift.open") || can(user, "day.close"),
+      show: has(user, "pos") && (can(user, "order.create") || can(user, "shift.open") || can(user, "day.close")),
     },
     {
       key: "inventory",
@@ -37,7 +37,7 @@ export function modulesFor(user: CurrentUser): ModuleCard[] {
       title: "Reports and MIS",
       blurb: "Sales, financial and customer reports",
       href: "/reports",
-      show: can(user, "report.view_sales"),
+      show: has(user, "reports_mis") && can(user, "report.view_sales"),
     },
     {
       key: "settings",

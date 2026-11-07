@@ -11,7 +11,8 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const supabase = await createClient();
   const today = todayIn(user.timezone);
-  const canSales = can(user, "report.view_sales");
+  const posOn = has(user, "pos");
+  const canSales = can(user, "report.view_sales") && posOn;
   const canStock = (can(user, "stock.view") || can(user, "stock.manage")) && has(user, "stock");
 
   const [report, shift, unpaid, kitchen, rest, products, staff, shiftsEver, tables, settings, billsEver, country, lowRes] = await Promise.all([
@@ -51,7 +52,7 @@ export default async function DashboardPage() {
     { done: (staff.count ?? 0) > 1, text: "Add your staff (each gets their own sign-in)", href: "/settings/users" },
     { done: (tables.count ?? 0) > 0, text: "Add your tables (optional)", href: "/settings/tables" },
   ];
-  const remaining = checklist.filter((x) => !x.done);
+  const remaining = posOn ? checklist.filter((x) => !x.done) : [];
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -62,7 +63,7 @@ export default async function DashboardPage() {
             Hello {user.full_name.split(" ")[0]} · {user.role_name}
           </p>
         </div>
-        {can(user, "order.create") && (
+        {posOn && can(user, "order.create") && (
           <Link href="/pos" className="btn btn-primary">
             Open billing
           </Link>
@@ -87,6 +88,7 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {posOn && (
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Link href="/shift" className="card p-4">
           <div className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
@@ -133,6 +135,7 @@ export default async function DashboardPage() {
           </div>
         </Link>
       </div>
+      )}
 
       {canStock && lowStock && (lowStock.items.length > 0 || lowStock.out + lowStock.low + lowStock.negative > 0) && (
         <Link href="/stock?filter=low" className="card mb-4 block p-4">
