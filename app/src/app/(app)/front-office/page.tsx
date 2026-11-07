@@ -52,7 +52,7 @@ export default async function FrontOfficePage() {
           <Link href="/front-office/reports" className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }}>Reports</Link>
           <Link href="/front-office/guests" className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }}>Guests</Link>
           {can(user, "fo.manage") && (
-            <Link href="/front-office/setup" className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }}>
+            <Link href="/settings/front-office" className="btn h-10 min-h-0 px-4 text-sm" style={{ border: "1px solid var(--color-line)" }}>
               Rooms and rates
             </Link>
           )}

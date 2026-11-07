@@ -99,7 +99,7 @@ export function FrontOfficeBoard(p: Props) {
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {p.rooms.length === 0 && (
             <div className="card col-span-full p-5 text-sm" style={{ color: "var(--color-ink-2)" }}>
-              No rooms yet. {p.canManage ? <Link className="underline" href="/front-office/setup">Add your room types and rooms</Link> : "Ask a manager to add rooms."}
+              No rooms yet. {p.canManage ? <Link className="underline" href="/settings/front-office">Add your room types and rooms</Link> : "Ask a manager to add rooms."}
             </div>
           )}
           {p.rooms.map((r) => {

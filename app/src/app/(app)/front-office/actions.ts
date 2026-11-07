@@ -191,7 +191,7 @@ export async function saveRoomType(input: { id: string | null; code: string; nam
     p_base_rate: input.baseRate, p_max_occupancy: input.maxOccupancy, p_active: input.active,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/front-office/setup");
+  revalidatePath("/settings/front-office");
   touch();
   return { ok: true, message: "Room type saved." };
 }
@@ -203,7 +203,7 @@ export async function saveRoom(input: { id: string | null; roomNumber: string; r
     p_floor_label: input.floor || undefined, p_active: input.active,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/front-office/setup");
+  revalidatePath("/settings/front-office");
   touch();
   return { ok: true, message: "Room saved." };
 }
@@ -215,7 +215,7 @@ export async function saveTaxSettings(input: { roomTax: number; roomTaxHigh: num
     p_room_tax_threshold: input.threshold, p_other_tax_pct: input.otherTax,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/front-office/setup");
+  revalidatePath("/settings/front-office");
   return { ok: true, message: "Tax settings saved." };
 }
 
@@ -275,7 +275,7 @@ export async function saveRatePlan(input: { id: string | null; code: string; nam
     p_description: input.description || undefined, p_active: input.active,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/front-office/setup");
+  revalidatePath("/settings/front-office");
   return { ok: true, message: "Rate plan saved." };
 }
 
@@ -291,7 +291,7 @@ export async function saveRateRule(input: {
     p_valid_from: input.validFrom ?? undefined, p_valid_to: input.validTo ?? undefined,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/front-office/setup");
+  revalidatePath("/settings/front-office");
   return { ok: true, message: "Rate saved." };
 }
 
@@ -299,7 +299,7 @@ export async function deleteRateRule(ruleId: string): Promise<FoResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("fo_delete_rate_rule", { p_rule_id: ruleId });
   if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/front-office/setup");
+  revalidatePath("/settings/front-office");
   return { ok: true, message: "Rate removed. Stays already booked keep their rates." };
 }
 
@@ -314,7 +314,7 @@ export async function saveBusiness(input: {
     p_room_tax_exempt_below: input.noGstBelow,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/front-office/setup");
+  revalidatePath("/settings/front-office");
   return { ok: true, message: "Business details saved." };
 }
 

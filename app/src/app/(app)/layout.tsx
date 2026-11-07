@@ -91,7 +91,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         ...(can(user, "fo.view") || can(user, "fo.manage") ? [{ href: "/front-office/chart", label: "Stay chart" }] : []),
         { href: "/front-office/housekeeping", label: "Housekeeping" },
         ...(can(user, "fo.view") || can(user, "fo.manage") ? [{ href: "/front-office/guests", label: "Guests" }] : []),
-        ...(can(user, "fo.manage") ? [{ href: "/front-office/setup", label: "Rooms and rates" }] : []),
+        ...(can(user, "fo.manage") ? [{ href: "/settings/front-office", label: "Rooms and rates" }] : []),
       ]
     : [];
   const sideGroups: SideGroup[] = [

@@ -35,7 +35,7 @@ export function InvoicePanel({ stayId, state, canManage, party, companyName }: {
     return (
       <section className="card p-4 text-sm">
         <h2 className="text-sm font-bold">{title}</h2>
-        <p className="mt-1">Add the hotel&apos;s legal name and address first. <Link href="/front-office/setup" className="underline">Open rooms and rates</Link>, then fill in &ldquo;Business details for the tax invoice&rdquo;.</p>
+        <p className="mt-1">Add the hotel&apos;s legal name and address first. <Link href="/settings/front-office" className="underline">Open rooms and rates</Link>, then fill in &ldquo;Business details for the tax invoice&rdquo;.</p>
       </section>
     );
   }
