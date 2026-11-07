@@ -330,6 +330,27 @@ export async function issueInvoice(stayId: string, billTo: { name: string; gstin
   return { ok: true, invoiceNo: r.invoice_no, message: `Invoice ${r.invoice_no} issued.` };
 }
 
+export async function reopenStay(stayId: string, reason: string): Promise<FoResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fo_reopen_stay", { p_stay: stayId, p_reason: reason.trim() });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath(`/front-office/stay/${stayId}`);
+  touch();
+  return { ok: true, message: "Stay reopened. The old invoice is cancelled; check out again to issue a new one." };
+}
+
+export async function reissueInvoice(stayId: string, invoiceId: string, reason: string, billTo: { name: string; gstin: string; address: string; stateCode: string }): Promise<FoResult<{ invoiceNo: string }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fo_reissue_invoice", {
+    p_invoice: invoiceId, p_reason: reason.trim(), p_bill_to_name: billTo.name.trim() || undefined, p_bill_to_gstin: billTo.gstin.trim().toUpperCase() || undefined,
+    p_bill_to_address: billTo.address.trim() || undefined, p_bill_to_state_code: billTo.stateCode.trim() || undefined,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath(`/front-office/stay/${stayId}`);
+  const r = data as unknown as { old_invoice_no: string; credit_note_no: string; invoice_no: string };
+  return { ok: true, invoiceNo: r.invoice_no, message: `${r.old_invoice_no} cancelled with credit note ${r.credit_note_no}. New invoice ${r.invoice_no} issued.` };
+}
+
 // ------------------------------------------------------------------ group bookings
 export type GroupRoomLine = { roomTypeId: string; qty: number; adults: number; children: number; ratePlanId: string | null; rate: number | null };
 const linesJson = (lines: GroupRoomLine[]) =>

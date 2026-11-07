@@ -7243,6 +7243,9 @@ export type Database = {
       fo_company_ledger: { Args: { p_company: string }; Returns: Json }
       fo_reg_card: { Args: { p_stay: string }; Returns: Json }
       fo_invoice_register: { Args: { p_from: string; p_to: string }; Returns: Json }
+      fo_fix_options: { Args: { p_stay: string }; Returns: Json }
+      fo_reopen_stay: { Args: { p_reason: string; p_stay: string }; Returns: Json }
+      fo_reissue_invoice: { Args: { p_bill_to_address?: string; p_bill_to_gstin?: string; p_bill_to_name?: string; p_bill_to_state_code?: string; p_invoice: string; p_reason: string }; Returns: Json }
       fo_credit_note_options: { Args: { p_invoice: string }; Returns: Json }
       fo_issue_credit_note: { Args: { p_client_ref?: string; p_invoice: string; p_lines: Json; p_reason: string }; Returns: Json }
       fo_credit_note_get: { Args: { p_note: string }; Returns: Json }

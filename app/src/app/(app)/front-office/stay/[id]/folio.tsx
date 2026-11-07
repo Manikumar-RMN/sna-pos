@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { money } from "@/lib/format";
-import { MANUAL_CHARGE_KINDS, STATUS_LABEL, type Company, type Folio, type InvoiceState } from "@/lib/fo";
+import { MANUAL_CHARGE_KINDS, STATUS_LABEL, type Company, type Folio, type FixOptions, type InvoiceState } from "@/lib/fo";
 import { InvoicePanel } from "./invoice-panel";
+import { FixPanel } from "./fix-panel";
 import { amendStay, cancelStay, checkIn, checkOut, moveCharge, postCharge, postStayFee, setStayCompany, takePayment, voidCharge, voidPayment } from "../../actions";
 
 type Method = { id: string; name: string };
 
-export function FolioView({ folio, methods, currency, canManage, invoices, group, companies }: { folio: Folio; methods: Method[]; currency: string; canManage: boolean; invoices: { guest: InvoiceState | null; company: InvoiceState | null }; group: { group_id: string; group_no: number; name: string } | null; companies: Company[] }) {
+export function FolioView({ folio, methods, currency, canManage, invoices, fix, group, companies }: { folio: Folio; methods: Method[]; currency: string; canManage: boolean; invoices: { guest: InvoiceState | null; company: InvoiceState | null }; fix: FixOptions | null; group: { group_id: string; group_no: number; name: string } | null; companies: Company[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -238,6 +239,7 @@ export function FolioView({ folio, methods, currency, canManage, invoices, group
 
       {stay.status === "checked_out" && invoices.guest && <InvoicePanel stayId={stay.stay_id} state={invoices.guest} canManage={canManage} party="guest" />}
       {stay.status === "checked_out" && stay.company && invoices.company && <InvoicePanel stayId={stay.stay_id} state={invoices.company} canManage={canManage} party="company" companyName={stay.company.name} />}
+      {stay.status === "checked_out" && fix && <FixPanel stayId={stay.stay_id} fix={fix} />}
     </div>
   );
 }

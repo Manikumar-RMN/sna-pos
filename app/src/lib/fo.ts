@@ -234,3 +234,11 @@ export type CreditNoteRegister = {
   rows: { note_id: string; note_no: string; date: string; invoice_no: string; bill_to: string | null; reason: string; taxable: number; tax: number; total: number; cgst: number; sgst: number; stay_id: string }[];
   totals: { taxable: number; tax: number; total: number; count: number };
 };
+
+/** What can be done to fix a checked-out stay (fo_fix_options). */
+export type FixOptions = {
+  status: string; has_right: boolean; can_reopen: boolean; can_reissue: boolean;
+  reopen_blocked?: string | null; reissue_blocked?: string | null;
+  invoice_id?: string | null; invoice_no?: string | null; invoice_total?: number | null;
+  bill_to?: { name: string | null; gstin: string | null; address: string | null; state_code: string | null };
+};

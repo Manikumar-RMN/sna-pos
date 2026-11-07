@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { UpgradeNote } from "../../../upgrade-note";
-import type { Company, Folio, InvoiceState } from "@/lib/fo";
+import type { Company, Folio, FixOptions, InvoiceState } from "@/lib/fo";
 import { FolioView } from "./folio";
 
 export default async function StayPage({ params }: { params: Promise<{ id: string }> }) {
@@ -37,6 +37,11 @@ export default async function StayPage({ params }: { params: Promise<{ id: strin
     invoices.guest = (g.data as unknown as InvoiceState | null) ?? null;
     invoices.company = (c.data as unknown as InvoiceState | null) ?? null;
   }
+  let fix: FixOptions | null = null;
+  if (folio.stay.status === "checked_out" && can(user, "fo.manage")) {
+    const { data: fx } = await supabase.rpc("fo_fix_options", { p_stay: id });
+    fix = (fx as unknown as FixOptions | null) ?? null;
+  }
   let companies: Company[] = [];
   if ((folio.stay.status === "reserved" || folio.stay.status === "inhouse") && can(user, "fo.manage")) {
     const { data: co } = await supabase.rpc("fo_companies_list", { p_include_inactive: false });
@@ -45,7 +50,7 @@ export default async function StayPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="mx-auto max-w-3xl">
       <Link href="/front-office" className="text-sm underline">← Front office</Link>
-      <FolioView folio={folio} methods={(methods.data ?? []) as { id: string; name: string }[]} currency={user.currency_code} canManage={can(user, "fo.manage")} invoices={invoices} group={group} companies={companies} />
+      <FolioView folio={folio} methods={(methods.data ?? []) as { id: string; name: string }[]} currency={user.currency_code} canManage={can(user, "fo.manage")} invoices={invoices} fix={fix} group={group} companies={companies} />
     </div>
   );
 }
