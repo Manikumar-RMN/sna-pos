@@ -31,7 +31,7 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
     { href: "/settings/security", label: "Security profiles", hint: "What each role can do", group: "General", show: can(user, "user.manage") },
     { href: "/settings/outlets", label: "Outlets", hint: "Prices per outlet, who works where", group: "General", show: user.outlet_count > 1 || has(user, "multi_outlet") },
     { href: "/settings/api", label: "API keys", hint: "Connect other software", group: "General", show: can(user, "settings.manage") && has(user, "open_api") },
-    { href: "/settings/plan", label: "Plan and modules", hint: "Edition, add-ons, outlets", group: "General", show: true },
+    { href: "/settings/plan", label: "Plan and modules", hint: "Modules you have and what you can add", group: "General", show: true },
     { href: "/settings/front-office", label: "Rooms and rates", hint: "Room types, rooms, rate plans, hotel tax invoice details", group: "Front office", show: has(user, "front_office") && can(user, "fo.manage") },
   ];
   const order = ["General", "POS", "Front office", "Inventory", "Reports and MIS"];

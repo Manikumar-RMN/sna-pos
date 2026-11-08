@@ -11,9 +11,9 @@ export default async function SettingsLayout({ children }: Readonly<{ children: 
 
   return (
     <div className="mx-auto max-w-6xl">
-      <h1 className="mb-4 text-2xl font-bold">Settings</h1>
-      <div className="flex flex-col gap-4 md:flex-row md:items-start">
-        <aside className="md:sticky md:top-3 md:w-60 md:shrink-0">
+      <h1 className="mb-4 text-2xl font-bold tracking-tight">Settings</h1>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
+        <aside className="md:sticky md:top-3 md:max-h-[calc(100vh-1.5rem)] md:w-64 md:shrink-0 md:overflow-y-auto">
           <SettingsNav links={links} />
         </aside>
         <section className="min-w-0 flex-1">{children}</section>
