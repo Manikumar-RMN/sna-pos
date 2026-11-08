@@ -4,7 +4,6 @@ import { BusinessForm } from "../settings-forms";
 import { NoAccess, SectionHead } from "../section-head";
 import { cookies } from "next/headers";
 import { LanguageForm } from "./language-form";
-import { BusinessTypeCard } from "./business-type";
 import { TimezoneForm } from "./timezone-form";
 
 export default async function CompanySettings() {
@@ -27,7 +26,6 @@ export default async function CompanySettings() {
           <b>Before you go live:</b> {country.compliance_note}
         </div>
       )}
-      <BusinessTypeCard initial={rest?.business_type ?? "restaurant"} canEdit={can(user, "settings.manage")} />
       <BusinessForm
         canEdit={can(user, "settings.manage")}
         taxIdLabel={country?.tax_id_label ?? "Tax number"}

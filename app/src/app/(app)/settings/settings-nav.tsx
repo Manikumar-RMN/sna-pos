@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 export type SettingsLink = { href: string; label: string; hint: string; group: string };
@@ -24,6 +25,13 @@ export function SettingsNav({ links }: { links: SettingsLink[] }) {
   const path = usePathname();
   const router = useRouter();
   const groups = grouped(links);
+  const [closed, setClosed] = useState<Set<string>>(new Set());
+  const toggle = (g: string) =>
+    setClosed((s) => {
+      const n = new Set(s);
+      if (n.has(g)) n.delete(g); else n.add(g);
+      return n;
+    });
   const current = links.find((l) => path === l.href || path.startsWith(l.href + "/"))?.href ?? "";
 
   return (
@@ -49,13 +57,17 @@ export function SettingsNav({ links }: { links: SettingsLink[] }) {
       <nav aria-label="Settings" className="card hidden overflow-hidden md:block">
         {groups.map((g, gi) => (
           <div key={g.group} style={gi > 0 ? { borderTop: "1px solid var(--color-line)" } : undefined}>
-            <div
-              className="px-4 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wider"
+            <button
+              type="button"
+              onClick={() => toggle(g.group)}
+              aria-expanded={!closed.has(g.group)}
+              className="flex w-full items-center justify-between px-4 pb-1 pt-3 text-left text-[11px] font-bold uppercase tracking-wider"
               style={{ color: "var(--color-ink-3)" }}
             >
-              {g.group}
-            </div>
-            <ul className="px-2 pb-2">
+              <span>{g.group}</span>
+              <span aria-hidden className="text-sm" style={{ transform: closed.has(g.group) ? "rotate(-90deg)" : undefined }}>▾</span>
+            </button>
+            <ul className="px-2 pb-2" hidden={closed.has(g.group)}>
               {g.items.map((l) => {
                 const on = path === l.href || path.startsWith(l.href + "/");
                 return (
