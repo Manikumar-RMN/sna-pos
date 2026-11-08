@@ -107,15 +107,21 @@ type Business = {
   sac_code?: string;
 };
 
-export function BusinessForm({ initial, canEdit, taxIdLabel, taxIdHint }: { initial: Business; canEdit: boolean; taxIdLabel: string; taxIdHint: string }) {
+const POS_KEYS = ["fssai_no", "sac_code", "receipt_header", "receipt_footer", "auto_print_kot"] as const;
+
+/** `part`: "company" = name, tax number, address (every module); "pos" = FSSAI, SAC, receipt wording, kitchen screen (POS only). Each part saves only its own fields. */
+export function BusinessForm({ initial, canEdit, taxIdLabel, taxIdHint, part }: { initial: Business; canEdit: boolean; taxIdLabel: string; taxIdHint: string; part: "company" | "pos" }) {
+  const company = part === "company";
   const [v, setV] = useState(initial);
   const { pending, msg, run } = useRunner();
   const set = (k: keyof Business) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.value });
 
   return (
     <section className="card p-5">
-      <h2 className="text-base font-bold">Business and receipt</h2>
+      <h2 className="text-base font-bold">{company ? "Business and address" : "Bill details"}</h2>
       <fieldset disabled={!canEdit} className="mt-4 grid gap-3 sm:grid-cols-2">
+        {company && (
+<>
         <Field label="Registered business name">
           <input className="field" value={v.legal_name} onChange={set("legal_name")} />
         </Field>
@@ -128,16 +134,20 @@ export function BusinessForm({ initial, canEdit, taxIdLabel, taxIdHint }: { init
         <Field label="Business phone">
           <input className="field" value={v.contact_phone} onChange={set("contact_phone")} />
         </Field>
-        {v.fssai_no !== undefined && (
+</>
+)}
+        {!company && v.fssai_no !== undefined && (
           <Field label="FSSAI licence number" hint="14 digits. Printed on every bill, as FSSAI requires.">
             <input className="field" inputMode="numeric" maxLength={14} value={v.fssai_no} onChange={set("fssai_no")} />
           </Field>
         )}
-        {v.sac_code !== undefined && (
+        {!company && v.sac_code !== undefined && (
           <Field label="SAC code on bills" hint="996331 is restaurant service. Change only if your accountant says so.">
             <input className="field" inputMode="numeric" maxLength={8} value={v.sac_code} onChange={set("sac_code")} />
           </Field>
         )}
+        {company && (
+<>
         <Field label="Branch name">
           <input className="field" value={v.branch_name} onChange={set("branch_name")} />
         </Field>
@@ -161,6 +171,10 @@ export function BusinessForm({ initial, canEdit, taxIdLabel, taxIdHint }: { init
             <input className="field" value={v.postal_code} onChange={set("postal_code")} />
           </Field>
         </div>
+</>
+)}
+        {!company && (
+<>
         <Field label="Receipt heading" hint="Top line of the bill. Usually the name customers see.">
           <input className="field" value={v.receipt_header} onChange={set("receipt_header")} />
         </Field>
@@ -170,9 +184,11 @@ export function BusinessForm({ initial, canEdit, taxIdLabel, taxIdHint }: { init
         <div className="sm:col-span-2">
           <Toggle checked={v.auto_print_kot} onChange={(x) => setV({ ...v, auto_print_kot: x })} label="Send every bill to the Kitchen screen" />
         </div>
+</>
+)}
       </fieldset>
       {canEdit ? (
-        <button className="btn btn-primary mt-5" disabled={pending} onClick={() => run(() => saveSettings(v))}>
+        <button className="btn btn-primary mt-5" disabled={pending} onClick={() => run(() => saveSettings(Object.fromEntries(Object.entries(v).filter(([k]) => (POS_KEYS as readonly string[]).includes(k) !== company)) as Record<string, string | boolean>))}>
           {pending ? "Saving…" : "Save changes"}
         </button>
       ) : (

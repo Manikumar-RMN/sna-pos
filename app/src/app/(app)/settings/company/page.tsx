@@ -20,13 +20,14 @@ export default async function CompanySettings() {
 
   return (
     <div className="space-y-4">
-      <SectionHead title="Company">Your business name, outlet address and what is printed on every bill.</SectionHead>
+      <SectionHead title="Company">Your business name, tax number and outlet address.</SectionHead>
       {country?.compliance_note && (
         <div className="rounded-2xl px-4 py-3 text-sm" role="note" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink-2)" }}>
           <b>Before you go live:</b> {country.compliance_note}
         </div>
       )}
       <BusinessForm
+        part="company"
         canEdit={can(user, "settings.manage")}
         taxIdLabel={country?.tax_id_label ?? "Tax number"}
         taxIdHint={isIndia ? "15 characters, e.g. 29ABCDE1234F1Z5. Leave empty if not registered." : "Printed on every receipt. Leave empty if not registered."}
