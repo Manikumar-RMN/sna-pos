@@ -7,7 +7,7 @@ import { outletScope, rangeQuery } from "@/lib/reports-pack";
 import { CsvButton } from "./csv-button";
 import { OutletBanner } from "./_components/outlet-banner";
 import { FilterForm } from "./_components/filter-form";
-import { groupReportLinks, reportSection } from "./_components/report-links";
+import { ReportList } from "./_components/report-list";
 import type { OutletInfo } from "../outlet/outlet-switcher";
 
 type Settlement = {
@@ -144,12 +144,12 @@ export default async function ReportsPage({
   const showPicker = multi && (outletInfo?.outlets.length ?? 0) > 1;
   const canFinancial = can(user, "report.view_financial");
   // Inventory reports need the stock module (Professional) and stock.view; customer reports need customer.view.
-  const linkGroups = groupReportLinks({
+  const reportAccess = {
     financial: canFinancial,
     stock: has(user, "stock") && (can(user, "stock.view") || can(user, "stock.manage")),
     customers: can(user, "customer.view"),
     loyalty: has(user, "loyalty") && can(user, "customer.view"),
-  });
+  };
   const keep = rangeQuery(sp);
   const rep = data as unknown as Report | null;
   const settle = settleData as unknown as Settlement | null;
@@ -160,42 +160,11 @@ export default async function ReportsPage({
 
   return (
     <div className="mx-auto max-w-6xl">
-      <h1 className="text-xl font-bold tracking-tight">Report centre</h1>
+      <h1 className="text-xl font-bold tracking-tight">POS reports</h1>
       <p className="mt-1 mb-4 text-sm" style={{ color: "var(--color-ink-3)" }}>
-        Pick a report from the list. Each opens with From and To dates, Display, Print and Excel.
+        Sales, operations, items and staff reports. Each opens with From and To dates, Display, Print and Excel.
       </p>
-      <div className="rc-wrap mb-6">
-        <aside className="rc-side no-print" aria-label="Report categories">
-          {linkGroups.map((g, gi) => (
-            <div key={`s-${g.group ?? "top"}`}>
-              {(gi === 0 || reportSection(g.items[0]) !== reportSection(linkGroups[gi - 1].items[0])) && <div className="rc-mod">{reportSection(g.items[0])}</div>}
-              <a href={`#rc-${gi}`}>
-                <span>{g.group ?? "Sales summary"}</span>
-                <span className="rc-n">{g.items.length}</span>
-              </a>
-            </div>
-          ))}
-        </aside>
-        <nav aria-label="Reports">
-          {linkGroups.map((g, gi) => (
-            <section key={g.group ?? "top"} id={`rc-${gi}`} className="rc-card scroll-mt-4">
-              <h3>
-                {g.group ?? "Sales summary"}
-              </h3>
-              {g.items.map((l) => {
-                const here = l.href === "/reports";
-                return (
-                  <Link key={l.href} href={here ? "#sales-summary" : `${l.href}${keep}`} className="rc-row">
-                    <span className="rc-t">{l.title}</span>
-                    <span className="rc-d">{l.blurb}</span>
-                    <span className="rc-go">{here ? "View below ↓" : "Open →"}</span>
-                  </Link>
-                );
-              })}
-            </section>
-          ))}
-        </nav>
-      </div>
+      <div className="mb-6"><ReportList access={reportAccess} section="pos" keep={keep} /></div>
 
       <div id="sales-summary" className="scroll-mt-4" />
       <h2 className="text-lg font-bold tracking-tight">Sales summary</h2>

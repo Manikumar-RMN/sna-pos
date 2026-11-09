@@ -55,22 +55,38 @@ export function canSeeReportLink(l: Pick<ReportLink, "need">, a: ReportAccess): 
   }
 }
 
-/** The links this person may see, split under their headings in order (the Sales summary has no heading). */
-export function groupReportLinks(access: ReportAccess): { group: string | null; items: ReportLink[] }[] {
+/** The report sections in the Reports menu, in order. POS reports is the Reports home page. */
+export const REPORT_SECTIONS = [
+  { key: "pos", title: "POS reports", href: "/reports" },
+  { key: "inventory", title: "Purchase and inventory reports", href: "/reports/section/inventory" },
+  { key: "loyalty", title: "Loyalty reports", href: "/reports/section/loyalty" },
+  { key: "audit", title: "Audit reports", href: "/reports/section/audit" },
+] as const;
+export type SectionKey = (typeof REPORT_SECTIONS)[number]["key"];
+
+/** Which section a report is listed in. */
+export function sectionKey(l: Pick<ReportLink, "need" | "group">): SectionKey {
+  if (l.need === "stock") return "inventory";
+  if (l.need === "loyalty") return "loyalty";
+  if (l.group === "Audit") return "audit";
+  return "pos";
+}
+
+export function reportSection(l: Pick<ReportLink, "need" | "group">): string {
+  const k = sectionKey(l);
+  return REPORT_SECTIONS.find((x) => x.key === k)!.title;
+}
+
+/** The links this person may see, split under their headings in order (the Sales summary has no heading). Pass a section to list just that one. */
+export function groupReportLinks(access: ReportAccess, section?: SectionKey): { group: string | null; items: ReportLink[] }[] {
   const out: { group: string | null; items: ReportLink[] }[] = [];
   for (const l of REPORT_LINKS) {
     if (!canSeeReportLink(l, access)) continue;
+    if (section && sectionKey(l) !== section) continue;
     const g = l.group ?? null;
     const last = out[out.length - 1];
     if (last && last.group === g) last.items.push(l);
     else out.push({ group: g, items: [l] });
   }
   return out;
-}
-
-/** Which module a report belongs to, for the big headings on the hub: POS, Purchase and inventory, or another module. */
-export function reportSection(l: Pick<ReportLink, "need">): string {
-  if (l.need === "stock") return "Purchase and inventory reports";
-  if (l.need === "loyalty") return "Loyalty reports";
-  return "POS reports";
 }

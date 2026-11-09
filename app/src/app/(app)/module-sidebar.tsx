@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-export type SideItem = { href: string; label: string };
+export type SideItem = { href: string; label: string; also?: string[] };
 export type SideGroup = { key: string; title: string; icon: string; items: SideItem[] };
 
 const IC: Record<string, string> = {
@@ -27,10 +27,16 @@ function Ico({ k }: { k: string }) {
 /** The page that is open now: the longest item address that matches the path, so "/settings" does not light up on "/settings/menu". */
 function activeHref(path: string, groups: SideGroup[]): string | null {
   let best: string | null = null;
+  let bestLen = 0;
   for (const g of groups) {
     for (const i of g.items) {
-      const hit = path === i.href || path.startsWith(i.href + "/");
-      if (hit && (best === null || i.href.length > best.length)) best = i.href;
+      for (const h of [i.href, ...(i.also ?? [])]) {
+        const hit = path === h || path.startsWith(h + "/");
+        if (hit && (best === null || h.length > bestLen)) {
+          best = i.href;
+          bestLen = h.length;
+        }
+      }
     }
   }
   return best;

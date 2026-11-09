@@ -5,7 +5,7 @@ import { signOut } from "@/app/login/actions";
 import { lockCounter } from "@/app/counter/actions";
 import { NavLinks, NavRail, type NavItem } from "./nav-links";
 import { ModuleSidebar, type SideGroup } from "./module-sidebar";
-import { REPORT_LINKS, canSeeReportLink } from "./reports/_components/report-links";
+import { REPORT_LINKS, REPORT_SECTIONS, canSeeReportLink, groupReportLinks, sectionKey } from "./reports/_components/report-links";
 import { IdleLock } from "./idle-lock";
 import { OfflineSync } from "./offline-sync";
 import { SwRegister } from "./sw-register";
@@ -94,7 +94,20 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       items: pick(["/pos", "/captain", "/table-orders", "/kitchen", "/bills", "/preorders", "/deliveries", "/online-orders", "/accounts", "/customers", "/reservations", "/loyalty", "/shift", "/timesheets"]),
     },
     { key: "inventory", title: "Purchase and inventory", icon: "inventory", items: pick(["/stock", "/purchases"]) },
-    { key: "reports", title: "Reports", icon: "reports", items: pick(["/owner", "/reports"]) },
+    {
+      key: "reports", title: "Reports", icon: "reports",
+      items: [
+        ...pick(["/owner"]),
+        ...(visibleLinks.some((l) => l.href === "/reports")
+          ? REPORT_SECTIONS.filter((s) => groupReportLinks(reportAccess, s.key).length > 0).map((s) => ({
+              href: s.href,
+              label: s.title,
+              // Every report page of this section lights this menu item.
+              also: REPORT_LINKS.filter((r) => r.href !== "/reports" && sectionKey(r) === s.key).map((r) => r.href),
+            }))
+          : []),
+      ],
+    },
     { key: "setup", title: "Setup", icon: "setup", items: pick(["/settings"]) },
     { key: "help", title: "Help", icon: "help", items: pick(["/help"]) },
   ].filter((g) => g.items.length > 0);
