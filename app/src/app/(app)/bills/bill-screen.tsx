@@ -99,6 +99,8 @@ export async function BillScreen({
   }
 
   // Customer accounts (pay later), for "Charge to account" on an unpaid bill.
+  // Saved discounts (Settings → Discounts) valid today for this outlet and kind of bill: shown as buttons in the Discount box.
+  const { data: presetRows } = open ? await supabase.rpc("list_discount_presets", { p_order_type: r.orderType }) : { data: null };
   const { data: accounts } = open && can(user, "payment.take") ? await supabase.rpc("accounts_list") : { data: null };
 
   const busyTables = new Set((openBills ?? []).map((o) => o.dining_table_id).filter(Boolean));
@@ -238,6 +240,7 @@ export async function BillScreen({
         canKots={open && !bill.dayClosed && can(user, "order.create")}
         adjust={bill.adjust}
         discountPool={pool}
+        presets={(presetRows ?? []).map((x: { id: string; name: string; kind: string; value: number }) => ({ id: x.id, name: x.name, kind: x.kind === "amount" ? "amount" : "percent", value: Number(x.value) }))}
         loyaltyDiscount={loyalApplied.discount}
         canChangeMode={can(user, "payment.change_mode")}
         dayClosed={bill.dayClosed}

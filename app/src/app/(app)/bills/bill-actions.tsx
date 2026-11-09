@@ -40,6 +40,7 @@ export function BillActions({
   canKots = false,
   adjust,
   discountPool,
+  presets = [],
   loyaltyDiscount = 0,
   canChangeMode = false,
   dayClosed = false,
@@ -63,6 +64,8 @@ export function BillActions({
 }: {
   /** Total of the lines that can take a discount (lines marked "do not discount" are left out). Omit = the whole subtotal. */
   discountPool?: number;
+  /** Saved discounts the owner set up (Settings → Discounts). A tap fills the amount and the reason. */
+  presets?: { id: string; name: string; kind: "percent" | "amount"; value: number }[];
   /** Points already used as a discount on this bill (shown in the dialog; changed only in the loyalty panel). */
   loyaltyDiscount?: number;
   orderId: string;
@@ -522,6 +525,24 @@ export function BillActions({
                   <label className="block text-xs font-medium" style={{ color: "var(--color-ink-2)" }} htmlFor="adj-disc">
                     Discount (amount or %)
                   </label>
+                  {presets.length > 0 && !noPool && (
+                    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Saved discounts">
+                      {presets.map((x) => (
+                        <button
+                          key={x.id}
+                          type="button"
+                          className="tap rounded-full border px-3 py-1.5 text-xs font-medium"
+                          style={{ borderColor: "var(--color-line)", background: discReason === x.name ? "var(--color-brand-soft, #e6f2ec)" : "transparent" }}
+                          onClick={() => {
+                            setDiscAmt(x.kind === "percent" ? `${x.value}%` : String(x.value));
+                            setDiscReason(x.name);
+                          }}
+                        >
+                          {x.name} {x.kind === "percent" ? `${x.value}%` : m(x.value)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <input
                     id="adj-disc"
                     className="field h-10 text-sm"
