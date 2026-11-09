@@ -41,7 +41,7 @@ export default async function RequisitionsPage() {
     createdAt: r.created_at,
     rejectReason: r.reject_reason,
     orderNumber: r.purchase_order_id ? (poNumber[r.purchase_order_id] ?? null) : null,
-    lines: (lines ?? []).filter((l) => l.requisition_id === r.id).map((l) => ({ name: meta[l.ingredient_id]?.name ?? "Ingredient", unit: meta[l.ingredient_id]?.unit ?? "", qty: Number(l.qty), estCost: Number(l.est_cost) })),
+    lines: (lines ?? []).filter((l) => l.requisition_id === r.id).map((l) => ({ name: meta[l.ingredient_id]?.name ?? "Ingredient", unit: meta[l.ingredient_id]?.unit ?? "", qty: Number(l.qty), estCost: Math.round(Number(l.qty) * Number(l.est_cost) * 100) / 100 })),
   }));
   return (
     <div className="mx-auto max-w-4xl">
