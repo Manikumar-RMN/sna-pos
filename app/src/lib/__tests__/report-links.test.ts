@@ -12,7 +12,7 @@ describe("groupReportLinks", () => {
   });
   it("shows the four inventory reports to stock.view and the two customer reports to customer.view", () => {
     const inv = groupReportLinks({ ...none, stock: true }).find((g) => g.group === "Purchase and inventory");
-    expect(inv?.items.map((i) => i.href)).toEqual(["/reports/stock-on-hand", "/reports/stock-movement", "/reports/food-cost", "/reports/wastage", "/reports/stock-ledger", "/reports/receipts", "/reports/supplier-purchases", "/reports/rate-variance", "/reports/issues", "/reports/requests", "/reports/count-variance", "/reports/non-moving", "/reports/high-value-stock", "/reports/abc-consumption"]);
+    expect(inv?.items.map((i) => i.href)).toEqual(["/reports/stock-on-hand", "/reports/stock-movement", "/reports/food-cost", "/reports/wastage", "/reports/stock-ledger", "/reports/receipts", "/reports/supplier-purchases", "/reports/rate-variance", "/reports/issues", "/reports/requests", "/reports/count-variance", "/reports/non-moving", "/reports/high-value-stock", "/reports/abc-consumption", "/reports/xyz-analysis", "/reports/department-use", "/reports/po-variance"]);
     const cus = groupReportLinks({ ...none, customers: true, loyalty: true }).find((g) => g.group === "Customers");
     expect(cus?.items.map((i) => i.href)).toEqual(["/reports/customers"]);
     expect(groupReportLinks({ ...none, customers: true }).some((g) => g.group === "Loyalty")).toBe(false);

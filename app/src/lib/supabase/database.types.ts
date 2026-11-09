@@ -7423,6 +7423,18 @@ export type Database = {
       }
     }
     Functions: {
+      report_po_variance: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
+      report_department_use: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
+      report_xyz: {
+        Args: { p_days?: number }
+        Returns: Json
+      }
       save_supplier_rate: {
         Args: { p_supplier: string; p_ingredient: string; p_rate: number; p_from: string; p_to?: string; p_notes?: string }
         Returns: string

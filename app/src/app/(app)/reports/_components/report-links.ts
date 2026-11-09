@@ -43,6 +43,9 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Purchase and inventory", href: "/reports/non-moving", title: "Non-moving stock", blurb: "Stock that has not been used for a number of days.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/high-value-stock", title: "High-value stock", blurb: "Stock worth at least an amount you choose.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/abc-consumption", title: "ABC consumption", blurb: "Ingredients ranked by value used, in classes A, B and C.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/xyz-analysis", title: "XYZ analysis", blurb: "How steady the weekly use of each ingredient is.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/department-use", title: "Use by department", blurb: "Stock issued to each department (cost centre) and what it cost.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/po-variance", title: "PO rate variance", blurb: "Price paid against the price on the purchase order.", need: "stock" },
   { group: "Loyalty", href: "/reports/loyalty-ledger", title: "Loyalty ledger", blurb: "Points earned, used and reversed, and the points still owed.", need: "loyalty" },
 ];
 
