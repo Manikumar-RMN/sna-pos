@@ -90,6 +90,9 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
             {t.label}
           </Link>
         ))}
+        <Link href="/purchases/requisitions" className={pill} style={pillStyle(false)}>
+          Requisitions
+        </Link>
       </nav>
 
       {supplierError ? (

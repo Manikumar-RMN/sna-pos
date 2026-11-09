@@ -2026,6 +2026,105 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_requisitions: {
+        Row: {
+          branch_id: string
+          client_ref: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          est_total: number
+          id: string
+          note: string | null
+          number: string
+          purchase_order_id: string | null
+          reject_reason: string | null
+          requested_by: string
+          restaurant_id: string
+          status: string
+        }
+        Insert: {
+          branch_id: string
+          client_ref?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          est_total?: number
+          id?: string
+          note?: string | null
+          number: string
+          purchase_order_id?: string | null
+          reject_reason?: string | null
+          requested_by: string
+          restaurant_id: string
+          status?: string
+        }
+        Update: {
+          branch_id?: string
+          client_ref?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          est_total?: number
+          id?: string
+          note?: string | null
+          number?: string
+          purchase_order_id?: string | null
+          reject_reason?: string | null
+          requested_by?: string
+          restaurant_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      requisition_lines: {
+        Row: {
+          est_cost: number
+          id: string
+          ingredient_id: string
+          qty: number
+          requisition_id: string
+          restaurant_id: string
+        }
+        Insert: {
+          est_cost?: number
+          id?: string
+          ingredient_id: string
+          qty: number
+          requisition_id: string
+          restaurant_id: string
+        }
+        Update: {
+          est_cost?: number
+          id?: string
+          ingredient_id?: string
+          qty?: number
+          requisition_id?: string
+          restaurant_id?: string
+        }
+        Relationships: []
+      }
+      purchase_settings: {
+        Row: {
+          approval_limit: number | null
+          restaurant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          approval_limit?: number | null
+          restaurant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          approval_limit?: number | null
+          restaurant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       goods_receipt_lines: {
         Row: {
           returned_qty: number
@@ -7341,6 +7440,19 @@ export type Database = {
         Args: { p_client_ref?: string; p_department?: string; p_lines: Json; p_note?: string; p_request?: string }
         Returns: Json
       }
+      save_requisition: {
+        Args: { p_client_ref?: string; p_lines: Json; p_note?: string }
+        Returns: Json
+      }
+      decide_requisition: {
+        Args: { p_action: string; p_id: string; p_reason?: string }
+        Returns: Json
+      }
+      requisition_to_order: {
+        Args: { p_id: string; p_place?: boolean; p_supplier_id: string }
+        Returns: Json
+      }
+      set_purchase_approval_limit: { Args: { p_limit: number }; Returns: number }
       return_goods: {
         Args: { p_client_ref?: string; p_lines: Json; p_reason: string; p_receipt_id: string }
         Returns: Json
