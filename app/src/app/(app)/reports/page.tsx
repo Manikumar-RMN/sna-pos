@@ -159,43 +159,43 @@ export default async function ReportsPage({
   const unpaidCount = `${unpaidBills} bill${unpaidBills === 1 ? "" : "s"}`;
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <h1 className="text-xl font-bold tracking-tight">Reports</h1>
-      <p className="mt-1 mb-3 text-sm" style={{ color: "var(--color-ink-3)" }}>
-        Choose a report. Each one opens on its own page.
+    <div className="mx-auto max-w-6xl">
+      <h1 className="text-xl font-bold tracking-tight">Report centre</h1>
+      <p className="mt-1 mb-4 text-sm" style={{ color: "var(--color-ink-3)" }}>
+        Pick a report from the list. Each opens with From and To dates, Display, Print and Excel.
       </p>
-      <nav aria-label="Reports" className="mb-5">
-        {linkGroups.map((g, gi) => (
-          <div key={g.group ?? "top"} className="mb-4">
-            {(gi === 0 || reportSection(g.items[0]) !== reportSection(linkGroups[gi - 1].items[0])) && (
-              <h2 className="mb-2 mt-5 border-b pb-1 text-base font-bold tracking-tight first:mt-0" style={{ borderColor: "var(--color-line)" }}>
-                {reportSection(g.items[0])}
-              </h2>
-            )}
-            {g.group && (
-              <h2 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: "var(--color-ink-3)" }}>
-                {g.group}
-              </h2>
-            )}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="rc-wrap mb-6">
+        <aside className="rc-side no-print" aria-label="Report categories">
+          {linkGroups.map((g, gi) => (
+            <div key={`s-${g.group ?? "top"}`}>
+              {(gi === 0 || reportSection(g.items[0]) !== reportSection(linkGroups[gi - 1].items[0])) && <div className="rc-mod">{reportSection(g.items[0])}</div>}
+              <a href={`#rc-${gi}`}>
+                <span>{g.group ?? "Sales summary"}</span>
+                <span className="rc-n">{g.items.length}</span>
+              </a>
+            </div>
+          ))}
+        </aside>
+        <nav aria-label="Reports">
+          {linkGroups.map((g, gi) => (
+            <section key={g.group ?? "top"} id={`rc-${gi}`} className="rc-card scroll-mt-4">
+              <h3>
+                {reportSection(g.items[0])} · {g.group ?? "Sales summary"}
+              </h3>
               {g.items.map((l) => {
                 const here = l.href === "/reports";
                 return (
-                  <Link
-                    key={l.href}
-                    href={here ? "#sales-summary" : `${l.href}${keep}`}
-                    className="card block p-4"
-                    style={here ? { borderColor: "var(--color-brand)", background: "var(--color-brand-soft)" } : undefined}
-                  >
-                    <div className="text-sm font-bold">{l.title}</div>
-                    <div className="mt-0.5 text-xs" style={{ color: "var(--color-ink-3)" }}>{l.blurb}</div>
+                  <Link key={l.href} href={here ? "#sales-summary" : `${l.href}${keep}`} className="rc-row">
+                    <span className="rc-t">{l.title}</span>
+                    <span className="rc-d">{l.blurb}</span>
+                    <span className="rc-go">{here ? "View below ↓" : "Open →"}</span>
                   </Link>
                 );
               })}
-            </div>
-          </div>
-        ))}
-      </nav>
+            </section>
+          ))}
+        </nav>
+      </div>
 
       <div id="sales-summary" className="scroll-mt-4" />
       <h2 className="text-lg font-bold tracking-tight">Sales summary</h2>
