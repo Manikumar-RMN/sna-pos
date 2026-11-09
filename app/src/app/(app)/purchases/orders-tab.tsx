@@ -40,6 +40,7 @@ export function OrdersTab({
   outlet,
   autoLow,
   capped,
+  agreedRates,
 }: {
   orders: OrderRow[];
   /** Every supplier, active or not (old orders may be for one that was switched off). */
@@ -56,6 +57,8 @@ export function OrdersTab({
   autoLow: boolean;
   /** Only the newest orders are listed. */
   capped: boolean;
+  /** Agreed prices in force today: supplier id → ingredient id → rate. */
+  agreedRates: Record<string, Record<string, number>>;
 }) {
   const { pending, msg, setMsg, run } = useRun();
   const m = (n: number) => money(n, currency);
@@ -161,7 +164,7 @@ export function OrdersTab({
           </div>
 
           <div className="mt-4">
-            <LineEditor lines={form.lines} onChange={(lines) => upd({ lines })} ingredients={ingredients} names={names} currency={currency} totalLabel="Order total" disabled={pending} />
+            <LineEditor lines={form.lines} onChange={(lines) => upd({ lines })} ingredients={ingredients} names={names} currency={currency} totalLabel="Order total" agreed={agreedRates[form.supplierId]} disabled={pending} />
           </div>
 
           <div className="mt-3">

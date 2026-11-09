@@ -237,13 +237,7 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
     );
   const { data: ps } = await supabase.from("purchase_settings").select("claim_input_tax").maybeSingle();
   const claimTax = !!ps?.claim_input_tax;
-  const { data: rateRows } = await supabase.from("supplier_rates").select("supplier_id, ingredient_id, rate, valid_from, valid_to").is("ended_at", null).lte("valid_from", today).order("valid_from", { ascending: true }).limit(2000);
-  // Later start dates come last, so they win when two agreements are in force.
-  const agreedRates: Record<string, Record<string, number>> = {};
-  for (const r of rateRows ?? []) {
-    if (r.valid_to && r.valid_to < today) continue;
-    (agreedRates[r.supplier_id] ??= {})[r.ingredient_id] = Number(r.rate);
-  }
+  const agreedRates = await loadAgreed(supabase, today);
   const [lines, payments] = await Promise.all([
     orderLines(
       supabase,
@@ -297,6 +291,18 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
   );
 }
 
+/** Agreed prices in force today: supplier id → ingredient id → rate. */
+async function loadAgreed(supabase: Db, today: string): Promise<Record<string, Record<string, number>>> {
+  const { data } = await supabase.from("supplier_rates").select("supplier_id, ingredient_id, rate, valid_from, valid_to").is("ended_at", null).lte("valid_from", today).order("valid_from", { ascending: true }).limit(2000);
+  // Later start dates come last, so they win when two agreements are in force.
+  const out: Record<string, Record<string, number>> = {};
+  for (const r of data ?? []) {
+    if (r.valid_to && r.valid_to < today) continue;
+    (out[r.supplier_id] ??= {})[r.ingredient_id] = Number(r.rate);
+  }
+  return out;
+}
+
 async function OrdersSection({ supabase, user, suppliers, low }: SectionProps & { low: boolean }) {
   const today = todayIn(user.timezone);
   const LIMIT = 50;
@@ -342,6 +348,7 @@ async function OrdersSection({ supabase, user, suppliers, low }: SectionProps & 
       restaurant={user.trading_name}
       outlet={user.branch_name}
       autoLow={low}
+      agreedRates={await loadAgreed(supabase, today)}
       capped={(pos ?? []).length >= LIMIT}
     />
   );
