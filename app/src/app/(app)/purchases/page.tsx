@@ -233,7 +233,7 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
   const ingredients: Ingredient[] = (ings ?? []).filter((i) => i.is_active).map((i) => ({ id: i.id, name: i.name, unit: i.unit, cost: Number(i.cost_per_unit), ...(i.purchase_unit ? { buyUnit: i.purchase_unit, buyFactor: Number(i.purchase_factor) } : {}) }));
   const { data: grLines } = await supabase
     .from("goods_receipt_lines")
-    .select("goods_receipt_id, ingredient_id, qty, returned_qty, unit_cost")
+    .select("goods_receipt_id, ingredient_id, qty, returned_qty, unit_cost, line_total, tax_amount")
     .in(
       "goods_receipt_id",
       (grs ?? []).map((g) => g.id),
@@ -269,7 +269,7 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
       returned: Number(g.returned_total),
       returnable: (grLines ?? [])
         .filter((l) => l.goods_receipt_id === g.id && Number(l.qty) - Number(l.returned_qty) > 0)
-        .map((l) => ({ ingredient_id: l.ingredient_id, name: names[l.ingredient_id]?.name ?? "Ingredient", unit: names[l.ingredient_id]?.unit ?? "", remaining: Math.round((Number(l.qty) - Number(l.returned_qty)) * 1000) / 1000, unit_cost: Number(l.unit_cost) })),
+        .map((l) => ({ ingredient_id: l.ingredient_id, name: names[l.ingredient_id]?.name ?? "Ingredient", unit: names[l.ingredient_id]?.unit ?? "", remaining: Math.round((Number(l.qty) - Number(l.returned_qty)) * 1000) / 1000, unit_cost: Number(l.qty) > 0 ? (Number(l.line_total) + Number(l.tax_amount)) / Number(l.qty) : Number(l.unit_cost) })),
     };
   });
 
