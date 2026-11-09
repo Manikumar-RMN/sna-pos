@@ -55,7 +55,7 @@ export function ReturnForm({
         Return goods from {receipt.number} to {supplier}
       </div>
       <p className="mt-0.5 text-xs" style={{ color: "var(--color-ink-3)" }}>
-        The goods come out of stock and the amount owed goes down. Type only what is going back.
+        The goods come out of stock and the amount owed goes down by the goods plus the tax on them. Type only what is going back.
       </p>
       {receipt.returnable.length === 0 ? (
         <p className="mt-2 text-sm">Everything on this receipt has already gone back.</p>
