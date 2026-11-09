@@ -105,6 +105,8 @@ export function ReceiveTab({
   const [billDate, setBillDate] = useState("");
   const [tax, setTax] = useState("");
   const [other, setOther] = useState("");
+  const [receiptType, setReceiptType] = useState("purchase");
+  const [distribute, setDistribute] = useState(false);
   const [paid, setPaid] = useState<Paid>("no");
   const [method, setMethod] = useState<PayMethod>("cash");
   const [reference, setReference] = useState("");
@@ -175,6 +177,8 @@ export function ReceiveTab({
       reference,
       fromTill: method === "cash" && fromTill,
       receivedOn: canBackdate ? receivedOn : "",
+      receiptType,
+      distribute: distribute && (otherC ?? 0) > 0,
     };
     const mine = refFor(sent.current, payload);
     sent.current = mine;
@@ -276,6 +280,18 @@ export function ReceiveTab({
             <Field label="Other charges" hint="(delivery, loading…)">
               <input className="field h-10 text-sm" inputMode="decimal" placeholder="0.00" value={other} onChange={(e) => setOther(e.target.value)} disabled={pending} />
             </Field>
+            <Field label="Receipt type">
+              <select className="field h-10 text-sm" value={receiptType} onChange={(e) => setReceiptType(e.target.value)} disabled={pending}>
+                <option value="purchase">Purchase</option>
+                <option value="sample">Free sample</option>
+                <option value="replacement">Replacement</option>
+                <option value="transfer_in">Transfer in</option>
+              </select>
+            </Field>
+            <label className="flex items-start gap-2 self-end pb-2 text-xs sm:col-span-2" style={{ color: "var(--color-ink-2)" }}>
+              <input type="checkbox" className="mt-0.5 h-4 w-4" checked={distribute} onChange={(e) => setDistribute(e.target.checked)} disabled={pending} />
+              <span>Add the other charges to the stock cost of these items, in proportion to their value.</span>
+            </label>
           </div>
 
           <div className="mt-4 flex items-baseline justify-between rounded-2xl px-4 py-3" style={{ background: "var(--color-brand-soft)" }} aria-live="polite">

@@ -146,6 +146,8 @@ export async function receiveGoods(input: {
   clientRef: string;
   /** Earlier receiving date (needs the back-dating right). */
   receivedOn?: string;
+  receiptType?: string;
+  distribute?: boolean;
 }): Promise<ReceiveResult> {
   if (!isUuid(input.supplierId)) return { ok: false, error: "Choose a supplier." };
   if (input.purchaseOrderId && !isUuid(input.purchaseOrderId)) return { ok: false, error: "Purchase order not found." };
@@ -188,6 +190,8 @@ export async function receiveGoods(input: {
     p_payment: payment,
     p_client_ref: input.clientRef,
     p_received_on: input.receivedOn || undefined,
+    p_receipt_type: input.receiptType || "purchase",
+    p_distribute: !!input.distribute,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases");

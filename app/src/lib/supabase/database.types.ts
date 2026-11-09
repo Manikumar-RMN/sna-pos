@@ -2198,6 +2198,8 @@ export type Database = {
       }
       goods_receipts: {
         Row: {
+          charges_distributed: boolean
+          receipt_type: string
           returned_tax: number
           input_tax_claimable: number
           returned_total: number
@@ -2227,6 +2229,8 @@ export type Database = {
           total: number
         }
         Insert: {
+          charges_distributed?: boolean
+          receipt_type?: string
           returned_tax?: number
           input_tax_claimable?: number
           returned_total?: number
@@ -2256,6 +2260,8 @@ export type Database = {
           total?: number
         }
         Update: {
+          charges_distributed?: boolean
+          receipt_type?: string
           returned_tax?: number
           input_tax_claimable?: number
           returned_total?: number
@@ -8090,7 +8096,9 @@ export type Database = {
           p_notes?: string
           p_other?: number
           p_payment?: Json
+          p_distribute?: boolean
           p_purchase_order_id?: string
+          p_receipt_type?: string
           p_received_on?: string
           p_supplier_id: string
           p_tax?: number
