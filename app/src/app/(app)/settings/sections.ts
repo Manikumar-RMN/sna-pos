@@ -8,7 +8,7 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
   const setup = can(user, "settings.manage") || can(user, "tax.manage");
   const pos = has(user, "pos");
   const all: (SettingsLink & { show: boolean })[] = [
-    { href: "/settings/company", label: "Company", hint: "Name, address, bill details", group: "General", show: setup },
+    { href: "/settings/company", label: "Company", hint: "Name, tax number, address", group: "General", show: setup },
     { href: "/settings/business-type", label: "Type of business", hint: "Restaurant, café, QSR, bar and more", group: "POS", show: pos && can(user, "settings.manage") },
     { href: "/settings/bill-details", label: "Bill details", hint: "FSSAI, SAC code, receipt wording, Kitchen screen", group: "POS", show: pos && can(user, "settings.manage") },
     { href: "/settings/bill", label: "Bill layout", hint: "Logo, paper size, what is printed", group: "POS", show: pos && (can(user, "settings.manage")) },

@@ -357,6 +357,8 @@ export type BookRow = {
   cash: number;
   nonCash: number;
   unpaid: number;
+  /** Value of credit notes issued in this day or month (a positive number; it is taken off the bills). */
+  credit: number;
 };
 
 function bookRow(r: Record<string, unknown>, key: string): BookRow {
@@ -375,6 +377,7 @@ function bookRow(r: Record<string, unknown>, key: string): BookRow {
     cash: num(r.cash),
     nonCash: num(r.non_cash),
     unpaid: num(r.unpaid),
+    credit: 0,
   };
 }
 
@@ -382,7 +385,21 @@ function bookRow(r: Record<string, unknown>, key: string): BookRow {
 export function parseBook(json: unknown, field: "business_date" | "month"): { rows: BookRow[]; totals: BookRow } {
   const o = obj(json);
   const rows = list(o.rows).map((r) => bookRow(r, text(r[field])));
-  return { rows, totals: bookRow(obj(o.totals), "TOTAL") };
+  const totals = bookRow(obj(o.totals), "TOTAL");
+  // Credit notes count in the day or month they are issued; a day with only a credit note still gets a line.
+  for (const cr of list(o.credit_rows)) {
+    const key = text(cr[field]);
+    const amount = num(cr.amount);
+    let row = rows.find((x) => x.key === key);
+    if (!row) {
+      row = bookRow({}, key);
+      rows.push(row);
+      rows.sort((a, b) => a.key.localeCompare(b.key));
+    }
+    row.credit += amount;
+    totals.credit += amount;
+  }
+  return { rows, totals };
 }
 
 /** Months in the range that are only partly covered: the first one when the range starts after day 1, the last when it ends before the month's last day. */

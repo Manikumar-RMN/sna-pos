@@ -127,6 +127,19 @@ describe("parseBook", () => {
   });
 });
 
+describe("parseBook credit notes", () => {
+  it("adds credit notes to their day, and gives a credit-only day its own line", () => {
+    const d = parseBook(
+      { rows: [{ business_date: "2026-10-02", bills: 1, grand_total: 500 }], totals: { grand_total: 500 }, credit_rows: [{ business_date: "2026-10-02", amount: 100 }, { business_date: "2026-10-01", amount: 50 }] },
+      "business_date",
+    );
+    expect(d.rows.map((r) => r.key)).toEqual(["2026-10-01", "2026-10-02"]);
+    expect(d.rows[1].credit).toBe(100);
+    expect(d.rows[0].credit).toBe(50);
+    expect(d.totals.credit).toBe(150);
+  });
+});
+
 describe("partialMonths", () => {
   it("flags partial first and last months", () => {
     expect(partialMonths("2026-03-15", "2026-10-10")).toEqual({ first: "2026-03", last: "2026-10" });

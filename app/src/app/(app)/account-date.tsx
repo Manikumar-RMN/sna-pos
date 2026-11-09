@@ -52,6 +52,7 @@ export function AccountDate({ initial, onGreen }: { initial: AccountDateInfo; on
         Account date
       </span>
       <span className="block whitespace-nowrap text-sm font-bold tabular-nums">{text}</span>
+      {info.oldDay && <span className="block text-[10px] font-bold uppercase tracking-wide">Day not closed - tap to close</span>}
     </span>
   );
   return info.oldDay ? (

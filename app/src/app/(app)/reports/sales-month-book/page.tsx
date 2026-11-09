@@ -18,9 +18,9 @@ export default async function SalesMonthBookPage({ searchParams }: { searchParam
   const { rows, totals } = parseBook(err ? null : (data as unknown), "month");
   const partial = partialMonths(from, to);
   const partialList = [partial.first, partial.last].filter((m, i, a): m is string => !!m && a.indexOf(m) === i);
-  const head = ["Month", "Days with sales", "Bills", "Complimentary", "Gross", "Discount", "Service", "Tax", "Rounding", "Net sales", "Total billed", "Cash", "Other modes", "Unpaid"];
+  const head = ["Month", "Days with sales", "Bills", "Complimentary", "Gross", "Discount", "Service", "Tax", "Rounding", "Net sales", "Total billed", "Credit notes", "Net billed", "Cash", "Other modes", "Unpaid"];
   type Row = (typeof rows)[number];
-  const nums = (b: Row) => [b.bills, b.compBills, b.gross, b.discount, b.serviceCharge, b.tax, b.rounding, b.netSales, b.grandTotal, b.cash, b.nonCash, b.unpaid];
+  const nums = (b: Row) => [b.bills, b.compBills, b.gross, b.discount, b.serviceCharge, b.tax, b.rounding, b.netSales, b.grandTotal, -b.credit, b.grandTotal - b.credit, b.cash, b.nonCash, b.unpaid];
   const show = (b: Row) => [...nums(b).slice(0, 2).map(String), ...nums(b).slice(2).map((n) => money(n, c))];
   const lead = (b: Row): string[] => [monthLabel(b.key), String(b.days)];
 
