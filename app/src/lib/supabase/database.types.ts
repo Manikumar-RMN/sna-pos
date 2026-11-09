@@ -6393,6 +6393,75 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_month_closures: {
+        Row: {
+          branch_id: string
+          closed_at: string
+          closed_by: string
+          id: string
+          month: string
+          restaurant_id: string
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          total_value: number
+        }
+        Insert: {
+          branch_id: string
+          closed_at?: string
+          closed_by: string
+          id?: string
+          month: string
+          restaurant_id: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          total_value?: number
+        }
+        Update: {
+          branch_id?: string
+          closed_at?: string
+          closed_by?: string
+          id?: string
+          month?: string
+          restaurant_id?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          total_value?: number
+        }
+        Relationships: []
+      }
+      stock_closure_lines: {
+        Row: {
+          branch_id: string
+          closing_qty: number
+          closure_id: string
+          ingredient_id: string
+          restaurant_id: string
+          unit_cost: number
+          value: number
+        }
+        Insert: {
+          branch_id: string
+          closing_qty: number
+          closure_id: string
+          ingredient_id: string
+          restaurant_id: string
+          unit_cost?: number
+          value?: number
+        }
+        Update: {
+          branch_id?: string
+          closing_qty?: number
+          closure_id?: string
+          ingredient_id?: string
+          restaurant_id?: string
+          unit_cost?: number
+          value?: number
+        }
+        Relationships: []
+      }
       stock_counts: {
         Row: {
           branch_id: string
@@ -7453,6 +7522,9 @@ export type Database = {
         Returns: Json
       }
       set_purchase_approval_limit: { Args: { p_limit: number }; Returns: number }
+      save_opening_stock: { Args: { p_lines: Json }; Returns: Json }
+      close_stock_month: { Args: { p_month: string }; Returns: Json }
+      reopen_stock_month: { Args: { p_id: string; p_reason: string }; Returns: Json }
       return_goods: {
         Args: { p_client_ref?: string; p_lines: Json; p_reason: string; p_receipt_id: string }
         Returns: Json

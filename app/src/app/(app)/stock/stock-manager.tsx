@@ -153,6 +153,9 @@ export function StockManager({
             <Link href="/stock/requests" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }}>
               Requests
             </Link>
+            <Link href="/stock/closing" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }}>
+              Opening and month closing
+            </Link>
             {canAdjust && (
               <Link href="/stock/count" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }}>
                 Count stock
