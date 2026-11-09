@@ -36,8 +36,8 @@ export async function issueStock(input: { requestId: string | null; department: 
   if (input.issueDate && !/^\d{4}-\d{2}-\d{2}$/.test(input.issueDate)) return { ok: false, error: "Choose a valid issue date." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("issue_material", {
-    p_request: (input.requestId && UUID.test(input.requestId) ? input.requestId : undefined) as unknown as string,
-    p_department: input.department || (undefined as unknown as string),
+    p_request: (input.requestId && UUID.test(input.requestId) ? input.requestId : null) as unknown as string,
+    p_department: input.department || (null as unknown as string),
     p_lines: lines as unknown as Json,
     p_note: input.note || (undefined as unknown as string),
     p_client_ref: ref(input.clientRef),
