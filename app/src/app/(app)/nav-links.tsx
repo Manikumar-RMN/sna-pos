@@ -6,7 +6,7 @@ import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { Dual } from "./lang";
 
 /** One menu entry. `children` makes it a drop-down group (Reports); the entry itself still links to `href`. */
-export type NavItem = { href: string; label: string; children?: { href: string; label: string; group?: string }[] };
+export type NavItem = { href: string; label: string; children?: { href: string; label: string; group?: string; also?: string[] }[] };
 
 /** The child page that is open now. The group's own page only counts on an exact match. */
 function childOn(path: string, group: string, href: string) {
@@ -169,7 +169,7 @@ function DropList({ id, item, path, pos, box, onPick }: { id: string; item: NavI
     >
       <ul className="m-0 list-none p-0">
         {item.children?.map((c, i) => {
-          const here = childOn(path, item.href, c.href);
+          const here = childOn(path, item.href, c.href) || (c.also ?? []).some((h) => isOn(path, h));
           const heading = c.group && c.group !== item.children?.[i - 1]?.group ? c.group : null;
           return (
             <li key={c.href}>

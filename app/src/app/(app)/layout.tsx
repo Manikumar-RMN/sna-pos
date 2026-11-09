@@ -5,7 +5,7 @@ import { signOut } from "@/app/login/actions";
 import { lockCounter } from "@/app/counter/actions";
 import { NavLinks, NavRail, type NavItem } from "./nav-links";
 import { ModuleSidebar, type SideGroup } from "./module-sidebar";
-import { REPORT_LINKS, REPORT_SECTIONS, canSeeReportLink, groupReportLinks, sectionKey } from "./reports/_components/report-links";
+import { REPORT_LINKS, REPORT_SECTIONS, groupReportLinks, sectionKey } from "./reports/_components/report-links";
 import { IdleLock } from "./idle-lock";
 import { OfflineSync } from "./offline-sync";
 import { SwRegister } from "./sw-register";
@@ -53,7 +53,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     customers: can(user, "customer.view"),
     loyalty: has(user, "loyalty") && can(user, "customer.view"),
   };
-  const reportItems = REPORT_LINKS.filter((r) => canSeeReportLink(r, reportAccess)).map((r) => ({ href: r.href, label: r.title, group: r.group }));
+  // The same four groups as the side menu: POS, Purchase and inventory, Loyalty and Audit reports (only the ones this client has).
+  const reportItems = REPORT_SECTIONS.filter((x) => groupReportLinks(reportAccess, x.key).length > 0).map((x) => ({ href: x.href, label: x.title, also: REPORT_LINKS.filter((r) => r.href !== "/reports" && sectionKey(r) === x.key).map((r) => r.href) }));
   // Modules the client bought: POS and Reports/MIS are switchable like the others.
   const posOn = has(user, "pos");
   const misOn = has(user, "reports_mis");

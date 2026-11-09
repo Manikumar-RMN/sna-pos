@@ -58,7 +58,7 @@ export async function loadReport(
   const salesRight = opts.need === "stock" || opts.need === "customers" ? opts.withSales === true : true;
   if (salesRight && !can(user, "report.view_sales")) return deny("Your role does not include viewing sales reports.");
   if (opts.need === "stock") {
-    if (!has(user, "stock")) return deny("Stock reports are part of the Professional plan. Ask the owner to upgrade to use them.");
+    if (!has(user, "stock")) return deny("Purchase and inventory reports need the Purchase and inventory module. Ask the owner to switch it on.");
     if (!can(user, "stock.view") && !can(user, "stock.manage")) return deny("Your role does not include seeing stock and its costs. Ask the owner if you need access.");
   }
   if (opts.need === "customers" && !can(user, "customer.view")) {
