@@ -7,7 +7,7 @@ import { outletScope, rangeQuery } from "@/lib/reports-pack";
 import { CsvButton } from "./csv-button";
 import { OutletBanner } from "./_components/outlet-banner";
 import { FilterForm } from "./_components/filter-form";
-import { groupReportLinks } from "./_components/report-links";
+import { groupReportLinks, reportSection } from "./_components/report-links";
 import type { OutletInfo } from "../outlet/outlet-switcher";
 
 type Settlement = {
@@ -148,6 +148,7 @@ export default async function ReportsPage({
     financial: canFinancial,
     stock: has(user, "stock") && (can(user, "stock.view") || can(user, "stock.manage")),
     customers: can(user, "customer.view"),
+    loyalty: has(user, "loyalty") && can(user, "customer.view"),
   });
   const keep = rangeQuery(sp);
   const rep = data as unknown as Report | null;
@@ -164,8 +165,13 @@ export default async function ReportsPage({
         Choose a report. Each one opens on its own page.
       </p>
       <nav aria-label="Reports" className="mb-5">
-        {linkGroups.map((g) => (
+        {linkGroups.map((g, gi) => (
           <div key={g.group ?? "top"} className="mb-4">
+            {(gi === 0 || reportSection(g.items[0]) !== reportSection(linkGroups[gi - 1].items[0])) && (
+              <h2 className="mb-2 mt-5 border-b pb-1 text-base font-bold tracking-tight first:mt-0" style={{ borderColor: "var(--color-line)" }}>
+                {reportSection(g.items[0])}
+              </h2>
+            )}
             {g.group && (
               <h2 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: "var(--color-ink-3)" }}>
                 {g.group}

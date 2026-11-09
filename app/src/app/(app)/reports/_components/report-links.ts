@@ -3,7 +3,7 @@ export type ReportLink = {
   href: string;
   title: string;
   blurb: string;
-  need: "sales" | "financial" | "stock" | "customers";
+  need: "sales" | "financial" | "stock" | "customers" | "loyalty";
   /** Heading the report is listed under on the hub and in the menu drop-down (the Sales summary has none). */
   group?: string;
 };
@@ -12,6 +12,7 @@ export const REPORT_LINKS: ReportLink[] = [
   { href: "/reports", title: "Sales summary", blurb: "Sales, tax, payments, hours and items for the period.", need: "sales" },
   { group: "Operations", href: "/reports/pending-kot", title: "Pending KOT", blurb: "Kitchen tickets with food still waiting.", need: "sales" },
   { group: "Operations", href: "/reports/pending-bills", title: "Pending bills", blurb: "Open bills and bills not fully paid, with balance and age.", need: "sales" },
+  { group: "Operations", href: "/reports/table-turnaround", title: "Table turnaround time", blurb: "How long each table stays occupied, by day and by table.", need: "sales" },
   { group: "Operations", href: "/reports/void-bills", title: "Void bills", blurb: "Bills that were voided, with the reason and who did it.", need: "sales" },
   { group: "Sales", href: "/reports/bills-detail", title: "Bills detail", blurb: "Every finished bill with its amounts and how it was paid.", need: "financial" },
   { group: "Sales", href: "/reports/sales-day-book", title: "Sales day book", blurb: "One line per day: bills, tax, cash and other payments.", need: "financial" },
@@ -24,20 +25,19 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Items & staff", href: "/reports/slow-items", title: "Slow and unsold items", blurb: "Menu items that sold the least, or not at all.", need: "sales" },
   { group: "Items & staff", href: "/reports/waiter-sales", title: "Waiter-wise sales", blurb: "Bills, covers and sales for each waiter or cashier.", need: "sales" },
   { group: "Items & staff", href: "/reports/discounts", title: "Discounts", blurb: "Who gave discounts, how much, and on which days.", need: "financial" },
-  { group: "Inventory", href: "/reports/stock-on-hand", title: "Stock on hand", blurb: "What is in stock now, its value, and what is low, out or negative.", need: "stock" },
-  { group: "Inventory", href: "/reports/stock-movement", title: "Stock movement", blurb: "Opening, purchases, use, wastage and closing for each ingredient.", need: "stock" },
-  { group: "Inventory", href: "/reports/food-cost", title: "Food cost %", blurb: "Ingredient cost against sales, by day and by dish.", need: "stock" },
-  { group: "Inventory", href: "/reports/wastage", title: "Wastage", blurb: "Stock thrown away, by reason, ingredient, day and person.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/stock-on-hand", title: "Stock on hand", blurb: "What is in stock now, its value, and what is low, out or negative.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/stock-movement", title: "Stock movement", blurb: "Opening, purchases, use, wastage and closing for each ingredient.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/food-cost", title: "Food cost %", blurb: "Ingredient cost against sales, by day and by dish.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/wastage", title: "Wastage", blurb: "Stock thrown away, by reason, ingredient, day and person.", need: "stock" },
   { group: "Customers", href: "/reports/customers", title: "Customers", blurb: "Visits, spend, new and repeat customers.", need: "customers" },
-  { group: "Customers", href: "/reports/loyalty-ledger", title: "Loyalty ledger", blurb: "Points earned, used and reversed, and the points still owed.", need: "customers" },
+  { group: "Loyalty", href: "/reports/loyalty-ledger", title: "Loyalty ledger", blurb: "Points earned, used and reversed, and the points still owed.", need: "loyalty" },
   { group: "Audit", href: "/reports/audit", title: "Voids, cancels and refunds", blurb: "Voided bills, cancelled items, refunds and credit notes.", need: "financial" },
   { group: "Audit", href: "/reports/reprints", title: "Reprints", blurb: "Bills and kitchen tickets printed again, and by whom.", need: "sales" },
   { group: "Audit", href: "/reports/leakage", title: "Leakage summary", blurb: "Voids, cancels, credit notes, discounts, free meals, reprints and moves in one place.", need: "sales" },
-  { group: "Sales", href: "/reports/table-turnaround", title: "Table turnaround time", blurb: "How long each table stays occupied, by day and by table.", need: "sales" },
 ];
 
 /** What the signed-in person may see on the hub: financial reports, stock reports (stock.view) and customer reports (customer.view). */
-export type ReportAccess = { financial: boolean; stock: boolean; customers: boolean };
+export type ReportAccess = { financial: boolean; stock: boolean; customers: boolean; loyalty: boolean };
 
 /** Does this person see the link? Every report also needs the sales right, which the hub page itself checks. */
 export function canSeeReportLink(l: Pick<ReportLink, "need">, a: ReportAccess): boolean {
@@ -48,6 +48,8 @@ export function canSeeReportLink(l: Pick<ReportLink, "need">, a: ReportAccess): 
       return a.stock;
     case "customers":
       return a.customers;
+    case "loyalty":
+      return a.loyalty;
     default:
       return true;
   }
@@ -64,4 +66,11 @@ export function groupReportLinks(access: ReportAccess): { group: string | null; 
     else out.push({ group: g, items: [l] });
   }
   return out;
+}
+
+/** Which module a report belongs to, for the big headings on the hub: POS, Purchase and inventory, or another module. */
+export function reportSection(l: Pick<ReportLink, "need">): string {
+  if (l.need === "stock") return "Purchase and inventory reports";
+  if (l.need === "loyalty") return "Loyalty reports";
+  return "POS reports";
 }

@@ -27,7 +27,7 @@ export function modulesFor(user: CurrentUser): ModuleCard[] {
     },
     {
       key: "reports",
-      title: "Reports and MIS",
+      title: "Reports",
       blurb: "Sales, financial and customer reports",
       href: "/reports",
       show: has(user, "reports_mis") && can(user, "report.view_sales"),

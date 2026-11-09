@@ -51,6 +51,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     financial: canFinancial,
     stock: has(user, "stock") && (can(user, "stock.view") || can(user, "stock.manage")),
     customers: can(user, "customer.view"),
+    loyalty: has(user, "loyalty") && can(user, "customer.view"),
   };
   const reportItems = REPORT_LINKS.filter((r) => canSeeReportLink(r, reportAccess)).map((r) => ({ href: r.href, label: r.title, group: r.group }));
   // Modules the client bought: POS and Reports/MIS are switchable like the others.
@@ -93,7 +94,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       items: pick(["/pos", "/captain", "/table-orders", "/kitchen", "/bills", "/preorders", "/deliveries", "/online-orders", "/accounts", "/customers", "/reservations", "/loyalty", "/shift", "/timesheets"]),
     },
     { key: "inventory", title: "Purchase and inventory", icon: "inventory", items: pick(["/stock", "/purchases"]) },
-    { key: "reports", title: "Reports and MIS", icon: "reports", items: pick(["/owner", "/reports"]) },
+    { key: "reports", title: "Reports", icon: "reports", items: pick(["/owner", "/reports"]) },
     { key: "setup", title: "Setup", icon: "setup", items: pick(["/settings"]) },
     { key: "help", title: "Help", icon: "help", items: pick(["/help"]) },
   ].filter((g) => g.items.length > 0);

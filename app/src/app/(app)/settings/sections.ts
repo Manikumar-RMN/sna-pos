@@ -1,7 +1,7 @@
 import { can, has, type CurrentUser } from "@/lib/auth";
 import type { SettingsLink } from "./settings-nav";
 
-/** Setup is grouped by module: General (shared by every module), POS, Inventory, Reports and MIS. A module the client did not buy shows no group. */
+/** Setup is grouped by module: General (shared by every module), POS, Inventory, POS reports. A module the client did not buy shows no group. */
 
 /** Settings sections this person may open, in menu order. */
 export function settingsSections(user: CurrentUser, taxName: string): SettingsLink[] {
@@ -19,7 +19,7 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
       href: "/settings/reports",
       label: "Daily summary",
       hint: "Send the day's figures by email or phone alert",
-      group: "Reports and MIS",
+      group: "Reports",
       show: has(user, "reports_mis") && can(user, "settings.manage") && can(user, "report.view_sales"),
     },
     { href: "/settings/tables", label: "Tables", hint: "Dine-in tables", group: "POS", show: pos && (setup) },
@@ -35,7 +35,7 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
     { href: "/settings/api", label: "API keys", hint: "Connect other software", group: "General", show: can(user, "settings.manage") && has(user, "open_api") },
     { href: "/settings/plan", label: "Plan and modules", hint: "Modules you have and what you can add", group: "General", show: true },
   ];
-  const order = ["General", "POS", "Inventory", "Reports and MIS"];
+  const order = ["General", "POS", "Inventory", "Reports"];
   return all
     .filter((s) => s.show)
     .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group))
