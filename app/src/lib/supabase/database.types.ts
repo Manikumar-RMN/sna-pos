@@ -2193,6 +2193,7 @@ export type Database = {
       }
       goods_receipts: {
         Row: {
+          returned_tax: number
           input_tax_claimable: number
           returned_total: number
           branch_id: string
@@ -2221,6 +2222,7 @@ export type Database = {
           total: number
         }
         Insert: {
+          returned_tax?: number
           input_tax_claimable?: number
           returned_total?: number
           branch_id: string
@@ -2249,6 +2251,7 @@ export type Database = {
           total?: number
         }
         Update: {
+          returned_tax?: number
           input_tax_claimable?: number
           returned_total?: number
           branch_id?: string
