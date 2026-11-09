@@ -19,6 +19,7 @@ export function LineEditor({
   qtyLabel = "Quantity",
   totalLabel = "Total",
   showTax,
+  agreed,
   disabled,
 }: {
   lines: LineDraft[];
@@ -32,6 +33,8 @@ export function LineEditor({
   totalLabel?: string;
   /** Show a Tax % box on each line (deliveries only). */
   showTax?: boolean;
+  /** Agreed price per ingredient for the chosen supplier; new lines start from it. */
+  agreed?: Record<string, number>;
   disabled?: boolean;
 }) {
   const active = new Set(ingredients.map((i) => i.id));
@@ -39,7 +42,7 @@ export function LineEditor({
 
   function pick(i: number, id: string) {
     const ing = ingredients.find((x) => x.id === id);
-    set(i, { ingredient_id: id, buy: false, cost: ing ? String(ing.cost) : "" });
+    set(i, { ingredient_id: id, buy: false, cost: agreed?.[id] != null ? String(agreed[id]) : ing ? String(ing.cost) : "" });
   }
 
   return (
@@ -117,6 +120,11 @@ export function LineEditor({
                   Cost per {shown || "unit"} (line {n})
                 </span>
                 <input className="field h-10 text-sm" inputMode="decimal" placeholder="0.00" value={l.cost} onChange={(e) => set(i, { cost: e.target.value })} disabled={disabled} />
+                {agreed?.[l.ingredient_id] != null && !l.buy && (
+                  <span className="mt-1 block text-xs" style={{ color: Number(l.cost) === agreed[l.ingredient_id] ? "var(--color-ink-3)" : "var(--color-warn)" }}>
+                    Agreed rate {money(agreed[l.ingredient_id], currency)}
+                  </span>
+                )}
               </label>
               {showTax && (
               <label className="block">

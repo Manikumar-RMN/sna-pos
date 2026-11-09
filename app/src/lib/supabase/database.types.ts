@@ -6757,6 +6757,48 @@ export type Database = {
           },
         ]
       }
+      supplier_rates: {
+        Row: {
+          created_at: string
+          created_by: string
+          ended_at: string | null
+          id: string
+          ingredient_id: string
+          notes: string | null
+          rate: number
+          restaurant_id: string
+          supplier_id: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          ended_at?: string | null
+          id?: string
+          ingredient_id: string
+          notes?: string | null
+          rate: number
+          restaurant_id: string
+          supplier_id: string
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          ended_at?: string | null
+          id?: string
+          ingredient_id?: string
+          notes?: string | null
+          rate?: number
+          restaurant_id?: string
+          supplier_id?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           address: string | null
@@ -7381,6 +7423,18 @@ export type Database = {
       }
     }
     Functions: {
+      save_supplier_rate: {
+        Args: { p_supplier: string; p_ingredient: string; p_rate: number; p_from: string; p_to?: string; p_notes?: string }
+        Returns: string
+      }
+      stop_supplier_rate: {
+        Args: { p_id: string }
+        Returns: boolean
+      }
+      report_rate_variance: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       set_input_tax_claim: {
         Args: { p_claim: boolean }
         Returns: boolean

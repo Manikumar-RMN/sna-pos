@@ -36,6 +36,7 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Purchase and inventory", href: "/reports/stock-ledger", title: "Stock ledger", blurb: "Every in and out of one ingredient, with a running balance and value.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/receipts", title: "Receipts list", blurb: "Every item received from suppliers, with bill, rate and value.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/supplier-purchases", title: "Supplier-wise purchases", blurb: "What you bought from each supplier, what went back, and what is still owed.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/rate-variance", title: "Rate variance", blurb: "Price paid against the rate agreed with the supplier.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/issues", title: "Issues and department use", blurb: "Stock issued to kitchen, bar and other departments, with totals.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/requests", title: "Request and requisition status", blurb: "Stock requests still to be issued and purchase requisitions and their orders.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/count-variance", title: "Stock count variance", blurb: "Where a stock count found more or less than the system, with value.", need: "stock" },

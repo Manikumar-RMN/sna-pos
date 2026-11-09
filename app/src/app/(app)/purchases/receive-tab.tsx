@@ -52,6 +52,7 @@ export function ReceiveTab({
   canTill,
   claimTax,
   canSetClaim,
+  agreedRates,
 }: {
   /** Active suppliers. */
   suppliers: SupplierPick[];
@@ -75,6 +76,8 @@ export function ReceiveTab({
   claimTax: boolean;
   /** The person may change that setting. */
   canSetClaim: boolean;
+  /** Agreed prices in force today: supplier id → ingredient id → rate. */
+  agreedRates: Record<string, Record<string, number>>;
 }) {
   const { pending, msg, setMsg, run } = useRun();
   const m = (n: number) => money(n, currency);
@@ -236,7 +239,7 @@ export function ReceiveTab({
           </div>
 
           <div className="mt-4">
-            <LineEditor lines={lines} onChange={setLines} ingredients={ingredients} names={names} currency={currency} qtyLabel="Quantity received" totalLabel="Goods" showTax disabled={pending} />
+            <LineEditor lines={lines} onChange={setLines} ingredients={ingredients} names={names} currency={currency} qtyLabel="Quantity received" totalLabel="Goods" showTax agreed={agreedRates[supplierId]} disabled={pending} />
             {lineTax > 0 && (
               <p className="mt-2 text-right text-sm" style={{ color: "var(--color-ink-3)" }}>
                 Tax on the lines: <b className="tabular-nums">{m(lineTax / 100)}</b>

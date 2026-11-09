@@ -93,6 +93,9 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
         <Link href="/purchases/requisitions" className={pill} style={pillStyle(false)}>
           Requisitions
         </Link>
+        <Link href="/purchases/rates" className={pill} style={pillStyle(false)}>
+          Agreed rates
+        </Link>
       </nav>
 
       {supplierError ? (
@@ -234,6 +237,13 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
     );
   const { data: ps } = await supabase.from("purchase_settings").select("claim_input_tax").maybeSingle();
   const claimTax = !!ps?.claim_input_tax;
+  const { data: rateRows } = await supabase.from("supplier_rates").select("supplier_id, ingredient_id, rate, valid_from, valid_to").is("ended_at", null).lte("valid_from", today).order("valid_from", { ascending: true }).limit(2000);
+  // Later start dates come last, so they win when two agreements are in force.
+  const agreedRates: Record<string, Record<string, number>> = {};
+  for (const r of rateRows ?? []) {
+    if (r.valid_to && r.valid_to < today) continue;
+    (agreedRates[r.supplier_id] ??= {})[r.ingredient_id] = Number(r.rate);
+  }
   const [lines, payments] = await Promise.all([
     orderLines(
       supabase,
@@ -281,6 +291,7 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
       initialPo={po}
       canTill={can(user, "cash.movement")}
       claimTax={claimTax}
+      agreedRates={agreedRates}
       canSetClaim={can(user, "settings.manage")}
     />
   );
