@@ -248,6 +248,7 @@ export function PosTerminal({
   taxName,
   menu,
   topSellerIds = [],
+  discountPresets = [],
   paymentMethods,
   tables,
   addTo,
@@ -284,6 +285,8 @@ export function PosTerminal({
   menu: MenuItem[];
   /** Product ids of the outlet's best sellers (last 30 days), best first: shown as one-tap buttons above the menu. */
   topSellerIds?: string[];
+  /** Saved discounts valid today (Settings → Discounts): one tap fills the discount and its reason. */
+  discountPresets?: { id: string; name: string; kind: "percent" | "amount"; value: number; orderTypes: string[] }[];
   paymentMethods: PaymentMethod[];
   tables: Table[];
   /** When set, the screen adds items to this open bill instead of making a new one. */
@@ -364,6 +367,7 @@ export function PosTerminal({
   const [reference, setReference] = useState("");
   const [discount, setDiscount] = useState("");
   const [discountReason, setDiscountReason] = useState("");
+  const presetsHere = discountPresets.filter((x) => x.orderTypes.length === 0 || x.orderTypes.includes(orderType));
   const [scChoice, setScChoice] = useState<boolean | null>(null);
   const [senior, setSenior] = useState<Senior | null>(null);
   const [seniorOpen, setSeniorOpen] = useState(false);
@@ -1955,6 +1959,24 @@ export function PosTerminal({
                         disabled={nothingDiscountable}
                         onChange={(e) => setDiscount(e.target.value)}
                       />
+                    </div>
+                  )}
+                  {(canDiscount || canPay) && !senior && !nothingDiscountable && presetsHere.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Saved discounts">
+                      {presetsHere.map((x) => (
+                        <button
+                          key={x.id}
+                          type="button"
+                          className="tap rounded-full border px-3 py-1.5 text-xs font-medium"
+                          style={{ borderColor: "var(--color-line)", background: discountReason === x.name ? "var(--color-brand-soft, #e6f2ec)" : "transparent" }}
+                          onClick={() => {
+                            setDiscount(x.kind === "percent" ? `${x.value}%` : String(x.value));
+                            setDiscountReason(x.name);
+                          }}
+                        >
+                          {x.name} {x.kind === "percent" ? `${x.value}%` : m(x.value)}
+                        </button>
+                      ))}
                     </div>
                   )}
                   {(canDiscount || canPay) && !senior && nothingDiscountable && (

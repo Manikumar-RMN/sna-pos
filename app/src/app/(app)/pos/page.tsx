@@ -184,7 +184,16 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
   const orderTypes = (settings?.order_types ?? []).filter((t): t is "dine_in" | "takeaway" | "delivery" => t === "dine_in" || t === "takeaway" || t === "delivery");
   // Top sellers strip: this outlet's best sellers of the last 30 days. A failure only hides the strip.
   const { data: topRows } = await supabase.rpc("top_sellers", { p_days: 30, p_limit: 8 });
+  // Saved discounts (Settings → Discounts) valid today at this outlet; the screen shows those for the kind of bill chosen.
+  const { data: presetRows } = await supabase.rpc("list_discount_presets", {});
   const terminalProps = {
+    discountPresets: (presetRows ?? []).map((x: { id: string; name: string; kind: string; value: number; order_types: string[] | null }) => ({
+      id: x.id,
+      name: x.name,
+      kind: x.kind === "amount" ? ("amount" as const) : ("percent" as const),
+      value: Number(x.value),
+      orderTypes: x.order_types ?? [],
+    })),
     topSellerIds: (topRows ?? []).map((x: { product_id: string }) => x.product_id),
     orderTypes,
     startType: settings?.default_order_type,
