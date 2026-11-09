@@ -33,6 +33,15 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Purchase and inventory", href: "/reports/stock-movement", title: "Stock movement", blurb: "Opening, purchases, use, wastage and closing for each ingredient.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/food-cost", title: "Food cost %", blurb: "Ingredient cost against sales, by day and by dish.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/wastage", title: "Wastage", blurb: "Stock thrown away, by reason, ingredient, day and person.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/stock-ledger", title: "Stock ledger", blurb: "Every in and out of one ingredient, with a running balance and value.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/receipts", title: "Receipts list", blurb: "Every item received from suppliers, with bill, rate and value.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/supplier-purchases", title: "Supplier-wise purchases", blurb: "What you bought from each supplier, what went back, and what is still owed.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/issues", title: "Issues and department use", blurb: "Stock issued to kitchen, bar and other departments, with totals.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/requests", title: "Request and requisition status", blurb: "Stock requests still to be issued and purchase requisitions and their orders.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/count-variance", title: "Stock count variance", blurb: "Where a stock count found more or less than the system, with value.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/non-moving", title: "Non-moving stock", blurb: "Stock that has not been used for a number of days.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/high-value-stock", title: "High-value stock", blurb: "Stock worth at least an amount you choose.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/abc-consumption", title: "ABC consumption", blurb: "Ingredients ranked by value used, in classes A, B and C.", need: "stock" },
   { group: "Loyalty", href: "/reports/loyalty-ledger", title: "Loyalty ledger", blurb: "Points earned, used and reversed, and the points still owed.", need: "loyalty" },
 ];
 

@@ -7525,6 +7525,13 @@ export type Database = {
       save_opening_stock: { Args: { p_lines: Json }; Returns: Json }
       close_stock_month: { Args: { p_month: string }; Returns: Json }
       reopen_stock_month: { Args: { p_id: string; p_reason: string }; Returns: Json }
+      report_receipts: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_issues: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_supplier_purchases: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_requests: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_count_variance: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_stock_watch: { Args: { p_kind: string; p_days?: number; p_cutoff?: number }; Returns: Json }
+      report_stock_ledger: { Args: { p_from: string; p_ingredient: string; p_to: string }; Returns: Json }
       return_goods: {
         Args: { p_client_ref?: string; p_lines: Json; p_reason: string; p_receipt_id: string }
         Returns: Json
