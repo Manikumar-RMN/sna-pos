@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { money } from "@/lib/format";
+import { addDays, money } from "@/lib/format";
 import { cancelGoodsReceipt, receiveGoods } from "./actions";
 import { ReturnForm } from "./return-form";
 import {
@@ -53,6 +53,9 @@ export function ReceiveTab({
   claimTax,
   canSetClaim,
   agreedRates,
+  canBackdate,
+  backdateDays,
+  directReceiving,
 }: {
   /** Active suppliers. */
   suppliers: SupplierPick[];
@@ -78,6 +81,11 @@ export function ReceiveTab({
   canSetClaim: boolean;
   /** Agreed prices in force today: supplier id → ingredient id → rate. */
   agreedRates: Record<string, Record<string, number>>;
+  /** May enter an earlier receiving date. */
+  canBackdate: boolean;
+  backdateDays: number;
+  /** Goods may be received without a purchase order. */
+  directReceiving: boolean;
 }) {
   const { pending, msg, setMsg, run } = useRun();
   const m = (n: number) => money(n, currency);
@@ -92,6 +100,7 @@ export function ReceiveTab({
     const rest = startOrder ? remainingLines(startOrder) : [];
     return rest.length > 0 ? rest : [{ ...BLANK_LINE }];
   });
+  const [receivedOn, setReceivedOn] = useState("");
   const [billNo, setBillNo] = useState("");
   const [billDate, setBillDate] = useState("");
   const [tax, setTax] = useState("");
@@ -165,6 +174,7 @@ export function ReceiveTab({
       method,
       reference,
       fromTill: method === "cash" && fromTill,
+      receivedOn: canBackdate ? receivedOn : "",
     };
     const mine = refFor(sent.current, payload);
     sent.current = mine;
@@ -249,6 +259,11 @@ export function ReceiveTab({
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {canBackdate && (
+              <Field label="Received on" hint="(blank = today)">
+                <input className="field h-10 text-sm" type="date" max={today} min={addDays(today, -backdateDays)} value={receivedOn} onChange={(e) => setReceivedOn(e.target.value)} disabled={pending} />
+              </Field>
+            )}
             <Field label="Supplier's bill number" hint="(optional)">
               <input className="field h-10 text-sm" value={billNo} onChange={(e) => setBillNo(e.target.value)} maxLength={40} disabled={pending} />
             </Field>

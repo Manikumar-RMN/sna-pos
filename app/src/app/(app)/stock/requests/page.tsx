@@ -53,6 +53,7 @@ export default async function MaterialRequestsPage() {
       </p>
       <RequestsBoard
         canManage={canManage}
+        canBackdate={can(user, "stock.backdate")}
         currency={user.currency_code}
         ingredients={ingredients}
         requests={rows}

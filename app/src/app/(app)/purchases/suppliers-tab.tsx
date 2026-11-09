@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { money } from "@/lib/format";
-import { saveSupplier } from "./actions";
+import { saveSupplier, setSupplierBlocked } from "./actions";
 import type { SupplierRow } from "./helpers";
 import { Badge, Field, Msg, lineStyle, rowBtn, useRun } from "./ui";
 
@@ -114,6 +114,7 @@ export function SuppliersTab({
             <input type="checkbox" className="h-5 w-5" checked={edit.isActive} onChange={(e) => upd({ isActive: e.target.checked })} disabled={pending} />
             Active (untick to hide this supplier from new orders and deliveries)
           </label>
+          {edit.id && <BlockBox id={edit.id} blocked={suppliers.find((x) => x.id === edit.id)?.blocked ?? false} reason={suppliers.find((x) => x.id === edit.id)?.blocked_reason ?? ""} />}
           <div className="mt-3">
             <Msg msg={msg} />
           </div>
@@ -174,6 +175,7 @@ export function SuppliersTab({
                   <td className="px-3 py-2">
                     <span className="font-semibold">{s.name}</span>{" "}
                     {!s.is_active && <Badge label="Not active" bg="var(--color-ground)" fg="var(--color-ink-2)" />}
+                    {s.blocked && <Badge label="Blocked" bg="var(--color-bad-soft)" fg="var(--color-bad)" />}
                     {s.contact_person && (
                       <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
                         {s.contact_person}
@@ -196,6 +198,36 @@ export function SuppliersTab({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/** Block a supplier (bad quality, disputes): no new orders or deliveries until it is unblocked. */
+function BlockBox({ id, blocked, reason }: { id: string; blocked: boolean; reason: string }) {
+  const { pending, msg, run } = useRun();
+  const [why, setWhy] = useState("");
+  return (
+    <div className="mt-3 rounded-xl border p-3 text-sm" style={lineStyle}>
+      {blocked ? (
+        <>
+          <p>
+            <b>Blocked:</b> {reason || "no reason given"}. No new orders or deliveries can be made for this supplier.
+          </p>
+          <button type="button" className={`${rowBtn} mt-2`} style={lineStyle} disabled={pending} onClick={() => run(() => setSupplierBlocked(id, false, ""))}>
+            Unblock supplier
+          </button>
+        </>
+      ) : (
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Block this supplier" hint="(reason)" className="min-w-0 flex-1">
+            <input className="field h-10 text-sm" value={why} maxLength={200} onChange={(e) => setWhy(e.target.value)} disabled={pending} />
+          </Field>
+          <button type="button" className={rowBtn} style={{ ...lineStyle, color: "var(--color-bad)" }} disabled={pending} onClick={() => run(() => setSupplierBlocked(id, true, why))}>
+            Block
+          </button>
+        </div>
+      )}
+      <Msg msg={msg} />
     </div>
   );
 }

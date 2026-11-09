@@ -74,7 +74,7 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
   // Every tab needs the suppliers, if only to say "add one first".
   const { data: supplierRows, error: supplierError } = await supabase
     .from("suppliers")
-    .select("id, name, contact_person, phone, email, tax_no, address, payment_days, notes, is_active")
+    .select("id, name, contact_person, phone, email, tax_no, address, payment_days, notes, is_active, blocked, blocked_reason")
     .order("name");
   const suppliers: SupplierRow[] = (supplierRows ?? []).map((s) => ({ ...s, payment_days: Number(s.payment_days) }));
 
@@ -95,6 +95,9 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
         </Link>
         <Link href="/purchases/rates" className={pill} style={pillStyle(false)}>
           Agreed rates
+        </Link>
+        <Link href="/purchases/rules" className={pill} style={pillStyle(false)}>
+          Purchase rules
         </Link>
       </nav>
 
@@ -235,7 +238,7 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
       "goods_receipt_id",
       (grs ?? []).map((g) => g.id),
     );
-  const { data: ps } = await supabase.from("purchase_settings").select("claim_input_tax").maybeSingle();
+  const { data: ps } = await supabase.from("purchase_settings").select("claim_input_tax, max_backdate_days, direct_receiving").maybeSingle();
   const claimTax = !!ps?.claim_input_tax;
   const agreedRates = await loadAgreed(supabase, today);
   const [lines, payments] = await Promise.all([
@@ -272,7 +275,7 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
 
   return (
     <ReceiveTab
-      suppliers={suppliers.filter((s) => s.is_active).map((s) => ({ id: s.id, name: s.name }))}
+      suppliers={suppliers.filter((s) => s.is_active && !s.blocked).map((s) => ({ id: s.id, name: s.name }))}
       supplierNames={Object.fromEntries(suppliers.map((s) => [s.id, s.name]))}
       ingredients={ingredients}
       names={names}
@@ -286,6 +289,9 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
       canTill={can(user, "cash.movement")}
       claimTax={claimTax}
       agreedRates={agreedRates}
+      canBackdate={can(user, "stock.backdate")}
+      backdateDays={ps?.max_backdate_days ?? 31}
+      directReceiving={ps?.direct_receiving ?? true}
       canSetClaim={can(user, "settings.manage")}
     />
   );

@@ -30,9 +30,10 @@ export async function sendRequest(input: { department: string; lines: Line[]; no
 }
 
 /** Give out stock: against a request (pass its id) or on its own (pass the department). */
-export async function issueStock(input: { requestId: string | null; department: string; lines: Line[]; note: string; clientRef: string }): Promise<ReqResult> {
+export async function issueStock(input: { requestId: string | null; department: string; lines: Line[]; note: string; clientRef: string; issueDate?: string }): Promise<ReqResult> {
   const lines = clean(input.lines);
   if (lines.length === 0) return { ok: false, error: "Enter how much is being issued." };
+  if (input.issueDate && !/^\d{4}-\d{2}-\d{2}$/.test(input.issueDate)) return { ok: false, error: "Choose a valid issue date." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("issue_material", {
     p_request: (input.requestId && UUID.test(input.requestId) ? input.requestId : undefined) as unknown as string,
@@ -40,6 +41,7 @@ export async function issueStock(input: { requestId: string | null; department: 
     p_lines: lines as unknown as Json,
     p_note: input.note || (undefined as unknown as string),
     p_client_ref: ref(input.clientRef),
+    p_issue_date: input.issueDate || undefined,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/stock/requests");

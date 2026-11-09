@@ -2106,8 +2106,13 @@ export type Database = {
       }
       purchase_settings: {
         Row: {
+          allow_excess_qty: boolean
           approval_limit: number | null
           claim_input_tax: boolean
+          direct_receiving: boolean
+          max_backdate_days: number
+          po_needs_requisition: boolean
+          rate_check: string
           restaurant_id: string
           updated_at: string
           updated_by: string | null
@@ -6801,6 +6806,8 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          blocked: boolean
+          blocked_reason: string | null
           address: string | null
           contact_person: string | null
           created_at: string
@@ -6815,6 +6822,8 @@ export type Database = {
           tax_no: string | null
         }
         Insert: {
+          blocked?: boolean
+          blocked_reason?: string | null
           address?: string | null
           contact_person?: string | null
           created_at?: string
@@ -6829,6 +6838,8 @@ export type Database = {
           tax_no?: string | null
         }
         Update: {
+          blocked?: boolean
+          blocked_reason?: string | null
           address?: string | null
           contact_person?: string | null
           created_at?: string
@@ -7594,7 +7605,15 @@ export type Database = {
         Returns: Json
       }
       issue_material: {
-        Args: { p_client_ref?: string; p_department?: string; p_lines: Json; p_note?: string; p_request?: string }
+        Args: { p_client_ref?: string; p_department?: string; p_issue_date?: string; p_lines: Json; p_note?: string; p_request?: string }
+        Returns: Json
+      }
+      set_purchase_rules: {
+        Args: { p_backdate_days: number; p_direct: boolean; p_excess: boolean; p_needs_req: boolean; p_rate_check: string }
+        Returns: Json
+      }
+      set_supplier_blocked: {
+        Args: { p_blocked: boolean; p_id: string; p_reason?: string }
         Returns: Json
       }
       save_requisition: {
@@ -8028,6 +8047,7 @@ export type Database = {
           p_other?: number
           p_payment?: Json
           p_purchase_order_id?: string
+          p_received_on?: string
           p_supplier_id: string
           p_tax?: number
         }

@@ -144,6 +144,8 @@ export async function receiveGoods(input: {
   reference: string;
   fromTill: boolean;
   clientRef: string;
+  /** Earlier receiving date (needs the back-dating right). */
+  receivedOn?: string;
 }): Promise<ReceiveResult> {
   if (!isUuid(input.supplierId)) return { ok: false, error: "Choose a supplier." };
   if (input.purchaseOrderId && !isUuid(input.purchaseOrderId)) return { ok: false, error: "Purchase order not found." };
@@ -173,6 +175,7 @@ export async function receiveGoods(input: {
     }
   }
 
+  if (input.receivedOn && !isYmd(input.receivedOn)) return { ok: false, error: "Choose a valid receiving date." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("receive_goods", {
     p_supplier_id: input.supplierId,
@@ -184,6 +187,7 @@ export async function receiveGoods(input: {
     p_other: other / 100,
     p_payment: payment,
     p_client_ref: input.clientRef,
+    p_received_on: input.receivedOn || undefined,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases");
@@ -270,4 +274,14 @@ export async function setInputTaxClaim(claim: boolean): Promise<PurchaseResult> 
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases");
   return { ok: true, message: claim ? "Purchase tax will be claimed back, not added to stock cost." : "Purchase tax will be added to stock cost." };
+}
+
+/** Block or unblock a supplier (a blocked supplier cannot get orders or deliveries). */
+export async function setSupplierBlocked(id: string, blocked: boolean, reason: string): Promise<PurchaseResult> {
+  if (!isUuid(id)) return { ok: false, error: "Supplier not found." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_supplier_blocked", { p_id: id, p_blocked: blocked, ...(reason.trim() ? { p_reason: reason.trim() } : {}) });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/purchases");
+  return { ok: true, message: blocked ? "Supplier blocked." : "Supplier unblocked." };
 }

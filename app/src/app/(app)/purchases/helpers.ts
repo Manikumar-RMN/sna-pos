@@ -13,6 +13,8 @@ export type SupplierRow = {
   payment_days: number;
   notes: string | null;
   is_active: boolean;
+  blocked: boolean;
+  blocked_reason: string | null;
 };
 export type SupplierPick = { id: string; name: string };
 

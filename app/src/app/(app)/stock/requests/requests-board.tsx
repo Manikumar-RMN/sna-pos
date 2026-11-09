@@ -23,7 +23,7 @@ const num = (s: string) => {
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
-export function RequestsBoard({ canManage, currency, ingredients, requests, issues }: { canManage: boolean; currency: string; ingredients: Ing[]; requests: ReqRow[]; issues: IssueRow[] }) {
+export function RequestsBoard({ canManage, canBackdate, currency, ingredients, requests, issues }: { canManage: boolean; canBackdate?: boolean; currency: string; ingredients: Ing[]; requests: ReqRow[]; issues: IssueRow[] }) {
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [mode, setMode] = useState<"none" | "ask" | "direct">("none");
   const m = (n: number) => money(n, currency);
@@ -48,7 +48,7 @@ export function RequestsBoard({ canManage, currency, ingredients, requests, issu
       </div>
       <Msg msg={note} />
       {mode === "ask" && <LinesForm title="Ask for stock" action="Send request" ingredients={ingredients} askDepartment onDone={done} onClose={() => setMode("none")} />}
-      {mode === "direct" && canManage && <LinesForm title="Issue stock" action="Issue stock" ingredients={ingredients} askDepartment direct onDone={done} onClose={() => setMode("none")} />}
+      {mode === "direct" && canManage && <LinesForm title="Issue stock" action="Issue stock" ingredients={ingredients} askDepartment direct canBackdate={canBackdate} onDone={done} onClose={() => setMode("none")} />}
 
       <section>
         <h2 className="mb-2 text-sm font-bold">Requests</h2>
@@ -227,11 +227,12 @@ function RequestItem({ r, first, canManage, onDone }: { r: ReqRow; first: boolea
 }
 
 /** The shared "pick ingredients and quantities" form: a request, or an issue without one. */
-function LinesForm({ title, action, ingredients, askDepartment, direct, onDone, onClose }: { title: string; action: string; ingredients: Ing[]; askDepartment: boolean; direct?: boolean; onDone: (t: string) => void; onClose: () => void }) {
+function LinesForm({ title, action, ingredients, askDepartment, direct, canBackdate, onDone, onClose }: { title: string; action: string; ingredients: Ing[]; askDepartment: boolean; direct?: boolean; canBackdate?: boolean; onDone: (t: string) => void; onClose: () => void }) {
   const run = useRun();
   const [dept, setDept] = useState("Kitchen");
   const [rows, setRows] = useState<{ id: string; qty: string }[]>([{ id: "", qty: "" }, { id: "", qty: "" }, { id: "", qty: "" }]);
   const [note, setNote] = useState("");
+  const [issueDate, setIssueDate] = useState("");
   const ref = useRef<string>(crypto.randomUUID());
   const set = (i: number, p: Partial<{ id: string; qty: string }>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...p } : r)));
 
@@ -242,7 +243,7 @@ function LinesForm({ title, action, ingredients, askDepartment, direct, onDone, 
     if (new Set(lines.map((l) => l.ingredient_id)).size !== lines.length) return run.setMsg({ ok: false, text: "An ingredient is on the list twice. Put it on one line." });
     if (dept.trim().length < 2) return run.setMsg({ ok: false, text: "Say who it is for." });
     run.run(
-      () => (direct ? issueStock({ requestId: null, department: dept, lines, note, clientRef: ref.current }) : sendRequest({ department: dept, lines, note, clientRef: ref.current })),
+      () => (direct ? issueStock({ requestId: null, department: dept, lines, note, clientRef: ref.current, issueDate: canBackdate ? issueDate : "" }) : sendRequest({ department: dept, lines, note, clientRef: ref.current })),
       (x) => {
         ref.current = crypto.randomUUID();
         onDone(x.message);
@@ -254,6 +255,11 @@ function LinesForm({ title, action, ingredients, askDepartment, direct, onDone, 
   return (
     <section className="card p-4">
       <h2 className="text-sm font-bold">{title}</h2>
+      {direct && canBackdate && (
+        <Field label="Issue date" hint="(leave empty for today)" className="mt-2">
+          <input type="date" className="field h-10 text-sm" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} disabled={run.pending} />
+        </Field>
+      )}
       {askDepartment && (
         <Field label="For" className="mt-2">
           <input className="field h-10 text-sm" list="mr-departments" value={dept} onChange={(e) => setDept(e.target.value)} maxLength={40} disabled={run.pending} />
