@@ -37,3 +37,21 @@ export async function reopenMonth(id: string, reason: string): Promise<ClResult>
   revalidatePath("/stock/closing");
   return { ok: true, message: "Month re-opened." };
 }
+
+export async function closeDay(day: string): Promise<ClResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return { ok: false, error: "Choose a day." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("close_stock_day", { p_day: day });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/stock/closing");
+  return { ok: true, message: "Day closed. Nothing can be posted on it now." };
+}
+
+export async function reopenDay(id: string, reason: string): Promise<ClResult> {
+  if (!UUID.test(id)) return { ok: false, error: "Day not found." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reopen_stock_day", { p_id: id, p_reason: reason });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/stock/closing");
+  return { ok: true, message: "Day re-opened." };
+}

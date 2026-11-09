@@ -6416,6 +6416,42 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_day_closures: {
+        Row: {
+          branch_id: string
+          closed_at: string
+          closed_by: string
+          day: string
+          id: string
+          restaurant_id: string
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+        }
+        Insert: {
+          branch_id: string
+          closed_at?: string
+          closed_by: string
+          day: string
+          id?: string
+          restaurant_id: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Update: {
+          branch_id?: string
+          closed_at?: string
+          closed_by?: string
+          day?: string
+          id?: string
+          restaurant_id?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Relationships: []
+      }
       stock_month_closures: {
         Row: {
           branch_id: string
@@ -7606,6 +7642,14 @@ export type Database = {
       }
       issue_material: {
         Args: { p_client_ref?: string; p_department?: string; p_issue_date?: string; p_lines: Json; p_note?: string; p_request?: string }
+        Returns: Json
+      }
+      close_stock_day: {
+        Args: { p_day: string }
+        Returns: Json
+      }
+      reopen_stock_day: {
+        Args: { p_id: string; p_reason: string }
         Returns: Json
       }
       set_purchase_rules: {
