@@ -1879,6 +1879,153 @@ export type Database = {
           },
         ]
       }
+      material_requests: {
+        Row: {
+          branch_id: string
+          client_ref: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          department: string
+          id: string
+          note: string | null
+          number: string
+          reject_reason: string | null
+          requested_by: string
+          restaurant_id: string
+          status: string
+        }
+        Insert: {
+          branch_id: string
+          client_ref?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          department: string
+          id?: string
+          note?: string | null
+          number: string
+          reject_reason?: string | null
+          requested_by: string
+          restaurant_id: string
+          status?: string
+        }
+        Update: {
+          branch_id?: string
+          client_ref?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          department?: string
+          id?: string
+          note?: string | null
+          number?: string
+          reject_reason?: string | null
+          requested_by?: string
+          restaurant_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      material_request_lines: {
+        Row: {
+          id: string
+          ingredient_id: string
+          issued_qty: number
+          qty: number
+          request_id: string
+          restaurant_id: string
+        }
+        Insert: {
+          id?: string
+          ingredient_id: string
+          issued_qty?: number
+          qty: number
+          request_id: string
+          restaurant_id: string
+        }
+        Update: {
+          id?: string
+          ingredient_id?: string
+          issued_qty?: number
+          qty?: number
+          request_id?: string
+          restaurant_id?: string
+        }
+        Relationships: []
+      }
+      material_issues: {
+        Row: {
+          branch_id: string
+          client_ref: string | null
+          created_at: string
+          department: string
+          id: string
+          issued_by: string
+          issued_on: string
+          note: string | null
+          number: string
+          request_id: string | null
+          restaurant_id: string
+          value: number
+        }
+        Insert: {
+          branch_id: string
+          client_ref?: string | null
+          created_at?: string
+          department: string
+          id?: string
+          issued_by: string
+          issued_on: string
+          note?: string | null
+          number: string
+          request_id?: string | null
+          restaurant_id: string
+          value?: number
+        }
+        Update: {
+          branch_id?: string
+          client_ref?: string | null
+          created_at?: string
+          department?: string
+          id?: string
+          issued_by?: string
+          issued_on?: string
+          note?: string | null
+          number?: string
+          request_id?: string | null
+          restaurant_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      material_issue_lines: {
+        Row: {
+          id: string
+          ingredient_id: string
+          issue_id: string
+          qty: number
+          restaurant_id: string
+          unit_cost: number
+        }
+        Insert: {
+          id?: string
+          ingredient_id: string
+          issue_id: string
+          qty: number
+          restaurant_id: string
+          unit_cost: number
+        }
+        Update: {
+          id?: string
+          ingredient_id?: string
+          issue_id?: string
+          qty?: number
+          restaurant_id?: string
+          unit_cost?: number
+        }
+        Relationships: []
+      }
       goods_receipt_lines: {
         Row: {
           returned_qty: number
@@ -7180,6 +7327,18 @@ export type Database = {
       }
       bulk_price_undo: {
         Args: { p_batch: string; p_reason?: string }
+        Returns: Json
+      }
+      save_material_request: {
+        Args: { p_client_ref?: string; p_department: string; p_lines: Json; p_note?: string }
+        Returns: Json
+      }
+      close_material_request: {
+        Args: { p_action: string; p_id: string; p_reason?: string }
+        Returns: Json
+      }
+      issue_material: {
+        Args: { p_client_ref?: string; p_department?: string; p_lines: Json; p_note?: string; p_request?: string }
         Returns: Json
       }
       return_goods: {

@@ -150,6 +150,9 @@ export function StockManager({
             <label className="flex items-center gap-2 text-sm font-semibold">
               <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} /> Low only
             </label>
+            <Link href="/stock/requests" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }}>
+              Requests
+            </Link>
             {canAdjust && (
               <Link href="/stock/count" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }}>
                 Count stock
