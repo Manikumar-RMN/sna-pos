@@ -205,7 +205,7 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
     supabase.from("purchase_orders").select(ORDER_COLS).in("status", open).order("created_at", { ascending: false }).limit(100),
     supabase
       .from("goods_receipts")
-      .select("id, number, supplier_id, supplier_bill_no, received_on, total, paid_total, status, cancel_reason")
+      .select("id, number, supplier_id, supplier_bill_no, received_on, total, paid_total, status, cancel_reason, returned_total")
       .order("created_at", { ascending: false })
       .limit(20),
   ]);
@@ -222,6 +222,13 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
   const names: IngredientNames = {};
   for (const i of ings ?? []) names[i.id] = { name: i.name, unit: i.unit };
   const ingredients: Ingredient[] = (ings ?? []).filter((i) => i.is_active).map((i) => ({ id: i.id, name: i.name, unit: i.unit, cost: Number(i.cost_per_unit), ...(i.purchase_unit ? { buyUnit: i.purchase_unit, buyFactor: Number(i.purchase_factor) } : {}) }));
+  const { data: grLines } = await supabase
+    .from("goods_receipt_lines")
+    .select("goods_receipt_id, ingredient_id, qty, returned_qty, unit_cost")
+    .in(
+      "goods_receipt_id",
+      (grs ?? []).map((g) => g.id),
+    );
   const [lines, payments] = await Promise.all([
     orderLines(
       supabase,
@@ -247,6 +254,10 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
       owed: Math.max(0, Math.round((total - paid) * 100) / 100),
       cancelled: g.status === "cancelled",
       cancel_reason: g.cancel_reason,
+      returned: Number(g.returned_total),
+      returnable: (grLines ?? [])
+        .filter((l) => l.goods_receipt_id === g.id && Number(l.qty) - Number(l.returned_qty) > 0)
+        .map((l) => ({ ingredient_id: l.ingredient_id, name: names[l.ingredient_id]?.name ?? "Ingredient", unit: names[l.ingredient_id]?.unit ?? "", remaining: Math.round((Number(l.qty) - Number(l.returned_qty)) * 1000) / 1000, unit_cost: Number(l.unit_cost) })),
     };
   });
 

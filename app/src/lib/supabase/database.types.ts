@@ -1881,6 +1881,7 @@ export type Database = {
       }
       goods_receipt_lines: {
         Row: {
+          returned_qty: number
           goods_receipt_id: string
           id: string
           ingredient_id: string
@@ -1892,6 +1893,7 @@ export type Database = {
           unit_cost: number
         }
         Insert: {
+          returned_qty?: number
           goods_receipt_id: string
           id?: string
           ingredient_id: string
@@ -1903,6 +1905,7 @@ export type Database = {
           unit_cost: number
         }
         Update: {
+          returned_qty?: number
           goods_receipt_id?: string
           id?: string
           ingredient_id?: string
@@ -1932,6 +1935,7 @@ export type Database = {
       }
       goods_receipts: {
         Row: {
+          returned_total: number
           branch_id: string
           cancel_reason: string | null
           cancelled_at: string | null
@@ -1958,6 +1962,7 @@ export type Database = {
           total: number
         }
         Insert: {
+          returned_total?: number
           branch_id: string
           cancel_reason?: string | null
           cancelled_at?: string | null
@@ -1984,6 +1989,7 @@ export type Database = {
           total?: number
         }
         Update: {
+          returned_total?: number
           branch_id?: string
           cancel_reason?: string | null
           cancelled_at?: string | null
@@ -7174,6 +7180,10 @@ export type Database = {
       }
       bulk_price_undo: {
         Args: { p_batch: string; p_reason?: string }
+        Returns: Json
+      }
+      return_goods: {
+        Args: { p_client_ref?: string; p_lines: Json; p_reason: string; p_receipt_id: string }
         Returns: Json
       }
       cancel_goods_receipt: {

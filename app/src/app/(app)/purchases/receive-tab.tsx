@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { money } from "@/lib/format";
 import { cancelGoodsReceipt, receiveGoods } from "./actions";
+import { ReturnForm } from "./return-form";
 import {
   BLANK_LINE,
   amountCents,
@@ -97,6 +98,7 @@ export function ReceiveTab({
   // Below the form: pay or cancel one of the recent receipts.
   const [payId, setPayId] = useState<string | null>(null);
   const [cancelId, setCancelId] = useState<string | null>(null);
+  const [returnId, setReturnId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [listMsg, setListMsg] = useState<Note>(null);
   const list = useRun();
@@ -333,6 +335,7 @@ export function ReceiveTab({
                         <div className="text-sm" style={{ color: "var(--color-ink-2)" }}>
                           {supplier} · {dayLabel(r.received_on)}
                           {r.bill_no ? ` · bill ${r.bill_no}` : ""}
+                          {r.returned > 0 ? ` · ${m(r.returned)} returned` : ""}
                         </div>
                         {r.cancelled && r.cancel_reason && (
                           <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
@@ -345,7 +348,7 @@ export function ReceiveTab({
                       </div>
                     </div>
 
-                    {!r.cancelled && (r.owed > 0 || r.paid === 0) && payId !== r.id && cancelId !== r.id && (
+                    {!r.cancelled && (r.owed > 0 || r.paid === 0 || r.returnable.length > 0) && payId !== r.id && cancelId !== r.id && returnId !== r.id && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {r.owed > 0 && (
                           <button
@@ -356,11 +359,29 @@ export function ReceiveTab({
                               setListMsg(null);
                               list.setMsg(null);
                               setCancelId(null);
+                              setReturnId(null);
                               setPayId(r.id);
                             }}
                             disabled={busy}
                           >
                             Pay
+                          </button>
+                        )}
+                        {r.returnable.length > 0 && r.owed > 0 && (
+                          <button
+                            type="button"
+                            className={rowBtn}
+                            style={lineStyle}
+                            onClick={() => {
+                              setListMsg(null);
+                              list.setMsg(null);
+                              setPayId(null);
+                              setCancelId(null);
+                              setReturnId(r.id);
+                            }}
+                            disabled={busy}
+                          >
+                            Return goods
                           </button>
                         )}
                         {r.paid === 0 && (
@@ -372,6 +393,7 @@ export function ReceiveTab({
                               setListMsg(null);
                               list.setMsg(null);
                               setPayId(null);
+                              setReturnId(null);
                               setReason("");
                               setCancelId(r.id);
                             }}
@@ -381,6 +403,19 @@ export function ReceiveTab({
                           </button>
                         )}
                       </div>
+                    )}
+
+                    {returnId === r.id && !r.cancelled && (
+                      <ReturnForm
+                        receipt={r}
+                        supplier={supplier}
+                        currency={currency}
+                        onDone={(text) => {
+                          setReturnId(null);
+                          setListMsg({ ok: true, text });
+                        }}
+                        onClose={() => setReturnId(null)}
+                      />
                     )}
 
                     {payId === r.id && !r.cancelled && r.owed > 0 && (

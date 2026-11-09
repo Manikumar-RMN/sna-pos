@@ -16,6 +16,31 @@ export type UndoPayResult = { ok: true; amount: number; balance: number; number:
 /** `costNotRestored`: ingredients whose cost was left as it is, because something else changed it after this delivery. */
 export type CancelReceiptResult = { ok: true; message?: string; costNotRestored: string[] } | Fail;
 
+export type ReturnGoodsResult = { ok: true; number: string; total: number; owed: number; message: string } | Fail;
+
+/** Send goods from a receipt back to the supplier: the stock goes out and the amount owed goes down. */
+export async function returnGoods(input: { receiptId: string; lines: { ingredient_id: string; qty: number }[]; reason: string; clientRef: string }): Promise<ReturnGoodsResult> {
+  if (!isUuid(input.receiptId)) return { ok: false, error: "Goods receipt not found." };
+  const why = String(input.reason ?? "").trim();
+  if (why.length < 3) return { ok: false, error: "Write a short reason for the return." };
+  const lines = (input.lines ?? []).filter((l) => isUuid(l.ingredient_id) && Number.isFinite(l.qty) && l.qty > 0);
+  if (lines.length === 0) return { ok: false, error: "Enter how much is going back." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("return_goods", {
+    p_receipt_id: input.receiptId,
+    p_lines: lines as unknown as Json,
+    p_reason: why,
+    p_client_ref: isUuid(input.clientRef) ? input.clientRef : (undefined as unknown as string),
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/purchases");
+  revalidatePath("/stock");
+  const r = (data ?? {}) as { number?: string; total?: number | string; owed?: number | string };
+  const total = Number(r.total ?? 0);
+  const owed = Number(r.owed ?? 0);
+  return { ok: true, number: r.number ?? "", total, owed, message: `${r.number ?? "Return"} saved. The goods are out of stock and ${owed > 0 ? "the amount owed is lower." : "nothing more is owed on this receipt."}` };
+}
+
 export type SupplierInput = {
   name: string;
   contactPerson: string;

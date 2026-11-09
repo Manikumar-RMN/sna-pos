@@ -61,6 +61,10 @@ export type ReceiptRow = {
   owed: number;
   cancelled: boolean;
   cancel_reason: string | null;
+  /** What has gone back to the supplier already (money). */
+  returned: number;
+  /** What can still go back, per ingredient. */
+  returnable: { ingredient_id: string; name: string; unit: string; remaining: number; unit_cost: number }[];
 };
 
 /** What the pay form needs to know about the receipt being paid. */
