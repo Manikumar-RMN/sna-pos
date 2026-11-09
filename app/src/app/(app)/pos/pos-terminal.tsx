@@ -247,6 +247,7 @@ export function PosTerminal({
   pricesIncludeTax,
   taxName,
   menu,
+  topSellerIds = [],
   paymentMethods,
   tables,
   addTo,
@@ -281,6 +282,8 @@ export function PosTerminal({
   pricesIncludeTax: boolean;
   taxName: string;
   menu: MenuItem[];
+  /** Product ids of the outlet's best sellers (last 30 days), best first: shown as one-tap buttons above the menu. */
+  topSellerIds?: string[];
   paymentMethods: PaymentMethod[];
   tables: Table[];
   /** When set, the screen adds items to this open bill instead of making a new one. */
@@ -1425,6 +1428,9 @@ export function PosTerminal({
           <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
             No items match “{search}”.
           </p>
+        )}
+        {!searching && topSellerIds.length > 0 && (
+          <TopSellers ids={topSellerIds} menu={menu} onTap={tapItem} />
         )}
         <div className="space-y-5">
           {categories.map((cat) => (
@@ -2619,5 +2625,31 @@ function Chip({ label, active, busy, onClick }: { label: string; active: boolean
     >
       {label}
     </button>
+  );
+}
+
+/** One-tap buttons for the outlet's best sellers (only dishes on sale now; a sold-out or hidden dish is left out). */
+function TopSellers({ ids, menu, onTap }: { ids: string[]; menu: MenuItem[]; onTap: (item: MenuItem) => void }) {
+  const items = ids.map((id) => menu.find((x) => x.id === id && !x.variantOf)).filter((x): x is MenuItem => !!x);
+  if (items.length === 0) return null;
+  return (
+    <section aria-label="Top sellers" className="mb-4">
+      <h2 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: "var(--color-ink-3)" }}>
+        Top sellers
+      </h2>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onTap(item)}
+            className="tap rounded-full border px-3 py-2 text-sm font-semibold"
+            style={{ borderColor: "var(--color-line)", background: "var(--color-surface, transparent)" }}
+          >
+            {item.short_name || item.name}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

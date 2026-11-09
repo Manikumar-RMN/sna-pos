@@ -222,3 +222,12 @@ describe("parseFloorRows", () => {
     expect(parseFloorRows([null, 3, {}, { table_number: "x" }])).toEqual([]);
   });
 });
+
+describe("open_items (migration 188)", () => {
+  it("is read as a number, and 0 when the database is older", () => {
+    const [a] = parseFloorRows([{ table_id: "x", table_number: "1", open_items: 5 }]);
+    const [b] = parseFloorRows([{ table_id: "y", table_number: "2" }]);
+    expect(a.open_items).toBe(5);
+    expect(b.open_items).toBe(0);
+  });
+});

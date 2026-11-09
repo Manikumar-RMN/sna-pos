@@ -50,6 +50,8 @@ export type FloorRow = {
   billed_bills?: number;
   /** When the oldest of those prints was logged. */
   billed_at?: string | null;
+  /** Items (lines not cancelled) on the open bills (migration 188). Absent: the database is older. */
+  open_items?: number;
   reservation_id: string | null;
   reservation_at: string | null;
   reservation_name: string | null;
@@ -220,6 +222,7 @@ export function parseFloorRows(data: unknown): FloorRow[] {
       kot_ticket_at: str(r.kot_ticket_at),
       billed_bills: num(r.billed_bills),
       billed_at: str(r.billed_at),
+      open_items: num(r.open_items),
       reservation_id: str(r.reservation_id),
       reservation_at: str(r.reservation_at),
       reservation_name: str(r.reservation_name),

@@ -182,7 +182,10 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
 
   const sortedTables = [...(tables ?? [])].sort(byTableNumber);
   const orderTypes = (settings?.order_types ?? []).filter((t): t is "dine_in" | "takeaway" | "delivery" => t === "dine_in" || t === "takeaway" || t === "delivery");
+  // Top sellers strip: this outlet's best sellers of the last 30 days. A failure only hides the strip.
+  const { data: topRows } = await supabase.rpc("top_sellers", { p_days: 30, p_limit: 8 });
   const terminalProps = {
+    topSellerIds: (topRows ?? []).map((x: { product_id: string }) => x.product_id),
     orderTypes,
     startType: settings?.default_order_type,
     currency: user.currency_code,

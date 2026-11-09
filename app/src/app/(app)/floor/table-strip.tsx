@@ -135,6 +135,7 @@ export function TableStrip({
                 ) : (
                   <>
                     {m(total)}
+                    {row?.open_items ? ` · ${row.open_items} item${row.open_items === 1 ? "" : "s"}` : ""}
                     <br />
                     {note}
                     {st && st.kotWaiting > 0 && state !== "kot_delayed" ? ` · ${st.kotWaiting} KOT` : ""}
