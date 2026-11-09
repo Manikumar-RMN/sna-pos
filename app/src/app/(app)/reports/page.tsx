@@ -180,7 +180,7 @@ export default async function ReportsPage({
           {linkGroups.map((g, gi) => (
             <section key={g.group ?? "top"} id={`rc-${gi}`} className="rc-card scroll-mt-4">
               <h3>
-                {reportSection(g.items[0])} · {g.group ?? "Sales summary"}
+                {g.group ?? "Sales summary"}
               </h3>
               {g.items.map((l) => {
                 const here = l.href === "/reports";
