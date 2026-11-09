@@ -73,7 +73,6 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     { href: "/reports", label: "Reports", show: misOn && (can(user, "report.view_sales")) },
     { href: "/stock", label: "Stock", show: (can(user, "stock.manage") || can(user, "stock.view") || can(user, "stock.adjust")) && has(user, "stock") },
     { href: "/purchases", label: "Purchases", show: can(user, "stock.manage") && has(user, "stock") },
-    { href: "/front-office", label: "Front office", show: has(user, "front_office") && (can(user, "fo.view") || can(user, "fo.manage") || can(user, "fo.housekeeping")) },
     { href: "/reservations", label: "Bookings", show: posOn && (can(user, "order.create") && has(user, "reservations")) },
     { href: "/loyalty", label: "Loyalty", show: posOn && (has(user, "loyalty") && (can(user, "payment.take") || can(user, "settings.manage"))) },
     { href: "/timesheets", label: "Timesheets", show: has(user, "timesheets") },
@@ -84,22 +83,11 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const visibleLinks = visibleLinksAll.filter((l) => l.show);
   const links = visibleLinks.map(({ href, label }): NavItem => (href === "/reports" ? { href, label, children: reportItems } : { href, label }));
 
-  // Hotels (front office module on) get the Winsar-style side menu: one block per module.
-  const hospitality = has(user, "front_office") && !isCounter;
+  // Everyone but a shared counter tablet gets the grouped side menu: one block per module they bought.
+  const hospitality = !isCounter;
   const pick = (hrefs: string[]) => visibleLinks.filter((l) => hrefs.includes(l.href)).map(({ href, label }) => ({ href, label }));
-  const foAllowed = has(user, "front_office") && (can(user, "fo.view") || can(user, "fo.manage") || can(user, "fo.housekeeping"));
-  const foItems = foAllowed
-    ? [
-        { href: "/front-office", label: "Room board" },
-        ...(can(user, "fo.view") || can(user, "fo.manage") ? [{ href: "/front-office/chart", label: "Stay chart" }] : []),
-        { href: "/front-office/housekeeping", label: "Housekeeping" },
-        ...(can(user, "fo.view") || can(user, "fo.manage") ? [{ href: "/front-office/guests", label: "Guests" }] : []),
-        ...(can(user, "fo.manage") ? [{ href: "/settings/front-office", label: "Rooms and rates" }] : []),
-      ]
-    : [];
   const sideGroups: SideGroup[] = [
     { key: "home", title: "Home", icon: "home", items: [{ href: "/dashboard", label: "Home" }] },
-    { key: "front_office", title: "Front office", icon: "front_office", items: foItems },
     {
       key: "pos", title: "POS", icon: "pos",
       items: pick(["/pos", "/captain", "/table-orders", "/kitchen", "/bills", "/preorders", "/deliveries", "/online-orders", "/accounts", "/customers", "/reservations", "/loyalty", "/shift", "/timesheets"]),

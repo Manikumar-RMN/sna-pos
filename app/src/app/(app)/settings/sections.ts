@@ -1,7 +1,7 @@
 import { can, has, type CurrentUser } from "@/lib/auth";
 import type { SettingsLink } from "./settings-nav";
 
-/** Setup is grouped by module: General (shared by every module), POS, Front office, Inventory, Reports and MIS. A module the client did not buy shows no group. */
+/** Setup is grouped by module: General (shared by every module), POS, Inventory, Reports and MIS. A module the client did not buy shows no group. */
 
 /** Settings sections this person may open, in menu order. */
 export function settingsSections(user: CurrentUser, taxName: string): SettingsLink[] {
@@ -34,9 +34,8 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
     { href: "/settings/outlets", label: "Outlets", hint: "Prices per outlet, who works where", group: "General", show: user.outlet_count > 1 || has(user, "multi_outlet") },
     { href: "/settings/api", label: "API keys", hint: "Connect other software", group: "General", show: can(user, "settings.manage") && has(user, "open_api") },
     { href: "/settings/plan", label: "Plan and modules", hint: "Modules you have and what you can add", group: "General", show: true },
-    { href: "/settings/front-office", label: "Rooms and rates", hint: "Room types, rooms, rate plans, hotel tax invoice details", group: "Front office", show: has(user, "front_office") && can(user, "fo.manage") },
   ];
-  const order = ["General", "POS", "Front office", "Inventory", "Reports and MIS"];
+  const order = ["General", "POS", "Inventory", "Reports and MIS"];
   return all
     .filter((s) => s.show)
     .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group))

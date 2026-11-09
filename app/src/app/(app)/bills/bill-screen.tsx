@@ -11,7 +11,6 @@ import { LoyaltyPanel, type RedeemSettings } from "./loyalty-panel";
 import { discountPool, receiptLoyalty } from "./loyalty-math";
 import { GuestDetails } from "./guest-details";
 import { AccountPanel } from "./account-panel";
-import { RoomPanel } from "./room-panel";
 import { byTableNumber } from "@/lib/table-order";
 import { describeOfflineFlags } from "@/lib/offline-flags";
 
@@ -101,8 +100,6 @@ export async function BillScreen({
 
   // Customer accounts (pay later), for "Charge to account" on an unpaid bill.
   const { data: accounts } = open && can(user, "payment.take") ? await supabase.rpc("accounts_list") : { data: null };
-  // Hotel guests in the house, for "Charge to room" (empty when the branch has no hotel).
-  const { data: roomGuests } = open && can(user, "payment.take") ? await supabase.rpc("fo_inhouse_for_pos") : { data: null };
 
   const busyTables = new Set((openBills ?? []).map((o) => o.dining_table_id).filter(Boolean));
 
@@ -208,9 +205,6 @@ export async function BillScreen({
         />
       )}
 
-      {open && Array.isArray(roomGuests) && roomGuests.length > 0 && (
-        <RoomPanel orderId={bill.id} guests={roomGuests as unknown as { stay_id: string; stay_no: number; room_number: string; guest: string }[]} />
-      )}
       {open && accounts && (
         <AccountPanel
           orderId={bill.id}

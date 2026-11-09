@@ -9,7 +9,6 @@ export type SideGroup = { key: string; title: string; icon: string; items: SideI
 
 const IC: Record<string, string> = {
   home: "M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6",
-  front_office: "M3 20V8l9-5 9 5v12M3 20h18M8 20v-5h8v5M9 11h.01M15 11h.01",
   pos: "M4 5h16v14H4zM8 10h8M8 14h5",
   inventory: "M4 7l8-4 8 4v10l-8 4-8-4zM4 7l8 4 8-4M12 11v10",
   reports: "M5 19V11M12 19V5M19 19v-6",
@@ -25,7 +24,7 @@ function Ico({ k }: { k: string }) {
   );
 }
 
-/** The page that is open now: the longest item address that matches the path, so "/front-office" does not light up on "/front-office/chart". */
+/** The page that is open now: the longest item address that matches the path, so "/settings" does not light up on "/settings/menu". */
 function activeHref(path: string, groups: SideGroup[]): string | null {
   let best: string | null = null;
   for (const g of groups) {
@@ -39,8 +38,8 @@ function activeHref(path: string, groups: SideGroup[]): string | null {
 
 /**
  * Winsar-style side menu: one block per module, each listing that module's own screens.
- * The block holding the open page is open; the others fold away. Shown only for hotels
- * (restaurants with the front office module on), and each block only lists screens this role may use.
+ * The block holding the open page is open; the others fold away.
+ * (every signed-in user except a counter tablet), and each block only lists screens this role may use.
  */
 export function ModuleSidebar({ groups }: { groups: SideGroup[] }) {
   const path = usePathname();

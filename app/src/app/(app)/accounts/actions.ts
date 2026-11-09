@@ -54,12 +54,3 @@ export type Statement = {
   closing: number;
   entries: { at: string; kind: string; amount: number; note: string | null; bill: string | null; order_id: string | null; method: string | null; balance: number }[];
 };
-
-export async function chargeToRoom(orderId: string, stayId: string): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("fo_charge_bill_to_room", { p_order: orderId, p_stay: stayId });
-  if (error) return { error: clean(friendlyDbError(error)) };
-  revalidatePath(`/bills/${orderId}`);
-  revalidatePath("/bills");
-  return { error: null };
-}

@@ -12,13 +12,6 @@ export type ModuleCard = { key: string; title: string; blurb: string; href: stri
 export function modulesFor(user: CurrentUser): ModuleCard[] {
   const all: Array<ModuleCard & { show: boolean }> = [
     {
-      key: "front_office",
-      title: "Front office",
-      blurb: "Rooms, reservations, check-in, folios, housekeeping, night audit",
-      href: "/front-office",
-      show: has(user, "front_office") && (can(user, "fo.view") || can(user, "fo.manage") || can(user, "fo.housekeeping")),
-    },
-    {
       key: "pos",
       title: "POS",
       blurb: "Billing, tables, kitchen, shifts and day close",
