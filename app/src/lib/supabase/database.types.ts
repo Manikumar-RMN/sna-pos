@@ -7275,6 +7275,7 @@ export type Database = {
       save_reason: { Args: { p_active?: boolean; p_id?: string; p_name: string; p_purposes?: string[]; p_sort?: number }; Returns: string }
       set_day_close_not_before: { Args: { p_branch?: string; p_time: string }; Returns: undefined }
       set_max_discount: { Args: { p_percent: number }; Returns: number }
+      top_sellers: { Args: { p_days?: number; p_limit?: number }; Returns: { product_id: string; units: number }[] }
       waiter_ready_alerts: { Args: Record<PropertyKey, never>; Returns: Json }
       waiter_ready_seen: { Args: { p_ticket_id: string }; Returns: undefined }
       cancel_order_item: {
@@ -7394,6 +7395,7 @@ export type Database = {
           kot_ticket_at: string | null
           billed_bills: number
           billed_at: string | null
+          open_items: number
         }[]
       }
       invite_staff: {
