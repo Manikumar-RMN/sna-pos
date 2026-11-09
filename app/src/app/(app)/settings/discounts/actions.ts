@@ -31,7 +31,8 @@ export async function saveDiscount(input: DiscountInput): Promise<{ error: strin
   if (!(await guard())) return { error: "Changing discounts needs the “Manage settings” permission." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("save_discount_preset", {
-    p_id: input.id ?? undefined,
+    // The database function needs p_id sent even for a new discount (null).
+    p_id: input.id as string,
     p_name: input.name,
     p_kind: input.kind,
     p_value: input.value,
