@@ -8,7 +8,7 @@ describe("groupReportLinks", () => {
   it("hides Inventory and Customers without the rights", () => {
     expect(heads(none)).not.toContain("Purchase and inventory");
     expect(heads(none)).not.toContain("Customers");
-    expect(heads({ financial: true, stock: false, customers: false })).not.toContain("Purchase and inventory");
+    expect(heads({ ...none, financial: true })).not.toContain("Purchase and inventory");
   });
   it("shows the four inventory reports to stock.view and the two customer reports to customer.view", () => {
     const inv = groupReportLinks({ ...none, stock: true }).find((g) => g.group === "Purchase and inventory");
