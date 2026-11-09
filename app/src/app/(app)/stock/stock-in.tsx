@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { money } from "@/lib/format";
-import { buildStockInLines, fmtQty, stockInTotal, type IngredientLite, type StockInRow } from "@/lib/stock";
+import { buildStockInLines, fmtQty, stockInTotal, type BuyUnits, type IngredientLite, type StockInRow } from "@/lib/stock";
 import { useOnline } from "@/lib/use-online";
 import { stockInQuick } from "./actions";
 
 const blankRow = (ingredient_id = ""): StockInRow => ({ ingredient_id, qty: "", cost: "" });
 
 /** Quick stock-in: the simple way to record what was bought. One receipt, several ingredients. */
-export function StockIn({ currency, ingredients, presetIngredient }: { currency: string; ingredients: IngredientLite[]; presetIngredient?: string }) {
+export function StockIn({ currency, ingredients, presetIngredient, buyUnits = {} }: { currency: string; ingredients: IngredientLite[]; presetIngredient?: string; buyUnits?: BuyUnits }) {
   const router = useRouter();
   const online = useOnline();
   const [pending, start] = useTransition();
@@ -66,6 +66,8 @@ export function StockIn({ currency, ingredients, presetIngredient }: { currency:
       <ul className="mt-3 space-y-2">
         {rows.map((r, i) => {
           const ing = byId.get(r.ingredient_id);
+          const bu = ing ? buyUnits[ing.id] : undefined;
+          const shownUnit = r.buy && bu ? bu.unit : ing?.unit;
           return (
             <li key={i} className="grid grid-cols-[minmax(0,1fr)_88px_96px_auto] items-center gap-2">
               <select
@@ -74,7 +76,7 @@ export function StockIn({ currency, ingredients, presetIngredient }: { currency:
                 value={r.ingredient_id}
                 onChange={(e) => {
                   const pick = byId.get(e.target.value);
-                  setRow(i, { ingredient_id: e.target.value, cost: r.cost === "" && pick && pick.cost > 0 ? fmtQty(pick.cost) : r.cost });
+                  setRow(i, { ingredient_id: e.target.value, buy: false, cost: r.cost === "" && pick && pick.cost > 0 ? fmtQty(pick.cost) : r.cost });
                 }}
                 aria-label="Ingredient"
               >
@@ -85,11 +87,25 @@ export function StockIn({ currency, ingredients, presetIngredient }: { currency:
                   </option>
                 ))}
               </select>
-              <input className="field h-10 text-sm" inputMode="decimal" placeholder={ing ? `Qty (${ing.unit})` : "Qty"} value={r.qty} onChange={(e) => setRow(i, { qty: e.target.value })} aria-label="Quantity bought" />
-              <input className="field h-10 text-sm" inputMode="decimal" placeholder={ing ? `Price / ${ing.unit}` : "Price / unit"} value={r.cost} onChange={(e) => setRow(i, { cost: e.target.value })} aria-label="Price per unit" />
+              <input className="field h-10 text-sm" inputMode="decimal" placeholder={ing ? `Qty (${shownUnit})` : "Qty"} value={r.qty} onChange={(e) => setRow(i, { qty: e.target.value })} aria-label="Quantity bought" />
+              <input className="field h-10 text-sm" inputMode="decimal" placeholder={ing ? `Price / ${shownUnit}` : "Price / unit"} value={r.cost} onChange={(e) => setRow(i, { cost: e.target.value })} aria-label="Price per unit" />
               <button className="px-2 text-sm font-bold" style={{ color: "var(--color-bad)" }} onClick={() => setRows(rows.length > 1 ? rows.filter((_, j) => j !== i) : [blankRow()])} aria-label="Remove line">
                 ×
               </button>
+              {ing && bu && (
+                <div className="col-span-full flex items-center gap-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                  <span>Entering in</span>
+                  <select
+                    className="field h-8 w-auto text-xs"
+                    value={r.buy ? "buy" : "stock"}
+                    onChange={(e) => setRow(i, { buy: e.target.value === "buy", qty: "", cost: "" })}
+                    aria-label="Unit for this line"
+                  >
+                    <option value="stock">{ing.unit}</option>
+                    <option value="buy">{bu.unit} (1 {bu.unit} = {fmtQty(bu.factor)} {ing.unit})</option>
+                  </select>
+                </div>
+              )}
             </li>
           );
         })}

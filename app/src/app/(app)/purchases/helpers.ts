@@ -16,15 +16,15 @@ export type SupplierRow = {
 };
 export type SupplierPick = { id: string; name: string };
 
-export type Ingredient = { id: string; name: string; unit: string; cost: number };
+export type Ingredient = { id: string; name: string; unit: string; cost: number; /** Optional buying unit, e.g. kg for an ingredient kept in g. */ buyUnit?: string; buyFactor?: number };
 export type StockedIngredient = Ingredient & { stock: number; reorder: number };
 /** Name and unit of every ingredient ever used, including ones switched off since. */
 export type IngredientNames = Record<string, { name: string; unit: string }>;
 
 /** One line while it is being typed. */
-export type LineDraft = { ingredient_id: string; qty: string; cost: string };
+export type LineDraft = { ingredient_id: string; qty: string; cost: string; /** Typed in the buying unit instead of the stock unit. */ buy?: boolean };
 /** One line as the database wants it. */
-export type CleanLine = { ingredient_id: string; qty: number; unit_cost: number };
+export type CleanLine = { ingredient_id: string; qty: number; unit_cost: number; unit?: "purchase" };
 export type OrderLine = { ingredient_id: string; qty: number; unit_cost: number; received_qty: number };
 
 /** A purchase order with its lines. `date` is the day it was written (YYYY-MM-DD, restaurant time). */
@@ -174,7 +174,7 @@ export function checkLines(lines: LineDraft[], names: IngredientNames): { ok: tr
     if (q === null || q <= BigInt(0)) return { ok: false, error: `Enter a quantity for ${name}.` };
     if (l.cost.trim() === "" || scaled(l.cost, 4) === null) return { ok: false, error: `Enter the cost per unit for ${name} (0 if it was free).` };
     if (out.some((x) => x.ingredient_id === l.ingredient_id)) return { ok: false, error: `${name} is on the list twice. Put it on one line.` };
-    out.push({ ingredient_id: l.ingredient_id, qty: Number(l.qty.trim()), unit_cost: Number(l.cost.trim()) });
+    out.push({ ingredient_id: l.ingredient_id, qty: Number(l.qty.trim()), unit_cost: Number(l.cost.trim()), ...(l.buy ? { unit: "purchase" as const } : {}) });
   }
   if (out.length === 0) return { ok: false, error: "Add at least one ingredient." };
   return { ok: true, lines: out };

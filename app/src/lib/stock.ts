@@ -75,10 +75,13 @@ export function parseQty(text: string | null | undefined): number | null {
 
 export type IngredientLite = { id: string; name: string; unit: string; cost: number; reorder: number; stock: number; category?: string | null };
 
+/** Ingredient id → its buying unit (e.g. kg) and how many stock units it holds (1000 g). Only ingredients that have one are listed. */
+export type BuyUnits = Record<string, { unit: string; factor: number }>;
+
 // ---------- Quick stock-in ----------
 
-export type StockInRow = { ingredient_id: string; qty: string; cost: string };
-export type StockInLine = { ingredient_id: string; qty: number; unit_cost: number };
+export type StockInRow = { ingredient_id: string; qty: string; cost: string; /** Typed in the buying unit (kg) instead of the stock unit (g). */ buy?: boolean };
+export type StockInLine = { ingredient_id: string; qty: number; unit_cost: number; unit?: "purchase" };
 
 /**
  * Turns the form rows into the lines sent to the database. Blank rows (no ingredient and no quantity) are skipped;
@@ -97,7 +100,7 @@ export function buildStockInLines(rows: StockInRow[]): { ok: true; lines: StockI
     if (cost == null) return { ok: false, error: "A price per unit must be a number (or leave it empty)." };
     if (seen.has(r.ingredient_id)) return { ok: false, error: "An ingredient is listed twice. Add the two quantities together." };
     seen.add(r.ingredient_id);
-    lines.push({ ingredient_id: r.ingredient_id, qty, unit_cost: cost });
+    lines.push(r.buy ? { ingredient_id: r.ingredient_id, qty, unit_cost: cost, unit: "purchase" } : { ingredient_id: r.ingredient_id, qty, unit_cost: cost });
   }
   if (lines.length === 0) return { ok: false, error: "Add at least one ingredient." };
   return { ok: true, lines };

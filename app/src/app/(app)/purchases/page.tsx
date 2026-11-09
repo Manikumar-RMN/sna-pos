@@ -201,7 +201,7 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
   const today = todayIn(user.timezone);
   const open = ["ordered", "part_received"];
   const [{ data: ings, error: ingError }, { data: pos }, { data: grs, error: grError }] = await Promise.all([
-    supabase.from("ingredients").select("id, name, unit, cost_per_unit, is_active").order("name"),
+    supabase.from("ingredients").select("id, name, unit, cost_per_unit, is_active, purchase_unit, purchase_factor").order("name"),
     supabase.from("purchase_orders").select(ORDER_COLS).in("status", open).order("created_at", { ascending: false }).limit(100),
     supabase
       .from("goods_receipts")
@@ -221,7 +221,7 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
 
   const names: IngredientNames = {};
   for (const i of ings ?? []) names[i.id] = { name: i.name, unit: i.unit };
-  const ingredients: Ingredient[] = (ings ?? []).filter((i) => i.is_active).map((i) => ({ id: i.id, name: i.name, unit: i.unit, cost: Number(i.cost_per_unit) }));
+  const ingredients: Ingredient[] = (ings ?? []).filter((i) => i.is_active).map((i) => ({ id: i.id, name: i.name, unit: i.unit, cost: Number(i.cost_per_unit), ...(i.purchase_unit ? { buyUnit: i.purchase_unit, buyFactor: Number(i.purchase_factor) } : {}) }));
   const [lines, payments] = await Promise.all([
     orderLines(
       supabase,

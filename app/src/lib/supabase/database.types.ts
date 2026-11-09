@@ -2076,6 +2076,8 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          purchase_factor: number
+          purchase_unit: string | null
           reorder_level: number
           restaurant_id: string
           unit: string
@@ -2087,6 +2089,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          purchase_factor?: number
+          purchase_unit?: string | null
           reorder_level?: number
           restaurant_id: string
           unit: string
@@ -2098,6 +2102,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          purchase_factor?: number
+          purchase_unit?: string | null
           reorder_level?: number
           restaurant_id?: string
           unit?: string
@@ -7695,6 +7701,8 @@ export type Database = {
       save_ingredient: {
         Args: {
           p_category?: string
+          p_purchase_factor?: number
+          p_purchase_unit?: string
           p_cost: number
           p_id: string
           p_name: string

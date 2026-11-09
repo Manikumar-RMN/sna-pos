@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { money } from "@/lib/format";
-import { fmtQty, foodCostTone, isAttention, parseQty, recipeCost, STATUS_LABEL, STATUS_RANK, stockStatus, STOCK_UNITS, UNIT_HINT, unitMismatchWarning, type StockStatus } from "@/lib/stock";
+import { fmtQty, foodCostTone, isAttention, parseQty, recipeCost, STATUS_LABEL, STATUS_RANK, stockStatus, STOCK_UNITS, UNIT_HINT, unitMismatchWarning, type BuyUnits, type StockStatus } from "@/lib/stock";
 import { saveIngredient, saveRecipe, type StockResult } from "./actions";
 import { StockIn } from "./stock-in";
 import { WastageForm, type RecentAdjust } from "./wastage-form";
@@ -35,7 +35,9 @@ export function StockManager({
   canManage,
   canAdjust,
   initialFilter,
+  buyUnits = {},
 }: {
+  buyUnits?: BuyUnits;
   currency: string;
   timezone: string;
   levels: Level[];
@@ -70,7 +72,7 @@ export function StockManager({
   }
 
   // New / edit ingredient.
-  const [edit, setEdit] = useState<{ id: string | null; name: string; unit: string; cost: string; reorder: string; category: string } | null>(null);
+  const [edit, setEdit] = useState<{ id: string | null; name: string; unit: string; cost: string; reorder: string; category: string; buyUnit: string; buyFactor: string } | null>(null);
   // Recipe editor.
   const [recipeFor, setRecipeFor] = useState<string>("");
   const [recipeRows, setRecipeRows] = useState<{ ingredient_id: string; qty: string }[]>([]);
@@ -181,7 +183,7 @@ export function StockManager({
                     <tr key={l.id} style={{ borderTop: "1px solid var(--color-line)" }}>
                       <td className="px-3 py-2">
                         {canManage ? (
-                          <button className="text-left font-semibold" onClick={() => setEdit({ id: l.id, name: l.name, unit: l.unit, cost: String(l.cost), reorder: String(l.reorder), category: l.category ?? "" })}>
+                          <button className="text-left font-semibold" onClick={() => setEdit({ id: l.id, name: l.name, unit: l.unit, cost: String(l.cost), reorder: String(l.reorder), category: l.category ?? "", buyUnit: buyUnits[l.id]?.unit ?? "", buyFactor: buyUnits[l.id] ? String(buyUnits[l.id].factor) : "" })}>
                             {l.name}
                           </button>
                         ) : (
@@ -265,6 +267,24 @@ export function StockManager({
                   onChange={(e) => setEdit({ ...edit, category: e.target.value })}
                   maxLength={40}
                 />
+                <input
+                  className="field h-10 text-sm sm:col-span-2"
+                  placeholder="Bought in (optional), e.g. kg, box, can"
+                  aria-label="Bought in (optional)"
+                  value={edit.buyUnit}
+                  onChange={(e) => setEdit({ ...edit, buyUnit: e.target.value })}
+                  maxLength={20}
+                />
+                {edit.buyUnit.trim() !== "" && (
+                  <input
+                    className="field h-10 text-sm sm:col-span-2"
+                    inputMode="decimal"
+                    placeholder={`1 ${edit.buyUnit.trim()} = how many ${edit.unit}?`}
+                    aria-label={`1 ${edit.buyUnit.trim()} equals how many ${edit.unit}`}
+                    value={edit.buyFactor}
+                    onChange={(e) => setEdit({ ...edit, buyFactor: e.target.value })}
+                  />
+                )}
                 <datalist id="ingredient-groups">
                   {groups.map((g) => (
                     <option key={g} value={g} />
@@ -278,21 +298,21 @@ export function StockManager({
                 <button
                   className="btn btn-primary px-4 text-sm"
                   disabled={pending || !edit.name.trim()}
-                  onClick={() => run(() => saveIngredient({ id: edit.id, name: edit.name, unit: edit.unit, cost: Number(edit.cost) || 0, reorder: Number(edit.reorder) || 0, category: edit.category }), () => setEdit(null))}
+                  onClick={() => run(() => saveIngredient({ id: edit.id, name: edit.name, unit: edit.unit, cost: Number(edit.cost) || 0, reorder: Number(edit.reorder) || 0, category: edit.category, purchaseUnit: edit.buyUnit, purchaseFactor: Number(edit.buyFactor) || 1 }), () => setEdit(null))}
                 >
                   {pending ? "Saving…" : "Save ingredient"}
                 </button>
               </div>
             </section>
           ) : (
-            <button className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setEdit({ id: null, name: "", unit: "kg", cost: "", reorder: "", category: "" })}>
+            <button className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setEdit({ id: null, name: "", unit: "kg", cost: "", reorder: "", category: "", buyUnit: "", buyFactor: "" })}>
               + Add ingredient
             </button>
           )}
         </>
       )}
 
-      {tab === "in" && canManage && <StockIn currency={currency} ingredients={levels.map((l) => ({ id: l.id, name: l.name, unit: l.unit, cost: Number(l.cost), reorder: Number(l.reorder), stock: Number(l.stock), category: l.category }))} presetIngredient={preset || undefined} />}
+      {tab === "in" && canManage && <StockIn currency={currency} buyUnits={buyUnits} ingredients={levels.map((l) => ({ id: l.id, name: l.name, unit: l.unit, cost: Number(l.cost), reorder: Number(l.reorder), stock: Number(l.stock), category: l.category }))} presetIngredient={preset || undefined} />}
 
       {tab === "wastage" && canAdjust && (
         <WastageForm currency={currency} timezone={timezone} ingredients={levels.map((l) => ({ id: l.id, name: l.name, unit: l.unit, cost: Number(l.cost), reorder: Number(l.reorder), stock: Number(l.stock), category: l.category }))} recent={recent} presetIngredient={preset || undefined} />

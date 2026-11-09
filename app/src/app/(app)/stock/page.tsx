@@ -30,7 +30,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
   const today = todayIn(user.timezone);
   const from = addDays(today, -6);
   const transfers = canManage && has(user, "central_kitchen") && user.outlet_count > 1;
-  const [{ data: report }, { data: products }, { data: recipes }, { data: others }, recentRes] = await Promise.all([
+  const [{ data: report }, { data: products }, { data: recipes }, { data: others }, recentRes, { data: buyRows }] = await Promise.all([
     supabase.rpc("stock_report", { p_from: from, p_to: today }),
     canManage ? supabase.from("products").select("id, name, price").is("deleted_at", null).order("name") : Promise.resolve({ data: [] as { id: string; name: string; price: number }[] }),
     canManage ? supabase.from("recipe_lines").select("product_id, ingredient_id, qty") : Promise.resolve({ data: [] as { product_id: string; ingredient_id: string; qty: number }[] }),
@@ -41,6 +41,8 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
     canAdjust
       ? supabase.from("stock_movements").select("id, created_at, ingredient_id, qty, kind, reason, note, ingredients(name, unit)").in("kind", ["wastage", "adjust"]).order("created_at", { ascending: false }).limit(20)
       : Promise.resolve({ data: [], error: null }),
+    // Buying units (kg → 1000 g) for the stock-in and ingredient forms.
+    supabase.from("ingredients").select("id, purchase_unit, purchase_factor").not("purchase_unit", "is", null),
   ]);
   const rep = (report ?? { levels: [], food_cost: [] }) as unknown as { levels: Level[]; food_cost: FoodCost[] };
   const recent: RecentAdjust[] = ((recentRes.data ?? []) as unknown as Record<string, unknown>[]).map((r) => {
@@ -83,6 +85,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
         products={(products ?? []).map((p) => ({ id: p.id, name: p.name, price: Number(p.price) }))}
         recipes={(recipes ?? []).map((r) => ({ product_id: r.product_id, ingredient_id: r.ingredient_id, qty: Number(r.qty) }))}
         recent={recent}
+        buyUnits={Object.fromEntries((buyRows ?? []).filter((b) => b.purchase_unit).map((b) => [b.id, { unit: b.purchase_unit as string, factor: Number(b.purchase_factor) }]))}
         canManage={canManage}
         canAdjust={canAdjust}
         initialFilter={filter === "low" ? "low" : undefined}

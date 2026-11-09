@@ -36,7 +36,7 @@ export function LineEditor({
 
   function pick(i: number, id: string) {
     const ing = ingredients.find((x) => x.id === id);
-    set(i, { ingredient_id: id, cost: ing ? String(ing.cost) : "" });
+    set(i, { ingredient_id: id, buy: false, cost: ing ? String(ing.cost) : "" });
   }
 
   return (
@@ -60,6 +60,9 @@ export function LineEditor({
       <ul className="space-y-3 sm:space-y-2">
         {lines.map((l, i) => {
           const unit = l.ingredient_id ? (names[l.ingredient_id]?.unit ?? "") : "";
+          const ingRow = ingredients.find((x) => x.id === l.ingredient_id);
+          const canBuy = !!ingRow?.buyUnit && !!ingRow.buyFactor;
+          const shown = l.buy && canBuy ? ingRow!.buyUnit! : unit;
           const gone = !!l.ingredient_id && !active.has(l.ingredient_id);
           const n = i + 1;
           return (
@@ -89,13 +92,25 @@ export function LineEditor({
                 <span className="flex items-center gap-2">
                   <input className="field h-10 min-w-0 flex-1 text-sm" inputMode="decimal" placeholder="0" value={l.qty} onChange={(e) => set(i, { qty: e.target.value })} disabled={disabled} />
                   <span className="w-9 shrink-0 text-sm font-semibold" style={{ color: "var(--color-ink-3)" }}>
-                    {unit}
+                    {shown}
                   </span>
                 </span>
+                {canBuy && (
+                  <select
+                    className="field mt-1 h-8 text-xs"
+                    value={l.buy ? "buy" : "stock"}
+                    onChange={(e) => set(i, { buy: e.target.value === "buy", qty: "", cost: "" })}
+                    disabled={disabled}
+                    aria-label={`Unit (line ${n})`}
+                  >
+                    <option value="stock">in {unit}</option>
+                    <option value="buy">in {ingRow!.buyUnit} (1 = {ingRow!.buyFactor} {unit})</option>
+                  </select>
+                )}
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold sm:sr-only" style={{ color: "var(--color-ink-2)" }}>
-                  Cost per {unit || "unit"} (line {n})
+                  Cost per {shown || "unit"} (line {n})
                 </span>
                 <input className="field h-10 text-sm" inputMode="decimal" placeholder="0.00" value={l.cost} onChange={(e) => set(i, { cost: e.target.value })} disabled={disabled} />
               </label>
