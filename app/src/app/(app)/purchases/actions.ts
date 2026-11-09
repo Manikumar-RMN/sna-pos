@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { friendlyDbError } from "@/lib/db-error";
 import type { Json } from "@/lib/supabase/database.types";
 import { isYmd } from "@/lib/format";
-import { amountCents, isPayMethod, isUuid, lineCents, type CleanLine, type Fail } from "./helpers";
+import { amountCents, isPayMethod, isUuid, lineCents, lineTaxCents, type CleanLine, type Fail } from "./helpers";
 
 export type PurchaseResult = { ok: true; message?: string } | Fail;
 /** `repeat` is true when this receipt had already been saved by an earlier tap or retry. */
@@ -155,7 +155,7 @@ export async function receiveGoods(input: {
   const other = amountCents(input.other);
   if (tax === null || other === null) return { ok: false, error: "Tax and other charges must be numbers of zero or more." };
   // The same sum the database does, so "Paid in full" pays exactly the total.
-  const total = input.lines.reduce((s, l) => s + lineCents(l.qty, l.unit_cost), 0) + tax + other;
+  const total = input.lines.reduce((s, l) => s + lineCents(l.qty, l.unit_cost) + lineTaxCents(l.qty, l.unit_cost, l.tax_rate), 0) + tax + other;
 
   let payment: Json | undefined;
   if (input.paid === "full" || input.paid === "part") {
@@ -261,4 +261,13 @@ export async function cancelGoodsReceipt(id: string, reason: string): Promise<Ca
   const r = (data ?? {}) as { number?: string; cost_not_restored?: unknown };
   const kept = Array.isArray(r.cost_not_restored) ? r.cost_not_restored.filter((x): x is string => typeof x === "string" && x !== "") : [];
   return { ok: true, message: `Receipt ${r.number ?? ""} cancelled. The goods have been taken back out of stock.`, costNotRestored: kept };
+}
+
+/** Owner setting: does the restaurant claim the tax on its purchases back from the tax office? */
+export async function setInputTaxClaim(claim: boolean): Promise<PurchaseResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_input_tax_claim", { p_claim: !!claim });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/purchases");
+  return { ok: true, message: claim ? "Purchase tax will be claimed back, not added to stock cost." : "Purchase tax will be added to stock cost." };
 }

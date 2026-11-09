@@ -2107,18 +2107,21 @@ export type Database = {
       purchase_settings: {
         Row: {
           approval_limit: number | null
+          claim_input_tax: boolean
           restaurant_id: string
           updated_at: string
           updated_by: string | null
         }
         Insert: {
           approval_limit?: number | null
+          claim_input_tax?: boolean
           restaurant_id: string
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
           approval_limit?: number | null
+          claim_input_tax?: boolean
           restaurant_id?: string
           updated_at?: string
           updated_by?: string | null
@@ -2127,6 +2130,9 @@ export type Database = {
       }
       goods_receipt_lines: {
         Row: {
+          tax_claimable: boolean
+          tax_amount: number
+          tax_rate: number
           returned_qty: number
           goods_receipt_id: string
           id: string
@@ -2139,6 +2145,9 @@ export type Database = {
           unit_cost: number
         }
         Insert: {
+          tax_claimable?: boolean
+          tax_amount?: number
+          tax_rate?: number
           returned_qty?: number
           goods_receipt_id: string
           id?: string
@@ -2151,6 +2160,9 @@ export type Database = {
           unit_cost: number
         }
         Update: {
+          tax_claimable?: boolean
+          tax_amount?: number
+          tax_rate?: number
           returned_qty?: number
           goods_receipt_id?: string
           id?: string
@@ -2181,6 +2193,7 @@ export type Database = {
       }
       goods_receipts: {
         Row: {
+          input_tax_claimable: number
           returned_total: number
           branch_id: string
           cancel_reason: string | null
@@ -2208,6 +2221,7 @@ export type Database = {
           total: number
         }
         Insert: {
+          input_tax_claimable?: number
           returned_total?: number
           branch_id: string
           cancel_reason?: string | null
@@ -2235,6 +2249,7 @@ export type Database = {
           total?: number
         }
         Update: {
+          input_tax_claimable?: number
           returned_total?: number
           branch_id?: string
           cancel_reason?: string | null
@@ -7363,6 +7378,10 @@ export type Database = {
       }
     }
     Functions: {
+      set_input_tax_claim: {
+        Args: { p_claim: boolean }
+        Returns: boolean
+      }
       accept_qr_order: { Args: { p_id: string }; Returns: Json }
       account_charge: {
         Args: { p_customer: string; p_note?: string; p_order: string }

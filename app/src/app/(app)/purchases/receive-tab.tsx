@@ -10,6 +10,7 @@ import {
   checkLines,
   dayLabel,
   linesCents,
+  linesTaxCents,
   payMethods,
   refFor,
   remainingLines,
@@ -23,6 +24,7 @@ import {
   type SentRef,
   type SupplierPick,
 } from "./helpers";
+import { ClaimBox } from "./claim-box";
 import { LineEditor } from "./line-editor";
 import { PayForm } from "./pay-form";
 import { PaymentsList } from "./payments-list";
@@ -48,6 +50,8 @@ export function ReceiveTab({
   today,
   initialPo,
   canTill,
+  claimTax,
+  canSetClaim,
 }: {
   /** Active suppliers. */
   suppliers: SupplierPick[];
@@ -67,6 +71,10 @@ export function ReceiveTab({
   /** Opened from an order's "Receive" button. */
   initialPo: string | null;
   canTill: boolean;
+  /** The restaurant claims input tax on purchases (Settings). */
+  claimTax: boolean;
+  /** The person may change that setting. */
+  canSetClaim: boolean;
 }) {
   const { pending, msg, setMsg, run } = useRun();
   const m = (n: number) => money(n, currency);
@@ -107,7 +115,8 @@ export function ReceiveTab({
   const goods = linesCents(lines);
   const taxC = amountCents(tax);
   const otherC = amountCents(other);
-  const total = goods + (taxC ?? 0) + (otherC ?? 0);
+  const lineTax = linesTaxCents(lines);
+  const total = goods + lineTax + (taxC ?? 0) + (otherC ?? 0);
 
   function chooseSupplier(id: string) {
     setSupplierId(id);
@@ -227,7 +236,13 @@ export function ReceiveTab({
           </div>
 
           <div className="mt-4">
-            <LineEditor lines={lines} onChange={setLines} ingredients={ingredients} names={names} currency={currency} qtyLabel="Quantity received" totalLabel="Goods" disabled={pending} />
+            <LineEditor lines={lines} onChange={setLines} ingredients={ingredients} names={names} currency={currency} qtyLabel="Quantity received" totalLabel="Goods" showTax disabled={pending} />
+            {lineTax > 0 && (
+              <p className="mt-2 text-right text-sm" style={{ color: "var(--color-ink-3)" }}>
+                Tax on the lines: <b className="tabular-nums">{m(lineTax / 100)}</b>
+              </p>
+            )}
+            <ClaimBox claimTax={claimTax} canSet={canSetClaim} />
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -237,7 +252,7 @@ export function ReceiveTab({
             <Field label="Bill date" hint="(optional)">
               <input className="field h-10 text-sm" type="date" max={today} value={billDate} onChange={(e) => setBillDate(e.target.value)} disabled={pending} />
             </Field>
-            <Field label="Tax on the bill" hint="(optional)">
+            <Field label="Other tax on the bill" hint="(not per line, optional)">
               <input className="field h-10 text-sm" inputMode="decimal" placeholder="0.00" value={tax} onChange={(e) => setTax(e.target.value)} disabled={pending} />
             </Field>
             <Field label="Other charges" hint="(delivery, loading…)">

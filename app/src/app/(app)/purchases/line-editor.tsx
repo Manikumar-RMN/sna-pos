@@ -18,6 +18,7 @@ export function LineEditor({
   currency,
   qtyLabel = "Quantity",
   totalLabel = "Total",
+  showTax,
   disabled,
 }: {
   lines: LineDraft[];
@@ -29,6 +30,8 @@ export function LineEditor({
   currency: string;
   qtyLabel?: string;
   totalLabel?: string;
+  /** Show a Tax % box on each line (deliveries only). */
+  showTax?: boolean;
   disabled?: boolean;
 }) {
   const active = new Set(ingredients.map((i) => i.id));
@@ -50,10 +53,11 @@ export function LineEditor({
           first.
         </p>
       )}
-      <div className="hidden gap-2 px-1 pb-1 text-xs font-semibold sm:grid sm:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_40px]" style={{ color: "var(--color-ink-3)" }} aria-hidden="true">
+      <div className={`hidden gap-2 px-1 pb-1 text-xs font-semibold sm:grid ${showTax ? "sm:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.6fr)_minmax(0,0.9fr)_40px]" : "sm:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_40px]"}`} style={{ color: "var(--color-ink-3)" }} aria-hidden="true">
         <span>Ingredient</span>
         <span>{qtyLabel}</span>
         <span>Cost per unit</span>
+        {showTax && <span>Tax %</span>}
         <span className="text-right">Amount</span>
         <span />
       </div>
@@ -68,7 +72,7 @@ export function LineEditor({
           return (
             <li
               key={i}
-              className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_40px] sm:items-center sm:rounded-none sm:border-0 sm:p-0"
+              className={`grid gap-2 rounded-2xl border p-3 ${showTax ? "sm:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.6fr)_minmax(0,0.9fr)_40px]" : "sm:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_40px]"} sm:items-center sm:rounded-none sm:border-0 sm:p-0`}
               style={lineStyle}
             >
               <label className="block">
@@ -114,6 +118,14 @@ export function LineEditor({
                 </span>
                 <input className="field h-10 text-sm" inputMode="decimal" placeholder="0.00" value={l.cost} onChange={(e) => set(i, { cost: e.target.value })} disabled={disabled} />
               </label>
+              {showTax && (
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold sm:sr-only" style={{ color: "var(--color-ink-2)" }}>
+                  Tax % (line {n})
+                </span>
+                <input className="field h-10 text-sm" inputMode="decimal" placeholder="Tax %" value={l.taxRate ?? ""} onChange={(e) => set(i, { taxRate: e.target.value })} disabled={disabled} />
+              </label>
+              )}
               <div className="flex items-center justify-between text-sm sm:block sm:text-right">
                 <span className="text-xs font-semibold sm:hidden" style={{ color: "var(--color-ink-2)" }}>
                   Amount

@@ -22,9 +22,9 @@ export type StockedIngredient = Ingredient & { stock: number; reorder: number };
 export type IngredientNames = Record<string, { name: string; unit: string }>;
 
 /** One line while it is being typed. */
-export type LineDraft = { ingredient_id: string; qty: string; cost: string; /** Typed in the buying unit instead of the stock unit. */ buy?: boolean };
+export type LineDraft = { ingredient_id: string; qty: string; cost: string; /** Typed in the buying unit instead of the stock unit. */ buy?: boolean; /** Tax % on this line, e.g. "5". Blank means none. */ taxRate?: string };
 /** One line as the database wants it. */
-export type CleanLine = { ingredient_id: string; qty: number; unit_cost: number; unit?: "purchase" };
+export type CleanLine = { ingredient_id: string; qty: number; unit_cost: number; unit?: "purchase"; tax_rate?: number };
 export type OrderLine = { ingredient_id: string; qty: number; unit_cost: number; received_qty: number };
 
 /** A purchase order with its lines. `date` is the day it was written (YYYY-MM-DD, restaurant time). */
@@ -159,6 +159,18 @@ export function lineCents(qty: string | number, cost: string | number): number {
   return Number((q * c + BigInt(50000)) / BigInt(100000));
 }
 
+/** Tax on one line in hundredths, the way the database rounds it (tax % of the rounded line amount). */
+export function lineTaxCents(qty: string | number, cost: string | number, rate: string | number | undefined): number {
+  const r = Number(String(rate ?? "").trim() === "" ? 0 : rate);
+  if (!Number.isFinite(r) || r <= 0 || r > 100) return 0;
+  return Math.round((lineCents(qty, cost) * r) / 100);
+}
+
+/** All the per-line tax on the typed lines, in hundredths. */
+export function linesTaxCents(lines: LineDraft[]): number {
+  return lines.reduce((s, l) => s + lineTaxCents(l.qty, l.cost, l.taxRate), 0);
+}
+
 /** A money amount in hundredths of the currency, or null when it is not a number. Blank counts as zero. */
 export function amountCents(x: string | number): number | null {
   if (typeof x === "string" && x.trim() === "") return 0;
@@ -178,7 +190,10 @@ export function checkLines(lines: LineDraft[], names: IngredientNames): { ok: tr
     if (q === null || q <= BigInt(0)) return { ok: false, error: `Enter a quantity for ${name}.` };
     if (l.cost.trim() === "" || scaled(l.cost, 4) === null) return { ok: false, error: `Enter the cost per unit for ${name} (0 if it was free).` };
     if (out.some((x) => x.ingredient_id === l.ingredient_id)) return { ok: false, error: `${name} is on the list twice. Put it on one line.` };
-    out.push({ ingredient_id: l.ingredient_id, qty: Number(l.qty.trim()), unit_cost: Number(l.cost.trim()), ...(l.buy ? { unit: "purchase" as const } : {}) });
+    const tr = (l.taxRate ?? "").trim();
+    const rate = tr === "" ? 0 : Number(tr);
+    if (!Number.isFinite(rate) || rate < 0 || rate > 100) return { ok: false, error: `Tax % for ${name} must be between 0 and 100.` };
+    out.push({ ingredient_id: l.ingredient_id, qty: Number(l.qty.trim()), unit_cost: Number(l.cost.trim()), ...(l.buy ? { unit: "purchase" as const } : {}), ...(rate > 0 ? { tax_rate: rate } : {}) });
   }
   if (out.length === 0) return { ok: false, error: "Add at least one ingredient." };
   return { ok: true, lines: out };

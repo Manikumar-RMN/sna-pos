@@ -232,6 +232,8 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
       "goods_receipt_id",
       (grs ?? []).map((g) => g.id),
     );
+  const { data: ps } = await supabase.from("purchase_settings").select("claim_input_tax").maybeSingle();
+  const claimTax = !!ps?.claim_input_tax;
   const [lines, payments] = await Promise.all([
     orderLines(
       supabase,
@@ -278,6 +280,8 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
       today={today}
       initialPo={po}
       canTill={can(user, "cash.movement")}
+      claimTax={claimTax}
+      canSetClaim={can(user, "settings.manage")}
     />
   );
 }
