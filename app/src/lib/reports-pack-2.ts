@@ -406,6 +406,9 @@ export type TaxReport = {
   rows: TaxLine[];
   byOutlet: TaxOutletLine[];
   totals: { taxable: number; tax: number; ordersTaxTotal: number; taxIncluded: number; exemptSales: number };
+  /** Tax reversed by credit notes issued in the period, shown on its own lines. */
+  creditRows: TaxLine[];
+  credit: { count: number; amount: number; tax: number };
 };
 
 export function parseTax(json: unknown): TaxReport {
@@ -422,6 +425,8 @@ export function parseTax(json: unknown): TaxReport {
       tax: num(r.tax),
     })),
     totals: { taxable: num(t.taxable), tax: num(t.tax), ordersTaxTotal: num(t.orders_tax_total), taxIncluded: num(t.tax_included), exemptSales: num(t.exempt_sales) },
+    creditRows: list(o.credit_rows).map((r) => ({ component: text(r.component, "Tax"), rate: num(r.rate), taxable: num(r.taxable), tax: num(r.tax) })),
+    credit: { count: num(obj(o.credit_totals).count), amount: num(obj(o.credit_totals).amount), tax: num(obj(o.credit_totals).tax) },
   };
 }
 

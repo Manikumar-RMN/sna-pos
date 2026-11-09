@@ -137,6 +137,15 @@ describe("partialMonths", () => {
   });
 });
 
+describe("parseTax credit notes", () => {
+  it("reads the credit-note lines and totals, and is empty without them", () => {
+    const t = parseTax({ credit_rows: [{ component: "CGST", rate: 9, taxable: 100, tax: 9 }], credit_totals: { count: 1, amount: 118, tax: 18 } });
+    expect(t.creditRows).toHaveLength(1);
+    expect(t.credit).toEqual({ count: 1, amount: 118, tax: 18 });
+    expect(parseTax(null).credit).toEqual({ count: 0, amount: 0, tax: 0 });
+  });
+});
+
 describe("parseTax", () => {
   it("reads lines and both totals", () => {
     const r = parseTax({ rows: [{ component: "CGST", rate: "2.5", taxable: 1000, tax: 25 }], totals: { taxable: 1000, tax: 25, orders_tax_total: 26, tax_included: 3, exempt_sales: 40 } });

@@ -37,6 +37,22 @@ export default async function TaxReportPage({ searchParams }: { searchParams: Pr
               rows={t.rows.map((x) => [x.component, rate(x.rate), money(x.taxable, c), money(x.tax, c)])}
               total={["TOTAL", "", money(t.totals.taxable, c), money(t.totals.tax, c)]}
             />
+            {t.credit.count > 0 && (
+              <section className="mt-6">
+                <h2 className="mb-2 text-sm font-bold">Less: credit notes issued in this period</h2>
+                <ReportTable
+                  head={head}
+                  textCols={[0]}
+                  rows={t.creditRows.map((x) => [x.component, rate(x.rate), `-${money(x.taxable, c)}`, `-${money(x.tax, c)}`])}
+                  total={[`CREDIT NOTES (${t.credit.count})`, "", "", `-${money(t.credit.tax, c)}`]}
+                />
+                <div className="card mt-3 max-w-xs p-3">
+                  <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>Net tax (bills less credit notes)</div>
+                  <div className="text-lg font-bold tabular-nums">{money(t.totals.tax - t.credit.tax, c)}</div>
+                </div>
+                <Note>A credit note counts in the day it is issued. Its tax is reversed at the rates of the original bill.</Note>
+              </section>
+            )}
             {scope.all && t.byOutlet.length > 0 && (
               <section className="mt-6">
                 <h2 className="mb-2 text-sm font-bold">By outlet</h2>
