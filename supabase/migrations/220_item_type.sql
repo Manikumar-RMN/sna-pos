@@ -11,7 +11,11 @@ create or replace function app.block_general_in_recipe() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_id uuid; v_name text;
 begin
-  v_id := case when tg_table_name = 'production_boms' then new.output_ingredient_id else new.ingredient_id end;
+  if tg_table_name = 'production_boms' then
+    v_id := new.output_ingredient_id;
+  else
+    v_id := new.ingredient_id;
+  end if;
   select name into v_name from public.ingredients where id = v_id and item_type = 'general';
   if v_name is not null then
     raise exception '% is a General item, so it cannot be used in a recipe. Change its type to Food first.', v_name;

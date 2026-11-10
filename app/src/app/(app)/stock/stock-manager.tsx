@@ -191,7 +191,7 @@ export function StockManager({
                 {shown.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-3 py-6 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
-                      {levels.length === 0 ? (canManage ? "No ingredients yet. Add one below." : "No ingredients yet.") : lowOnly ? "Nothing is low. Good." : "Nothing matches the search."}
+                      {levels.length === 0 ? (canManage ? "No items yet. Add one below." : "No items yet.") : lowOnly ? "Nothing is low. Good." : "Nothing matches the search."}
                     </td>
                   </tr>
                 )}
@@ -273,7 +273,7 @@ export function StockManager({
             <section className="card p-4">
               <h2 className="text-sm font-bold">{edit.id ? "Edit item" : "New item"}</h2>
               <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                <input className="field h-10 text-sm sm:col-span-2" placeholder="Name, e.g. Dosa batter" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} maxLength={60} />
+                <input className="field h-10 text-sm sm:col-span-2" placeholder="Name, e.g. Dosa batter or Notebook" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} maxLength={60} />
                 <select className="field h-10 text-sm" value={edit.unit} onChange={(e) => setEdit({ ...edit, unit: e.target.value })} aria-label="Unit">
                   {UNITS.map((u) => (
                     <option key={u}>{u}</option>
@@ -327,13 +327,13 @@ export function StockManager({
                   disabled={pending || !edit.name.trim()}
                   onClick={() => run(() => saveIngredient({ id: edit.id, name: edit.name, unit: edit.unit, cost: Number(edit.cost) || 0, reorder: Number(edit.reorder) || 0, category: edit.category, purchaseUnit: edit.buyUnit, purchaseFactor: Number(edit.buyFactor) || 1, itemType: edit.itemType }), () => setEdit(null))}
                 >
-                  {pending ? "Saving…" : "Save ingredient"}
+                  {pending ? "Saving…" : "Save item"}
                 </button>
               </div>
             </section>
           ) : (
             <button className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setEdit({ id: null, name: "", unit: "kg", cost: "", reorder: "", category: "", buyUnit: "", buyFactor: "", itemType: "food" })}>
-              + Add ingredient
+              + Add item
             </button>
           )}
         </>
