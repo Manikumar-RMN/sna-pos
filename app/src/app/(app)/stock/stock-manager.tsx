@@ -9,7 +9,7 @@ import { saveIngredient, saveRecipe, type StockResult } from "./actions";
 import { StockIn } from "./stock-in";
 import { WastageForm, type RecentAdjust } from "./wastage-form";
 
-export type Level = { id: string; name: string; unit: string; cost: number; reorder: number; stock: number; used: number; wasted: number; bought: number; count_diff: number; category: string | null };
+export type Level = { id: string; name: string; unit: string; cost: number; reorder: number; stock: number; used: number; wasted: number; bought: number; count_diff: number; category: string | null; item_type?: string };
 export type FoodCost = { product: string; price: number; cost: number; cost_pct: number | null };
 type Product = { id: string; name: string; price: number };
 type RecipeRow = { product_id: string; ingredient_id: string; qty: number };
@@ -53,6 +53,7 @@ export function StockManager({
   const [tab, setTab] = useState<Tab>("levels");
   const [lowOnly, setLowOnly] = useState(initialFilter === "low");
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | "food" | "general">("all");
   // Ingredient chosen with the row buttons, carried to the Stock in / Wastage tab.
   const [preset, setPreset] = useState<string>("");
   const [pending, start] = useTransition();
@@ -72,7 +73,7 @@ export function StockManager({
   }
 
   // New / edit ingredient.
-  const [edit, setEdit] = useState<{ id: string | null; name: string; unit: string; cost: string; reorder: string; category: string; buyUnit: string; buyFactor: string } | null>(null);
+  const [edit, setEdit] = useState<{ id: string | null; name: string; unit: string; cost: string; reorder: string; category: string; buyUnit: string; buyFactor: string; itemType: "food" | "general" } | null>(null);
   // Recipe editor.
   const [recipeFor, setRecipeFor] = useState<string>("");
   const [recipeRows, setRecipeRows] = useState<{ ingredient_id: string; qty: string }[]>([]);
@@ -81,7 +82,7 @@ export function StockManager({
   const low = withStatus.filter((x) => isAttention(x.status)).map((x) => x.l);
   const needle = search.trim().toLowerCase();
   const shown = withStatus
-    .filter((x) => (!lowOnly || isAttention(x.status)) && (!needle || x.l.name.toLowerCase().includes(needle) || (x.l.category ?? "").toLowerCase().includes(needle)))
+    .filter((x) => (!lowOnly || isAttention(x.status)) && (typeFilter === "all" || (x.l.item_type === "general" ? "general" : "food") === typeFilter) && (!needle || x.l.name.toLowerCase().includes(needle) || (x.l.category ?? "").toLowerCase().includes(needle)))
     .sort((a, b) => (lowOnly ? STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.l.name.localeCompare(b.l.name) : 0));
   // Groups already in use, offered as suggestions when typing a group.
   const groups = Array.from(new Set(levels.map((l) => (l.category ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
@@ -146,7 +147,12 @@ export function StockManager({
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <input className="field h-10 min-w-0 flex-1 text-sm" style={{ minWidth: 160 }} placeholder="Search ingredient or group" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search" />
+            <input className="field h-10 min-w-0 flex-1 text-sm" style={{ minWidth: 160 }} placeholder="Search item or group" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search" />
+            <select className="field h-10 text-sm" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as "all" | "food" | "general")} aria-label="Show item type">
+              <option value="all">All items</option>
+              <option value="food">Food</option>
+              <option value="general">General</option>
+            </select>
             <label className="flex items-center gap-2 text-sm font-semibold">
               <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} /> Low only
             </label>
@@ -195,11 +201,16 @@ export function StockManager({
                     <tr key={l.id} style={{ borderTop: "1px solid var(--color-line)" }}>
                       <td className="px-3 py-2">
                         {canManage ? (
-                          <button className="text-left font-semibold" onClick={() => setEdit({ id: l.id, name: l.name, unit: l.unit, cost: String(l.cost), reorder: String(l.reorder), category: l.category ?? "", buyUnit: buyUnits[l.id]?.unit ?? "", buyFactor: buyUnits[l.id] ? String(buyUnits[l.id].factor) : "" })}>
+                          <button className="text-left font-semibold" onClick={() => setEdit({ id: l.id, name: l.name, unit: l.unit, cost: String(l.cost), reorder: String(l.reorder), category: l.category ?? "", buyUnit: buyUnits[l.id]?.unit ?? "", buyFactor: buyUnits[l.id] ? String(buyUnits[l.id].factor) : "", itemType: l.item_type === "general" ? "general" : "food" })}>
                             {l.name}
                           </button>
                         ) : (
                           <span className="font-semibold">{l.name}</span>
+                        )}
+                        {l.item_type === "general" && (
+                          <span className="ml-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "var(--color-brand-soft, var(--color-ground))", color: "var(--color-brand)" }}>
+                            General
+                          </span>
                         )}
                         {l.category && (
                           <span className="ml-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "var(--color-ground)", color: "var(--color-ink-3)" }}>
@@ -260,7 +271,7 @@ export function StockManager({
 
           {!canManage ? null : edit ? (
             <section className="card p-4">
-              <h2 className="text-sm font-bold">{edit.id ? "Edit ingredient" : "New ingredient"}</h2>
+              <h2 className="text-sm font-bold">{edit.id ? "Edit item" : "New item"}</h2>
               <div className="mt-3 grid gap-2 sm:grid-cols-4">
                 <input className="field h-10 text-sm sm:col-span-2" placeholder="Name, e.g. Dosa batter" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} maxLength={60} />
                 <select className="field h-10 text-sm" value={edit.unit} onChange={(e) => setEdit({ ...edit, unit: e.target.value })} aria-label="Unit">
@@ -269,6 +280,10 @@ export function StockManager({
                   ))}
                 </select>
                 <input className="field h-10 text-sm" inputMode="decimal" placeholder="Cost per unit" value={edit.cost} onChange={(e) => setEdit({ ...edit, cost: e.target.value })} />
+                <select className="field h-10 text-sm sm:col-span-2" value={edit.itemType} onChange={(e) => setEdit({ ...edit, itemType: e.target.value as "food" | "general" })} aria-label="Item type">
+                  <option value="food">Food — used in dishes or prepared items</option>
+                  <option value="general">General — pens, notebooks, cleaning supplies</option>
+                </select>
                 <input className="field h-10 text-sm sm:col-span-2" inputMode="decimal" placeholder="Warn when stock falls to (optional)" value={edit.reorder} onChange={(e) => setEdit({ ...edit, reorder: e.target.value })} />
                 <input
                   className="field h-10 text-sm sm:col-span-2"
@@ -310,14 +325,14 @@ export function StockManager({
                 <button
                   className="btn btn-primary px-4 text-sm"
                   disabled={pending || !edit.name.trim()}
-                  onClick={() => run(() => saveIngredient({ id: edit.id, name: edit.name, unit: edit.unit, cost: Number(edit.cost) || 0, reorder: Number(edit.reorder) || 0, category: edit.category, purchaseUnit: edit.buyUnit, purchaseFactor: Number(edit.buyFactor) || 1 }), () => setEdit(null))}
+                  onClick={() => run(() => saveIngredient({ id: edit.id, name: edit.name, unit: edit.unit, cost: Number(edit.cost) || 0, reorder: Number(edit.reorder) || 0, category: edit.category, purchaseUnit: edit.buyUnit, purchaseFactor: Number(edit.buyFactor) || 1, itemType: edit.itemType }), () => setEdit(null))}
                 >
                   {pending ? "Saving…" : "Save ingredient"}
                 </button>
               </div>
             </section>
           ) : (
-            <button className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setEdit({ id: null, name: "", unit: "kg", cost: "", reorder: "", category: "", buyUnit: "", buyFactor: "" })}>
+            <button className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setEdit({ id: null, name: "", unit: "kg", cost: "", reorder: "", category: "", buyUnit: "", buyFactor: "", itemType: "food" })}>
               + Add ingredient
             </button>
           )}
@@ -358,7 +373,7 @@ export function StockManager({
                       aria-label="Ingredient"
                     >
                       <option value="">Ingredient…</option>
-                      {levels.map((l) => (
+                      {levels.filter((l) => l.item_type !== "general").map((l) => (
                         <option key={l.id} value={l.id}>
                           {l.name} ({l.unit})
                         </option>

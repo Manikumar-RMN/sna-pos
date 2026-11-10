@@ -19,6 +19,8 @@ export async function saveIngredient(input: {
   /** Buying unit (kg, box…) and how many stock units it holds. Empty unit = bought in the stock unit. */
   purchaseUnit?: string;
   purchaseFactor?: number;
+  /** "food" or "general". Left out, an edit keeps its type and a new item is Food. */
+  itemType?: "food" | "general";
 }): Promise<StockResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("save_ingredient", {
@@ -30,10 +32,11 @@ export async function saveIngredient(input: {
     p_category: (input.category ?? "").trim().slice(0, 40),
     p_purchase_unit: (input.purchaseUnit ?? "").trim().slice(0, 20),
     p_purchase_factor: input.purchaseUnit?.trim() ? input.purchaseFactor || 1 : 1,
+    p_item_type: input.itemType,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/stock");
-  return { ok: true, message: input.id ? "Ingredient saved." : `${input.name} added.` };
+  return { ok: true, message: input.id ? "Item saved." : `${input.name} added.` };
 }
 
 export async function saveRecipe(productId: string, lines: { ingredient_id: string; qty: number }[]): Promise<StockResult> {

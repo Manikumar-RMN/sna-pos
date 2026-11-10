@@ -23,14 +23,14 @@ export default async function ProductionPage() {
   }
   const supabase = await createClient();
   const [{ data: ings }, { data: boms }, { data: bomLines }, { data: runs }] = await Promise.all([
-    supabase.from("ingredients").select("id, name, unit, cost_per_unit, is_active").order("name"),
+    supabase.from("ingredients").select("id, name, unit, cost_per_unit, is_active, item_type").order("name"),
     supabase.from("production_boms").select("id, output_ingredient_id, yield_qty, note"),
     supabase.from("production_bom_lines").select("bom_id, ingredient_id, qty"),
     supabase.from("production_runs").select("id, number, output_ingredient_id, planned_qty, planned_for, produced_qty, produced_on, status, value, note").order("created_at", { ascending: false }).limit(40),
   ]);
   const all = ings ?? [];
   const meta = Object.fromEntries(all.map((i) => [i.id, { name: i.name, unit: i.unit, cost: Number(i.cost_per_unit) }]));
-  const ingredients = all.filter((i) => i.is_active).map((i) => ({ id: i.id, name: i.name, unit: i.unit, cost: Number(i.cost_per_unit) }));
+  const ingredients = all.filter((i) => i.is_active && i.item_type !== "general").map((i) => ({ id: i.id, name: i.name, unit: i.unit, cost: Number(i.cost_per_unit) }));
   const recipes: Recipe[] = (boms ?? [])
     .map((b) => ({
       outputId: b.output_ingredient_id,

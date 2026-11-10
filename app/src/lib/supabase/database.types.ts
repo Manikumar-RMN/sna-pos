@@ -2503,6 +2503,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          item_type: string
           name: string
           purchase_factor: number
           purchase_unit: string | null
@@ -2516,6 +2517,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          item_type?: string
           name: string
           purchase_factor?: number
           purchase_unit?: string | null
@@ -2529,6 +2531,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          item_type?: string
           name?: string
           purchase_factor?: number
           purchase_unit?: string | null
@@ -8522,6 +8525,7 @@ export type Database = {
       }
       save_ingredient: {
         Args: {
+          p_item_type?: string
           p_category?: string
           p_purchase_factor?: number
           p_purchase_unit?: string

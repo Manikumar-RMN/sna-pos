@@ -30,7 +30,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
   const today = todayIn(user.timezone);
   const from = addDays(today, -6);
   const transfers = canManage && has(user, "central_kitchen") && user.outlet_count > 1;
-  const [{ data: report }, { data: products }, { data: recipes }, { data: others }, recentRes, { data: buyRows }] = await Promise.all([
+  const [{ data: report }, { data: products }, { data: recipes }, { data: others }, recentRes, { data: buyRows }, { data: typeRows }] = await Promise.all([
     supabase.rpc("stock_report", { p_from: from, p_to: today }),
     canManage ? supabase.from("products").select("id, name, price").is("deleted_at", null).order("name") : Promise.resolve({ data: [] as { id: string; name: string; price: number }[] }),
     canManage ? supabase.from("recipe_lines").select("product_id, ingredient_id, qty") : Promise.resolve({ data: [] as { product_id: string; ingredient_id: string; qty: number }[] }),
@@ -43,8 +43,12 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
       : Promise.resolve({ data: [], error: null }),
     // Buying units (kg → 1000 g) for the stock-in and ingredient forms.
     supabase.from("ingredients").select("id, purchase_unit, purchase_factor").not("purchase_unit", "is", null),
+    // Food or General, merged into each stock row below.
+    supabase.from("ingredients").select("id, item_type"),
   ]);
   const rep = (report ?? { levels: [], food_cost: [] }) as unknown as { levels: Level[]; food_cost: FoodCost[] };
+  const typeOf = new Map((typeRows ?? []).map((t) => [t.id, t.item_type === "general" ? "general" : "food"] as const));
+  rep.levels = rep.levels.map((l) => ({ ...l, item_type: typeOf.get(l.id) ?? "food" }));
   const recent: RecentAdjust[] = ((recentRes.data ?? []) as unknown as Record<string, unknown>[]).map((r) => {
     const ing = (r.ingredients ?? {}) as { name?: string; unit?: string };
     return {
