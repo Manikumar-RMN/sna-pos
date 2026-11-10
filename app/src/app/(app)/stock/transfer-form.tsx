@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { transferStock } from "../outlet/actions";
 
 /** Central kitchen: send stock from this outlet to another one. */
@@ -16,6 +16,7 @@ export function TransferForm({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const ref = useRef<string>(crypto.randomUUID());
   const [ing, setIng] = useState(ingredients[0]?.id ?? "");
   const [to, setTo] = useState(outlets[0]?.id ?? "");
   const [qty, setQty] = useState("");
@@ -34,10 +35,11 @@ export function TransferForm({
         onSubmit={(e) => {
           e.preventDefault();
           start(async () => {
-            const r = await transferStock(ing, qty, to, note);
+            const r = await transferStock(ing, qty, to, note, ref.current);
             setMsg({ ok: r.ok, text: r.ok ? `Sent ${qty} ${unit}.` : r.error });
             if (r.ok) {
               setQty("");
+              ref.current = crypto.randomUUID();
               setNote("");
               router.refresh();
             }

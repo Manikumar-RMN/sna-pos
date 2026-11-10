@@ -48,11 +48,11 @@ export async function setCentralKitchen(branchId: string, on: boolean): Promise<
   return { ok: true, message: "Saved." };
 }
 
-export async function transferStock(ingredientId: string, qty: string, toBranch: string, note: string): Promise<OutletResult> {
+export async function transferStock(ingredientId: string, qty: string, toBranch: string, note: string, clientRef?: string): Promise<OutletResult> {
   const n = Number(qty);
   if (!(n > 0)) return { ok: false, error: "Enter a quantity." };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("transfer_stock", { p_ingredient_id: ingredientId, p_qty: n, p_to_branch: toBranch, p_note: note || undefined });
+  const { error } = await supabase.rpc("transfer_stock", { p_ingredient_id: ingredientId, p_qty: n, p_to_branch: toBranch, p_note: note || undefined, p_client_ref: clientRef && /^[0-9a-f-]{36}$/i.test(clientRef) ? clientRef : undefined });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/stock");
   return { ok: true, message: "Sent." };

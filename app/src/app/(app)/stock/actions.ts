@@ -47,21 +47,6 @@ export async function saveRecipe(productId: string, lines: { ingredient_id: stri
   return { ok: true, message: "Recipe saved. Sales now use up these ingredients." };
 }
 
-export async function recordStock(input: { ingredientId: string; kind: "purchase" | "wastage" | "count"; qty: number; unitCost: number | null; note: string }): Promise<StockResult> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("record_stock", {
-    p_ingredient_id: input.ingredientId,
-    p_kind: input.kind,
-    p_qty: input.qty,
-    p_unit_cost: input.unitCost ?? undefined,
-    p_note: input.note || undefined,
-  });
-  if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/stock");
-  const r = (data ?? {}) as { stock?: number };
-  return { ok: true, message: `Saved. Stock now ${Number(r.stock ?? 0).toFixed(2)}.` };
-}
-
 /** One tap = one entry: the screen makes a reference when the form opens and sends the same one on a retry or double click. */
 function ref(clientRef: string | undefined): string {
   return clientRef && /^[0-9a-f-]{36}$/i.test(clientRef) ? clientRef : crypto.randomUUID();
@@ -106,13 +91,15 @@ export async function adjustStock(input: { ingredientId: string; kind: AdjustKin
 }
 
 /** Saves a whole stock count. The database reads the expected quantities at the moment of saving. */
-export async function applyStockCount(input: { lines: CountLine[]; note: string; clientRef?: string }): Promise<StockResult> {
+export async function applyStockCount(input: { lines: CountLine[]; note: string; clientRef?: string; openedAt?: string }): Promise<StockResult> {
   if (input.lines.length === 0) return { ok: false, error: "Enter at least one counted quantity." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("stock_count_apply", {
     p_lines: input.lines as unknown as Json,
     p_note: input.note.trim().slice(0, 200),
     p_client_ref: ref(input.clientRef),
+    // Expected stock is taken as it was when the sheet was opened, so sales made while counting do not show as differences.
+    p_counted_at: input.openedAt && !Number.isNaN(Date.parse(input.openedAt)) ? input.openedAt : undefined,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/stock");

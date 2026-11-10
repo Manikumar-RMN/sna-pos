@@ -82,7 +82,7 @@ export default async function StockOnHandPage({ searchParams }: { searchParams: 
             </p>
             <ReportTable head={head} textCols={textCols} total={total} rows={rows.map(cells)} />
             <Note>
-              Value is the quantity on hand times the current cost per unit. Ingredients below zero are valued at 0 and counted
+              Value is the quantity on hand times the current average cost per unit (the Stock ledger adds up each movement at its own day's cost, so the two can differ when prices have changed). Ingredients below zero are valued at 0 and counted
               separately: a negative balance means more was used than was recorded as bought, so check purchases and the recipes.
               {scope.all ? " Each outlet keeps its own stock, so an ingredient has one row per outlet." : ""}
             </Note>

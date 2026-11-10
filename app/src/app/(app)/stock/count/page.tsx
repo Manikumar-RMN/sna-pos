@@ -26,6 +26,7 @@ export default async function StockCountPage() {
   const today = todayIn(user.timezone);
   const { data: report } = await supabase.rpc("stock_report", { p_from: today, p_to: today });
   const levels = ((report ?? { levels: [] }) as unknown as { levels: Level[] }).levels;
+  const openedAt = new Date().toISOString();
   return (
     <div className="mx-auto max-w-4xl">
       <Link href="/stock" className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
@@ -37,6 +38,7 @@ export default async function StockCountPage() {
         for this outlet only.
       </p>
       <CountSheet
+        openedAt={openedAt}
         currency={user.currency_code}
         rows={levels.map((l) => ({
           id: l.id,

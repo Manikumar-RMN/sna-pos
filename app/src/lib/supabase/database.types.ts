@@ -8023,7 +8023,7 @@ export type Database = {
       report_stock_on_hand: { Args: { p_as_of?: string | null }; Returns: Json }
       report_wastage: { Args: { p_from: string; p_to: string }; Returns: Json }
       stock_count_apply: {
-        Args: { p_client_ref?: string | null; p_lines: Json; p_note?: string | null }
+        Args: { p_client_ref?: string | null; p_counted_at?: string | null; p_lines: Json; p_note?: string | null }
         Returns: Json
       }
       stock_in_quick: {
@@ -8913,6 +8913,7 @@ export type Database = {
       }
       transfer_stock: {
         Args: {
+          p_client_ref?: string
           p_ingredient_id: string
           p_note?: string
           p_qty: number

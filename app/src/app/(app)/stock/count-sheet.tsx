@@ -10,7 +10,7 @@ import { applyStockCount } from "./actions";
 type SheetRow = Omit<CountRow, "counted"> & { category: string };
 
 /** Count sheet: every ingredient with what the system expects and a box for what was counted. One save. */
-export function CountSheet({ currency, rows }: { currency: string; rows: SheetRow[] }) {
+export function CountSheet({ currency, rows, openedAt }: { currency: string; rows: SheetRow[]; openedAt?: string }) {
   const router = useRouter();
   const online = useOnline();
   const [pending, start] = useTransition();
@@ -39,7 +39,7 @@ export function CountSheet({ currency, rows }: { currency: string; rows: SheetRo
     }
     setMsg(null);
     start(async () => {
-      const r = await applyStockCount({ lines, note, clientRef: clientRef.current });
+      const r = await applyStockCount({ lines, note, clientRef: clientRef.current, openedAt });
       setMsg(r.ok ? { ok: true, text: r.message ?? "Count saved." } : { ok: false, text: r.error });
       if (r.ok) {
         clientRef.current = crypto.randomUUID();

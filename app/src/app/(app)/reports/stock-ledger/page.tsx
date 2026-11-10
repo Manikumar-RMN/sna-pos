@@ -67,7 +67,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
           <div className="mt-4">
             {rows.length === 0 ? <Empty text="No movements in this period." /> : <ReportTable head={head} textCols={[0, 1, 7]} rows={cells} />}
           </div>
-          <Note>Opening is the stock at the start of the first day. Balance runs down the list. Rate is the cost when the movement happened.</Note>
+          <Note>Opening is the stock at the start of the first day. Balance runs down the list. Rate is the cost when the movement happened. Values here add up each movement at its own day's cost, so the closing value can differ from Stock on hand, which values the balance at today's average cost.</Note>
         </>
       )}
     </ReportShell>
