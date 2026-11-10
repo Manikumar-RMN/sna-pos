@@ -155,6 +155,18 @@ export function LineEditor({
                   ×
                 </span>
               </button>
+              {showTax && (
+                <div className="col-span-full flex flex-wrap items-center gap-2 sm:pl-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+                    Batch no.
+                    <input className="field h-9 w-32 text-sm" placeholder="optional" maxLength={40} value={l.batch ?? ""} onChange={(e) => set(i, { batch: e.target.value })} disabled={disabled} aria-label={`Batch number (line ${n})`} />
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+                    Best before
+                    <input className="field h-9 text-sm" type="date" value={l.expiry ?? ""} onChange={(e) => set(i, { expiry: e.target.value })} disabled={disabled} aria-label={`Expiry date (line ${n})`} />
+                  </label>
+                </div>
+              )}
             </li>
           );
         })}

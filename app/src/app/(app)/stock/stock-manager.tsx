@@ -153,6 +153,9 @@ export function StockManager({
             <Link href="/stock/requests" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }}>
               Requests
             </Link>
+            <Link href="/stock/expiry" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }}>
+              Expiry
+            </Link>
             <Link href="/stock/closing" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }}>
               Opening and month closing
             </Link>

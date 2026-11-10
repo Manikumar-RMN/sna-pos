@@ -2135,6 +2135,8 @@ export type Database = {
       }
       goods_receipt_lines: {
         Row: {
+          batch_no: string | null
+          expiry_date: string | null
           tax_claimable: boolean
           tax_amount: number
           tax_rate: number
@@ -2150,6 +2152,8 @@ export type Database = {
           unit_cost: number
         }
         Insert: {
+          batch_no?: string | null
+          expiry_date?: string | null
           tax_claimable?: boolean
           tax_amount?: number
           tax_rate?: number
@@ -2165,6 +2169,8 @@ export type Database = {
           unit_cost: number
         }
         Update: {
+          batch_no?: string | null
+          expiry_date?: string | null
           tax_claimable?: boolean
           tax_amount?: number
           tax_rate?: number
@@ -8099,6 +8105,10 @@ export type Database = {
           p_receipt_id: string
           p_reference?: string
         }
+        Returns: Json
+      }
+      expiry_report: {
+        Args: { p_days?: number }
         Returns: Json
       }
       receive_goods: {

@@ -24,9 +24,9 @@ export type StockedIngredient = Ingredient & { stock: number; reorder: number };
 export type IngredientNames = Record<string, { name: string; unit: string }>;
 
 /** One line while it is being typed. */
-export type LineDraft = { ingredient_id: string; qty: string; cost: string; /** Typed in the buying unit instead of the stock unit. */ buy?: boolean; /** Tax % on this line, e.g. "5". Blank means none. */ taxRate?: string };
+export type LineDraft = { ingredient_id: string; qty: string; cost: string; /** Typed in the buying unit instead of the stock unit. */ buy?: boolean; /** Tax % on this line, e.g. "5". Blank means none. */ taxRate?: string; /** Supplier batch or lot number (optional). */ batch?: string; /** Best-before date, YYYY-MM-DD (optional). */ expiry?: string };
 /** One line as the database wants it. */
-export type CleanLine = { ingredient_id: string; qty: number; unit_cost: number; unit?: "purchase"; tax_rate?: number };
+export type CleanLine = { ingredient_id: string; qty: number; unit_cost: number; unit?: "purchase"; tax_rate?: number; batch_no?: string; expiry_date?: string };
 export type OrderLine = { ingredient_id: string; qty: number; unit_cost: number; received_qty: number };
 
 /** A purchase order with its lines. `date` is the day it was written (YYYY-MM-DD, restaurant time). */
@@ -198,7 +198,18 @@ export function checkLines(lines: LineDraft[], names: IngredientNames): { ok: tr
     const tr = (l.taxRate ?? "").trim();
     const rate = tr === "" ? 0 : Number(tr);
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) return { ok: false, error: `Tax % for ${name} must be between 0 and 100.` };
-    out.push({ ingredient_id: l.ingredient_id, qty: Number(l.qty.trim()), unit_cost: Number(l.cost.trim()), ...(l.buy ? { unit: "purchase" as const } : {}), ...(rate > 0 ? { tax_rate: rate } : {}) });
+    const batch = (l.batch ?? "").trim();
+    const expiry = (l.expiry ?? "").trim();
+    if (expiry && !/^\d{4}-\d{2}-\d{2}$/.test(expiry)) return { ok: false, error: `Choose a valid expiry date for ${name}.` };
+    out.push({
+      ingredient_id: l.ingredient_id,
+      qty: Number(l.qty.trim()),
+      unit_cost: Number(l.cost.trim()),
+      ...(l.buy ? { unit: "purchase" as const } : {}),
+      ...(rate > 0 ? { tax_rate: rate } : {}),
+      ...(batch ? { batch_no: batch.slice(0, 40) } : {}),
+      ...(expiry ? { expiry_date: expiry } : {}),
+    });
   }
   if (out.length === 0) return { ok: false, error: "Add at least one ingredient." };
   return { ok: true, lines: out };
