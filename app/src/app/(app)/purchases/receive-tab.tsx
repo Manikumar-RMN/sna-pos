@@ -433,24 +433,6 @@ export function ReceiveTab({
                             Return goods
                           </button>
                         )}
-                        {r.paid === 0 && (
-                          <button
-                            type="button"
-                            className={rowBtn}
-                            style={{ ...lineStyle, color: "var(--color-bad)" }}
-                            onClick={() => {
-                              setListMsg(null);
-                              list.setMsg(null);
-                              setPayId(null);
-                              setReturnId(null);
-                              setReason("");
-                              setCancelId(r.id);
-                            }}
-                            disabled={busy}
-                          >
-                            Cancel
-                          </button>
-                        )}
                       </div>
                     )}
 
@@ -494,46 +476,6 @@ export function ReceiveTab({
                       />
                     )}
 
-                    {cancelId === r.id && !r.cancelled && (
-                      <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: "var(--color-bad)", background: "var(--color-bad-soft)" }}>
-                        <div className="text-sm font-bold" style={{ color: "var(--color-bad)" }}>
-                          Cancel {r.number}? The goods will be taken back out of stock.
-                        </div>
-                        <Field label="Why is it being cancelled?" className="mt-2">
-                          <input className="field h-10 text-sm" placeholder="e.g. entered twice, wrong supplier" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} disabled={list.pending} />
-                        </Field>
-                        <div className="mt-2">
-                          <Msg msg={list.msg && !list.msg.ok ? list.msg : null} />
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            className="btn px-4 text-sm"
-                            style={{ background: "var(--color-bad)", color: "#fff" }}
-                            disabled={list.pending || reason.trim().length < 3}
-                            onClick={() => {
-                              setListMsg(null);
-                              list.run(
-                                () => cancelGoodsReceipt(r.id, reason),
-                                (done) => {
-                                  setCancelId(null);
-                                  setReason("");
-                                  const kept = done.costNotRestored;
-                                  if (kept.length === 0) return;
-                                  const which = kept.length === 1 ? kept[0] : `${kept.slice(0, -1).join(", ")} and ${kept[kept.length - 1]}`;
-                                  return `Receipt cancelled. The cost of ${which} has changed since this delivery, so it was left as it is. Check it on the Stock screen.`;
-                                },
-                              );
-                            }}
-                          >
-                            {list.pending ? "Cancelling…" : "Yes, cancel this receipt"}
-                          </button>
-                          <button type="button" className="btn border px-4 text-sm" style={{ ...lineStyle, background: "var(--color-surface)" }} onClick={() => setCancelId(null)} disabled={list.pending}>
-                            Keep it
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </li>
                 );
               })}
