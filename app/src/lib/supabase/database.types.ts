@@ -6855,6 +6855,57 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_refunds: {
+        Row: {
+          amount: number
+          branch_id: string
+          cash_movement_id: string | null
+          client_ref: string | null
+          created_at: string
+          goods_receipt_id: string
+          id: string
+          into_till: boolean
+          method: string
+          received_by: string | null
+          received_on: string
+          reference: string | null
+          restaurant_id: string
+          supplier_id: string
+        }
+        Insert: {
+          amount: number
+          branch_id: string
+          cash_movement_id?: string | null
+          client_ref?: string | null
+          created_at?: string
+          goods_receipt_id: string
+          id?: string
+          into_till?: boolean
+          method: string
+          received_by?: string | null
+          received_on: string
+          reference?: string | null
+          restaurant_id: string
+          supplier_id: string
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          cash_movement_id?: string | null
+          client_ref?: string | null
+          created_at?: string
+          goods_receipt_id?: string
+          id?: string
+          into_till?: boolean
+          method?: string
+          received_by?: string | null
+          received_on?: string
+          reference?: string | null
+          restaurant_id?: string
+          supplier_id?: string
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           blocked: boolean
