@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { addDays, money } from "@/lib/format";
 import { receiveGoods } from "./actions";
@@ -379,6 +380,9 @@ export function ReceiveTab({
                     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                       <div className="min-w-0">
                         <span className="font-semibold">{r.number}</span>{" "}
+                        <Link href={`/stock/note/receipt/${r.id}`} className="text-xs font-semibold" style={{ color: "var(--color-brand)" }}>
+                          Print
+                        </Link>{" "}
                         {r.cancelled ? (
                           <Badge label="Cancelled" bg="var(--color-bad-soft)" fg="var(--color-bad)" />
                         ) : r.owed > 0 ? (

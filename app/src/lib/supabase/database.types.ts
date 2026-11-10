@@ -7956,6 +7956,9 @@ export type Database = {
       report_count_variance: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_stock_watch: { Args: { p_kind: string; p_days?: number; p_cutoff?: number }; Returns: Json }
       report_stock_ledger: { Args: { p_from: string; p_ingredient: string; p_to: string }; Returns: Json }
+      report_consumption_monthly: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_item_stock: { Args: { p_ingredient: string }; Returns: Json }
+      report_mr_audit: { Args: { p_from: string; p_to: string }; Returns: Json }
       return_goods: {
         Args: { p_client_ref?: string; p_lines: Json; p_reason: string; p_receipt_id: string }
         Returns: Json

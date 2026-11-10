@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { money } from "@/lib/format";
 import { Badge, Field, lineStyle, Msg, rowBtn, useRun } from "../../purchases/ui";
+import Link from "next/link";
 import { closeRequest, issueStock, sendRequest } from "./actions";
 
 type Ing = { id: string; name: string; unit: string };
@@ -82,7 +83,12 @@ export function RequestsBoard({ canManage, canBackdate, currency, ingredients, r
                     <b>{x.number}</b> · {x.department} · {x.issuedOn}
                     {x.note ? <span style={{ color: "var(--color-ink-3)" }}> · {x.note}</span> : null}
                   </span>
-                  <span className="font-semibold tabular-nums">{m(x.value)}</span>
+                  <span className="flex items-center gap-3">
+                    <Link href={`/stock/note/issue/${x.id}`} className="text-xs font-semibold" style={{ color: "var(--color-brand)" }}>
+                      Print
+                    </Link>
+                    <span className="font-semibold tabular-nums">{m(x.value)}</span>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -131,7 +137,10 @@ function RequestItem({ r, first, canManage, onDone }: { r: ReqRow; first: boolea
     <li className="px-4 py-3" style={first ? undefined : { borderTop: "1px solid var(--color-line)" }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <span className="font-semibold">{r.number}</span> <Badge label={st.label} bg={st.bg} fg={st.fg} />
+          <span className="font-semibold">{r.number}</span> <Badge label={st.label} bg={st.bg} fg={st.fg} />{" "}
+          <Link href={`/stock/note/request/${r.id}`} className="text-xs font-semibold" style={{ color: "var(--color-brand)" }}>
+            Print
+          </Link>
           <div className="text-sm" style={{ color: "var(--color-ink-2)" }}>
             For {r.department} · {r.createdAt.slice(0, 10)}
             {r.note ? ` · ${r.note}` : ""}
