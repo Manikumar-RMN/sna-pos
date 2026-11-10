@@ -70,7 +70,7 @@ export function NewClientForm({ countries, canSell }: { countries: Country[]; ca
             </div>
             <div className="mt-1 select-all break-all font-mono text-2xl font-bold tracking-wider">{res.tempPassword}</div>
             <p className="mt-2 text-sm" style={{ color: "var(--color-ink-2)" }}>
-              Give it to the owner privately. They sign in at sna-pos.vercel.app, with their email and this password, and must then choose
+              Give it to the owner privately. They sign in at sna-pos.vercel.app with the restaurant code, their email as the username and this password, and must then choose
               their own password.
             </p>
           </div>

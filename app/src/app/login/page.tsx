@@ -38,8 +38,6 @@ export default function LoginPage() {
   const [clientCode, setClientCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  /** An email means an owner or invited person; anything else is a staff user code, which also needs the client code. */
-  const isEmail = who.includes("@");
 
   useEffect(() => {
     setLinkExpired(new URLSearchParams(window.location.search).get("link") === "expired");
@@ -120,7 +118,7 @@ export default function LoginPage() {
             {isSignup ? "For staff who were given an invite code. You will type the code on the next page." : "Sign in to your restaurant"}
           </p>
 
-          {/* One form for everyone. An email signs in an owner or invited person; a user code (EMP001) signs in staff and also needs the restaurant's client code. */}
+          {/* One form for everyone: restaurant code, then username (user code or email), then password. The check is made inside that restaurant. */}
           <form action={action} className="flex flex-col">
             {isSignup ? (
               <>
@@ -131,9 +129,32 @@ export default function LoginPage() {
               </>
             ) : (
               <>
-                <label className="mb-1.5 block text-sm font-bold" htmlFor="username">
-                  Email or user code
+                <label className="mb-1.5 block text-sm font-bold" htmlFor="clientCode">
+                  Restaurant code
                 </label>
+                <p className="mb-1.5 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                  Ask your manager. You type it once on this device.
+                </p>
+                <input
+                  id="clientCode"
+                  name="clientCode"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  required
+                  className="field mb-4"
+                  placeholder="1000"
+                  pattern="[0-9]{4,6}"
+                  title="Your restaurant's code, e.g. 1000"
+                  value={clientCode}
+                  onChange={(e) => rememberCode(e.target.value)}
+                />
+                <label className="mb-1.5 block text-sm font-bold" htmlFor="username">
+                  Username
+                </label>
+                <p className="mb-1.5 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                  Your user code (for example EMP001) or your email.
+                </p>
                 <input
                   id="username"
                   name="username"
@@ -142,34 +163,10 @@ export default function LoginPage() {
                   autoCapitalize="none"
                   required
                   className="field mb-4"
-                  placeholder="you@restaurant.com or EMP001"
+                  placeholder="EMP001"
                   value={who}
                   onChange={(e) => setWho(e.target.value)}
                 />
-                {!isEmail && (
-                  <>
-                    <label className="mb-1.5 block text-sm font-bold" htmlFor="clientCode">
-                      Restaurant code
-                    </label>
-                    <p className="mb-1.5 text-xs" style={{ color: "var(--color-ink-3)" }}>
-                      Ask your manager. You type it once on this device.
-                    </p>
-                    <input
-                      id="clientCode"
-                      name="clientCode"
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      required
-                      className="field mb-4"
-                      placeholder="1000"
-                      pattern="[0-9]{4,6}"
-                      title="Your restaurant's code, e.g. 1000"
-                      value={clientCode}
-                      onChange={(e) => rememberCode(e.target.value)}
-                    />
-                  </>
-                )}
               </>
             )}
 

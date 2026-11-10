@@ -78,16 +78,8 @@ export async function authenticate(_prev: AuthState, formData: FormData): Promis
 
   // Staff sign in with client_code + username + password
   if (intent === "signin") {
-    // One sign-in box: an email signs in an owner or an invited person (no restaurant code needed).
-    if (username.includes("@")) {
-      if (!password) return { error: "Enter your email and password." };
-      const { error } = await supabase.auth.signInWithPassword({ email: username, password });
-      if (error) return { error: "That email and password do not match an account." };
-      revalidatePath("/", "layout");
-      redirect("/dashboard");
-    }
     if (!clientCode || !username || !password) {
-      return { error: "Enter your email or user code, the restaurant code (for a user code) and your password." };
+      return { error: "Enter the restaurant code, your username and your password." };
     }
 
     // login_staff checks the password itself and only hands back the sign-in

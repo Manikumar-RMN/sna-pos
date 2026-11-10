@@ -113,7 +113,7 @@ export function StaffManager({
             {secret.kind === "pin"
               ? "Give this PIN to them privately. They type it on the counter tablet to unlock it. No one else in the restaurant has the same PIN."
               : secret.userCode
-                ? `Give this to them privately. On the sign-in page they type user code ${secret.userCode}, restaurant code ${secret.clientCode ?? ""} and this password. They must then choose their own password.`
+                ? `Give this to them privately. On the sign-in page they type restaurant code ${secret.clientCode ?? ""}, username ${secret.userCode} and this password. They must then choose their own password.`
                 : "Give this to them privately. They sign in with their email and this password, and must then choose their own. They have been signed out everywhere."}
           </p>
           <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
