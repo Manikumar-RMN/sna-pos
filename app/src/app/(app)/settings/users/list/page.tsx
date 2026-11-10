@@ -2,7 +2,7 @@ import Link from "next/link";
 import { can, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayIn } from "@/lib/format";
-import { CsvButton } from "../../../csv-button";
+import { CsvButton } from "../../../reports/csv-button";
 import { PrintButton } from "../../../print-button";
 
 /** User list, like Winsar's User List report: every user with role, department, designation, status and relieving date. */
