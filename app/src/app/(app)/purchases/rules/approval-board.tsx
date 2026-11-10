@@ -10,7 +10,7 @@ type Row = { level: number; minAmount: string; approverId: string };
 /** Up to six approval levels for purchase orders. Each level has a "from amount" and one person who approves it. */
 export function ApprovalBoard({ canEdit, people, initial, blockSelf, currency }: { canEdit: boolean; people: Person[]; initial: { level: number; minAmount: number; approverId: string }[]; blockSelf: boolean; currency: string }) {
   const { pending, msg, setMsg, run } = useRun();
-  const [rows, setRows] = useState<Row[]>(initial.map((l) => ({ level: l.level, minAmount: String(l.minAmount), approverId: l.approverId })));
+  const [rows, setRows] = useState<Row[]>(initial.map((l) => ({ level: l.level, minAmount: String(l.minAmount), approverId: people.some((p) => p.id === l.approverId) ? l.approverId : "" })));
   const [block, setBlock] = useState(blockSelf);
   const d = canEdit && !pending;
   const nextLevel = [1, 2, 3, 4, 5, 6].find((n) => !rows.some((r) => r.level === n));
@@ -21,6 +21,7 @@ export function ApprovalBoard({ canEdit, people, initial, blockSelf, currency }:
     for (const r of rows) {
       const n = Number(r.minAmount.trim());
       if (r.minAmount.trim() === "" || !Number.isFinite(n) || n < 0) return setMsg({ ok: false, text: `Enter the starting amount for level ${r.level}.` });
+      if (!r.approverId) return setMsg({ ok: false, text: `Choose who approves level ${r.level}. The person set before can no longer sign in or no longer has the purchasing right.` });
       levels.push({ level: r.level, minAmount: n, approverId: r.approverId });
     }
     run(() => saveApprovalLevels({ levels, blockSelf: block }));
@@ -46,6 +47,7 @@ export function ApprovalBoard({ canEdit, people, initial, blockSelf, currency }:
             </Field>
             <Field label="Approved by">
               <select className="field h-10 text-sm" value={r.approverId} onChange={(e) => set(r.level, { approverId: e.target.value })} disabled={!d} aria-label={`Level ${r.level} approver`}>
+                {!r.approverId && <option value="">Choose a person…</option>}
                 {people.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
