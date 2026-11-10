@@ -31,7 +31,7 @@ export default async function SupplierAgeingPage({ searchParams }: { searchParam
       {err ? <Err e={err} /> : rows.length === 0 ? <Empty text="Nothing is owed to any supplier." /> : (
         <>
           <ReportTable head={head} rows={cells} total={["TOTAL", money(n(t.not_due), c), money(n(t.d30), c), money(n(t.d60), c), money(n(t.d90), c), money(n(t.d90p), c), money(n(t.owed), c), money(n(t.advance), c)]} />
-          <Note>Late is counted from the due date on each receipt (the supplier&apos;s credit days after the bill date). Paid in advance is money paid for goods you then sent back; ask the supplier for a refund or set it against the next bill. The date at the top right sets &ldquo;as at&rdquo;.</Note>
+          <Note>Late is counted from the due date on each receipt (the supplier&apos;s credit days after the bill date). Paid in advance is money the supplier is holding for you: advances you have paid and not yet used, plus anything paid for goods you then sent back. Use it against a bill from Purchases → Advances, or ask for a refund. The date at the top right sets &ldquo;as at&rdquo;.</Note>
         </>
       )}
     </ReportShell>

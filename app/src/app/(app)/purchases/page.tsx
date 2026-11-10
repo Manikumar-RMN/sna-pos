@@ -22,6 +22,7 @@ import {
   type StockedIngredient,
   type SupplierRow,
 } from "./helpers";
+import { AdvancesTab, type AdvanceRow, type OpenBill } from "./advances-tab";
 import { OrdersTab } from "./orders-tab";
 import { ReceiveTab } from "./receive-tab";
 import { SuppliersTab } from "./suppliers-tab";
@@ -33,6 +34,7 @@ const TABS = [
   { key: "orders", label: "Orders" },
   { key: "suppliers", label: "Suppliers" },
   { key: "pay", label: "To pay" },
+  { key: "advances", label: "Advances" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -112,6 +114,8 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
         <SuppliersSection supabase={supabase} user={user} suppliers={suppliers} />
       ) : suppliers.length === 0 ? (
         <AddSupplierFirst />
+      ) : tab === "advances" ? (
+        <AdvancesSection supabase={supabase} user={user} suppliers={suppliers} />
       ) : (
         <PaySection supabase={supabase} user={user} period={one(sp.period) === "last" ? "last" : "this"} />
       )}
@@ -408,6 +412,68 @@ async function SuppliersSection({ supabase, user, suppliers }: SectionProps) {
   const owed: Record<string, number> = {};
   for (const o of cleanReport(report).owed) owed[o.supplier_id] = Math.round(((owed[o.supplier_id] ?? 0) + o.owed) * 100) / 100;
   return <SuppliersTab suppliers={suppliers} owed={owed} currency={user.currency_code} taxLabel={country?.tax_id_label ?? "Tax number"} />;
+}
+
+/**
+ * Advance money paid to suppliers. The bills it can go on are the ones that
+ * still owe something, so the list is short and nothing has to be typed.
+ */
+async function AdvancesSection({ supabase, user, suppliers }: SectionProps) {
+  const [{ data: adv, error }, { data: bills }] = await Promise.all([
+    supabase.rpc("report_supplier_advances", {}),
+    supabase.from("goods_receipts").select("id, number, supplier_id, received_on, total, paid_total, status").neq("status", "cancelled").order("received_on", { ascending: true }).limit(400),
+  ]);
+  if (error) return <LoadError what="the advances" message={friendlyDbError(error)} />;
+  const report = (adv ?? {}) as { rows?: Record<string, unknown>[]; open_total?: number | string };
+  const rows = report.rows ?? [];
+
+  // Which bill each advance is sitting on, so it can be taken back off again.
+  const ids = rows.map((r) => String(r.id));
+  const onBills = new Map<string, { paymentId: string; receipt: string; amount: number }[]>();
+  if (ids.length > 0) {
+    const { data: pays } = await supabase.from("supplier_payments").select("id, goods_receipt_id, amount, reverses_id, supplier_advance_id").in("supplier_advance_id", ids).limit(2000);
+    const undone = new Set((pays ?? []).filter((p) => p.reverses_id).map((p) => p.reverses_id as string));
+    const numberOf = new Map((bills ?? []).map((b) => [b.id, b.number]));
+    for (const p of pays ?? []) {
+      if (p.reverses_id || undone.has(p.id) || !p.supplier_advance_id) continue;
+      const list = onBills.get(p.supplier_advance_id) ?? [];
+      list.push({ paymentId: p.id, receipt: numberOf.get(p.goods_receipt_id) ?? "a bill", amount: Number(p.amount) });
+      onBills.set(p.supplier_advance_id, list);
+    }
+  }
+
+  const advances: AdvanceRow[] = rows.map((r) => ({
+    id: String(r.id),
+    number: String(r.number ?? ""),
+    supplier: String(r.supplier ?? ""),
+    supplier_id: String(r.supplier_id ?? ""),
+    amount: Number(r.amount ?? 0),
+    used: Number(r.used ?? 0),
+    left: Number(r.left ?? 0),
+    method: String(r.method ?? ""),
+    reference: (r.reference as string | null) ?? null,
+    paid_on: String(r.paid_on ?? ""),
+    from_till: r.from_till === true,
+    status: String(r.status ?? "open"),
+    notes: (r.notes as string | null) ?? null,
+    onBills: onBills.get(String(r.id)) ?? [],
+  }));
+  const openBills: OpenBill[] = (bills ?? [])
+    .map((b) => ({ id: b.id, supplier_id: b.supplier_id, number: b.number, received_on: b.received_on, owed: Math.round((Number(b.total) - Number(b.paid_total)) * 100) / 100 }))
+    .filter((b) => b.owed > 0);
+
+  return (
+    <AdvancesTab
+      advances={advances}
+      suppliers={suppliers.filter((s) => s.is_active && !s.blocked).map((s) => ({ id: s.id, name: s.name }))}
+      openBills={openBills}
+      openTotal={Number(report.open_total ?? 0)}
+      currency={user.currency_code}
+      country={user.country_code}
+      today={todayIn(user.timezone)}
+      canTill={can(user, "cash.movement")}
+    />
+  );
 }
 
 async function PaySection({ supabase, user, period }: Omit<SectionProps, "suppliers"> & { period: "this" | "last" }) {

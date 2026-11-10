@@ -320,3 +320,83 @@ export async function setSupplierBlocked(id: string, blocked: boolean, reason: s
   revalidatePath("/purchases");
   return { ok: true, message: blocked ? "Supplier blocked." : "Supplier unblocked." };
 }
+
+export type AdvanceResult = { ok: true; number: string; amount: number; message: string } | Fail;
+export type ApplyAdvanceResult = { ok: true; amount: number; advanceLeft: number; receiptBalance: number; number: string } | Fail;
+
+/** Money given to a supplier before any bill: it sits on the supplier's account until it is used. */
+export async function payAdvance(input: {
+  supplierId: string;
+  amount: number;
+  method: string;
+  reference: string;
+  paidOn: string;
+  fromTill: boolean;
+  notes: string;
+  clientRef: string;
+}): Promise<AdvanceResult> {
+  if (!isUuid(input.supplierId)) return { ok: false, error: "Choose a supplier." };
+  // Without this reference a second tap would pay the supplier twice, so never send without it.
+  if (!isUuid(input.clientRef)) return { ok: false, error: "This page is out of date. Refresh it and try again." };
+  if (!isPayMethod(input.method)) return { ok: false, error: "Choose how the supplier was paid." };
+  const cents = amountCents(input.amount);
+  if (cents === null || cents <= 0) return { ok: false, error: "Enter an amount greater than zero." };
+  if (input.paidOn && !isYmd(input.paidOn)) return { ok: false, error: "Choose a valid payment date." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("pay_supplier_advance", {
+    p_supplier: input.supplierId,
+    p_amount: cents / 100,
+    p_method: input.method,
+    p_reference: input.reference || undefined,
+    p_paid_on: input.paidOn || undefined,
+    p_from_till: input.method === "cash" && !!input.fromTill,
+    p_notes: input.notes || undefined,
+    p_client_ref: input.clientRef,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/purchases");
+  revalidatePath("/shift");
+  const r = (data ?? {}) as { number?: string; amount?: number | string };
+  return { ok: true, number: r.number ?? "", amount: Number(r.amount ?? cents / 100), message: `Advance ${r.number ?? ""} saved.` };
+}
+
+/** Uses advance money against a bill. No cash moves now: it left when the advance was paid. */
+export async function applyAdvance(input: { advanceId: string; receiptId: string; amount: number }): Promise<ApplyAdvanceResult> {
+  if (!isUuid(input.advanceId)) return { ok: false, error: "Advance not found." };
+  if (!isUuid(input.receiptId)) return { ok: false, error: "Choose the bill to use it on." };
+  const cents = amountCents(input.amount);
+  if (cents === null || cents <= 0) return { ok: false, error: "Enter an amount greater than zero." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("apply_supplier_advance", { p_advance: input.advanceId, p_receipt: input.receiptId, p_amount: cents / 100 });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/purchases");
+  const r = (data ?? {}) as { amount?: number | string; advance_left?: number | string; receipt_balance?: number | string; number?: string };
+  return { ok: true, amount: Number(r.amount ?? 0), advanceLeft: Number(r.advance_left ?? 0), receiptBalance: Number(r.receipt_balance ?? 0), number: r.number ?? "" };
+}
+
+/** Takes advance money back off a bill. It goes back onto the advance, not into the till. */
+export async function unapplyAdvance(paymentId: string, reason: string): Promise<PurchaseResult> {
+  if (!isUuid(paymentId)) return { ok: false, error: "Payment not found." };
+  const why = String(reason ?? "").trim();
+  if (why.length < 3) return { ok: false, error: "Write a short reason for taking the advance back off the bill." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("unapply_supplier_advance", { p_payment_id: paymentId, p_reason: why });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/purchases");
+  const r = (data ?? {}) as { number?: string; receipt?: string };
+  return { ok: true, message: `${r.number ?? "The advance"} is back on the supplier's account; ${r.receipt ?? "the bill"} is owed again.` };
+}
+
+/** The supplier gave the money back, or it was entered wrongly. Only while none of it is on a bill. */
+export async function cancelAdvance(advanceId: string, reason: string): Promise<PurchaseResult> {
+  if (!isUuid(advanceId)) return { ok: false, error: "Advance not found." };
+  const why = String(reason ?? "").trim();
+  if (why.length < 3) return { ok: false, error: "Write a short reason for cancelling the advance." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("cancel_supplier_advance", { p_advance: advanceId, p_reason: why });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/purchases");
+  revalidatePath("/shift");
+  const r = (data ?? {}) as { number?: string; to_till?: boolean };
+  return { ok: true, message: `${r.number ?? "The advance"} is cancelled.${r.to_till ? " The cash is back in the drawer." : ""}` };
+}

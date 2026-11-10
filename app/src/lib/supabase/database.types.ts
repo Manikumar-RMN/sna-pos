@@ -6934,6 +6934,94 @@ export type Database = {
           },
         ]
       }
+      supplier_advances: {
+        Row: {
+          amount: number
+          applied_total: number
+          branch_id: string
+          cancelled_at: string | null
+          cancelled_reason: string | null
+          cash_movement_id: string | null
+          client_ref: string | null
+          created_at: string
+          from_till: boolean
+          id: string
+          method: string
+          notes: string | null
+          number: string
+          paid_by: string
+          paid_on: string
+          reference: string | null
+          restaurant_id: string
+          status: string
+          supplier_id: string
+        }
+        Insert: {
+          amount: number
+          applied_total?: number
+          branch_id: string
+          cancelled_at?: string | null
+          cancelled_reason?: string | null
+          cash_movement_id?: string | null
+          client_ref?: string | null
+          created_at?: string
+          from_till?: boolean
+          id?: string
+          method: string
+          notes?: string | null
+          number: string
+          paid_by: string
+          paid_on: string
+          reference?: string | null
+          restaurant_id: string
+          status?: string
+          supplier_id: string
+        }
+        Update: {
+          amount?: number
+          applied_total?: number
+          branch_id?: string
+          cancelled_at?: string | null
+          cancelled_reason?: string | null
+          cash_movement_id?: string | null
+          client_ref?: string | null
+          created_at?: string
+          from_till?: boolean
+          id?: string
+          method?: string
+          notes?: string | null
+          number?: string
+          paid_by?: string
+          paid_on?: string
+          reference?: string | null
+          restaurant_id?: string
+          status?: string
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_advances_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_advances_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_advances_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_payments: {
         Row: {
           amount: number
@@ -6951,6 +7039,7 @@ export type Database = {
           reference: string | null
           restaurant_id: string
           reverses_id: string | null
+          supplier_advance_id: string | null
           supplier_id: string
         }
         Insert: {
@@ -6969,6 +7058,7 @@ export type Database = {
           reference?: string | null
           restaurant_id: string
           reverses_id?: string | null
+          supplier_advance_id?: string | null
           supplier_id: string
         }
         Update: {
@@ -6987,6 +7077,7 @@ export type Database = {
           reference?: string | null
           restaurant_id?: string
           reverses_id?: string | null
+          supplier_advance_id?: string | null
           supplier_id?: string
         }
         Relationships: [
@@ -8078,6 +8169,14 @@ export type Database = {
       report_input_tax: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_supplier_statement: { Args: { p_from: string; p_supplier: string; p_to: string }; Returns: Json }
       report_supplier_ageing: { Args: { p_asof?: string }; Returns: Json }
+      report_supplier_advances: { Args: { p_supplier?: string }; Returns: Json }
+      pay_supplier_advance: {
+        Args: { p_amount: number; p_client_ref?: string; p_from_till?: boolean; p_method: string; p_notes?: string; p_paid_on?: string; p_reference?: string; p_supplier: string }
+        Returns: Json
+      }
+      apply_supplier_advance: { Args: { p_advance: string; p_amount?: number; p_receipt: string }; Returns: Json }
+      unapply_supplier_advance: { Args: { p_payment_id: string; p_reason: string }; Returns: Json }
+      cancel_supplier_advance: { Args: { p_advance: string; p_reason: string }; Returns: Json }
       set_ingredient_hsn: { Args: { p_hsn: string; p_id: string }; Returns: undefined }
       set_block_expired_issue: { Args: { p_on: boolean }; Returns: boolean }
       save_stock_list_item: { Args: { p_kind: string; p_name: string }; Returns: string }
