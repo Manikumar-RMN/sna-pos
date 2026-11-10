@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   if (state === "device_locked" || state === "device_removed" || (state === "active" && (await supabase.from("v_current_user").select("device_name").maybeSingle()).data?.device_name)) {
     const back = url.clone();
     back.search = "";
-    back.pathname = "/counter";
+    back.pathname = "/login";
     return NextResponse.redirect(back);
   }
 

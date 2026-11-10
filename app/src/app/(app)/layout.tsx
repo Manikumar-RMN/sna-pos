@@ -2,11 +2,9 @@ import Link from "next/link";
 import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
-import { lockCounter } from "@/app/counter/actions";
 import { NavLinks, NavRail, type NavItem } from "./nav-links";
 import { ModuleSidebar, type SideGroup } from "./module-sidebar";
 import { REPORT_LINKS, REPORT_SECTIONS, groupReportLinks, sectionKey } from "./reports/_components/report-links";
-import { IdleLock } from "./idle-lock";
 import { OfflineSync } from "./offline-sync";
 import { SwRegister } from "./sw-register";
 import { OutletSwitcher, type OutletInfo } from "./outlet/outlet-switcher";
@@ -38,9 +36,6 @@ function Mark({ size = 48 }: { size?: number }) {
 export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const user = await requireUser();
   const isCounter = !!user.device_name;
-  // On a counter, opening a screen counts as activity (the database ends a PIN
-  // session after 10 minutes without any).
-  if (isCounter) await (await createClient()).rpc("pin_touch");
 
   // Show only the screens this role can use. The database enforces the real
   // rules; this just keeps the menu honest.
@@ -131,12 +126,6 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     isCounter ? (
       <>
         {outlets && <OutletSwitcher info={outlets} onGreen={onGreen} />}
-        <IdleLock minutes={10} />
-        <form action={lockCounter}>
-          <button type="submit" className="btn btn-pay h-11 min-h-0 px-5 text-sm">
-            <Dual text="Lock" />
-          </button>
-        </form>
       </>
     ) : (
       <>

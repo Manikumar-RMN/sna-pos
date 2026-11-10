@@ -2,8 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addPasswordStaff, cancelInvite, changeRole, copyAccess, resetPassword, setActive, type StaffResult } from "./actions";
-import { ConfirmButton } from "../confirm-button";
+import { addPasswordStaff, changeRole, copyAccess, resetPassword, setActive, type StaffResult } from "./actions";
 
 type Staff = {
   id: string;
@@ -147,20 +146,7 @@ export function StaffManager({
                   </td>
                   {canManage && (
                     <td className="px-4 py-3 text-right">
-                      {!locked && !s.joined && !s.pinOnly && (
-                        <div className="flex justify-end gap-1.5">
-                          <ConfirmButton
-                            className="whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
-                            style={{ borderColor: "var(--color-bad)", color: "var(--color-bad)" }}
-                            question={`Remove ${s.name}? They never signed in.`}
-                            disabled={pending}
-                            onConfirm={() => run(() => cancelInvite(s.id))}
-                          >
-                            Remove
-                          </ConfirmButton>
-                        </div>
-                      )}
-                      {!locked && (s.joined || s.pinOnly) && (
+                      {!locked && (
                         <SmallBtn danger={s.active} disabled={pending} onClick={() => run(() => setActive(s.id, !s.active))}>
                           {s.active ? "Switch off access" : "Switch on access"}
                         </SmallBtn>

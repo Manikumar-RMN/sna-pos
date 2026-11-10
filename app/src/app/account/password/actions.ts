@@ -22,7 +22,7 @@ export async function changePassword(_prev: PasswordState, formData: FormData): 
   // A counter tablet's own sign-in must never get a password someone knows.
   const { data: state } = await supabase.rpc("my_account_state");
   if (state === "device_locked" || state === "device_removed" || user.email?.endsWith("@devices.sna-pos.app")) {
-    redirect("/counter");
+    redirect("/login");
   }
 
   const { error } = await supabase.auth.updateUser({ password });

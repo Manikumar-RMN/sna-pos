@@ -16,9 +16,6 @@ import {
   type Result,
   type TaxComponent,
   savePaymentOptions,
-  setUpThisTabletAsCounter,
-  removeCounter,
-  clearCounterLock,
 } from "./actions";
 import { ConfirmButton } from "./confirm-button";
 
@@ -926,83 +923,3 @@ function MethodOptions({
 
 /* ------------------------------------------------------ counter tablets */
 
-export function CountersForm({
-  devices,
-  canEdit,
-  isThisACounter,
-}: {
-  devices: { id: string; name: string; lastSeen: string | null }[];
-  canEdit: boolean;
-  isThisACounter: boolean;
-}) {
-  const tz = useTz();
-  const { pending, msg, run } = useRunner();
-  const [name, setName] = useState(`Counter ${devices.length + 1}`);
-  const [confirm, setConfirm] = useState(false);
-  const setting = useRef(false);
-  return (
-    <section className="card p-5">
-      <h2 className="text-base font-bold">Counter tablets (PIN sign-in)</h2>
-      <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-        A shared tablet at the counter stays signed in. Each person unlocks it with their own PIN, and every bill records who
-        took it. It locks by itself after 10 minutes without use. Set PINs on the Staff screen.
-      </p>
-      <ul className="mt-3 space-y-1.5 text-sm">
-        {devices.length === 0 && (
-          <li className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-            No counter tablets yet.
-          </li>
-        )}
-        {devices.map((d) => (
-          <li key={d.id} className="flex flex-wrap items-center justify-between gap-2">
-            <span>
-              <b>{d.name}</b>
-              <span className="ml-2 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-                {d.lastSeen ? `last unlocked ${new Date(d.lastSeen).toLocaleString("en-IN", { timeZone: tz, dateStyle: "medium", timeStyle: "short" })}` : "not used yet"}
-              </span>
-            </span>
-            {canEdit && (
-              <span className="flex flex-wrap items-center justify-end gap-3">
-                <button className="text-xs font-semibold" style={{ color: "var(--color-ink-2)" }} disabled={pending} onClick={() => run(() => clearCounterLock(d.id))}>
-                  Clear PIN lock
-                </button>
-                <ConfirmButton className="text-xs font-semibold" question={`Remove ${d.name}?`} disabled={pending} onConfirm={() => run(() => removeCounter(d.id))}>
-                  Remove
-                </ConfirmButton>
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
-      {canEdit && !isThisACounter && (
-        <div className="mt-4 rounded-lg border p-3" style={{ borderColor: "var(--color-line)" }}>
-          <div className="text-sm font-semibold">Make this tablet a counter</div>
-          <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-            Do this on the tablet itself. You will be signed out of it, and it will show the PIN screen.
-          </p>
-          <div className="mt-2 flex gap-2">
-            <input className="field h-10 flex-1 text-sm" value={name} onChange={(e) => setName(e.target.value)} aria-label="Tablet name" />
-            {confirm ? (
-              <button
-                className="btn btn-primary h-10 px-3 text-xs"
-                disabled={pending || !name.trim()}
-                onClick={() => {
-                  if (setting.current) return;
-                  setting.current = true;
-                  run(() => setUpThisTabletAsCounter(name).finally(() => (setting.current = false)));
-                }}
-              >
-                {pending ? "Setting up…" : "Yes, set up"}
-              </button>
-            ) : (
-              <button className="btn h-10 border px-3 text-xs" style={{ borderColor: "var(--color-line)" }} disabled={!name.trim()} onClick={() => setConfirm(true)}>
-                Set up…
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-      <Msg msg={msg} />
-    </section>
-  );
-}

@@ -17,15 +17,6 @@ export type StaffResult =
  * changing your own access, and write the audit log.
  */
 
-export async function cancelInvite(userId: string): Promise<StaffResult> {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("cancel_invite", { p_user_id: userId });
-  if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/settings/users");
-  revalidatePath("/welcome");
-  return { ok: true, message: "Invitation cancelled." };
-}
-
 export async function changeRole(userId: string, roleId: string): Promise<StaffResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_staff", { p_user_id: userId, p_role_id: roleId });

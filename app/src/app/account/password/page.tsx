@@ -15,7 +15,7 @@ export default async function PasswordPage({ searchParams }: { searchParams: Pro
 
   const { data: state } = await supabase.rpc("my_account_state");
   if (state === "device_locked" || state === "device_removed" || state === "active" && user.email?.endsWith("@devices.sna-pos.app")) {
-    redirect("/counter");
+    redirect("/login");
   }
   // SNA staff with no restaurant of their own still need to be able to choose a password
   // (a reset link, or "Change password" in the SNA console).

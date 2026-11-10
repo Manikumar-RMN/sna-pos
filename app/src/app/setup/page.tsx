@@ -14,7 +14,7 @@ export default async function SetupPage() {
 
   const { data: state } = await supabase.rpc("my_account_state");
   if (state === "active") redirect("/dashboard");
-  if (state === "device_locked" || state === "device_removed") redirect("/counter");
+  if (state === "device_locked" || state === "device_removed") redirect("/login");
   if (state === "must_change_password") redirect("/account/password");
   // SNA staff without a restaurant of their own work in the SNA console, which has its own
   // sign-in. This restaurant-side sign-in is of no use to them: say so, and let them leave it,
