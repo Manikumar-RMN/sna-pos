@@ -7975,6 +7975,10 @@ export type Database = {
         Args: { p_full_name: string; p_phone?: string; p_role_id: string }
         Returns: Json
       }
+      create_password_staff: {
+        Args: { p_auth_user_id: string; p_full_name: string; p_phone?: string; p_role_id: string }
+        Returns: Json
+      }
       create_restaurant_with_owner: {
         Args: {
           p_branch_code?: string

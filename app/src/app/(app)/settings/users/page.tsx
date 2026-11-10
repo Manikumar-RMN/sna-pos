@@ -40,8 +40,9 @@ export default async function StaffPage() {
             <div className="mt-0.5 text-2xl font-bold tabular-nums tracking-wider">{rest.client_code}</div>
           </div>
           <p className="min-w-0 flex-1 basis-64 text-sm" style={{ color: "var(--color-ink-2)" }}>
-            On the sign-in page, staff with a password choose <b>Staff</b> and type this client code, their username (the code under
-            their name below, for example EMP001) and their password. PIN-only staff use a counter tablet instead.
+            On the sign-in page, staff with a password choose <b>Staff</b> and type this client code, their user code (the code under
+            their name below, for example EMP001) and their password. Counter-only staff (cashiers, waiters) use a PIN on a counter tablet
+            instead. Anyone who purchases, manages stock or changes settings needs a personal sign-in, not just a PIN.
           </p>
         </div>
       )}
@@ -50,7 +51,12 @@ export default async function StaffPage() {
         canManage={can(current, "user.manage")}
         isOwner={current.role_name === "Owner"}
         appUrl="sna-pos.vercel.app"
-        roles={sortRoles(roles ?? []).map((r) => ({ id: r.id, name: r.name }))}
+        roles={sortRoles(roles ?? []).map((r) => ({
+          id: r.id,
+          name: r.name,
+          // These rights run the back office, so a PIN-only counter login may not hold them.
+          backOffice: (r.role_permissions ?? []).some((p) => ["stock.manage", "settings.manage", "user.manage", "tax.manage"].includes(p.permission_key)),
+        }))}
         staff={(users ?? []).map((u) => ({
           id: u.id,
           name: u.full_name,

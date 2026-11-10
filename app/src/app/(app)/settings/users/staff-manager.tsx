@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addPinStaff, cancelInvite, changeRole, copyAccess, inviteStaff, newInviteCode, removePin, resetPassword, setActive, setPin, type StaffResult } from "./actions";
+import { addPasswordStaff, addPinStaff, cancelInvite, changeRole, copyAccess, inviteStaff, newInviteCode, removePin, resetPassword, setActive, setPin, type StaffResult } from "./actions";
 import { ConfirmButton } from "../confirm-button";
 
 type Staff = {
@@ -18,7 +18,8 @@ type Staff = {
   hasPin: boolean;
   isMe: boolean;
 };
-type Role = { id: string; name: string };
+type Role = { id: string; name: string; backOffice?: boolean };
+const isMadeUpEmail = (e: string | null) => !!e && e.endsWith("@staff.sna-pos.app");
 
 export function StaffManager({
   staff,
@@ -38,7 +39,10 @@ export function StaffManager({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [invite, setInvite] = useState<{ code: string; name: string; email: string } | null>(null);
-  const [secret, setSecret] = useState<{ kind: "pin" | "password"; value: string; name: string } | null>(null);
+  const [secret, setSecret] = useState<{ kind: "pin" | "password"; value: string; name: string; userCode?: string; clientCode?: string } | null>(null);
+  const [pwName, setPwName] = useState("");
+  const [pwPhone, setPwPhone] = useState("");
+  const [pwRole, setPwRole] = useState("");
   const [confirmReset, setConfirmReset] = useState<string | null>(null);
   const [pinName, setPinName] = useState("");
   const [pinRole, setPinRole] = useState("");
@@ -47,6 +51,8 @@ export function StaffManager({
   const [copySrc, setCopySrc] = useState("");
 
   const assignable = roles.filter((r) => r.name !== "Owner");
+  const counterRoles = assignable.filter((r) => !r.backOffice);
+  const pinRoleId = pinRole && counterRoles.some((r) => r.id === pinRole) ? pinRole : (counterRoles.find((r) => r.name === "Cashier")?.id ?? counterRoles[0]?.id ?? "");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -60,7 +66,7 @@ export function StaffManager({
       if (!r.ok) return setError(r.error);
       if (r.code) setInvite({ code: r.code, name: r.name ?? "", email: r.email ?? "" });
       else if (r.pin) setSecret({ kind: "pin", value: r.pin, name: r.name ?? "" });
-      else if (r.tempPassword) setSecret({ kind: "password", value: r.tempPassword, name: r.name ?? "" });
+      else if (r.tempPassword) setSecret({ kind: "password", value: r.tempPassword, name: r.name ?? "", userCode: r.userCode, clientCode: r.clientCode });
       else setNotice(r.message ?? "Saved.");
       after?.();
       router.refresh();
@@ -108,7 +114,9 @@ export function StaffManager({
           <p className="text-sm" style={{ color: "var(--color-ink-2)" }}>
             {secret.kind === "pin"
               ? "Give this PIN to them privately. They type it on the counter tablet to unlock it. No one else in the restaurant has the same PIN."
-              : "Give this to them privately. They sign in with their email and this password, and must then choose their own. They have been signed out everywhere."}
+              : secret.userCode
+                ? `Give this to them privately. On the sign-in page they choose Staff and type client code ${secret.clientCode ?? ""}, user code ${secret.userCode} and this password. They must then choose their own password.`
+                : "Give this to them privately. They sign in with their email and this password, and must then choose their own. They have been signed out everywhere."}
           </p>
           <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
             Shown only now. It cannot be looked up again.
@@ -151,7 +159,7 @@ export function StaffManager({
                     </div>
                     <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
                       {s.code}
-                      {s.email ? ` · ${s.email}` : ""}
+                      {s.email && !isMadeUpEmail(s.email) ? ` · ${s.email}` : isMadeUpEmail(s.email) ? " · signs in with user code" : ""}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -162,11 +170,13 @@ export function StaffManager({
                         disabled={pending}
                         onChange={(e) => run(() => changeRole(s.id, e.target.value))}
                       >
-                        {assignable.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.name}
-                          </option>
-                        ))}
+                        {assignable
+                          .filter((r) => !s.pinOnly || !r.backOffice || r.id === s.roleId)
+                          .map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.name}
+                            </option>
+                          ))}
                       </select>
                     ) : (
                       s.roleName
@@ -325,7 +335,38 @@ export function StaffManager({
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <input className="field" placeholder="Full name" value={pinName} onChange={(e) => setPinName(e.target.value)} />
-            <select className="field" value={pinRole || roleId} onChange={(e) => setPinRole(e.target.value)}>
+            <select className="field" value={pinRoleId} onChange={(e) => setPinRole(e.target.value)}>
+              {counterRoles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
+            Roles that purchase, manage stock or change settings are not listed: those people need a personal sign-in.
+          </p>
+          <button
+            className="btn btn-primary mt-4"
+            disabled={pending || pinName.trim().length < 2 || !pinRoleId}
+            onClick={() => run(() => addPinStaff({ name: pinName, roleId: pinRoleId, phone: "" }), () => setPinName(""))}
+          >
+            {pending ? "Creating…" : "Add and create PIN"}
+          </button>
+        </section>
+      )}
+
+      {canManage && (
+        <section className="card p-5">
+          <h2 className="text-base font-bold">Add staff with a user code and password (no email)</h2>
+          <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+            For managers, purchasers and anyone who needs full screens but has no email. They get a user code and a temporary password,
+            and choose their own at first sign-in.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <input className="field" placeholder="Full name" value={pwName} onChange={(e) => setPwName(e.target.value)} />
+            <input className="field" placeholder="Phone (optional)" value={pwPhone} onChange={(e) => setPwPhone(e.target.value)} />
+            <select className="field" value={pwRole || roleId} onChange={(e) => setPwRole(e.target.value)}>
               {assignable.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
@@ -335,10 +376,15 @@ export function StaffManager({
           </div>
           <button
             className="btn btn-primary mt-4"
-            disabled={pending || pinName.trim().length < 2}
-            onClick={() => run(() => addPinStaff({ name: pinName, roleId: pinRole || roleId, phone: "" }), () => setPinName(""))}
+            disabled={pending || pwName.trim().length < 2 || !(pwRole || roleId)}
+            onClick={() =>
+              run(() => addPasswordStaff({ name: pwName, roleId: pwRole || roleId, phone: pwPhone }), () => {
+                setPwName("");
+                setPwPhone("");
+              })
+            }
           >
-            {pending ? "Creating…" : "Add and create PIN"}
+            {pending ? "Creating…" : "Add and create password"}
           </button>
         </section>
       )}

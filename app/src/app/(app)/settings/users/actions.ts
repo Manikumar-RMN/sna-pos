@@ -1,12 +1,14 @@
 "use server";
 
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/database.types";
 
 import { friendlyDbError } from "@/lib/db-error";
 export type StaffResult =
-  | { ok: true; message?: string; code?: string; name?: string; email?: string; pin?: string; tempPassword?: string }
+  | { ok: true; message?: string; code?: string; name?: string; email?: string; pin?: string; tempPassword?: string; userCode?: string; clientCode?: string }
   | { ok: false; error: string };
 
 /**
@@ -106,6 +108,34 @@ export async function addPinStaff(input: { name: string; roleId: string; phone: 
   revalidatePath("/settings/users");
   revalidatePath("/welcome");
   return { ok: true, pin: (data as { pin?: string } | null)?.pin, name: input.name.trim() };
+}
+
+/**
+ * Staff who have no email: a user code (EMPnnn) and a temporary password, as in Winsar. The sign-in is created here
+ * with a made-up address; the database checks it was made a moment ago and ties it to the new person. They must choose
+ * their own password the first time they sign in.
+ */
+export async function addPasswordStaff(input: { name: string; roleId: string; phone: string }): Promise<StaffResult> {
+  const name = input.name.trim();
+  if (name.length < 2) return { ok: false, error: "Enter the staff member's name." };
+  const temp = temporaryPassword();
+  const plain = createPlainClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const { data: signUp, error: signUpError } = await plain.auth.signUp({ email: `staff-${randomUUID()}@staff.sna-pos.app`, password: temp });
+  if (signUpError || !signUp.user) return { ok: false, error: `The sign-in could not be created. ${signUpError ? friendlyDbError(signUpError) : "Please try again."}` };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_password_staff", {
+    p_full_name: name,
+    p_role_id: input.roleId,
+    p_phone: input.phone.trim() || undefined,
+    p_auth_user_id: signUp.user.id,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/settings/users");
+  revalidatePath("/welcome");
+  const d = (data ?? {}) as { employee_code?: string; client_code?: string };
+  return { ok: true, name, tempPassword: temp, userCode: d.employee_code, clientCode: d.client_code };
 }
 
 /** Easy to read out and type: no 0/O or 1/l/I. */
