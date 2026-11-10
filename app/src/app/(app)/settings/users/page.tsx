@@ -28,7 +28,10 @@ export default async function StaffPage() {
         <Link href="/settings/security" className="font-bold" style={{ color: "var(--color-brand)" }}>
           Security profiles
         </Link>
-        .
+        .{" "}
+        <Link href="/settings/users/list" className="font-bold" style={{ color: "var(--color-brand)" }}>
+          Print the user list
+        </Link>
       </p>
 
       {rest?.client_code && (
