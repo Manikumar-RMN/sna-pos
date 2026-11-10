@@ -2198,6 +2198,7 @@ export type Database = {
       }
       goods_receipts: {
         Row: {
+          refund_due: number
           charges_distributed: boolean
           receipt_type: string
           returned_tax: number
@@ -2229,6 +2230,7 @@ export type Database = {
           total: number
         }
         Insert: {
+          refund_due?: number
           charges_distributed?: boolean
           receipt_type?: string
           returned_tax?: number
@@ -2260,6 +2262,7 @@ export type Database = {
           total?: number
         }
         Update: {
+          refund_due?: number
           charges_distributed?: boolean
           receipt_type?: string
           returned_tax?: number

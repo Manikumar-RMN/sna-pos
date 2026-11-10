@@ -378,6 +378,8 @@ export function ReceiveTab({
                           <Badge label="Cancelled" bg="var(--color-bad-soft)" fg="var(--color-bad)" />
                         ) : r.owed > 0 ? (
                           <Badge label={`Owed ${m(r.owed)}`} bg="var(--color-warn-soft)" fg="var(--color-warn)" />
+                        ) : r.refund > 0 ? (
+                          <Badge label={`Supplier owes you ${m(r.refund)}`} bg="var(--color-warn-soft)" fg="var(--color-warn)" />
                         ) : (
                           <Badge label="Paid" bg="var(--color-ok-soft)" fg="var(--color-ok)" />
                         )}
@@ -397,7 +399,7 @@ export function ReceiveTab({
                       </div>
                     </div>
 
-                    {!r.cancelled && (r.owed > 0 || r.paid === 0 || r.returnable.length > 0) && payId !== r.id && cancelId !== r.id && returnId !== r.id && (
+                    {!r.cancelled && (r.owed > 0 || r.returnable.length > 0) && payId !== r.id && cancelId !== r.id && returnId !== r.id && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {r.owed > 0 && (
                           <button
@@ -416,7 +418,7 @@ export function ReceiveTab({
                             Pay
                           </button>
                         )}
-                        {r.returnable.length > 0 && r.owed > 0 && (
+                        {r.returnable.length > 0 && (
                           <button
                             type="button"
                             className={rowBtn}

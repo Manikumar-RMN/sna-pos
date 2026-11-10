@@ -214,7 +214,7 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
     supabase.from("purchase_orders").select(ORDER_COLS).in("status", open).order("created_at", { ascending: false }).limit(100),
     supabase
       .from("goods_receipts")
-      .select("id, number, supplier_id, supplier_bill_no, received_on, total, paid_total, status, cancel_reason, returned_total")
+      .select("id, number, supplier_id, supplier_bill_no, received_on, total, paid_total, status, cancel_reason, returned_total, refund_due")
       .order("created_at", { ascending: false })
       .limit(20),
   ]);
@@ -264,6 +264,7 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
       total,
       paid,
       owed: Math.max(0, Math.round((total - paid) * 100) / 100),
+      refund: Number(g.refund_due),
       cancelled: g.status === "cancelled",
       cancel_reason: g.cancel_reason,
       returned: Number(g.returned_total),

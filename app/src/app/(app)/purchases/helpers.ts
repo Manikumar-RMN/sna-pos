@@ -61,6 +61,7 @@ export type ReceiptRow = {
   total: number;
   paid: number;
   owed: number;
+  refund: number;
   cancelled: boolean;
   cancel_reason: string | null;
   /** What has gone back to the supplier already (money). */
