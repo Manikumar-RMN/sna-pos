@@ -25,7 +25,7 @@ describe("groupReportLinks", () => {
     expect(groupReportLinks({ ...none, financial: true }).flatMap((x) => x.items).some((l) => l.href === "/reports/tax")).toBe(true);
   });
   it("every group has one heading in a row and every link is listed once", () => {
-    const all = groupReportLinks({ financial: true, stock: true, customers: true, loyalty: true });
+    const all = groupReportLinks({ financial: true, stock: true, customers: true, loyalty: true, users: true });
     expect(all.flatMap((g) => g.items)).toHaveLength(REPORT_LINKS.length);
     const names = all.map((g) => g.group);
     expect(new Set(names).size).toBe(names.length);
