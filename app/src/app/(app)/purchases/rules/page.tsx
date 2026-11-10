@@ -3,6 +3,7 @@ import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { UpgradeNote } from "../../upgrade-note";
 import { RulesBoard } from "./rules-board";
+import { ApprovalBoard } from "./approval-board";
 
 export default async function RulesPage() {
   const user = await requireUser();
@@ -21,7 +22,11 @@ export default async function RulesPage() {
     );
   }
   const supabase = await createClient();
-  const { data } = await supabase.from("purchase_settings").select("direct_receiving, rate_check, allow_excess_qty, po_needs_requisition, max_backdate_days").maybeSingle();
+  const [{ data }, { data: lv }, { data: people }] = await Promise.all([
+    supabase.from("purchase_settings").select("direct_receiving, rate_check, allow_excess_qty, po_needs_requisition, max_backdate_days, approval_block_self").maybeSingle(),
+    supabase.from("purchase_approval_levels").select("level, min_amount, approver_id").order("level"),
+    supabase.from("users").select("id, full_name").eq("is_active", true).is("deleted_at", null).order("full_name"),
+  ]);
   return (
     <div className="mx-auto max-w-3xl">
       <Link href="/purchases" className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
@@ -40,6 +45,13 @@ export default async function RulesPage() {
           needsRequisition: data?.po_needs_requisition ?? false,
           backdateDays: data?.max_backdate_days ?? 31,
         }}
+      />
+      <ApprovalBoard
+        canEdit={can(user, "settings.manage")}
+        currency={user.currency_code}
+        people={(people ?? []).map((x) => ({ id: x.id, name: x.full_name }))}
+        initial={(lv ?? []).map((l) => ({ level: l.level, minAmount: Number(l.min_amount), approverId: l.approver_id }))}
+        blockSelf={!!data?.approval_block_self}
       />
     </div>
   );

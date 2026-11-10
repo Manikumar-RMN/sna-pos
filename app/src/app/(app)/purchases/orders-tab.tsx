@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { money } from "@/lib/format";
-import { savePurchaseOrder, setPurchaseOrderStatus } from "./actions";
+import { approvePurchaseOrder, savePurchaseOrder, setPurchaseOrderStatus } from "./actions";
 import {
   BLANK_LINE,
   ORDER_STATUS,
@@ -17,7 +17,9 @@ import {
   qtyText,
   type IngredientNames,
   type LineDraft,
+  type ApprovalInfo,
   type OrderRow,
+  nextApproval,
   type StockedIngredient,
   type SupplierRow,
 } from "./helpers";
@@ -30,6 +32,7 @@ const NOTHING_LOW = "Nothing needs ordering right now. Anything that is running 
 type Draft = { id: string | null; number: string | null; supplierId: string; expectedOn: string; notes: string; lines: LineDraft[] };
 
 export function OrdersTab({
+  approval,
   orders,
   suppliers,
   ingredients,
@@ -42,6 +45,7 @@ export function OrdersTab({
   capped,
   agreedRates,
 }: {
+  approval: ApprovalInfo;
   orders: OrderRow[];
   /** Every supplier, active or not (old orders may be for one that was switched off). */
   suppliers: SupplierRow[];
@@ -308,6 +312,8 @@ export function OrdersTab({
         ) : (
           <ul>
             {orders.map((o, i) => {
+              const waiting = o.status === "draft" ? nextApproval(approval, o.id, o.total) : null;
+              const mine = !!waiting && waiting.approverId === approval.meId;
               const st = ORDER_STATUS[o.status] ?? { label: o.status, bg: "var(--color-ground)", fg: "var(--color-ink-2)" };
               return (
                 <li key={o.id} className="px-4 py-3" style={i > 0 ? { borderTop: "1px solid var(--color-line)" } : undefined}>
@@ -324,15 +330,28 @@ export function OrdersTab({
                     </div>
                     <div className="text-base font-bold tabular-nums">{m(o.total)}</div>
                   </div>
+                  {waiting && (
+                    <div className="mt-1 text-xs font-semibold" style={{ color: "var(--color-warn)" }}>
+                      Waiting for approval: level {waiting.level} ({waiting.approver}){mine ? " — that is you" : ""}
+                    </div>
+                  )}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {o.status === "draft" && (
                       <>
                         <button type="button" className={rowBtn} style={lineStyle} onClick={() => edit(o)} disabled={pending || active.length === 0}>
                           Edit
                         </button>
-                        <button type="button" className={rowBtn} style={{ borderColor: "var(--color-brand)", color: "var(--color-brand)" }} onClick={() => run(() => setPurchaseOrderStatus(o.id, "order"))} disabled={pending}>
-                          Send
-                        </button>
+                        {waiting ? (
+                          mine && (
+                            <button type="button" className={rowBtn} style={{ borderColor: "var(--color-brand)", background: "var(--color-brand)", color: "#fff" }} onClick={() => run(() => approvePurchaseOrder(o.id))} disabled={pending}>
+                              Approve (level {waiting.level})
+                            </button>
+                          )
+                        ) : (
+                          <button type="button" className={rowBtn} style={{ borderColor: "var(--color-brand)", color: "var(--color-brand)" }} onClick={() => run(() => setPurchaseOrderStatus(o.id, "order"))} disabled={pending}>
+                            Send
+                          </button>
+                        )}
                       </>
                     )}
                     {(o.status === "ordered" || o.status === "part_received") && (

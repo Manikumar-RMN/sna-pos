@@ -21,3 +21,22 @@ export async function savePurchaseRules(input: { direct: boolean; rateCheck: str
   revalidatePath("/purchases");
   return { ok: true, message: "Purchase rules saved." };
 }
+
+export type ApprovalInput = { levels: { level: number; minAmount: number; approverId: string }[]; blockSelf: boolean };
+
+export async function saveApprovalLevels(input: ApprovalInput): Promise<RulesResult> {
+  if (!Array.isArray(input.levels) || input.levels.length > 6) return { ok: false, error: "There can be at most 6 levels." };
+  for (const l of input.levels) {
+    if (!Number.isInteger(l.level) || l.level < 1 || l.level > 6) return { ok: false, error: "A level must be from 1 to 6." };
+    if (!Number.isFinite(l.minAmount) || l.minAmount < 0) return { ok: false, error: `Level ${l.level} needs an amount of zero or more.` };
+    if (!l.approverId) return { ok: false, error: `Choose who approves level ${l.level}.` };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_approval_levels", {
+    p_levels: input.levels.map((l) => ({ level: l.level, min_amount: l.minAmount, approver_id: l.approverId })),
+    p_block_self: !!input.blockSelf,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/purchases");
+  return { ok: true, message: input.levels.length === 0 ? "Approval is switched off: orders need no approval." : "Approval levels saved." };
+}

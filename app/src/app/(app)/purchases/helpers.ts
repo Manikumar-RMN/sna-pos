@@ -51,6 +51,22 @@ export const ORDER_STATUS: Record<string, { label: string; bg: string; fg: strin
   cancelled: { label: "Cancelled", bg: "var(--color-bad-soft)", fg: "var(--color-bad)" },
 };
 
+/** Approval levels for purchase orders and who has approved what. */
+export type ApprovalInfo = {
+  meId: string;
+  levels: { level: number; min: number; approverId: string; approver: string }[];
+  given: { orderId: string; level: number; total: number }[];
+};
+
+/** The level an order is waiting for, or null when it has everything it needs. */
+export function nextApproval(info: ApprovalInfo, orderId: string, total: number): ApprovalInfo["levels"][number] | null {
+  for (const l of info.levels) {
+    if (l.min > total) continue;
+    if (!info.given.some((g) => g.orderId === orderId && g.level === l.level && Math.round(g.total * 100) === Math.round(total * 100))) return l;
+  }
+  return null;
+}
+
 /** One delivery that was received (a goods receipt). */
 export type ReceiptRow = {
   id: string;

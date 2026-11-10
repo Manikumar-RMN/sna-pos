@@ -14,6 +14,7 @@ import {
   type Ingredient,
   type IngredientNames,
   type OrderLine,
+  type ApprovalInfo,
   type OrderRow,
   type PaymentRow,
   type PurchaseReport,
@@ -353,9 +354,23 @@ async function OrdersSection({ supabase, user, suppliers, low }: SectionProps & 
   }
   const onOrder = onOrderQty((openPos ?? []).map((o) => ({ status: o.status, lines: lines.get(o.id) ?? olderLines.get(o.id) ?? [] })));
 
+  const orderRows = (pos ?? []).map((o) => toOrder(o, lines, user.timezone));
+  const draftIds = orderRows.filter((o) => o.status === "draft").map((o) => o.id);
+  const [{ data: lvl }, { data: appr }, { data: people }] = await Promise.all([
+    supabase.from("purchase_approval_levels").select("level, min_amount, approver_id").order("level"),
+    draftIds.length > 0 ? supabase.from("purchase_order_approvals").select("purchase_order_id, level, po_total").in("purchase_order_id", draftIds) : Promise.resolve({ data: [] as { purchase_order_id: string; level: number; po_total: number }[] }),
+    supabase.from("users").select("id, full_name").eq("is_active", true).is("deleted_at", null),
+  ]);
+  const personName = new Map((people ?? []).map((p) => [p.id, p.full_name]));
+  const approval: ApprovalInfo = {
+    meId: user.user_id,
+    levels: (lvl ?? []).map((l) => ({ level: l.level, min: Number(l.min_amount), approverId: l.approver_id, approver: personName.get(l.approver_id) ?? "Approver" })),
+    given: (appr ?? []).map((a) => ({ orderId: a.purchase_order_id, level: a.level, total: Number(a.po_total) })),
+  };
   return (
     <OrdersTab
-      orders={(pos ?? []).map((o) => toOrder(o, lines, user.timezone))}
+      approval={approval}
+      orders={orderRows}
       suppliers={suppliers}
       ingredients={ingredients}
       onOrder={onOrder}

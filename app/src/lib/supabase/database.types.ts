@@ -2106,6 +2106,7 @@ export type Database = {
       }
       purchase_settings: {
         Row: {
+          approval_block_self: boolean
           allow_excess_qty: boolean
           approval_limit: number | null
           claim_input_tax: boolean
@@ -2118,6 +2119,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          approval_block_self?: boolean
           approval_limit?: number | null
           claim_input_tax?: boolean
           restaurant_id: string
@@ -2125,6 +2127,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          approval_block_self?: boolean
           approval_limit?: number | null
           claim_input_tax?: boolean
           restaurant_id?: string
@@ -5048,6 +5051,57 @@ export type Database = {
             referencedColumns: ["restaurant_id", "id"]
           },
         ]
+      }
+      purchase_approval_levels: {
+        Row: {
+          approver_id: string
+          level: number
+          min_amount: number
+          restaurant_id: string
+        }
+        Insert: {
+          approver_id: string
+          level: number
+          min_amount: number
+          restaurant_id: string
+        }
+        Update: {
+          approver_id?: string
+          level?: number
+          min_amount?: number
+          restaurant_id?: string
+        }
+        Relationships: []
+      }
+      purchase_order_approvals: {
+        Row: {
+          approved_at: string
+          approver_id: string
+          id: string
+          level: number
+          po_total: number
+          purchase_order_id: string
+          restaurant_id: string
+        }
+        Insert: {
+          approved_at?: string
+          approver_id: string
+          id?: string
+          level: number
+          po_total: number
+          purchase_order_id: string
+          restaurant_id: string
+        }
+        Update: {
+          approved_at?: string
+          approver_id?: string
+          id?: string
+          level?: number
+          po_total?: number
+          purchase_order_id?: string
+          restaurant_id?: string
+        }
+        Relationships: []
       }
       purchase_orders: {
         Row: {
@@ -8160,6 +8214,14 @@ export type Database = {
       }
       expiry_report: {
         Args: { p_days?: number }
+        Returns: Json
+      }
+      approve_purchase_order: {
+        Args: { p_id: string }
+        Returns: Json
+      }
+      set_approval_levels: {
+        Args: { p_block_self?: boolean; p_levels: Json }
         Returns: Json
       }
       receive_goods: {

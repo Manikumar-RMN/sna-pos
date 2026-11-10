@@ -104,6 +104,17 @@ export async function savePurchaseOrder(input: {
   return { ok: true, message: input.place ? `Order ${r.number ?? ""} sent.` : `Order ${r.number ?? ""} saved as a draft.` };
 }
 
+/** Approves a draft purchase order at the next level that is waiting. */
+export async function approvePurchaseOrder(id: string): Promise<PurchaseResult> {
+  if (!isUuid(id)) return { ok: false, error: "Purchase order not found." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("approve_purchase_order", { p_id: id });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/purchases");
+  const r = (data ?? {}) as { number?: string; level?: number; levels_left?: number };
+  return { ok: true, message: r.levels_left && r.levels_left > 0 ? `Order ${r.number ?? ""} approved at level ${r.level}. ${r.levels_left} more level${r.levels_left === 1 ? "" : "s"} to go.` : `Order ${r.number ?? ""} approved at level ${r.level}. It can be sent now.` };
+}
+
 export async function setPurchaseOrderStatus(id: string, action: "order" | "cancel" | "close"): Promise<PurchaseResult> {
   if (action !== "order" && action !== "cancel" && action !== "close") return { ok: false, error: "Unknown action." };
   if (!isUuid(id)) return { ok: false, error: "Purchase order not found." };
