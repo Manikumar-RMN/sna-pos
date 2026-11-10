@@ -19,7 +19,7 @@ export default async function UserListPage() {
       .is("deleted_at", null)
       .order("employee_code"),
     supabase.from("roles").select("id, name"),
-    supabase.from("restaurants").select("name, client_code").eq("id", user.restaurant_id).maybeSingle(),
+    supabase.from("restaurants").select("trading_name, client_code").eq("id", user.restaurant_id).maybeSingle(),
   ]);
   const roleName = new Map((roles ?? []).map((r) => [r.id, r.name]));
   const today = todayIn(user.timezone);
@@ -53,7 +53,7 @@ export default async function UserListPage() {
       </div>
       <h2 className="text-xl font-bold">User list</h2>
       <p className="mb-4 text-xs" style={{ color: "var(--color-ink-3)" }}>
-        {rest?.name ?? ""} {rest?.client_code ? `· client code ${rest.client_code}` : ""} · as on {today} · {rows.length} users
+        {rest?.trading_name ?? ""} {rest?.client_code ? `· client code ${rest.client_code}` : ""} · as on {today} · {rows.length} users
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
