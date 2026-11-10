@@ -8089,6 +8089,18 @@ export type Database = {
         }
         Returns: Json
       }
+      receive_supplier_refund: {
+        Args: {
+          p_amount: number
+          p_client_ref?: string
+          p_into_till?: boolean
+          p_method: string
+          p_received_on?: string
+          p_receipt_id: string
+          p_reference?: string
+        }
+        Returns: Json
+      }
       receive_goods: {
         Args: {
           p_bill_date?: string

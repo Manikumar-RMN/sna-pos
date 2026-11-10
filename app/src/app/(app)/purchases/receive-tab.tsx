@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { addDays, money } from "@/lib/format";
-import { cancelGoodsReceipt, receiveGoods } from "./actions";
+import { receiveGoods } from "./actions";
 import { ReturnForm } from "./return-form";
 import {
   BLANK_LINE,
@@ -27,6 +27,7 @@ import {
 import { ClaimBox } from "./claim-box";
 import { LineEditor } from "./line-editor";
 import { PayForm } from "./pay-form";
+import { RefundForm } from "./refund-form";
 import { PaymentsList } from "./payments-list";
 import { AddSupplierFirst, Badge, Field, Msg, lineStyle, rowBtn, useRun, type Note } from "./ui";
 
@@ -119,8 +120,8 @@ export function ReceiveTab({
 
   // Below the form: pay or cancel one of the recent receipts.
   const [payId, setPayId] = useState<string | null>(null);
-  const [cancelId, setCancelId] = useState<string | null>(null);
   const [returnId, setReturnId] = useState<string | null>(null);
+  const [refundId, setRefundId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [listMsg, setListMsg] = useState<Note>(null);
   const list = useRun();
@@ -399,7 +400,7 @@ export function ReceiveTab({
                       </div>
                     </div>
 
-                    {!r.cancelled && (r.owed > 0 || r.returnable.length > 0) && payId !== r.id && cancelId !== r.id && returnId !== r.id && (
+                    {!r.cancelled && (r.owed > 0 || r.refund > 0 || r.returnable.length > 0) && payId !== r.id && refundId !== r.id && returnId !== r.id && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {r.owed > 0 && (
                           <button
@@ -409,13 +410,29 @@ export function ReceiveTab({
                             onClick={() => {
                               setListMsg(null);
                               list.setMsg(null);
-                              setCancelId(null);
                               setReturnId(null);
                               setPayId(r.id);
                             }}
                             disabled={busy}
                           >
                             Pay
+                          </button>
+                        )}
+                        {r.refund > 0 && (
+                          <button
+                            type="button"
+                            className={rowBtn}
+                            style={{ borderColor: "var(--color-brand)", color: "var(--color-brand)" }}
+                            onClick={() => {
+                              setListMsg(null);
+                              list.setMsg(null);
+                              setPayId(null);
+                              setReturnId(null);
+                              setRefundId(r.id);
+                            }}
+                            disabled={busy}
+                          >
+                            Refund received
                           </button>
                         )}
                         {r.returnable.length > 0 && (
@@ -427,7 +444,6 @@ export function ReceiveTab({
                               setListMsg(null);
                               list.setMsg(null);
                               setPayId(null);
-                              setCancelId(null);
                               setReturnId(r.id);
                             }}
                             disabled={busy}
@@ -448,6 +464,21 @@ export function ReceiveTab({
                           setListMsg({ ok: true, text });
                         }}
                         onClose={() => setReturnId(null)}
+                      />
+                    )}
+
+                    {refundId === r.id && !r.cancelled && r.refund > 0 && (
+                      <RefundForm
+                        receipt={{ id: r.id, number: r.number, supplier, owed: r.refund }}
+                        currency={currency}
+                        country={country}
+                        today={today}
+                        canTill={canTill}
+                        onDone={(text) => {
+                          setRefundId(null);
+                          setListMsg({ ok: true, text });
+                        }}
+                        onClose={() => setRefundId(null)}
                       />
                     )}
 

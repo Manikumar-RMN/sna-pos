@@ -13,8 +13,6 @@ export type ReceiveResult = { ok: true; number: string; total: number; balance: 
 export type PayResult = { ok: true; amount: number; balance: number } | Fail;
 /** `number` is the receipt the payment was for; `balance` is what is owed on it now. */
 export type UndoPayResult = { ok: true; amount: number; balance: number; number: string } | Fail;
-/** `costNotRestored`: ingredients whose cost was left as it is, because something else changed it after this delivery. */
-export type CancelReceiptResult = { ok: true; message?: string; costNotRestored: string[] } | Fail;
 
 export type ReturnGoodsResult = { ok: true; number: string; total: number; owed: number; message: string } | Fail;
 
@@ -239,6 +237,41 @@ export async function paySupplier(input: {
   return { ok: true, amount: Number(r.amount ?? cents / 100), balance: Number(r.balance ?? 0) };
 }
 
+export type RefundResult = { ok: true; amount: number; left: number } | Fail;
+
+/** Records money a supplier gave back after goods on a paid receipt were returned. */
+export async function receiveSupplierRefund(input: {
+  receiptId: string;
+  amount: number;
+  method: string;
+  reference: string;
+  receivedOn: string;
+  intoTill: boolean;
+  clientRef: string;
+}): Promise<RefundResult> {
+  if (!isUuid(input.receiptId)) return { ok: false, error: "Goods receipt not found." };
+  if (!isUuid(input.clientRef)) return { ok: false, error: "This page is out of date. Refresh it and try again." };
+  if (!isPayMethod(input.method)) return { ok: false, error: "Choose how the refund was received." };
+  const cents = amountCents(input.amount);
+  if (cents === null || cents <= 0) return { ok: false, error: "Enter an amount greater than zero." };
+  if (input.receivedOn && !isYmd(input.receivedOn)) return { ok: false, error: "Choose a valid date." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("receive_supplier_refund", {
+    p_receipt_id: input.receiptId,
+    p_amount: cents / 100,
+    p_method: input.method,
+    p_reference: input.reference || undefined,
+    p_received_on: input.receivedOn || undefined,
+    p_into_till: input.method === "cash" && !!input.intoTill,
+    p_client_ref: input.clientRef,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/purchases");
+  revalidatePath("/shift");
+  const r = (data ?? {}) as { amount?: number | string; left?: number | string };
+  return { ok: true, amount: Number(r.amount ?? cents / 100), left: Number(r.left ?? 0) };
+}
+
 /**
  * Undoes a supplier payment that was entered wrongly. Nothing is deleted: the
  * database adds a matching negative entry and, for a payment from the till,
@@ -257,19 +290,6 @@ export async function undoSupplierPayment(paymentId: string, reason: string): Pr
   return { ok: true, amount: Number(r.amount ?? 0), balance: Number(r.balance ?? 0), number: r.number ?? "" };
 }
 
-export async function cancelGoodsReceipt(id: string, reason: string): Promise<CancelReceiptResult> {
-  if (!isUuid(id)) return { ok: false, error: "Goods receipt not found." };
-  const why = String(reason ?? "").trim();
-  if (why.length < 3) return { ok: false, error: "Write a short reason for cancelling the receipt." };
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("cancel_goods_receipt", { p_id: id, p_reason: why });
-  if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/purchases");
-  revalidatePath("/stock");
-  const r = (data ?? {}) as { number?: string; cost_not_restored?: unknown };
-  const kept = Array.isArray(r.cost_not_restored) ? r.cost_not_restored.filter((x): x is string => typeof x === "string" && x !== "") : [];
-  return { ok: true, message: `Receipt ${r.number ?? ""} cancelled. The goods have been taken back out of stock.`, costNotRestored: kept };
-}
 
 /** Owner setting: does the restaurant claim the tax on its purchases back from the tax office? */
 export async function setInputTaxClaim(claim: boolean): Promise<PurchaseResult> {

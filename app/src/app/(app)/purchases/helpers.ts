@@ -101,12 +101,12 @@ export type OwedRow = {
   overdue: boolean;
 };
 export type PurchaseReport = {
-  totals: { receipts: number; bought: number; owed: number; overdue: number };
-  by_supplier: { supplier_id: string; supplier: string; receipts: number; total: number; paid: number; owed: number }[];
+  totals: { receipts: number; bought: number; owed: number; overdue: number; refund_due: number };
+  by_supplier: { supplier_id: string; supplier: string; receipts: number; total: number; paid: number; owed: number; refund_due: number }[];
   owed: OwedRow[];
   by_ingredient: { ingredient: string; unit: string; category: string | null; qty: number; amount: number; avg_cost: number | null }[];
 };
-export const EMPTY_REPORT: PurchaseReport = { totals: { receipts: 0, bought: 0, owed: 0, overdue: 0 }, by_supplier: [], owed: [], by_ingredient: [] };
+export const EMPTY_REPORT: PurchaseReport = { totals: { receipts: 0, bought: 0, owed: 0, overdue: 0, refund_due: 0 }, by_supplier: [], owed: [], by_ingredient: [] };
 
 export const BLANK_LINE: LineDraft = { ingredient_id: "", qty: "", cost: "" };
 

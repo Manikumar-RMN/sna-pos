@@ -366,8 +366,8 @@ function cleanReport(json: unknown): PurchaseReport {
   const r = (json ?? {}) as Partial<PurchaseReport>;
   const t = r.totals ?? EMPTY_REPORT.totals;
   return {
-    totals: { receipts: Number(t.receipts ?? 0), bought: Number(t.bought ?? 0), owed: Number(t.owed ?? 0), overdue: Number(t.overdue ?? 0) },
-    by_supplier: (r.by_supplier ?? []).map((s) => ({ ...s, receipts: Number(s.receipts), total: Number(s.total), paid: Number(s.paid), owed: Number(s.owed) })),
+    totals: { receipts: Number(t.receipts ?? 0), bought: Number(t.bought ?? 0), owed: Number(t.owed ?? 0), overdue: Number(t.overdue ?? 0), refund_due: Number(t.refund_due ?? 0) },
+    by_supplier: (r.by_supplier ?? []).map((s) => ({ ...s, receipts: Number(s.receipts), total: Number(s.total), paid: Number(s.paid), owed: Number(s.owed), refund_due: Number(s.refund_due ?? 0) })),
     owed: (r.owed ?? []).map((o) => ({ ...o, total: Number(o.total), paid: Number(o.paid), owed: Number(o.owed), overdue: o.overdue === true })),
     by_ingredient: (r.by_ingredient ?? []).map((i) => ({ ...i, qty: Number(i.qty), amount: Number(i.amount), avg_cost: i.avg_cost == null ? null : Number(i.avg_cost) })),
   };
@@ -410,12 +410,13 @@ async function PaySection({ supabase, user, period }: Omit<SectionProps, "suppli
     { label: "Bought this month", value: thisMonth.totals.bought, bad: false },
     { label: "Owed in total", value: thisMonth.totals.owed, bad: false },
     { label: "Overdue", value: thisMonth.totals.overdue, bad: thisMonth.totals.overdue > 0 },
+    ...(thisMonth.totals.refund_due > 0 ? [{ label: "Suppliers owe you (returns on paid bills)", value: thisMonth.totals.refund_due, bad: false }] : []),
   ];
   const range = period === "last" ? `${dayLabel(lastStart)} – ${dayLabel(lastEnd)}` : `${dayLabel(monthStart)} – ${dayLabel(today)}`;
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className={`grid gap-3 ${figures.length > 3 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
         {figures.map((f) => (
           <div key={f.label} className="card p-4">
             <div className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
@@ -454,12 +455,13 @@ async function PaySection({ supabase, user, period }: Omit<SectionProps, "suppli
                 <th className="px-3 py-2 text-right text-xs font-semibold">Bought</th>
                 <th className="px-3 py-2 text-right text-xs font-semibold">Paid</th>
                 <th className="px-3 py-2 text-right text-xs font-semibold">Still owed</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold">Owes you</th>
               </tr>
             </thead>
             <tbody>
               {shown.by_supplier.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
+                  <td colSpan={6} className="px-3 py-6 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
                     Nothing was received in this period.
                   </td>
                 </tr>
@@ -473,6 +475,7 @@ async function PaySection({ supabase, user, period }: Omit<SectionProps, "suppli
                   <td className="px-3 py-2 text-right tabular-nums" style={{ color: s.owed > 0 ? "var(--color-bad)" : undefined, fontWeight: s.owed > 0 ? 700 : 400 }}>
                     {m(s.owed)}
                   </td>
+                  <td className="px-3 py-2 text-right tabular-nums">{s.refund_due > 0 ? m(s.refund_due) : "—"}</td>
                 </tr>
               ))}
             </tbody>
