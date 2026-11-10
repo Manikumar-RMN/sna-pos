@@ -82,6 +82,36 @@ export async function saveStaff(email: string, fullName: string, role: string, a
   return done("Saved.");
 }
 
+/** Easy to read out and type: no 0/O or 1/l/I. */
+function snaTemporaryPassword() {
+  const letters = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const pick = (set: string, n: number) => Array.from({ length: n }, () => set[randomInt(set.length)]).join("");
+  return `${pick(letters, 4)}-${pick(digits, 4)}-${pick(letters, 4)}`;
+}
+
+/**
+ * An admin adds a new SNA person: a sign-in is made for the email with a temporary password,
+ * then the person is added to the SNA staff. If the email already has a sign-in, only the
+ * staff entry is made and the person keeps their own password.
+ */
+export async function addSnaStaff(email: string, fullName: string, role: string): Promise<SnaResult & { tempPassword?: string }> {
+  const address = email.trim().toLowerCase();
+  const plain = createPlainClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const temp = snaTemporaryPassword();
+  const { data: made, error: signUpError } = await plain.auth.signUp({ email: address, password: temp });
+  // Supabase answers an address that already has a sign-in with an empty identity list (or an error).
+  const existed = !!signUpError || !made.user || (made.user.identities?.length ?? 0) === 0;
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("sna_save_staff", { p_email: address, p_full_name: fullName.trim(), p_role: role, p_active: true });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/sna", "layout");
+  if (existed) return { ok: true, message: "Added. This email already had a sign-in, so they use their own password." };
+  return { ok: true, message: `Added. They sign in at the SNA console with ${address} and the temporary password ${temp}.`, tempPassword: temp };
+}
+
 export async function setPrice(item: string, currency: string, price: string): Promise<SnaResult> {
   const supabase = await createClient();
   const value = price.trim() === "" ? null : Number(price);

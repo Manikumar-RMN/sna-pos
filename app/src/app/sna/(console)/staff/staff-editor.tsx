@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { saveStaff } from "../actions";
+import { addSnaStaff, saveStaff } from "../actions";
 
 export type SnaStaff = { id: string; full_name: string; email: string; role: string; is_active: boolean };
 const ROLES = ["sales", "implementer", "support", "admin"];
@@ -51,7 +51,14 @@ export function StaffEditor({ staff }: { staff: SnaStaff[] }) {
         className="card grid gap-2 p-4 sm:grid-cols-[1fr_1fr_auto_auto]"
         onSubmit={(e) => {
           e.preventDefault();
-          run(saveStaff(email, name, role, true));
+          start(async () => {
+            const r = await addSnaStaff(email, name, role);
+            setMsg(r.ok ? r.message : r.error);
+            if (r.ok) {
+              setEmail("");
+              setName("");
+            }
+          });
         }}
       >
         <input className="field" type="email" placeholder="Their sign-in email" value={email} onChange={(e) => setEmail(e.target.value)} required />

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addPasswordStaff, addPinStaff, cancelInvite, changeRole, copyAccess, inviteStaff, newInviteCode, removePin, resetPassword, setActive, setPin, type StaffResult } from "./actions";
+import { addPasswordStaff, addPinStaff, cancelInvite, changeRole, copyAccess, removePin, resetPassword, setActive, setPin, type StaffResult } from "./actions";
 import { ConfirmButton } from "../confirm-button";
 
 type Staff = {
@@ -38,7 +38,6 @@ export function StaffManager({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [invite, setInvite] = useState<{ code: string; name: string; email: string } | null>(null);
   const [secret, setSecret] = useState<{ kind: "pin" | "password"; value: string; name: string; userCode?: string; clientCode?: string } | null>(null);
   const [confirmReset, setConfirmReset] = useState<string | null>(null);
   // "Copy access from..." : the person being set up, and the colleague chosen as the model
@@ -47,14 +46,12 @@ export function StaffManager({
 
   const assignable = roles.filter((r) => r.name !== "Owner");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [roleId, setRoleId] = useState(assignable.find((r) => r.name === "Cashier")?.id ?? assignable[0]?.id ?? "");
   const [howNoEmail, setHowNoEmail] = useState<"pin" | "password">("pin");
-  const hasEmail = email.trim().length > 0;
   const roleIsBackOffice = !!assignable.find((r) => r.id === roleId)?.backOffice;
-  /** How the new person will sign in: an email means an invite; a counter role may use a PIN; anything else gets a user code and password. */
-  const way: "invite" | "pin" | "password" = hasEmail ? "invite" : roleIsBackOffice ? "password" : howNoEmail;
+  /** How the new person will sign in: a counter role may use a PIN; anything else gets a user code and password. */
+  const way: "pin" | "password" = roleIsBackOffice ? "password" : howNoEmail;
 
   function run(fn: () => Promise<StaffResult>, after?: () => void) {
     setError(null);
@@ -62,8 +59,7 @@ export function StaffManager({
     start(async () => {
       const r = await fn();
       if (!r.ok) return setError(r.error);
-      if (r.code) setInvite({ code: r.code, name: r.name ?? "", email: r.email ?? "" });
-      else if (r.pin) setSecret({ kind: "pin", value: r.pin, name: r.name ?? "" });
+      if (r.pin) setSecret({ kind: "pin", value: r.pin, name: r.name ?? "" });
       else if (r.tempPassword) setSecret({ kind: "password", value: r.tempPassword, name: r.name ?? "", userCode: r.userCode, clientCode: r.clientCode });
       else setNotice(r.message ?? "Saved.");
       after?.();
@@ -71,36 +67,8 @@ export function StaffManager({
     });
   }
 
-  const pretty = (c: string) => `${c.slice(0, 4)}-${c.slice(4)}`;
-
   return (
     <div className="space-y-5">
-      {invite && (
-        <div className="card p-5" style={{ borderColor: "var(--color-brand)", background: "var(--color-brand-soft)" }}>
-          <div className="text-sm font-bold">Invite code for {invite.name}</div>
-          <div className="my-3 text-3xl font-bold tracking-[0.2em] tabular-nums" style={{ color: "var(--color-brand-strong)" }}>
-            {pretty(invite.code)}
-          </div>
-          <ol className="list-decimal space-y-1 pl-5 text-sm" style={{ color: "var(--color-ink-2)" }}>
-            <li>
-              Ask {invite.name} to open <b>{appUrl}</b> on their phone or the counter tablet.
-            </li>
-            <li>
-              Tap <b>I have an invite code</b> under the sign-in button, and create a sign-in using <b>{invite.email}</b> and a password of their own.
-            </li>
-            <li>
-              Enter this code on the next screen. It works once and expires in 7 days.
-            </li>
-          </ol>
-          <p className="mt-3 text-xs" style={{ color: "var(--color-ink-3)" }}>
-            This code is shown only now. If it is lost, use “New code” below.
-          </p>
-          <button className="mt-3 text-xs font-semibold" style={{ color: "var(--color-brand-strong)" }} onClick={() => setInvite(null)}>
-            Done
-          </button>
-        </div>
-      )}
-
       {secret && (
         <div className="card p-5" style={{ borderColor: "var(--color-brand)", background: "var(--color-brand-soft)" }}>
           <div className="text-sm font-bold">
@@ -192,17 +160,14 @@ export function StaffManager({
                     <td className="px-4 py-3 text-right">
                       {!locked && !s.joined && !s.pinOnly && (
                         <div className="flex justify-end gap-1.5">
-                          <SmallBtn disabled={pending} onClick={() => run(() => newInviteCode(s.id, s.name, s.email ?? ""))}>
-                            New code
-                          </SmallBtn>
                           <ConfirmButton
                             className="whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
                             style={{ borderColor: "var(--color-bad)", color: "var(--color-bad)" }}
-                            question={`Cancel the invite for ${s.name}?`}
+                            question={`Remove ${s.name}? They never signed in.`}
                             disabled={pending}
                             onConfirm={() => run(() => cancelInvite(s.id))}
                           >
-                            Cancel invite
+                            Remove
                           </ConfirmButton>
                         </div>
                       )}
@@ -295,7 +260,7 @@ export function StaffManager({
         <section className="card p-5">
           <h2 className="text-base font-bold">Add a person</h2>
           <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-            Everyone gets their own sign-in, so every bill, discount and void records who did it. Pick a role and say how they will sign in.
+            Everyone gets their own sign-in, so every bill, discount and void records who did it. Pick a role and how they will sign in.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <input className="field" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -306,13 +271,12 @@ export function StaffManager({
                 </option>
               ))}
             </select>
-            <input className="field" type="email" placeholder="Email (optional)" value={email} onChange={(e) => setEmail(e.target.value)} />
             <input className="field" placeholder="Phone (optional)" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
-          {!hasEmail && !roleIsBackOffice && (
+          {!roleIsBackOffice && (
             <fieldset className="mt-4 space-y-2 text-sm">
               <legend className="mb-1 text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
-                No email, so how will they sign in?
+                How will they sign in?
               </legend>
               <label className="flex items-start gap-2">
                 <input type="radio" name="how" className="mt-1" checked={howNoEmail === "pin"} onChange={() => setHowNoEmail("pin")} />
@@ -329,32 +293,25 @@ export function StaffManager({
             </fieldset>
           )}
           <p className="mt-3 text-xs" style={{ color: "var(--color-ink-3)" }}>
-            {hasEmail
-              ? "They get an invite code and sign in with their email and a password of their own."
-              : way === "pin"
-                ? "They get a PIN to unlock the counter tablet. They cannot purchase, manage stock or change settings."
-                : "They get a user code (like EMP003) and a temporary password, and choose their own at first sign-in."}
+            {way === "pin"
+              ? "They get a PIN to unlock the counter tablet. They cannot purchase, manage stock or change settings."
+              : "They get a user code (like EMP003) and a temporary password, and choose their own at first sign-in."}
           </p>
           <button
             className="btn btn-primary mt-4"
-            disabled={pending || name.trim().length < 2 || !roleId || (hasEmail && !email.includes("@"))}
+            disabled={pending || name.trim().length < 2 || !roleId}
             onClick={() =>
               run(
                 () =>
-                  way === "invite"
-                    ? inviteStaff({ name, email, roleId, phone })
-                    : way === "pin"
-                      ? addPinStaff({ name, roleId, phone })
-                      : addPasswordStaff({ name, roleId, phone }),
+                  way === "pin" ? addPinStaff({ name, roleId, phone }) : addPasswordStaff({ name, roleId, phone }),
                 () => {
                   setName("");
-                  setEmail("");
                   setPhone("");
                 },
               )
             }
           >
-            {pending ? "Adding…" : way === "invite" ? "Create invite code" : way === "pin" ? "Add and create PIN" : "Add and create password"}
+            {pending ? "Adding…" : way === "pin" ? "Add and create PIN" : "Add and create password"}
           </button>
         </section>
       )}
@@ -368,7 +325,7 @@ function Badge({ joined, pinOnly, active }: { joined: boolean; pinOnly: boolean;
       ? { t: "Active · PIN only", bg: "var(--color-ok-soft)", fg: "var(--color-ok)" }
       : { t: "Access off", bg: "var(--color-bad-soft)", fg: "var(--color-bad)" }
     : !joined
-    ? { t: "Invited — not joined", bg: "var(--color-warn-soft)", fg: "var(--color-warn)" }
+    ? { t: "Never signed in", bg: "var(--color-warn-soft)", fg: "var(--color-warn)" }
     : active
       ? { t: "Active", bg: "var(--color-ok-soft)", fg: "var(--color-ok)" }
       : { t: "Access off", bg: "var(--color-bad-soft)", fg: "var(--color-bad)" };

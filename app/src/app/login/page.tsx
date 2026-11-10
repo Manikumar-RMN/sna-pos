@@ -32,12 +32,9 @@ function Mark({ size }: { size: number }) {
 export default function LoginPage() {
   const [state, action, pending] = useActionState(authenticate, initial);
   const [linkExpired, setLinkExpired] = useState(false);
-  /** The form is creating a sign-in from an invite code instead of signing in. */
-  const [creating, setCreating] = useState(false);
   const [who, setWho] = useState("");
   const [clientCode, setClientCode] = useState("");
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
 
   useEffect(() => {
     setLinkExpired(new URLSearchParams(window.location.search).get("link") === "expired");
@@ -49,15 +46,11 @@ export default function LoginPage() {
     }
   }, []);
 
-  // The form action empties the plain fields after every answer, but the two
-  // password boxes are held here. Empty them too, so a wrong password is not
-  // left sitting in the box; and once the account is made, go back to "sign
-  // in" so the main button cannot create the account a second time.
+  // The form action empties the plain fields after every answer, but the password
+  // box is held here. Empty it too, so a wrong password is not left sitting in it.
   useEffect(() => {
     if (!state.error && !state.notice) return;
     setPassword("");
-    setConfirm("");
-    if (state.notice) setCreating(false);
   }, [state]);
 
   function rememberCode(v: string) {
@@ -68,9 +61,6 @@ export default function LoginPage() {
       /* nothing to remember */
     }
   }
-
-  const isSignup = creating;
-  const mismatch = isSignup && confirm.length > 0 && confirm !== password;
 
   return (
     <main className="flex min-h-screen gap-3 p-3">
@@ -113,22 +103,14 @@ export default function LoginPage() {
             <Mark size={44} />
             <span className="font-display text-xl font-extrabold">SNA POS</span>
           </div>
-          <h2 className="text-3xl font-extrabold">{isSignup ? "Create your sign-in" : "Welcome back"}</h2>
+          <h2 className="text-3xl font-extrabold">Welcome back</h2>
           <p className="mb-6 mt-1 text-[15px]" style={{ color: "var(--color-ink-3)" }}>
-            {isSignup ? "For staff who were given an invite code. You will type the code on the next page." : "Sign in to your restaurant"}
+            Sign in to your restaurant
           </p>
 
           {/* One form for everyone: restaurant code, then username (user code or email), then password. The check is made inside that restaurant. */}
           <form action={action} className="flex flex-col">
-            {isSignup ? (
-              <>
-                <label className="mb-1.5 block text-sm font-bold" htmlFor="email">
-                  Email
-                </label>
-                <input id="email" name="email" type="email" autoComplete="email" required className="field mb-4" placeholder="The email your invite was made for" />
-              </>
-            ) : (
-              <>
+            <>
                 <label className="mb-1.5 block text-sm font-bold" htmlFor="clientCode">
                   Restaurant code
                 </label>
@@ -167,52 +149,27 @@ export default function LoginPage() {
                   value={who}
                   onChange={(e) => setWho(e.target.value)}
                 />
-              </>
-            )}
+            </>
 
-            {/* PASSWORD (shown for both) */}
+            {/* PASSWORD */}
             <label className="mb-1.5 block text-sm font-bold" htmlFor="password">
               Password
             </label>
             <PasswordInput
               id="password"
               name="password"
-              autoComplete={isSignup ? "new-password" : "current-password"}
+              autoComplete="current-password"
               required
-              minLength={isSignup ? 8 : undefined}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="field"
-              wrapperClassName={isSignup ? "mb-4" : "mb-2"}
-              placeholder={isSignup ? "At least 8 characters" : "Your password"}
+              wrapperClassName="mb-2"
+              placeholder="Your password"
             />
 
-            {isSignup ? (
-              <>
-                <label className="mb-1.5 block text-sm font-bold" htmlFor="confirm">
-                  Type the password again
-                </label>
-                <PasswordInput
-                  id="confirm"
-                  name="confirm"
-                  autoComplete="new-password"
-                  required
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  className="field"
-                  wrapperClassName="mb-2"
-                  placeholder="Same password"
-                  aria-invalid={mismatch}
-                />
-                <p className="mb-5 min-h-5 text-sm" style={{ color: "var(--color-bad)" }} role={mismatch ? "alert" : undefined}>
-                  {mismatch ? "The two passwords are not the same." : ""}
-                </p>
-              </>
-            ) : (
-              <Link href="/login/forgot" className="mb-5 self-end text-sm font-bold" style={{ color: "var(--color-brand)" }}>
-                Forgot password?
-              </Link>
-            )}
+            <Link href="/login/forgot" className="mb-5 self-end text-sm font-bold" style={{ color: "var(--color-brand)" }}>
+              Forgot password?
+            </Link>
 
             {state.error && (
               <p className="mb-4 rounded-xl px-3 py-2 text-sm" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }} role="alert">
@@ -234,44 +191,20 @@ export default function LoginPage() {
             <button
               type="submit"
               name="intent"
-              value={isSignup ? "signup" : "signin"}
+              value="signin"
               className="btn btn-primary h-14 w-full text-base"
-              disabled={pending || mismatch}
+              disabled={pending}
             >
-              {pending ? "Please wait…" : isSignup ? "Create account" : "Sign in"}
+              {pending ? "Please wait…" : "Sign in"}
             </button>
 
-            {(
-              <>
-                <div className="my-5 flex items-center gap-3">
-                  <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />
-                  <span className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
-                    {creating ? "or" : "first time here?"}
-                  </span>
-                  <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreating((c) => !c);
-                    setConfirm("");
-                  }}
-                  className="btn h-14 w-full text-base"
-                  style={{ border: "1.5px solid var(--color-line)", background: "var(--color-surface)" }}
-                  disabled={pending}
-                >
-                  {creating ? "I already have a sign-in" : "I have an invite code"}
-                </button>
-                <p className="mt-4 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
-                  New restaurant? SNA sets it up for you. Write to{" "}
-                  <a href={`mailto:${SNA_CONTACT_EMAIL}`} className="font-bold" style={{ color: "var(--color-brand)" }}>
-                    {SNA_CONTACT_EMAIL}
-                  </a>
-                  .
-                </p>
-              </>
-            )}
+            <p className="mt-6 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
+              New restaurant? SNA sets it up for you. Write to{" "}
+              <a href={`mailto:${SNA_CONTACT_EMAIL}`} className="font-bold" style={{ color: "var(--color-brand)" }}>
+                {SNA_CONTACT_EMAIL}
+              </a>
+              .
+            </p>
           </form>
 
           <p className="mt-8 text-center text-xs" style={{ color: "var(--color-ink-3)" }}>

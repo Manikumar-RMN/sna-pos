@@ -12,8 +12,7 @@ export default async function SnaStaffPage() {
       <h1 className="text-2xl font-bold">SNA staff</h1>
       <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
         Sales set licences, record sales and approve upgrades, modules and outlets. Implementers set up approved outlets. Support can create clients, keep
-        contacts and write notes. Admins do everything. A new person first makes a sign-in on the restaurant sign-in page (then &ldquo;I have an
-        invite code&rdquo;; they need no code and join no restaurant), then you add them here with the same email.
+        contacts and write notes. Admins do everything. Add a new person below with their email: they get a temporary password and sign in at the SNA console.
       </p>
       {error && <div className="card mt-3 p-3 text-sm">{error.message}</div>}
       <StaffEditor staff={(data ?? []) as unknown as SnaStaff[]} />
