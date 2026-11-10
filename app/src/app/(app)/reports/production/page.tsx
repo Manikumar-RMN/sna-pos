@@ -10,7 +10,10 @@ export default async function ProductionReportPage({ searchParams }: { searchPar
   const r = await loadReport(await searchParams, { title: "Production summary", need: "stock" });
   if (!r.ok) return r.denied;
   const { ctx } = r;
-  const { supabase, from, to, scope, user } = ctx;
+  const { supabase, from, scope, user } = ctx;
+  // A batch is dated by the calendar day it was made. When the trading day is still open past midnight, "today" is
+  // yesterday's date, so stretch the end of the range to the calendar day so a batch made after midnight still shows.
+  const to = ctx.to === ctx.today && ctx.calendarToday > ctx.to ? ctx.calendarToday : ctx.to;
   const c = user.currency_code;
   const { data, error } = await supabase.rpc("report_production", { p_from: from, p_to: to });
   const err = reportRpcError(error);
