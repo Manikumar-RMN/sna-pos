@@ -29,7 +29,7 @@ export default async function StaffPage() {
           Security profiles
         </Link>
         .{" "}
-        <Link href="/settings/users/list" className="font-bold" style={{ color: "var(--color-brand)" }}>
+        <Link href="/reports/user-list" className="font-bold" style={{ color: "var(--color-brand)" }}>
           Print the user list
         </Link>
       </p>

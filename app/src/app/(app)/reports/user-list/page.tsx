@@ -2,8 +2,8 @@ import Link from "next/link";
 import { can, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayIn } from "@/lib/format";
-import { CsvButton } from "../../../reports/csv-button";
-import { PrintButton } from "../../../print-button";
+import { CsvButton } from "../csv-button";
+import { PrintButton } from "../_components/print-button";
 
 /** User list, like Winsar's User List report: every user with role, department, designation, status and relieving date. */
 export default async function UserListPage() {
@@ -43,12 +43,12 @@ export default async function UserListPage() {
   return (
     <div className="report-root">
       <div className="no-print mb-3 flex flex-wrap items-center justify-between gap-2">
-        <Link href="/settings/users" className="text-xs font-semibold" style={{ color: "var(--color-brand-strong)" }}>
-          ← Back to users
+        <Link href="/reports" className="text-xs font-semibold" style={{ color: "var(--color-brand-strong)" }}>
+          ← All reports
         </Link>
         <div className="flex gap-2">
-          <PrintButton label="Print" />
-          <CsvButton filename="user_list.csv" header={head} rows={rows} label="Excel (CSV)" />
+          <PrintButton />
+          <CsvButton filename="user_list.csv" header={head} rows={rows} label="Excel (CSV)" className="rpt-btn" />
         </div>
       </div>
       <h2 className="text-xl font-bold">User list</h2>

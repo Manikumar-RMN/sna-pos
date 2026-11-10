@@ -149,6 +149,7 @@ export default async function ReportsPage({
     stock: has(user, "stock") && (can(user, "stock.view") || can(user, "stock.manage")),
     customers: can(user, "customer.view"),
     loyalty: has(user, "loyalty") && can(user, "customer.view"),
+    users: can(user, "user.manage"),
   };
   const keep = rangeQuery(sp);
   const rep = data as unknown as Report | null;

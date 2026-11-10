@@ -3,7 +3,7 @@ export type ReportLink = {
   href: string;
   title: string;
   blurb: string;
-  need: "sales" | "financial" | "stock" | "customers" | "loyalty";
+  need: "sales" | "financial" | "stock" | "customers" | "loyalty" | "users";
   /** Heading the report is listed under on the hub and in the menu drop-down (the Sales summary has none). */
   group?: string;
 };
@@ -28,6 +28,7 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Customers", href: "/reports/customers", title: "Customers", blurb: "Visits, spend, new and repeat customers.", need: "customers" },
   { group: "Audit", href: "/reports/audit", title: "Voids, cancels and refunds", blurb: "Voided bills, cancelled items, refunds and credit notes.", need: "financial" },
   { group: "Audit", href: "/reports/reprints", title: "Reprints", blurb: "Bills and kitchen tickets printed again, and by whom.", need: "sales" },
+  { group: "Audit", href: "/reports/user-list", title: "User list", blurb: "Everyone who can sign in, with role, department, designation, status and relieving date.", need: "users" },
   { group: "Audit", href: "/reports/leakage", title: "Leakage summary", blurb: "Voids, cancels, credit notes, discounts, free meals, reprints and moves in one place.", need: "sales" },
   { group: "Purchase and inventory", href: "/reports/stock-on-hand", title: "Stock on hand", blurb: "What is in stock now, its value, and what is low, out or negative.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/stock-movement", title: "Stock movement", blurb: "Opening, purchases, use, wastage and closing for each ingredient.", need: "stock" },
@@ -50,7 +51,7 @@ export const REPORT_LINKS: ReportLink[] = [
 ];
 
 /** What the signed-in person may see on the hub: financial reports, stock reports (stock.view) and customer reports (customer.view). */
-export type ReportAccess = { financial: boolean; stock: boolean; customers: boolean; loyalty: boolean };
+export type ReportAccess = { financial: boolean; stock: boolean; customers: boolean; loyalty: boolean; users: boolean };
 
 /** Does this person see the link? Every report also needs the sales right, which the hub page itself checks. */
 export function canSeeReportLink(l: Pick<ReportLink, "need">, a: ReportAccess): boolean {
@@ -63,6 +64,8 @@ export function canSeeReportLink(l: Pick<ReportLink, "need">, a: ReportAccess): 
       return a.customers;
     case "loyalty":
       return a.loyalty;
+    case "users":
+      return a.users;
     default:
       return true;
   }

@@ -47,6 +47,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     stock: has(user, "stock") && (can(user, "stock.view") || can(user, "stock.manage")),
     customers: can(user, "customer.view"),
     loyalty: has(user, "loyalty") && can(user, "customer.view"),
+    users: can(user, "user.manage"),
   };
   // The same four groups as the side menu: POS, Purchase and inventory, Loyalty and Audit reports (only the ones this client has).
   const reportItems = REPORT_SECTIONS.filter((x) => groupReportLinks(reportAccess, x.key).length > 0).map((x) => ({ href: x.href, label: x.title, also: REPORT_LINKS.filter((r) => r.href !== "/reports" && sectionKey(r) === x.key).map((r) => r.href) }));
