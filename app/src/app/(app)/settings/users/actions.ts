@@ -8,7 +8,7 @@ import type { Database } from "@/lib/supabase/database.types";
 
 import { friendlyDbError } from "@/lib/db-error";
 export type StaffResult =
-  | { ok: true; message?: string; name?: string; pin?: string; tempPassword?: string; userCode?: string; clientCode?: string }
+  | { ok: true; message?: string; name?: string; tempPassword?: string; userCode?: string; clientCode?: string }
   | { ok: false; error: string };
 
 /**
@@ -44,52 +44,6 @@ export async function setActive(userId: string, active: boolean): Promise<StaffR
   return { ok: true, message: active ? "Access switched back on." : "Access switched off. They can no longer sign in to this restaurant." };
 }
 
-/**
- * Gives a staff member a new counter PIN, picked at random by the database:
- * unique within the restaurant, 6 digits for owners and managers, 4 for others.
- * It is stored only as a keyed hash, so it is shown once here and can never be
- * read back. People cannot choose their own PIN: if they could, "that PIN is
- * taken" would tell them someone else's PIN.
- */
-export async function setPin(userId: string, name: string): Promise<StaffResult> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("set_staff_pin", { p_user_id: userId });
-  if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/settings/users");
-  revalidatePath("/welcome");
-  const pin = (data as { pin?: string } | null)?.pin;
-  if (!pin) return { ok: false, error: "The PIN could not be created. Try again." };
-  return { ok: true, pin, name };
-}
-
-export async function removePin(userId: string): Promise<StaffResult> {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("clear_staff_pin", { p_user_id: userId });
-  if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/settings/users");
-  revalidatePath("/welcome");
-  return { ok: true, message: "PIN removed. They can no longer unlock a counter tablet." };
-}
-
-/** Staff who only ever use the counter tablet: no email, just a name, a role and a PIN. */
-export async function addPinStaff(input: { name: string; roleId: string; phone: string }): Promise<StaffResult> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("create_pin_staff", {
-    p_full_name: input.name.trim(),
-    p_role_id: input.roleId,
-    p_phone: input.phone.trim() || undefined,
-  });
-  if (error) return { ok: false, error: friendlyDbError(error) };
-  revalidatePath("/settings/users");
-  revalidatePath("/welcome");
-  return { ok: true, pin: (data as { pin?: string } | null)?.pin, name: input.name.trim() };
-}
-
-/**
- * Staff who have no email: a user code (EMPnnn) and a temporary password, as in Winsar. The sign-in is created here
- * with a made-up address; the database checks it was made a moment ago and ties it to the new person. They must choose
- * their own password the first time they sign in.
- */
 export async function addPasswordStaff(input: { name: string; roleId: string; phone: string }): Promise<StaffResult> {
   const name = input.name.trim();
   if (name.length < 2) return { ok: false, error: "Enter the staff member's name." };

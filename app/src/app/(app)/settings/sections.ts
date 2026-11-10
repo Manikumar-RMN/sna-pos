@@ -24,7 +24,6 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
     },
     { href: "/settings/tables", label: "Tables", hint: "Dine-in tables", group: "POS", show: pos && (setup) },
     { href: "/settings/payments", label: "Payment methods", hint: "Cash, UPI, card and more", group: "General", show: setup },
-    { href: "/settings/counters", label: "Counter tablets", hint: "Shared tablets with PIN", group: "POS", show: pos && (setup) },
     { href: "/settings/printers", label: "Printers", hint: "What this device prints", group: "General", show: true },
     { href: "/settings/menu", label: "Menu", hint: "Dishes, prices, add-ons", group: "POS", show: pos && (true) },
     { href: "/settings/offers", label: "Happy hours and offers", hint: "Lower prices by day and time", group: "POS", show: pos && (can(user, "menu.manage")) },

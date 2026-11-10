@@ -24,7 +24,7 @@ export default async function StaffPage() {
     <div>
       <h2 className="text-xl font-bold">Users</h2>
       <p className="mt-1 mb-6 text-sm" style={{ color: "var(--color-ink-3)" }}>
-        The people who can sign in or unlock a counter with a PIN. What each role may do is set in{" "}
+        The people who can sign in. What each role may do is set in{" "}
         <Link href="/settings/security" className="font-bold" style={{ color: "var(--color-brand)" }}>
           Security profiles
         </Link>
@@ -41,9 +41,7 @@ export default async function StaffPage() {
           </div>
           <p className="min-w-0 flex-1 basis-64 text-sm" style={{ color: "var(--color-ink-2)" }}>
             On the sign-in page everyone types this <b>restaurant code</b> first (remembered on that device), then their <b>username</b> (the code under
-            their name below, for example EMP001, or their email) and their password. Counter-only staff (cashiers,
-            waiters) can use a PIN on a counter tablet instead. Anyone who purchases, manages stock or changes settings needs a personal
-            sign-in, not just a PIN.
+            their name below, for example EMP001, or their email) and their password.
           </p>
         </div>
       )}
