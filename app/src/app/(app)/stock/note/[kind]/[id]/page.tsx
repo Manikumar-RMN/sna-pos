@@ -14,7 +14,7 @@ const num = (v: unknown) => Number(v ?? 0);
 
 export default async function StockNotePage({ params }: { params: Promise<{ kind: string; id: string }> }) {
   const { kind, id } = await params;
-  if (!UUID.test(id) || !["receipt", "issue", "request"].includes(kind)) notFound();
+  if (!UUID.test(id) || !["receipt", "issue", "request", "debit"].includes(kind)) notFound();
   const user = await requireUser();
   if (!can(user, "stock.view") && !can(user, "stock.manage") && !can(user, "stock.adjust")) notFound();
   if (!has(user, "stock")) notFound();
@@ -55,6 +55,45 @@ export default async function StockNotePage({ params }: { params: Promise<{ kind
       note: g.notes,
       qtyLabel: "Received",
       sign: ["Received by", "Supplier / checked by"],
+      back: "/purchases",
+    };
+  } else if (kind === "debit") {
+    // Debit note: everything sent back to the supplier against one goods receipt.
+    const { data: g } = await supabase.from("goods_receipts").select("id, number, supplier_id, supplier_bill_no, supplier_bill_date").eq("id", id).maybeSingle();
+    if (!g) notFound();
+    const [{ data: rets }, { data: sup }] = await Promise.all([
+      supabase.from("goods_returns").select("id, number, returned_on, reason, total, created_by").eq("goods_receipt_id", id).order("created_at"),
+      supabase.from("suppliers").select("name, tax_no").eq("id", g.supplier_id).maybeSingle(),
+    ]);
+    if (!rets || rets.length === 0) notFound();
+    const { data: rls } = await supabase.from("goods_return_lines").select("goods_return_id, ingredient_id, qty, unit_cost, line_total, tax_amount").in("goods_return_id", rets.map((r) => r.id));
+    const retNo = Object.fromEntries(rets.map((r) => [r.id, r.number]));
+    const items = (rls ?? []).reduce((a, l) => a + num(l.line_total), 0);
+    const tax = (rls ?? []).reduce((a, l) => a + num(l.tax_amount), 0);
+    note = {
+      title: "Debit note — goods returned",
+      number: rets.map((r) => r.number).join(", "),
+      day: rets[rets.length - 1].returned_on,
+      facts: [
+        ["Supplier", sup?.name ?? "—"],
+        ...(sup?.tax_no ? ([["Supplier GSTIN", sup.tax_no]] as [string, string][]) : []),
+        ["Against receipt", g.number],
+        ["Supplier bill", [g.supplier_bill_no, g.supplier_bill_date].filter(Boolean).join(" · ") || "—"],
+        ["Reason", rets.map((r) => r.reason).join("; ")],
+        ["Returned by", who(rets[0].created_by)],
+      ],
+      lines: (rls ?? []).map((l) => ({
+        name: meta[l.ingredient_id]?.name ?? "Item",
+        unit: meta[l.ingredient_id]?.unit ?? "",
+        qty: num(l.qty),
+        rate: num(l.unit_cost),
+        value: num(l.line_total),
+        extra: [rets.length > 1 ? retNo[l.goods_return_id] : "", num(l.tax_amount) > 0 ? `Tax ${money(num(l.tax_amount), c)}` : ""].filter(Boolean).join(" · "),
+      })),
+      totals: [["Goods", money(items, c)], ["Tax", money(tax, c)], ["Total debited", money(items + tax, c)]],
+      note: null,
+      qtyLabel: "Returned",
+      sign: ["Prepared by", "Supplier acknowledgement"],
       back: "/purchases",
     };
   } else if (kind === "issue") {

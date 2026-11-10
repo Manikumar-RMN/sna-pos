@@ -22,11 +22,12 @@ export default async function MaterialRequestsPage() {
     );
   }
   const supabase = await createClient();
-  const [{ data: ings }, { data: reqs }, { data: lines }, { data: issues }] = await Promise.all([
+  const [{ data: ings }, { data: reqs }, { data: lines }, { data: issues }, { data: deptRows }] = await Promise.all([
     supabase.from("ingredients").select("id, name, unit, is_active").order("name"),
     supabase.from("material_requests").select("id, number, department, status, note, created_at, reject_reason, requested_by").order("created_at", { ascending: false }).limit(40),
     supabase.from("material_request_lines").select("request_id, ingredient_id, qty, issued_qty"),
     supabase.from("material_issues").select("id, number, department, issued_on, value, note").order("created_at", { ascending: false }).limit(15),
+    supabase.from("stock_lists").select("name").eq("kind", "department").eq("is_active", true).order("name"),
   ]);
   const ingredients = (ings ?? []).filter((i) => i.is_active).map((i) => ({ id: i.id, name: i.name, unit: i.unit }));
   const meta: Record<string, { name: string; unit: string }> = Object.fromEntries((ings ?? []).map((i) => [i.id, { name: i.name, unit: i.unit }]));
@@ -57,6 +58,7 @@ export default async function MaterialRequestsPage() {
         currency={user.currency_code}
         ingredients={ingredients}
         requests={rows}
+        departments={(deptRows ?? []).map((d) => d.name)}
         issues={(issues ?? []).map((i) => ({ id: i.id, number: i.number, department: i.department, issuedOn: i.issued_on, value: Number(i.value), note: i.note }))}
       />
     </div>

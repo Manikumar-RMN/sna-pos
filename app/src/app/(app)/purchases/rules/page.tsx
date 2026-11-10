@@ -23,7 +23,7 @@ export default async function RulesPage() {
   }
   const supabase = await createClient();
   const [{ data }, { data: lv }, { data: people }, { data: buyers }] = await Promise.all([
-    supabase.from("purchase_settings").select("direct_receiving, rate_check, allow_excess_qty, po_needs_requisition, max_backdate_days, approval_block_self").maybeSingle(),
+    supabase.from("purchase_settings").select("direct_receiving, rate_check, allow_excess_qty, po_needs_requisition, max_backdate_days, approval_block_self, block_expired_issue").maybeSingle(),
     supabase.from("purchase_approval_levels").select("level, min_amount, approver_id").order("level"),
     supabase.from("users").select("id, full_name, role_id, auth_user_id").eq("is_active", true).is("deleted_at", null).order("full_name"),
     supabase.from("role_permissions").select("role_id").eq("permission_key", "stock.manage"),
@@ -48,6 +48,7 @@ export default async function RulesPage() {
           excess: data?.allow_excess_qty ?? true,
           needsRequisition: data?.po_needs_requisition ?? false,
           backdateDays: data?.max_backdate_days ?? 31,
+          blockExpired: data?.block_expired_issue ?? false,
         }}
       />
       <ApprovalBoard

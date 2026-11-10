@@ -2244,6 +2244,7 @@ export type Database = {
           approval_block_self: boolean
           allow_excess_qty: boolean
           approval_limit: number | null
+          block_expired_issue: boolean
           claim_input_tax: boolean
           direct_receiving: boolean
           max_backdate_days: number
@@ -2254,6 +2255,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          block_expired_issue?: boolean
           approval_block_self?: boolean
           approval_limit?: number | null
           claim_input_tax?: boolean
@@ -2262,6 +2264,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          block_expired_issue?: boolean
           approval_block_self?: boolean
           approval_limit?: number | null
           claim_input_tax?: boolean
@@ -2275,6 +2278,7 @@ export type Database = {
         Row: {
           batch_no: string | null
           expiry_date: string | null
+          hsn_code: string | null
           tax_claimable: boolean
           tax_amount: number
           tax_rate: number
@@ -2292,6 +2296,7 @@ export type Database = {
         Insert: {
           batch_no?: string | null
           expiry_date?: string | null
+          hsn_code?: string | null
           tax_claimable?: boolean
           tax_amount?: number
           tax_rate?: number
@@ -2309,6 +2314,7 @@ export type Database = {
         Update: {
           batch_no?: string | null
           expiry_date?: string | null
+          hsn_code?: string | null
           tax_claimable?: boolean
           tax_amount?: number
           tax_rate?: number
@@ -2501,6 +2507,7 @@ export type Database = {
           category: string | null
           cost_per_unit: number
           created_at: string
+          hsn_code: string | null
           id: string
           is_active: boolean
           item_type: string
@@ -2515,6 +2522,7 @@ export type Database = {
           category?: string | null
           cost_per_unit?: number
           created_at?: string
+          hsn_code?: string | null
           id?: string
           is_active?: boolean
           item_type?: string
@@ -2529,6 +2537,7 @@ export type Database = {
           category?: string | null
           cost_per_unit?: number
           created_at?: string
+          hsn_code?: string | null
           id?: string
           is_active?: boolean
           item_type?: string
@@ -6623,6 +6632,33 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_lists: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+          restaurant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind: string
+          name: string
+          restaurant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
+          restaurant_id?: string
+        }
+        Relationships: []
+      }
       stock_day_closures: {
         Row: {
           branch_id: string
@@ -7961,6 +7997,14 @@ export type Database = {
       report_stock_ledger: { Args: { p_from: string; p_ingredient: string; p_to: string }; Returns: Json }
       report_consumption_monthly: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_item_stock: { Args: { p_ingredient: string }; Returns: Json }
+      report_input_tax: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_supplier_statement: { Args: { p_from: string; p_supplier: string; p_to: string }; Returns: Json }
+      report_supplier_ageing: { Args: { p_asof?: string }; Returns: Json }
+      set_ingredient_hsn: { Args: { p_hsn: string; p_id: string }; Returns: undefined }
+      set_block_expired_issue: { Args: { p_on: boolean }; Returns: boolean }
+      save_stock_list_item: { Args: { p_kind: string; p_name: string }; Returns: string }
+      set_stock_list_item_active: { Args: { p_active: boolean; p_id: string }; Returns: undefined }
+      seed_stock_lists_from_use: { Args: Record<PropertyKey, never>; Returns: number }
       report_mr_audit: { Args: { p_from: string; p_to: string }; Returns: Json }
       return_goods: {
         Args: { p_client_ref?: string; p_lines: Json; p_reason: string; p_receipt_id: string }

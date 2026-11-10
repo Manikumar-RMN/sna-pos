@@ -383,6 +383,13 @@ export function ReceiveTab({
                         <Link href={`/stock/note/receipt/${r.id}`} className="text-xs font-semibold" style={{ color: "var(--color-brand)" }}>
                           Print
                         </Link>{" "}
+                        {r.returned > 0 && (
+                          <>
+                            <Link href={`/stock/note/debit/${r.id}`} className="text-xs font-semibold" style={{ color: "var(--color-brand)" }}>
+                              Debit note
+                            </Link>{" "}
+                          </>
+                        )}
                         {r.cancelled ? (
                           <Badge label="Cancelled" bg="var(--color-bad-soft)" fg="var(--color-bad)" />
                         ) : r.owed > 0 ? (

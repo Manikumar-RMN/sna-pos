@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { can, has, requireUser } from "@/lib/auth";
 import { UpgradeNote } from "../upgrade-note";
 import { createClient } from "@/lib/supabase/server";
@@ -30,7 +31,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
   const today = todayIn(user.timezone);
   const from = addDays(today, -6);
   const transfers = canManage && has(user, "central_kitchen") && user.outlet_count > 1;
-  const [{ data: report }, { data: products }, { data: recipes }, { data: others }, recentRes, { data: buyRows }, { data: typeRows }] = await Promise.all([
+  const [{ data: report }, { data: products }, { data: recipes }, { data: others }, recentRes, { data: buyRows }, { data: typeRows }, { data: catRows }] = await Promise.all([
     supabase.rpc("stock_report", { p_from: from, p_to: today }),
     canManage ? supabase.from("products").select("id, name, price").is("deleted_at", null).order("name") : Promise.resolve({ data: [] as { id: string; name: string; price: number }[] }),
     canManage ? supabase.from("recipe_lines").select("product_id, ingredient_id, qty") : Promise.resolve({ data: [] as { product_id: string; ingredient_id: string; qty: number }[] }),
@@ -44,11 +45,14 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
     // Buying units (kg → 1000 g) for the stock-in and ingredient forms.
     supabase.from("ingredients").select("id, purchase_unit, purchase_factor").not("purchase_unit", "is", null),
     // Food or General, merged into each stock row below.
-    supabase.from("ingredients").select("id, item_type"),
+    supabase.from("ingredients").select("id, item_type, hsn_code"),
+    // The item-group list, when the owner has set one up.
+    supabase.from("stock_lists").select("name").eq("kind", "category").eq("is_active", true).order("name"),
   ]);
   const rep = (report ?? { levels: [], food_cost: [] }) as unknown as { levels: Level[]; food_cost: FoodCost[] };
   const typeOf = new Map((typeRows ?? []).map((t) => [t.id, t.item_type === "general" ? "general" : "food"] as const));
-  rep.levels = rep.levels.map((l) => ({ ...l, item_type: typeOf.get(l.id) ?? "food" }));
+  const hsnOf = new Map((typeRows ?? []).map((t) => [t.id, t.hsn_code ?? ""] as const));
+  rep.levels = rep.levels.map((l) => ({ ...l, item_type: typeOf.get(l.id) ?? "food", hsn: hsnOf.get(l.id) ?? "" }));
   const recent: RecentAdjust[] = ((recentRes.data ?? []) as unknown as Record<string, unknown>[]).map((r) => {
     const ing = (r.ingredients ?? {}) as { name?: string; unit?: string };
     return {
@@ -64,7 +68,14 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
   });
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="text-xl font-bold tracking-tight">Stock</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl font-bold tracking-tight">Stock</h1>
+        {canManage && (
+          <Link href="/stock/lists" className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
+            Groups and departments
+          </Link>
+        )}
+      </div>
       <p className="mt-1 mb-5 text-sm" style={{ color: "var(--color-ink-3)" }}>
         Ingredients are used up as dishes are billed and put back when an item or bill is cancelled. Record purchases, wastage and
         stock counts here. Usage figures are for the last 7 days.
@@ -93,6 +104,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
         canManage={canManage}
         canAdjust={canAdjust}
         initialFilter={filter === "low" ? "low" : undefined}
+        categoryList={(catRows ?? []).map((c) => c.name)}
       />
     </div>
   );

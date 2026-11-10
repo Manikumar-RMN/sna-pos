@@ -6,7 +6,7 @@ import { friendlyDbError } from "@/lib/db-error";
 
 export type RulesResult = { ok: true; message: string } | { ok: false; error: string };
 
-export async function savePurchaseRules(input: { direct: boolean; rateCheck: string; excess: boolean; needsRequisition: boolean; backdateDays: number }): Promise<RulesResult> {
+export async function savePurchaseRules(input: { direct: boolean; rateCheck: string; excess: boolean; needsRequisition: boolean; backdateDays: number; blockExpired?: boolean }): Promise<RulesResult> {
   if (!["off", "warn", "block"].includes(input.rateCheck)) return { ok: false, error: "Choose off, warn or block for the rate check." };
   if (!Number.isInteger(input.backdateDays) || input.backdateDays < 0 || input.backdateDays > 366) return { ok: false, error: "Back-dating days must be a whole number from 0 to 366." };
   const supabase = await createClient();
@@ -18,6 +18,10 @@ export async function savePurchaseRules(input: { direct: boolean; rateCheck: str
     p_backdate_days: input.backdateDays,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
+  if (input.blockExpired !== undefined) {
+    const { error: e2 } = await supabase.rpc("set_block_expired_issue", { p_on: input.blockExpired });
+    if (e2) return { ok: false, error: friendlyDbError(e2) };
+  }
   revalidatePath("/purchases");
   return { ok: true, message: "Purchase rules saved." };
 }

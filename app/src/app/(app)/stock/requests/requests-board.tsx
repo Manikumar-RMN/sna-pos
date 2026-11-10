@@ -24,7 +24,7 @@ const num = (s: string) => {
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
-export function RequestsBoard({ canManage, canBackdate, currency, ingredients, requests, issues }: { canManage: boolean; canBackdate?: boolean; currency: string; ingredients: Ing[]; requests: ReqRow[]; issues: IssueRow[] }) {
+export function RequestsBoard({ canManage, canBackdate, currency, ingredients, requests, issues, departments }: { departments?: string[]; canManage: boolean; canBackdate?: boolean; currency: string; ingredients: Ing[]; requests: ReqRow[]; issues: IssueRow[] }) {
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [mode, setMode] = useState<"none" | "ask" | "direct">("none");
   const m = (n: number) => money(n, currency);
@@ -48,8 +48,8 @@ export function RequestsBoard({ canManage, canBackdate, currency, ingredients, r
         )}
       </div>
       <Msg msg={note} />
-      {mode === "ask" && <LinesForm title="Ask for stock" action="Send request" ingredients={ingredients} askDepartment onDone={done} onClose={() => setMode("none")} />}
-      {mode === "direct" && canManage && <LinesForm title="Issue stock" action="Issue stock" ingredients={ingredients} askDepartment direct canBackdate={canBackdate} onDone={done} onClose={() => setMode("none")} />}
+      {mode === "ask" && <LinesForm title="Ask for stock" action="Send request" ingredients={ingredients} askDepartment departments={departments} onDone={done} onClose={() => setMode("none")} />}
+      {mode === "direct" && canManage && <LinesForm title="Issue stock" action="Issue stock" ingredients={ingredients} askDepartment departments={departments} direct canBackdate={canBackdate} onDone={done} onClose={() => setMode("none")} />}
 
       <section>
         <h2 className="mb-2 text-sm font-bold">Requests</h2>
@@ -236,9 +236,9 @@ function RequestItem({ r, first, canManage, onDone }: { r: ReqRow; first: boolea
 }
 
 /** The shared "pick ingredients and quantities" form: a request, or an issue without one. */
-function LinesForm({ title, action, ingredients, askDepartment, direct, canBackdate, onDone, onClose }: { title: string; action: string; ingredients: Ing[]; askDepartment: boolean; direct?: boolean; canBackdate?: boolean; onDone: (t: string) => void; onClose: () => void }) {
+function LinesForm({ title, action, ingredients, askDepartment, departments, direct, canBackdate, onDone, onClose }: { departments?: string[]; title: string; action: string; ingredients: Ing[]; askDepartment: boolean; direct?: boolean; canBackdate?: boolean; onDone: (t: string) => void; onClose: () => void }) {
   const run = useRun();
-  const [dept, setDept] = useState("Kitchen");
+  const [dept, setDept] = useState(departments && departments.length > 0 && !departments.some((d) => d.toLowerCase() === "kitchen") ? departments[0] : "Kitchen");
   const [rows, setRows] = useState<{ id: string; qty: string }[]>([{ id: "", qty: "" }, { id: "", qty: "" }, { id: "", qty: "" }]);
   const [note, setNote] = useState("");
   const [issueDate, setIssueDate] = useState("");
@@ -273,7 +273,7 @@ function LinesForm({ title, action, ingredients, askDepartment, direct, canBackd
         <Field label="For" className="mt-2">
           <input className="field h-10 text-sm" list="mr-departments" value={dept} onChange={(e) => setDept(e.target.value)} maxLength={40} disabled={run.pending} />
           <datalist id="mr-departments">
-            {DEPARTMENTS.map((d) => (
+            {(departments && departments.length > 0 ? departments : DEPARTMENTS).map((d) => (
               <option key={d} value={d} />
             ))}
           </datalist>

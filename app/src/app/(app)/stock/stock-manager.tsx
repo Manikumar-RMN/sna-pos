@@ -9,7 +9,7 @@ import { saveIngredient, saveRecipe, type StockResult } from "./actions";
 import { StockIn } from "./stock-in";
 import { WastageForm, type RecentAdjust } from "./wastage-form";
 
-export type Level = { id: string; name: string; unit: string; cost: number; reorder: number; stock: number; used: number; wasted: number; bought: number; count_diff: number; category: string | null; item_type?: string };
+export type Level = { id: string; name: string; unit: string; cost: number; reorder: number; stock: number; used: number; wasted: number; bought: number; count_diff: number; category: string | null; item_type?: string; hsn?: string };
 export type FoodCost = { product: string; price: number; cost: number; cost_pct: number | null };
 type Product = { id: string; name: string; price: number };
 type RecipeRow = { product_id: string; ingredient_id: string; qty: number };
@@ -36,8 +36,11 @@ export function StockManager({
   canAdjust,
   initialFilter,
   buyUnits = {},
+  categoryList = [],
 }: {
   buyUnits?: BuyUnits;
+  /** The owner's item-group list. Empty means free text (the groups already in use are suggested). */
+  categoryList?: string[];
   currency: string;
   timezone: string;
   levels: Level[];
@@ -73,7 +76,7 @@ export function StockManager({
   }
 
   // New / edit ingredient.
-  const [edit, setEdit] = useState<{ id: string | null; name: string; unit: string; cost: string; reorder: string; category: string; buyUnit: string; buyFactor: string; itemType: "food" | "general" } | null>(null);
+  const [edit, setEdit] = useState<{ id: string | null; name: string; unit: string; cost: string; reorder: string; category: string; buyUnit: string; buyFactor: string; itemType: "food" | "general"; hsn: string } | null>(null);
   // Recipe editor.
   const [recipeFor, setRecipeFor] = useState<string>("");
   const [recipeRows, setRecipeRows] = useState<{ ingredient_id: string; qty: string }[]>([]);
@@ -85,7 +88,7 @@ export function StockManager({
     .filter((x) => (!lowOnly || isAttention(x.status)) && (typeFilter === "all" || (x.l.item_type === "general" ? "general" : "food") === typeFilter) && (!needle || x.l.name.toLowerCase().includes(needle) || (x.l.category ?? "").toLowerCase().includes(needle)))
     .sort((a, b) => (lowOnly ? STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.l.name.localeCompare(b.l.name) : 0));
   // Groups already in use, offered as suggestions when typing a group.
-  const groups = Array.from(new Set(levels.map((l) => (l.category ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const groups = categoryList.length > 0 ? categoryList : Array.from(new Set(levels.map((l) => (l.category ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
   const ingCosts = levels.map((l) => ({ id: l.id, cost: Number(l.cost) }));
   function dishCost(p: Product): string {
@@ -201,7 +204,7 @@ export function StockManager({
                     <tr key={l.id} style={{ borderTop: "1px solid var(--color-line)" }}>
                       <td className="px-3 py-2">
                         {canManage ? (
-                          <button className="text-left font-semibold" onClick={() => setEdit({ id: l.id, name: l.name, unit: l.unit, cost: String(l.cost), reorder: String(l.reorder), category: l.category ?? "", buyUnit: buyUnits[l.id]?.unit ?? "", buyFactor: buyUnits[l.id] ? String(buyUnits[l.id].factor) : "", itemType: l.item_type === "general" ? "general" : "food" })}>
+                          <button className="text-left font-semibold" onClick={() => setEdit({ id: l.id, name: l.name, unit: l.unit, cost: String(l.cost), reorder: String(l.reorder), category: l.category ?? "", buyUnit: buyUnits[l.id]?.unit ?? "", buyFactor: buyUnits[l.id] ? String(buyUnits[l.id].factor) : "", itemType: l.item_type === "general" ? "general" : "food", hsn: l.hsn ?? "" })}>
                             {l.name}
                           </button>
                         ) : (
@@ -287,12 +290,21 @@ export function StockManager({
                 <input className="field h-10 text-sm sm:col-span-2" inputMode="decimal" placeholder="Warn when stock falls to (optional)" value={edit.reorder} onChange={(e) => setEdit({ ...edit, reorder: e.target.value })} />
                 <input
                   className="field h-10 text-sm sm:col-span-2"
-                  placeholder="Group, e.g. Vegetables (optional)"
+                  placeholder={categoryList.length > 0 ? "Group (choose from the list)" : "Group, e.g. Vegetables (optional)"}
                   aria-label="Group (optional)"
                   list="ingredient-groups"
                   value={edit.category}
                   onChange={(e) => setEdit({ ...edit, category: e.target.value })}
                   maxLength={40}
+                />
+                <input
+                  className="field h-10 text-sm sm:col-span-2"
+                  inputMode="numeric"
+                  placeholder="HSN code for purchase tax (optional), 4 to 8 digits"
+                  aria-label="HSN code (optional)"
+                  value={edit.hsn}
+                  onChange={(e) => setEdit({ ...edit, hsn: e.target.value.replace(/[^0-9]/g, "").slice(0, 8) })}
+                  maxLength={8}
                 />
                 <input
                   className="field h-10 text-sm sm:col-span-2"
@@ -325,14 +337,14 @@ export function StockManager({
                 <button
                   className="btn btn-primary px-4 text-sm"
                   disabled={pending || !edit.name.trim()}
-                  onClick={() => run(() => saveIngredient({ id: edit.id, name: edit.name, unit: edit.unit, cost: Number(edit.cost) || 0, reorder: Number(edit.reorder) || 0, category: edit.category, purchaseUnit: edit.buyUnit, purchaseFactor: Number(edit.buyFactor) || 1, itemType: edit.itemType }), () => setEdit(null))}
+                  onClick={() => run(() => saveIngredient({ id: edit.id, name: edit.name, unit: edit.unit, cost: Number(edit.cost) || 0, reorder: Number(edit.reorder) || 0, category: edit.category, purchaseUnit: edit.buyUnit, purchaseFactor: Number(edit.buyFactor) || 1, itemType: edit.itemType, hsn: edit.hsn }), () => setEdit(null))}
                 >
                   {pending ? "Saving…" : "Save item"}
                 </button>
               </div>
             </section>
           ) : (
-            <button className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setEdit({ id: null, name: "", unit: "kg", cost: "", reorder: "", category: "", buyUnit: "", buyFactor: "", itemType: "food" })}>
+            <button className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setEdit({ id: null, name: "", unit: "kg", cost: "", reorder: "", category: "", buyUnit: "", buyFactor: "", itemType: "food", hsn: "" })}>
               + Add item
             </button>
           )}

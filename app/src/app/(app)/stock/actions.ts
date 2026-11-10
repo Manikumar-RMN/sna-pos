@@ -21,9 +21,11 @@ export async function saveIngredient(input: {
   purchaseFactor?: number;
   /** "food" or "general". Left out, an edit keeps its type and a new item is Food. */
   itemType?: "food" | "general";
+  /** HSN code, 4 to 8 digits, or "" for none. Left out, it is not touched. */
+  hsn?: string;
 }): Promise<StockResult> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("save_ingredient", {
+  const { data: savedId, error } = await supabase.rpc("save_ingredient", {
     p_id: input.id as string,
     p_name: input.name,
     p_unit: input.unit,
@@ -35,6 +37,13 @@ export async function saveIngredient(input: {
     p_item_type: input.itemType,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
+  if (input.hsn !== undefined && savedId) {
+    const { error: hsnError } = await supabase.rpc("set_ingredient_hsn", { p_id: savedId as string, p_hsn: input.hsn });
+    if (hsnError) {
+      revalidatePath("/stock");
+      return { ok: false, error: `The item was saved, but not its HSN code: ${friendlyDbError(hsnError)}` };
+    }
+  }
   revalidatePath("/stock");
   return { ok: true, message: input.id ? "Item saved." : `${input.name} added.` };
 }
