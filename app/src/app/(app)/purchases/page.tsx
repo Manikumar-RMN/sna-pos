@@ -252,6 +252,14 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
       (grs ?? []).map((g) => g.id),
     ),
   ]);
+  const { data: refundRows } = await supabase
+    .from("supplier_refunds")
+    .select("goods_receipt_id")
+    .in(
+      "goods_receipt_id",
+      (grs ?? []).map((g) => g.id),
+    );
+  const refundedIds = new Set((refundRows ?? []).map((r) => r.goods_receipt_id));
   const receipts: ReceiptRow[] = (grs ?? []).map((g) => {
     const total = Number(g.total);
     const paid = Number(g.paid_total);
@@ -265,6 +273,7 @@ async function ReceiveSection({ supabase, user, suppliers, po }: SectionProps & 
       paid,
       owed: Math.max(0, Math.round((total - paid) * 100) / 100),
       refund: Number(g.refund_due),
+      refunded: refundedIds.has(g.id),
       cancelled: g.status === "cancelled",
       cancel_reason: g.cancel_reason,
       returned: Number(g.returned_total),

@@ -17,6 +17,7 @@ export function PaymentsList({
   payments,
   currency,
   disabled,
+  locked,
   onDone,
 }: {
   /** This receipt's payments, oldest first. */
@@ -24,6 +25,8 @@ export function PaymentsList({
   currency: string;
   /** Something else on the screen is being saved. */
   disabled?: boolean;
+  /** The supplier has refunded money on this receipt, so its payments stay as they are. */
+  locked?: boolean;
   /** Called with the words to show once a payment has been undone. */
   onDone: (text: string) => void;
 }) {
@@ -59,7 +62,7 @@ export function PaymentsList({
                 <span className="font-bold tabular-nums" style={p.undone ? struck : undefined}>
                   {m(p.amount)}
                 </span>
-                {!p.undone && undoId !== p.id && (
+                {!p.undone && !locked && undoId !== p.id && (
                   <button
                     type="button"
                     className={rowBtn}

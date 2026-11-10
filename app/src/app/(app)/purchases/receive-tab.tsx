@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { addDays, money } from "@/lib/format";
 import { receiveGoods } from "./actions";
 import { ReturnForm } from "./return-form";
@@ -122,6 +122,9 @@ export function ReceiveTab({
   const [payId, setPayId] = useState<string | null>(null);
   const [returnId, setReturnId] = useState<string | null>(null);
   const [refundId, setRefundId] = useState<string | null>(null);
+  // Shows the new amount at once; the server figure replaces it when the list reloads.
+  const [refundLeft, setRefundLeft] = useState<Record<string, number>>({});
+  useEffect(() => setRefundLeft({}), [receipts]);
   const [reason, setReason] = useState("");
   const [listMsg, setListMsg] = useState<Note>(null);
   const list = useRun();
@@ -368,6 +371,7 @@ export function ReceiveTab({
           ) : (
             <ul>
               {receipts.map((r, i) => {
+                const refund = refundLeft[r.id] ?? r.refund;
                 const supplier = supplierNames[r.supplier_id] ?? "Supplier";
                 const busy = pending || list.pending;
                 return (
@@ -379,8 +383,8 @@ export function ReceiveTab({
                           <Badge label="Cancelled" bg="var(--color-bad-soft)" fg="var(--color-bad)" />
                         ) : r.owed > 0 ? (
                           <Badge label={`Owed ${m(r.owed)}`} bg="var(--color-warn-soft)" fg="var(--color-warn)" />
-                        ) : r.refund > 0 ? (
-                          <Badge label={`Supplier owes you ${m(r.refund)}`} bg="var(--color-warn-soft)" fg="var(--color-warn)" />
+                        ) : refund > 0 ? (
+                          <Badge label={`Supplier owes you ${m(refund)}`} bg="var(--color-warn-soft)" fg="var(--color-warn)" />
                         ) : (
                           <Badge label="Paid" bg="var(--color-ok-soft)" fg="var(--color-ok)" />
                         )}
@@ -400,7 +404,7 @@ export function ReceiveTab({
                       </div>
                     </div>
 
-                    {!r.cancelled && (r.owed > 0 || r.refund > 0 || r.returnable.length > 0) && payId !== r.id && refundId !== r.id && returnId !== r.id && (
+                    {!r.cancelled && (r.owed > 0 || refund > 0 || r.returnable.length > 0) && payId !== r.id && refundId !== r.id && returnId !== r.id && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {r.owed > 0 && (
                           <button
@@ -418,7 +422,7 @@ export function ReceiveTab({
                             Pay
                           </button>
                         )}
-                        {r.refund > 0 && (
+                        {refund > 0 && (
                           <button
                             type="button"
                             className={rowBtn}
@@ -467,15 +471,16 @@ export function ReceiveTab({
                       />
                     )}
 
-                    {refundId === r.id && !r.cancelled && r.refund > 0 && (
+                    {refundId === r.id && !r.cancelled && refund > 0 && (
                       <RefundForm
-                        receipt={{ id: r.id, number: r.number, supplier, owed: r.refund }}
+                        receipt={{ id: r.id, number: r.number, supplier, owed: refund }}
                         currency={currency}
                         country={country}
                         today={today}
                         canTill={canTill}
-                        onDone={(text) => {
+                        onDone={(text, left) => {
                           setRefundId(null);
+                          setRefundLeft((x) => ({ ...x, [r.id]: left }));
                           setListMsg({ ok: true, text });
                         }}
                         onClose={() => setRefundId(null)}
@@ -502,6 +507,7 @@ export function ReceiveTab({
                         payments={payments[r.id] ?? []}
                         currency={currency}
                         disabled={busy}
+                        locked={r.refunded}
                         onDone={(text) => {
                           list.setMsg(null);
                           setListMsg({ ok: true, text });

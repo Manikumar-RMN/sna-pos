@@ -62,6 +62,8 @@ export type ReceiptRow = {
   paid: number;
   owed: number;
   refund: number;
+  /** A refund from the supplier has been recorded on it (its payments can no longer be undone). */
+  refunded: boolean;
   cancelled: boolean;
   cancel_reason: string | null;
   /** What has gone back to the supplier already (money). */

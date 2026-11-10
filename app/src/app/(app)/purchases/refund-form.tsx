@@ -23,7 +23,7 @@ export function RefundForm({
   /** This person may put cash into the till (the "cash in / cash out" right). */
   canTill: boolean;
   /** Called with the words to show once the refund is saved. */
-  onDone: (text: string) => void;
+  onDone: (text: string, left: number) => void;
   onClose: () => void;
 }) {
   const { pending, msg, setMsg, run } = useRun();
@@ -51,7 +51,7 @@ export function RefundForm({
         // This reference is used up: anything saved after this is another refund.
         sent.current = null;
         const text = r.left > 0 ? `Received ${m(r.amount)} back from ${receipt.supplier}. They still owe ${m(r.left)} on ${receipt.number}.` : `Received ${m(r.amount)} back from ${receipt.supplier}. Nothing more is due on ${receipt.number}.`;
-        onDone(text);
+        onDone(text, r.left);
         return text;
       },
       "Could not reach the server. Check the connection and tap Save refund again without changing anything — it will not be recorded twice.",
