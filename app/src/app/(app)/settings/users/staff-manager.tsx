@@ -40,23 +40,21 @@ export function StaffManager({
   const [notice, setNotice] = useState<string | null>(null);
   const [invite, setInvite] = useState<{ code: string; name: string; email: string } | null>(null);
   const [secret, setSecret] = useState<{ kind: "pin" | "password"; value: string; name: string; userCode?: string; clientCode?: string } | null>(null);
-  const [pwName, setPwName] = useState("");
-  const [pwPhone, setPwPhone] = useState("");
-  const [pwRole, setPwRole] = useState("");
   const [confirmReset, setConfirmReset] = useState<string | null>(null);
-  const [pinName, setPinName] = useState("");
-  const [pinRole, setPinRole] = useState("");
   // "Copy access from..." : the person being set up, and the colleague chosen as the model
   const [copyFor, setCopyFor] = useState<string | null>(null);
   const [copySrc, setCopySrc] = useState("");
 
   const assignable = roles.filter((r) => r.name !== "Owner");
-  const counterRoles = assignable.filter((r) => !r.backOffice);
-  const pinRoleId = pinRole && counterRoles.some((r) => r.id === pinRole) ? pinRole : (counterRoles.find((r) => r.name === "Cashier")?.id ?? counterRoles[0]?.id ?? "");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [roleId, setRoleId] = useState(assignable.find((r) => r.name === "Cashier")?.id ?? assignable[0]?.id ?? "");
+  const [howNoEmail, setHowNoEmail] = useState<"pin" | "password">("pin");
+  const hasEmail = email.trim().length > 0;
+  const roleIsBackOffice = !!assignable.find((r) => r.id === roleId)?.backOffice;
+  /** How the new person will sign in: an email means an invite; a counter role may use a PIN; anything else gets a user code and password. */
+  const way: "invite" | "pin" | "password" = hasEmail ? "invite" : roleIsBackOffice ? "password" : howNoEmail;
 
   function run(fn: () => Promise<StaffResult>, after?: () => void) {
     setError(null);
@@ -88,7 +86,7 @@ export function StaffManager({
               Ask {invite.name} to open <b>{appUrl}</b> on their phone or the counter tablet.
             </li>
             <li>
-              Choose the <b>Owner</b> tab, tap <b>I have an invite code</b>, and create a sign-in using <b>{invite.email}</b> and a password of their own.
+              Tap <b>I have an invite code</b> under the sign-in button, and create a sign-in using <b>{invite.email}</b> and a password of their own.
             </li>
             <li>
               Enter this code on the next screen. It works once and expires in 7 days.
@@ -115,7 +113,7 @@ export function StaffManager({
             {secret.kind === "pin"
               ? "Give this PIN to them privately. They type it on the counter tablet to unlock it. No one else in the restaurant has the same PIN."
               : secret.userCode
-                ? `Give this to them privately. On the sign-in page they choose Staff and type client code ${secret.clientCode ?? ""}, user code ${secret.userCode} and this password. They must then choose their own password.`
+                ? `Give this to them privately. On the sign-in page they type user code ${secret.userCode}, restaurant code ${secret.clientCode ?? ""} and this password. They must then choose their own password.`
                 : "Give this to them privately. They sign in with their email and this password, and must then choose their own. They have been signed out everywhere."}
           </p>
           <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
@@ -295,96 +293,68 @@ export function StaffManager({
 
       {canManage && (
         <section className="card p-5">
-          <h2 className="text-base font-bold">Add a staff member</h2>
+          <h2 className="text-base font-bold">Add a person</h2>
           <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-            Each person gets their own sign-in, so every bill, discount and void records who did it.
+            Everyone gets their own sign-in, so every bill, discount and void records who did it. Pick a role and say how they will sign in.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <input className="field" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
-            <input className="field" type="email" placeholder="Email (they sign in with this)" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <select className="field" value={roleId} onChange={(e) => setRoleId(e.target.value)} aria-label="Role">
+              {assignable.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+            <input className="field" type="email" placeholder="Email (optional)" value={email} onChange={(e) => setEmail(e.target.value)} />
             <input className="field" placeholder="Phone (optional)" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <select className="field" value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-              {assignable.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
           </div>
+          {!hasEmail && !roleIsBackOffice && (
+            <fieldset className="mt-4 space-y-2 text-sm">
+              <legend className="mb-1 text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+                No email, so how will they sign in?
+              </legend>
+              <label className="flex items-start gap-2">
+                <input type="radio" name="how" className="mt-1" checked={howNoEmail === "pin"} onChange={() => setHowNoEmail("pin")} />
+                <span>
+                  <b>A PIN on the counter tablet</b> <span style={{ color: "var(--color-ink-3)" }}>(billing only; best for cashiers and waiters)</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input type="radio" name="how" className="mt-1" checked={howNoEmail === "password"} onChange={() => setHowNoEmail("password")} />
+                <span>
+                  <b>A user code and password</b> <span style={{ color: "var(--color-ink-3)" }}>(works on any phone or computer)</span>
+                </span>
+              </label>
+            </fieldset>
+          )}
+          <p className="mt-3 text-xs" style={{ color: "var(--color-ink-3)" }}>
+            {hasEmail
+              ? "They get an invite code and sign in with their email and a password of their own."
+              : way === "pin"
+                ? "They get a PIN to unlock the counter tablet. They cannot purchase, manage stock or change settings."
+                : "They get a user code (like EMP003) and a temporary password, and choose their own at first sign-in."}
+          </p>
           <button
             className="btn btn-primary mt-4"
-            disabled={pending || name.trim().length < 2 || !email.includes("@") || !roleId}
+            disabled={pending || name.trim().length < 2 || !roleId || (hasEmail && !email.includes("@"))}
             onClick={() =>
-              run(() => inviteStaff({ name, email, roleId, phone }), () => {
-                setName("");
-                setEmail("");
-                setPhone("");
-              })
+              run(
+                () =>
+                  way === "invite"
+                    ? inviteStaff({ name, email, roleId, phone })
+                    : way === "pin"
+                      ? addPinStaff({ name, roleId, phone })
+                      : addPasswordStaff({ name, roleId, phone }),
+                () => {
+                  setName("");
+                  setEmail("");
+                  setPhone("");
+                },
+              )
             }
           >
-            {pending ? "Creating…" : "Create invite code"}
-          </button>
-        </section>
-      )}
-
-      {canManage && (
-        <section className="card p-5">
-          <h2 className="text-base font-bold">Add counter-only staff (PIN, no email)</h2>
-          <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-            For cashiers and waiters who only use the counter tablet. They get a unique PIN and no email sign-in.
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <input className="field" placeholder="Full name" value={pinName} onChange={(e) => setPinName(e.target.value)} />
-            <select className="field" value={pinRoleId} onChange={(e) => setPinRole(e.target.value)}>
-              {counterRoles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
-            Roles that purchase, manage stock or change settings are not listed: those people need a personal sign-in.
-          </p>
-          <button
-            className="btn btn-primary mt-4"
-            disabled={pending || pinName.trim().length < 2 || !pinRoleId}
-            onClick={() => run(() => addPinStaff({ name: pinName, roleId: pinRoleId, phone: "" }), () => setPinName(""))}
-          >
-            {pending ? "Creating…" : "Add and create PIN"}
-          </button>
-        </section>
-      )}
-
-      {canManage && (
-        <section className="card p-5">
-          <h2 className="text-base font-bold">Add staff with a user code and password (no email)</h2>
-          <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-            For managers, purchasers and anyone who needs full screens but has no email. They get a user code and a temporary password,
-            and choose their own at first sign-in.
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <input className="field" placeholder="Full name" value={pwName} onChange={(e) => setPwName(e.target.value)} />
-            <input className="field" placeholder="Phone (optional)" value={pwPhone} onChange={(e) => setPwPhone(e.target.value)} />
-            <select className="field" value={pwRole || roleId} onChange={(e) => setPwRole(e.target.value)}>
-              {assignable.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            className="btn btn-primary mt-4"
-            disabled={pending || pwName.trim().length < 2 || !(pwRole || roleId)}
-            onClick={() =>
-              run(() => addPasswordStaff({ name: pwName, roleId: pwRole || roleId, phone: pwPhone }), () => {
-                setPwName("");
-                setPwPhone("");
-              })
-            }
-          >
-            {pending ? "Creating…" : "Add and create password"}
+            {pending ? "Adding…" : way === "invite" ? "Create invite code" : way === "pin" ? "Add and create PIN" : "Add and create password"}
           </button>
         </section>
       )}

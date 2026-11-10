@@ -70,13 +70,13 @@ export function NewClientForm({ countries, canSell }: { countries: Country[]; ca
             </div>
             <div className="mt-1 select-all break-all font-mono text-2xl font-bold tracking-wider">{res.tempPassword}</div>
             <p className="mt-2 text-sm" style={{ color: "var(--color-ink-2)" }}>
-              Give it to the owner privately. They sign in at sna-pos.vercel.app, on the <b>Owner</b> tab, with their email and this password, and must then choose
+              Give it to the owner privately. They sign in at sna-pos.vercel.app, with their email and this password, and must then choose
               their own password.
             </p>
           </div>
         ) : (
           <p className="rounded-2xl p-4 text-sm" style={{ background: "var(--color-ok-soft)", color: "var(--color-ink-2)" }}>
-            This email is an SNA staff sign-in, so its password was left as it is. Sign in on the <b>Owner</b> tab with the usual password.
+            This email is an SNA staff sign-in, so its password was left as it is. Sign in with the usual password.
           </p>
         )}
         <div className="flex flex-wrap gap-2">

@@ -40,9 +40,10 @@ export default async function StaffPage() {
             <div className="mt-0.5 text-2xl font-bold tabular-nums tracking-wider">{rest.client_code}</div>
           </div>
           <p className="min-w-0 flex-1 basis-64 text-sm" style={{ color: "var(--color-ink-2)" }}>
-            On the sign-in page, staff with a password choose <b>Staff</b> and type this client code, their user code (the code under
-            their name below, for example EMP001) and their password. Counter-only staff (cashiers, waiters) use a PIN on a counter tablet
-            instead. Anyone who purchases, manages stock or changes settings needs a personal sign-in, not just a PIN.
+            On the sign-in page everyone types their <b>email or user code</b> (the code under their name below, for example EMP001) and
+            their password. People who use a user code also type this restaurant code once on each device. Counter-only staff (cashiers,
+            waiters) can use a PIN on a counter tablet instead. Anyone who purchases, manages stock or changes settings needs a personal
+            sign-in, not just a PIN.
           </p>
         </div>
       )}

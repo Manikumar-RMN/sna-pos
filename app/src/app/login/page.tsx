@@ -8,8 +8,8 @@ import { PasswordInput } from "@/components/password-input";
 
 const initial: AuthState = { error: null, notice: null };
 
-type LoginMode = "staff" | "owner";
-const MODE_KEY = "sna.login.mode.v1";
+/** The restaurant's client code is typed once per device and remembered. */
+const CODE_KEY = "sna.login.clientCode.v1";
 
 const PLATES = [
   { name: "Dosa", bg: "#FFE6BF", ink: "#7A4400", icon: "M3 18L19 5c1.2 1.2 1.6 2.6 1 4L7 20c-1.6.4-3.2-.4-4-2zM9 14l3 3" },
@@ -32,19 +32,22 @@ function Mark({ size }: { size: number }) {
 export default function LoginPage() {
   const [state, action, pending] = useActionState(authenticate, initial);
   const [linkExpired, setLinkExpired] = useState(false);
-  const [loginMode, setLoginMode] = useState<LoginMode>("staff");
-  /** Owner tab only: the form is creating a new account instead of signing in. */
+  /** The form is creating a sign-in from an invite code instead of signing in. */
   const [creating, setCreating] = useState(false);
+  const [who, setWho] = useState("");
+  const [clientCode, setClientCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  /** An email means an owner or invited person; anything else is a staff user code, which also needs the client code. */
+  const isEmail = who.includes("@");
 
   useEffect(() => {
     setLinkExpired(new URLSearchParams(window.location.search).get("link") === "expired");
-    // Open on the tab this device used last, so an owner is not asked for a client code every time.
     try {
-      if (window.localStorage.getItem(MODE_KEY) === "owner") setLoginMode("owner");
+      const saved = window.localStorage.getItem(CODE_KEY);
+      if (saved) setClientCode(saved);
     } catch {
-      /* private browsing: keep the default */
+      /* private browsing: type it each time */
     }
   }, []);
 
@@ -59,17 +62,16 @@ export default function LoginPage() {
     if (state.notice) setCreating(false);
   }, [state]);
 
-  function chooseMode(mode: LoginMode) {
-    setLoginMode(mode);
-    if (mode === "staff") setCreating(false);
+  function rememberCode(v: string) {
+    setClientCode(v);
     try {
-      window.localStorage.setItem(MODE_KEY, mode);
+      window.localStorage.setItem(CODE_KEY, v);
     } catch {
       /* nothing to remember */
     }
   }
 
-  const isSignup = loginMode === "owner" && creating;
+  const isSignup = creating;
   const mismatch = isSignup && confirm.length > 0 && confirm !== password;
 
   return (
@@ -118,86 +120,56 @@ export default function LoginPage() {
             {isSignup ? "For staff who were given an invite code. You will type the code on the next page." : "Sign in to your restaurant"}
           </p>
 
-          {/* Login mode tabs: Staff vs Owner/Email */}
-          <div className="mb-6 flex gap-2 rounded-lg p-1" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-line)" }}>
-            <button
-              type="button"
-              onClick={() => chooseMode("staff")}
-              className="flex-1 rounded px-3 py-2 text-sm font-bold transition-colors"
-              style={{
-                background: loginMode === "staff" ? "var(--color-brand)" : "transparent",
-                color: loginMode === "staff" ? "white" : "var(--color-ink-2)",
-              }}
-            >
-              Staff
-            </button>
-            <button
-              type="button"
-              onClick={() => chooseMode("owner")}
-              className="flex-1 rounded px-3 py-2 text-sm font-bold transition-colors"
-              style={{
-                background: loginMode === "owner" ? "var(--color-brand)" : "transparent",
-                color: loginMode === "owner" ? "white" : "var(--color-ink-2)",
-              }}
-            >
-              Owner
-            </button>
-          </div>
-
-          {/* Form: Handles both staff and owner login */}
+          {/* One form for everyone. An email signs in an owner or invited person; a user code (EMP001) signs in staff and also needs the restaurant's client code. */}
           <form action={action} className="flex flex-col">
-            {/* STAFF LOGIN FIELDS */}
-            {loginMode === "staff" && (
+            {isSignup ? (
               <>
-                <label className="mb-1.5 block text-sm font-bold" htmlFor="clientCode">
-                  Client Code
+                <label className="mb-1.5 block text-sm font-bold" htmlFor="email">
+                  Email
                 </label>
-                <input
-                  id="clientCode"
-                  name="clientCode"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  required
-                  className="field mb-4"
-                  placeholder="1000"
-                  pattern="[0-9]{4,6}"
-                  title="Your restaurant's client code, e.g. 1000"
-                />
-
+                <input id="email" name="email" type="email" autoComplete="email" required className="field mb-4" placeholder="The email your invite was made for" />
+              </>
+            ) : (
+              <>
                 <label className="mb-1.5 block text-sm font-bold" htmlFor="username">
-                  Username
+                  Email or user code
                 </label>
-                <p className="mb-1.5 text-xs" style={{ color: "var(--color-ink-3)" }}>
-                  Your staff code, for example EMP001. Your manager can tell you yours.
-                </p>
                 <input
                   id="username"
                   name="username"
                   type="text"
                   autoComplete="username"
+                  autoCapitalize="none"
                   required
                   className="field mb-4"
-                  placeholder="EMP001"
+                  placeholder="you@restaurant.com or EMP001"
+                  value={who}
+                  onChange={(e) => setWho(e.target.value)}
                 />
-              </>
-            )}
-
-            {/* OWNER LOGIN FIELDS */}
-            {loginMode === "owner" && (
-              <>
-                <label className="mb-1.5 block text-sm font-bold" htmlFor="email">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  className="field mb-4"
-                  placeholder={isSignup ? "The email your invite was made for" : "owner@restaurant.com"}
-                />
+                {!isEmail && (
+                  <>
+                    <label className="mb-1.5 block text-sm font-bold" htmlFor="clientCode">
+                      Restaurant code
+                    </label>
+                    <p className="mb-1.5 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                      Ask your manager. You type it once on this device.
+                    </p>
+                    <input
+                      id="clientCode"
+                      name="clientCode"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      required
+                      className="field mb-4"
+                      placeholder="1000"
+                      pattern="[0-9]{4,6}"
+                      title="Your restaurant's code, e.g. 1000"
+                      value={clientCode}
+                      onChange={(e) => rememberCode(e.target.value)}
+                    />
+                  </>
+                )}
               </>
             )}
 
@@ -265,19 +237,19 @@ export default function LoginPage() {
             <button
               type="submit"
               name="intent"
-              value={isSignup ? "signup" : loginMode === "staff" ? "signin" : "signin_email"}
+              value={isSignup ? "signup" : "signin"}
               className="btn btn-primary h-14 w-full text-base"
               disabled={pending || mismatch}
             >
               {pending ? "Please wait…" : isSignup ? "Create account" : "Sign in"}
             </button>
 
-            {loginMode === "owner" && (
+            {(
               <>
                 <div className="my-5 flex items-center gap-3">
                   <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />
                   <span className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
-                    {creating ? "or" : "invited to join a restaurant?"}
+                    {creating ? "or" : "first time here?"}
                   </span>
                   <span className="h-px flex-1" style={{ background: "var(--color-line)" }} />
                 </div>
@@ -292,7 +264,7 @@ export default function LoginPage() {
                   style={{ border: "1.5px solid var(--color-line)", background: "var(--color-surface)" }}
                   disabled={pending}
                 >
-                  {creating ? "I already have an account" : "I have an invite code"}
+                  {creating ? "I already have a sign-in" : "I have an invite code"}
                 </button>
                 <p className="mt-4 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
                   New restaurant? SNA sets it up for you. Write to{" "}
