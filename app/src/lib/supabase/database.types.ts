@@ -7359,6 +7359,10 @@ export type Database = {
           all_outlets: boolean
           auth_user_id: string | null
           created_at: string
+          department: string | null
+          designation: string | null
+          employee_no: string | null
+          relieving_date: string | null
           current_branch_id: string | null
           deleted_at: string | null
           email: string | null
@@ -7382,6 +7386,10 @@ export type Database = {
           all_outlets?: boolean
           auth_user_id?: string | null
           created_at?: string
+          department?: string | null
+          designation?: string | null
+          employee_no?: string | null
+          relieving_date?: string | null
           current_branch_id?: string | null
           deleted_at?: string | null
           email?: string | null
@@ -7405,6 +7413,10 @@ export type Database = {
           all_outlets?: boolean
           auth_user_id?: string | null
           created_at?: string
+          department?: string | null
+          designation?: string | null
+          employee_no?: string | null
+          relieving_date?: string | null
           current_branch_id?: string | null
           deleted_at?: string | null
           email?: string | null
@@ -7978,6 +7990,10 @@ export type Database = {
       create_password_staff: {
         Args: { p_auth_user_id: string; p_full_name: string; p_phone?: string; p_role_id: string }
         Returns: Json
+      }
+      update_staff_details: {
+        Args: { p_department: string; p_designation: string; p_employee_no: string; p_full_name: string; p_phone: string; p_relieving_date: string; p_user_id: string }
+        Returns: undefined
       }
       create_restaurant_with_owner: {
         Args: {

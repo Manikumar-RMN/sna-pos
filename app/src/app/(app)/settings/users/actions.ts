@@ -35,7 +35,7 @@ export async function setActive(userId: string, active: boolean): Promise<StaffR
   return { ok: true, message: active ? "Access switched back on." : "Access switched off. They can no longer sign in to this restaurant." };
 }
 
-export async function addPasswordStaff(input: { name: string; roleId: string; phone: string }): Promise<StaffResult> {
+export async function addPasswordStaff(input: { name: string; roleId: string; phone: string; department?: string; designation?: string; employeeNo?: string }): Promise<StaffResult> {
   const name = input.name.trim();
   if (name.length < 2) return { ok: false, error: "Enter the staff member's name." };
   const temp = temporaryPassword();
@@ -55,6 +55,21 @@ export async function addPasswordStaff(input: { name: string; roleId: string; ph
   revalidatePath("/settings/users");
   revalidatePath("/welcome");
   const d = (data ?? {}) as { employee_code?: string; client_code?: string };
+  // The extra details (department, designation, employee no) are saved with the same call the Details form uses.
+  if (d.employee_code && (input.department || input.designation || input.employeeNo)) {
+    const { data: row } = await supabase.from("users").select("id").eq("employee_code", d.employee_code).is("deleted_at", null).maybeSingle();
+    if (row?.id) {
+      await supabase.rpc("update_staff_details", {
+        p_user_id: row.id,
+        p_full_name: name,
+        p_phone: input.phone.trim(),
+        p_department: (input.department ?? "").trim(),
+        p_designation: (input.designation ?? "").trim(),
+        p_employee_no: (input.employeeNo ?? "").trim(),
+        p_relieving_date: null as unknown as string,
+      });
+    }
+  }
   return { ok: true, name, tempPassword: temp, userCode: d.employee_code, clientCode: d.client_code };
 }
 
@@ -94,4 +109,32 @@ export async function copyAccess(fromUserId: string, toUserId: string, toName: s
   const r = (data ?? {}) as { role?: string; all_outlets?: boolean; outlets?: string[] };
   const where = r.all_outlets ? "all outlets" : `${r.outlets?.length ?? 0} ${(r.outlets?.length ?? 0) === 1 ? "outlet" : "outlets"}`;
   return { ok: true, message: `${toName} now has the ${r.role ?? "same"} role and works in ${where}. It applies the next time they open a screen.` };
+}
+
+/** The User Master form: name, department, designation, employee number, mobile and relieving date. */
+export async function updateStaffDetails(input: {
+  userId: string;
+  name: string;
+  phone: string;
+  department: string;
+  designation: string;
+  employeeNo: string;
+  relievingDate: string;
+}): Promise<StaffResult> {
+  if (input.name.trim().length < 2) return { ok: false, error: "Enter the staff member's name." };
+  if (input.relievingDate && !/^\d{4}-\d{2}-\d{2}$/.test(input.relievingDate)) return { ok: false, error: "Choose a valid relieving date." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_staff_details", {
+    p_user_id: input.userId,
+    p_full_name: input.name.trim(),
+    p_phone: input.phone.trim(),
+    p_department: input.department.trim(),
+    p_designation: input.designation.trim(),
+    p_employee_no: input.employeeNo.trim(),
+    p_relieving_date: (input.relievingDate || null) as unknown as string,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/settings/users");
+  revalidatePath("/welcome");
+  return { ok: true, message: `${input.name.trim()} saved.` };
 }

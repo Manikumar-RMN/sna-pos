@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addPasswordStaff, changeRole, copyAccess, resetPassword, setActive, type StaffResult } from "./actions";
+import { addPasswordStaff, changeRole, copyAccess, resetPassword, setActive, updateStaffDetails, type StaffResult } from "./actions";
 
 type Staff = {
   id: string;
@@ -15,6 +15,11 @@ type Staff = {
   joined: boolean;
   pinOnly: boolean;
   hasPin: boolean;
+  phone: string;
+  department: string;
+  designation: string;
+  employeeNo: string;
+  relievingDate: string;
   isMe: boolean;
 };
 type Role = { id: string; name: string; backOffice?: boolean };
@@ -42,6 +47,13 @@ export function StaffManager({
   // "Copy access from..." : the person being set up, and the colleague chosen as the model
   const [copyFor, setCopyFor] = useState<string | null>(null);
   const [copySrc, setCopySrc] = useState("");
+  // The User Master form: the person whose details are open, and the fields being edited
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: "", phone: "", department: "", designation: "", employeeNo: "", relievingDate: "" });
+  const editing = staff.find((x) => x.id === editId) ?? null;
+  const [dept, setDept] = useState("");
+  const [desig, setDesig] = useState("");
+  const [empNo, setEmpNo] = useState("");
 
   const assignable = roles.filter((r) => r.name !== "Owner");
   const [name, setName] = useState("");
@@ -120,6 +132,12 @@ export function StaffManager({
                       {s.code}
                       {s.email && !isMadeUpEmail(s.email) ? ` · ${s.email}` : isMadeUpEmail(s.email) ? " · signs in with user code" : ""}
                     </div>
+                    {(s.department || s.designation || s.relievingDate) && (
+                      <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+                        {[s.designation, s.department].filter(Boolean).join(" · ")}
+                        {s.relievingDate ? `${s.designation || s.department ? " · " : ""}relieving ${s.relievingDate}` : ""}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {canManage && !locked ? (
@@ -146,6 +164,15 @@ export function StaffManager({
                   </td>
                   {canManage && (
                     <td className="px-4 py-3 text-right">
+                      <SmallBtn
+                        disabled={pending}
+                        onClick={() => {
+                          setEditId(s.id);
+                          setForm({ name: s.name, phone: s.phone, department: s.department, designation: s.designation, employeeNo: s.employeeNo, relievingDate: s.relievingDate });
+                        }}
+                      >
+                        Details
+                      </SmallBtn>
                       {!locked && (
                         <SmallBtn danger={s.active} disabled={pending} onClick={() => run(() => setActive(s.id, !s.active))}>
                           {s.active ? "Switch off access" : "Switch on access"}
@@ -217,6 +244,65 @@ export function StaffManager({
         </table>
       </div>
 
+      {canManage && editing && (
+        <section className="card p-5" aria-label="User details">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold">User details</h2>
+              <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                The person signs in with restaurant code, user code and password. These details are for your records.
+              </p>
+            </div>
+            <button className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }} onClick={() => setEditId(null)}>
+              Close
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+              User code (sign-in username)
+              <input className="field mt-1" value={editing.code} readOnly disabled />
+            </label>
+            <label className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+              Role
+              <input className="field mt-1" value={editing.roleName} readOnly disabled />
+            </label>
+            <label className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+              User name
+              <input className="field mt-1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </label>
+            <label className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+              Mobile no
+              <input className="field mt-1" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            </label>
+            <label className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+              Department
+              <input className="field mt-1" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
+            </label>
+            <label className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+              Designation
+              <input className="field mt-1" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} />
+            </label>
+            <label className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+              Employee no
+              <input className="field mt-1" value={form.employeeNo} onChange={(e) => setForm({ ...form, employeeNo: e.target.value })} />
+            </label>
+            <label className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+              Relieving date (access ends after this day)
+              <input className="field mt-1" type="date" value={form.relievingDate} onChange={(e) => setForm({ ...form, relievingDate: e.target.value })} />
+            </label>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button
+              className="btn btn-primary"
+              disabled={pending || form.name.trim().length < 2}
+              onClick={() => run(() => updateStaffDetails({ userId: editing.id, name: form.name, phone: form.phone, department: form.department, designation: form.designation, employeeNo: form.employeeNo, relievingDate: form.relievingDate }), () => setEditId(null))}
+            >
+              {pending ? "Saving…" : "Save details"}
+            </button>
+          </div>
+        </section>
+      )}
+
       {canManage && (
         <section className="card p-5">
           <h2 className="text-base font-bold">Add a person</h2>
@@ -233,6 +319,9 @@ export function StaffManager({
               ))}
             </select>
             <input className="field" placeholder="Phone (optional)" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <input className="field" placeholder="Department (optional)" value={dept} onChange={(e) => setDept(e.target.value)} />
+            <input className="field" placeholder="Designation (optional)" value={desig} onChange={(e) => setDesig(e.target.value)} />
+            <input className="field" placeholder="Employee no (optional)" value={empNo} onChange={(e) => setEmpNo(e.target.value)} />
           </div>
           <p className="mt-3 text-xs" style={{ color: "var(--color-ink-3)" }}>
             They get a user code (like EMP003) and a temporary password, and choose their own at first sign-in.
@@ -243,10 +332,13 @@ export function StaffManager({
             onClick={() =>
               run(
                 () =>
-                  addPasswordStaff({ name, roleId, phone }),
+                  addPasswordStaff({ name, roleId, phone, department: dept, designation: desig, employeeNo: empNo }),
                 () => {
                   setName("");
                   setPhone("");
+                  setDept("");
+                  setDesig("");
+                  setEmpNo("");
                 },
               )
             }
