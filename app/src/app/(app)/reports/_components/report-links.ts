@@ -51,7 +51,7 @@ export const REPORT_LINKS: ReportLink[] = [
 ];
 
 /** What the signed-in person may see on the hub: financial reports, stock reports (stock.view) and customer reports (customer.view). */
-export type ReportAccess = { financial: boolean; stock: boolean; customers: boolean; loyalty: boolean; users: boolean };
+export type ReportAccess = { financial: boolean; stock: boolean; customers: boolean; loyalty: boolean; users?: boolean };
 
 /** Does this person see the link? Every report also needs the sales right, which the hub page itself checks. */
 export function canSeeReportLink(l: Pick<ReportLink, "need">, a: ReportAccess): boolean {
@@ -65,7 +65,7 @@ export function canSeeReportLink(l: Pick<ReportLink, "need">, a: ReportAccess): 
     case "loyalty":
       return a.loyalty;
     case "users":
-      return a.users;
+      return a.users === true;
     default:
       return true;
   }
