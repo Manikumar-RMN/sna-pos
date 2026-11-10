@@ -48,7 +48,7 @@ export async function addPasswordStaff(input: { name: string; roleId: string; ph
   const { data, error } = await supabase.rpc("create_password_staff", {
     p_full_name: name,
     p_role_id: input.roleId,
-    p_phone: input.phone.trim() || undefined,
+    p_phone: input.phone.trim(),
     p_auth_user_id: signUp.user.id,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
