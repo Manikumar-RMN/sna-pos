@@ -7134,6 +7134,84 @@ export type Database = {
         }
         Relationships: []
       }
+      goods_returns: {
+        Row: {
+          branch_id: string
+          client_ref: string | null
+          created_at: string
+          created_by: string | null
+          goods_receipt_id: string
+          id: string
+          number: string
+          reason: string
+          restaurant_id: string
+          returned_on: string
+          supplier_id: string
+          total: number
+        }
+        Insert: {
+          branch_id: string
+          client_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          goods_receipt_id: string
+          id?: string
+          number: string
+          reason: string
+          restaurant_id: string
+          returned_on?: string
+          supplier_id: string
+          total?: number
+        }
+        Update: {
+          branch_id?: string
+          client_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          goods_receipt_id?: string
+          id?: string
+          number?: string
+          reason?: string
+          restaurant_id?: string
+          returned_on?: string
+          supplier_id?: string
+          total?: number
+        }
+        Relationships: []
+      }
+      goods_return_lines: {
+        Row: {
+          goods_return_id: string
+          id: string
+          ingredient_id: string
+          line_total: number
+          qty: number
+          restaurant_id: string
+          tax_amount: number
+          unit_cost: number
+        }
+        Insert: {
+          goods_return_id: string
+          id?: string
+          ingredient_id: string
+          line_total: number
+          qty: number
+          restaurant_id: string
+          tax_amount?: number
+          unit_cost: number
+        }
+        Update: {
+          goods_return_id?: string
+          id?: string
+          ingredient_id?: string
+          line_total?: number
+          qty?: number
+          restaurant_id?: string
+          tax_amount?: number
+          unit_cost?: number
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           blocked: boolean
