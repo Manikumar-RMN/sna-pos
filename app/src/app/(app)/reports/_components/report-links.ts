@@ -47,6 +47,7 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Purchase and inventory", href: "/reports/xyz-analysis", title: "XYZ analysis", blurb: "How steady the weekly use of each ingredient is.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/department-use", title: "Use by department", blurb: "Stock issued to each department (cost centre) and what it cost.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/po-variance", title: "PO rate variance", blurb: "Price paid against the price on the purchase order.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/production", title: "Production summary", blurb: "Prepared items made from ingredients: what was made, what it cost and what it used.", need: "stock" },
   { group: "Loyalty", href: "/reports/loyalty-ledger", title: "Loyalty ledger", blurb: "Points earned, used and reversed, and the points still owed.", need: "loyalty" },
 ];
 

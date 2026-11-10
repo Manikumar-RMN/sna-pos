@@ -1954,6 +1954,141 @@ export type Database = {
         }
         Relationships: []
       }
+      production_boms: {
+        Row: {
+          id: string
+          note: string | null
+          output_ingredient_id: string
+          restaurant_id: string
+          updated_at: string
+          yield_qty: number
+        }
+        Insert: {
+          id?: string
+          note?: string | null
+          output_ingredient_id: string
+          restaurant_id: string
+          updated_at?: string
+          yield_qty: number
+        }
+        Update: {
+          id?: string
+          note?: string | null
+          output_ingredient_id?: string
+          restaurant_id?: string
+          updated_at?: string
+          yield_qty?: number
+        }
+        Relationships: []
+      }
+      production_bom_lines: {
+        Row: {
+          bom_id: string
+          id: string
+          ingredient_id: string
+          qty: number
+          restaurant_id: string
+        }
+        Insert: {
+          bom_id: string
+          id?: string
+          ingredient_id: string
+          qty: number
+          restaurant_id: string
+        }
+        Update: {
+          bom_id?: string
+          id?: string
+          ingredient_id?: string
+          qty?: number
+          restaurant_id?: string
+        }
+        Relationships: []
+      }
+      production_runs: {
+        Row: {
+          branch_id: string
+          client_ref: string | null
+          created_at: string
+          created_by: string
+          id: string
+          note: string | null
+          number: string
+          output_ingredient_id: string
+          planned_for: string
+          planned_qty: number
+          produced_by: string | null
+          produced_on: string | null
+          produced_qty: number | null
+          restaurant_id: string
+          status: string
+          value: number
+        }
+        Insert: {
+          branch_id: string
+          client_ref?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          note?: string | null
+          number: string
+          output_ingredient_id: string
+          planned_for: string
+          planned_qty: number
+          produced_by?: string | null
+          produced_on?: string | null
+          produced_qty?: number | null
+          restaurant_id: string
+          status?: string
+          value?: number
+        }
+        Update: {
+          branch_id?: string
+          client_ref?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          note?: string | null
+          number?: string
+          output_ingredient_id?: string
+          planned_for?: string
+          planned_qty?: number
+          produced_by?: string | null
+          produced_on?: string | null
+          produced_qty?: number | null
+          restaurant_id?: string
+          status?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      production_run_lines: {
+        Row: {
+          id: string
+          ingredient_id: string
+          qty: number
+          restaurant_id: string
+          run_id: string
+          unit_cost: number
+        }
+        Insert: {
+          id?: string
+          ingredient_id: string
+          qty: number
+          restaurant_id: string
+          run_id: string
+          unit_cost: number
+        }
+        Update: {
+          id?: string
+          ingredient_id?: string
+          qty?: number
+          restaurant_id?: string
+          run_id?: string
+          unit_cost?: number
+        }
+        Relationships: []
+      }
       material_issues: {
         Row: {
           branch_id: string
@@ -7768,6 +7903,12 @@ export type Database = {
         Args: { p_client_ref?: string; p_department: string; p_lines: Json; p_note?: string }
         Returns: Json
       }
+      save_production_bom: { Args: { p_lines: Json; p_note?: string; p_output: string; p_yield: number }; Returns: Json }
+      delete_production_bom: { Args: { p_output: string }; Returns: Json }
+      plan_production: { Args: { p_client_ref?: string; p_for?: string; p_note?: string; p_output: string; p_qty: number }; Returns: Json }
+      cancel_production_plan: { Args: { p_run: string }; Returns: Json }
+      produce_batch: { Args: { p_client_ref?: string; p_date?: string; p_note?: string; p_output?: string; p_qty?: number; p_run?: string }; Returns: Json }
+      report_production: { Args: { p_from: string; p_to: string }; Returns: Json }
       close_material_request: {
         Args: { p_action: string; p_id: string; p_reason?: string }
         Returns: Json
