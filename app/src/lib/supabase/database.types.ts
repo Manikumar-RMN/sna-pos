@@ -7988,7 +7988,7 @@ export type Database = {
         Returns: Json
       }
       create_password_staff: {
-        Args: { p_auth_user_id: string; p_full_name: string; p_phone?: string; p_role_id: string }
+        Args: { p_auth_user_id: string; p_full_name: string; p_must_change?: boolean; p_phone?: string; p_role_id: string }
         Returns: Json
       }
       update_staff_details: {

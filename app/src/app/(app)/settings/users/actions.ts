@@ -35,10 +35,29 @@ export async function setActive(userId: string, active: boolean): Promise<StaffR
   return { ok: true, message: active ? "Access switched back on." : "Access switched off. They can no longer sign in to this restaurant." };
 }
 
-export async function addPasswordStaff(input: { name: string; roleId: string; phone: string; department?: string; designation?: string; employeeNo?: string }): Promise<StaffResult> {
+export async function addPasswordStaff(input: {
+  name: string;
+  roleId: string;
+  phone: string;
+  department?: string;
+  designation?: string;
+  employeeNo?: string;
+  /** The manager may type the password here. Left empty, the system makes a temporary one. */
+  password?: string;
+  confirmPassword?: string;
+}): Promise<StaffResult> {
   const name = input.name.trim();
   if (name.length < 2) return { ok: false, error: "Enter the staff member's name." };
-  const temp = temporaryPassword();
+  if (!input.roleId) return { ok: false, error: "Choose a role." };
+  // A password the manager typed has to be repeated, so a typo cannot lock the person out.
+  const typed = input.password ?? "";
+  const again = input.confirmPassword ?? "";
+  const managerSet = typed.length > 0 || again.length > 0;
+  if (managerSet) {
+    if (typed.length < 8) return { ok: false, error: "The password needs at least 8 characters." };
+    if (typed !== again) return { ok: false, error: "The two passwords are not the same. Type the same password in both boxes." };
+  }
+  const temp = managerSet ? typed : temporaryPassword();
   const plain = createPlainClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
@@ -50,6 +69,8 @@ export async function addPasswordStaff(input: { name: string; roleId: string; ph
     p_role_id: input.roleId,
     p_phone: input.phone.trim(),
     p_auth_user_id: signUp.user.id,
+    // When the manager chose the password, the person keeps it instead of being made to change it.
+    p_must_change: !managerSet,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/settings/users");
@@ -69,6 +90,15 @@ export async function addPasswordStaff(input: { name: string; roleId: string; ph
         p_relieving_date: null as unknown as string,
       });
     }
+  }
+  if (managerSet) {
+    return {
+      ok: true,
+      name,
+      userCode: d.employee_code,
+      clientCode: d.client_code,
+      message: `${name} added. They sign in with restaurant code ${d.client_code ?? ""}, username ${d.employee_code ?? ""} and the password you typed.`,
+    };
   }
   return { ok: true, name, tempPassword: temp, userCode: d.employee_code, clientCode: d.client_code };
 }

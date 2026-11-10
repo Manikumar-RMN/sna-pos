@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { PasswordInput } from "@/components/password-input";
 import { addPasswordStaff, changeRole, copyAccess, resetPassword, setActive, updateStaffDetails, type StaffResult } from "./actions";
 
 type Staff = {
@@ -60,6 +61,18 @@ export function StaffManager({
   const [phone, setPhone] = useState("");
   const [roleId, setRoleId] = useState(assignable.find((r) => r.name === "Cashier")?.id ?? assignable[0]?.id ?? "");
   const roleIsBackOffice = !!assignable.find((r) => r.id === roleId)?.backOffice;
+  // The password the manager types for the new person, and the same password again.
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const pwTouched = pw.length > 0 || pw2.length > 0;
+  const pwShort = pwTouched && pw.length < 8;
+  const pwMismatch = pwTouched && pw2.length > 0 && pw !== pw2;
+  const pwProblem = pwShort
+    ? "The password needs at least 8 characters."
+    : pwMismatch
+      ? "The two passwords are not the same."
+      : null;
+  const canAdd = name.trim().length >= 2 && !!roleId && (!pwTouched || (pw.length >= 8 && pw === pw2));
 
   function run(fn: () => Promise<StaffResult>, after?: () => void) {
     setError(null);
@@ -266,10 +279,9 @@ export function StaffManager({
               Role
               <input className="field mt-1" value={editing.roleName} readOnly disabled />
             </label>
-            <label className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
-              User name
+            <Field label="User name" required>
               <input className="field mt-1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </label>
+            </Field>
             <label className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
               Mobile no
               <input className="field mt-1" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -310,44 +322,111 @@ export function StaffManager({
             Everyone gets their own sign-in, so every bill, discount and void records who did it. Pick a role. They sign in with the restaurant code, their user code and a password.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <input className="field" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
-            <select className="field" value={roleId} onChange={(e) => setRoleId(e.target.value)} aria-label="Role">
-              {assignable.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-            <input className="field" placeholder="Phone (optional)" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <input className="field" placeholder="Department (optional)" value={dept} onChange={(e) => setDept(e.target.value)} />
-            <input className="field" placeholder="Designation (optional)" value={desig} onChange={(e) => setDesig(e.target.value)} />
-            <input className="field" placeholder="Employee no (optional)" value={empNo} onChange={(e) => setEmpNo(e.target.value)} />
+            <Field label="Full name" required>
+              <input id="add-name" className="field mt-1" value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
+            </Field>
+            <Field label="Role" required>
+              <select id="add-role" className="field mt-1" value={roleId} onChange={(e) => setRoleId(e.target.value)}>
+                {assignable.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Mobile">
+              <input id="add-phone" className="field mt-1" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="off" />
+            </Field>
+            <Field label="Department">
+              <input id="add-dept" className="field mt-1" value={dept} onChange={(e) => setDept(e.target.value)} autoComplete="off" />
+            </Field>
+            <Field label="Designation">
+              <input id="add-desig" className="field mt-1" value={desig} onChange={(e) => setDesig(e.target.value)} autoComplete="off" />
+            </Field>
+            <Field label="Employee no">
+              <input id="add-empno" className="field mt-1" value={empNo} onChange={(e) => setEmpNo(e.target.value)} autoComplete="off" />
+            </Field>
           </div>
+
+          <div className="mt-4 rounded-lg p-4" style={{ background: "var(--color-surface-2, var(--color-brand-soft))" }}>
+            <div className="text-sm font-bold">Sign-in password</div>
+            <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+              Type the password they will use, twice. Leave both boxes empty and the system makes a temporary password that they must change the first time they sign in.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label="Password" required={pwTouched}>
+                <PasswordInput
+                  id="add-password"
+                  className="field"
+                  wrapperClassName="mt-1"
+                  value={pw}
+                  onChange={(e) => setPw(e.target.value)}
+                  autoComplete="new-password"
+                  minLength={8}
+                  aria-describedby="add-password-help"
+                />
+              </Field>
+              <Field label="Re-enter password" required={pwTouched}>
+                <PasswordInput
+                  id="add-password2"
+                  className="field"
+                  wrapperClassName="mt-1"
+                  value={pw2}
+                  onChange={(e) => setPw2(e.target.value)}
+                  autoComplete="new-password"
+                  minLength={8}
+                  aria-invalid={pwMismatch}
+                />
+              </Field>
+            </div>
+            <p id="add-password-help" className="mt-2 text-xs" role={pwProblem ? "alert" : undefined} style={{ color: pwProblem ? "var(--color-bad)" : "var(--color-ink-3)" }}>
+              {pwProblem ?? "At least 8 characters."}
+            </p>
+          </div>
+
           <p className="mt-3 text-xs" style={{ color: "var(--color-ink-3)" }}>
-            They get a user code (like EMP003) and a temporary password, and choose their own at first sign-in.
+            <span style={{ color: "var(--color-bad)" }}>*</span> Needed. They get a user code (like EMP003) to sign in with, next to the restaurant code.
           </p>
           <button
             className="btn btn-primary mt-4"
-            disabled={pending || name.trim().length < 2 || !roleId}
+            disabled={pending || !canAdd}
             onClick={() =>
               run(
                 () =>
-                  addPasswordStaff({ name, roleId, phone, department: dept, designation: desig, employeeNo: empNo }),
+                  addPasswordStaff({ name, roleId, phone, department: dept, designation: desig, employeeNo: empNo, password: pw, confirmPassword: pw2 }),
                 () => {
                   setName("");
                   setPhone("");
                   setDept("");
                   setDesig("");
                   setEmpNo("");
+                  setPw("");
+                  setPw2("");
                 },
               )
             }
           >
-            {pending ? "Adding…" : "Add and create password"}
+            {pending ? "Adding…" : pwTouched ? "Add with this password" : "Add and create password"}
           </button>
         </section>
       )}
     </div>
+  );
+}
+
+/** A labelled box. A red star marks the ones that have to be filled in before the person can be added. */
+function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
+  return (
+    <label className="block text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
+      {label}
+      {required && (
+        <span aria-hidden="true" className="ml-0.5" style={{ color: "var(--color-bad)" }}>
+          *
+        </span>
+      )}
+      {required && <span className="sr-only"> (needed)</span>}
+      {children}
+    </label>
   );
 }
 
