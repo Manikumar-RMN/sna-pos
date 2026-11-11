@@ -1251,7 +1251,7 @@ export function PosTerminal({
   }
 
   return (
-    <div className={inline ? "grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]" : "grid gap-4 lg:grid-cols-[1fr_360px]"}>
+    <div className={inline ? "grid gap-4 md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)]" : "grid gap-4 lg:grid-cols-[1fr_360px]"}>
       <div>
         <div className="mb-3 flex flex-wrap items-center gap-x-3">
           <h1 className="text-xl font-bold tracking-tight">
@@ -1304,7 +1304,8 @@ export function PosTerminal({
         )}
         <div className="mb-3 flex gap-2">
           <input
-            className="field min-w-0 flex-1"
+            className="field min-w-0"
+            style={{ flex: "1 1 0%", width: "auto" }}
             placeholder="Search the menu or scan a barcode…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -1318,7 +1319,8 @@ export function PosTerminal({
             autoComplete="off"
           />
           <input
-            className="field w-28 shrink-0"
+            className="field shrink-0"
+            style={{ width: 120, flex: "0 0 120px" }}
             aria-label="Item code"
             placeholder="Code + Enter"
             value={code}
@@ -1510,7 +1512,7 @@ export function PosTerminal({
       {lines.length > 0 && (
         <button
           type="button"
-          className={`fixed inset-x-3 bottom-3 z-40 flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold shadow-lg ${inline ? "xl:hidden" : "lg:hidden"}`}
+          className={`fixed inset-x-3 bottom-3 z-40 flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold shadow-lg ${inline ? "md:hidden" : "lg:hidden"}`}
           style={{ background: "var(--color-brand)", color: "#fff" }}
           onClick={() => document.getElementById("cart")?.scrollIntoView({ behavior: "smooth" })}
         >
@@ -1521,7 +1523,7 @@ export function PosTerminal({
         </button>
       )}
 
-      <div id="cart" className={inline ? "scroll-mt-4 pb-20 xl:order-first xl:sticky xl:top-4 xl:self-start xl:pb-0" : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
+      <div id="cart" className={inline ? "scroll-mt-4 pb-20 md:order-first md:sticky md:top-4 md:self-start md:pb-0" : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
         <div className="card flex max-h-[calc(100vh-2rem)] flex-col">
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
             <div className="text-sm font-bold">{addTo ? "Items to add" : "Current bill"}</div>

@@ -202,7 +202,7 @@ export function OrderDesk({
       )}
 
       {hasBill && !showTables && (
-        <div className="no-print mb-3 grid grid-cols-2 gap-2 lg:hidden" role="tablist" aria-label="Order or bill">
+        <div className="no-print mb-3 grid grid-cols-2 gap-2 xl:hidden" role="tablist" aria-label="Order or bill">
           {(["order", "bill"] as const).map((k) => (
             <button
               key={k}
@@ -222,8 +222,8 @@ export function OrderDesk({
         </div>
       )}
 
-      <div className={`${showTables ? "hidden " : ""}${hasBill ? "grid gap-4 lg:grid-cols-[400px_minmax(0,1fr)]" : ""}`}>
-        <div id="order-menu" className={hasBill && tab !== "order" ? "hidden lg:block" : undefined}>
+      <div className={`${showTables ? "hidden " : ""}${hasBill ? "grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]" : ""}`}>
+        <div id="order-menu" className={hasBill && tab !== "order" ? "hidden xl:block" : undefined}>
           <PosTerminal
             key={`${selKey}:${nonce}`}
             {...terminal}
@@ -250,7 +250,7 @@ export function OrderDesk({
           />
         </div>
         {hasBill && (
-          <aside className={`${tab === "bill" ? "" : "hidden"} lg:order-first lg:block lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto`} aria-label="Running bill">
+          <aside className={`${tab === "bill" ? "" : "hidden"} xl:order-first xl:block xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto`} aria-label="Running bill">
             {billPanel}
           </aside>
         )}
