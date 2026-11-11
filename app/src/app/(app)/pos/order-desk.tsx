@@ -157,6 +157,9 @@ export function OrderDesk({
         </div>
         <div className="flex items-center gap-3">
           <ScreenSwitch to="classic" after={classicAfter} />
+          <Link href="/pos/kot-cancel" className="btn border text-sm" style={{ borderColor: "var(--color-line)" }}>
+            KOT cancel
+          </Link>
           <Link href="/dashboard" className="btn border text-sm" style={{ borderColor: "var(--color-line)" }}>
             ☰ Menu
           </Link>
