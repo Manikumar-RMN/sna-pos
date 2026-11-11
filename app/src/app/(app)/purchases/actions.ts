@@ -400,3 +400,25 @@ export async function cancelAdvance(advanceId: string, reason: string): Promise<
   const r = (data ?? {}) as { number?: string; to_till?: boolean };
   return { ok: true, message: `${r.number ?? "The advance"} is cancelled.${r.to_till ? " The cash is back in the drawer." : ""}` };
 }
+
+/** Correct the supplier's bill number, bill date or due date on a receipt (stock and money are not changed). */
+export async function amendReceipt(input: { receiptId: string; billNo: string; billDate: string; dueOn: string; reason: string }): Promise<PurchaseResult> {
+  if (!isUuid(input.receiptId)) return { ok: false, error: "Receipt not found." };
+  if (input.billDate && !isYmd(input.billDate)) return { ok: false, error: "Choose a valid bill date." };
+  if (input.dueOn && !isYmd(input.dueOn)) return { ok: false, error: "Choose a valid due date." };
+  const why = String(input.reason ?? "").trim();
+  if (why.length < 3) return { ok: false, error: "Write a short reason for the correction." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("amend_receipt_details", {
+    p_receipt: input.receiptId,
+    p_bill_no: input.billNo ?? "",
+    p_bill_date: input.billDate || undefined,
+    p_due_on: input.dueOn || undefined,
+    p_reason: why,
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/purchases");
+  revalidatePath("/reports/supplier-ageing");
+  const r = (data ?? {}) as { number?: string };
+  return { ok: true, message: `${r.number ?? "Receipt"} corrected.` };
+}

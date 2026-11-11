@@ -73,6 +73,8 @@ export type ReceiptRow = {
   number: string;
   supplier_id: string;
   bill_no: string | null;
+  bill_date: string | null;
+  due_on: string | null;
   received_on: string;
   total: number;
   paid: number;

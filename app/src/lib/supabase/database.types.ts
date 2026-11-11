@@ -9155,6 +9155,10 @@ export type Database = {
         }
         Returns: string
       }
+      amend_receipt_details: {
+        Args: { p_bill_date?: string; p_bill_no: string; p_due_on?: string; p_reason: string; p_receipt: string }
+        Returns: Json
+      }
       undo_supplier_payment: {
         Args: { p_payment_id: string; p_reason: string }
         Returns: Json

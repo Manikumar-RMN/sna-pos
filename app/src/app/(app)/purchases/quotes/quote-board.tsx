@@ -238,10 +238,21 @@ function Compare({ rfq, currency }: { rfq: RfqDetail; currency: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rfq.lines]);
 
-  function saveSupplier(sid: string) {
-    const rates = rfq.lines.map((l) => ({ ingredient_id: l.ingredient_id, unit_cost: typed[`${sid}|${l.ingredient_id}`] ?? "" }));
-    run(() => saveQuotes({ rfqId: rfq.id, supplierId: sid, rates }), (r) => {
-      window.location.reload();
+  // One button saves every supplier's typed rates, so nothing typed is lost.
+  function saveAll() {
+    run(async () => {
+      let saved = 0;
+      for (const sp of rfq.suppliers) {
+        const rates = rfq.lines.map((l) => ({ ingredient_id: l.ingredient_id, unit_cost: typed[`${sp.id}|${l.ingredient_id}`] ?? "" }));
+        const hasAny = rates.some((r) => r.unit_cost.trim() !== "");
+        if (!hasAny && !sp.quoted) continue;
+        const r = await saveQuotes({ rfqId: rfq.id, supplierId: sp.id, rates });
+        if (!r.ok) return { ok: false as const, error: `${sp.name}: ${r.error}` };
+        saved += 1;
+      }
+      return { ok: true as const, message: saved === 0 ? "Type at least one rate first." : `Rates saved for ${saved} supplier${saved === 1 ? "" : "s"}.` };
+    }, (r) => {
+      if (!r.message.startsWith("Type")) window.location.reload();
       return r.message;
     });
   }
@@ -350,14 +361,12 @@ function Compare({ rfq, currency }: { rfq: RfqDetail; currency: string }) {
       {open && (
         <>
           <div className="flex flex-wrap gap-2">
-            {rfq.suppliers.map((sp) => (
-              <button key={sp.id} type="button" className={rowBtn} style={lineStyle} onClick={() => saveSupplier(sp.id)} disabled={pending}>
-                Save {sp.name}&rsquo;s rates{sp.quoted ? " ✓" : ""}
-              </button>
-            ))}
+            <button type="button" className="btn btn-primary px-4 text-sm" onClick={saveAll} disabled={pending}>
+              {pending ? "Saving…" : "Save all rates"}
+            </button>
           </div>
           <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
-            Type a rate (before tax, per stock unit) and tap that supplier&rsquo;s Save button. Leave a box empty if they did not quote that item. After saving, the lowest rate is marked and chosen to buy; change the choice with the Buy buttons.
+            Type each supplier&rsquo;s rate (before tax, per stock unit), then tap Save all rates. Leave a box empty if they did not quote that item. After saving, the lowest rate is marked and chosen to buy; change the choice with the Buy buttons.
           </p>
           <div className="card p-4">
             <div className="text-sm">

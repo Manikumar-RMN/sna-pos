@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { addDays, money } from "@/lib/format";
 import { receiveGoods } from "./actions";
 import { ReturnForm } from "./return-form";
+import { AmendForm } from "./amend-form";
 import {
   BLANK_LINE,
   amountCents,
@@ -123,6 +124,7 @@ export function ReceiveTab({
   const [payId, setPayId] = useState<string | null>(null);
   const [returnId, setReturnId] = useState<string | null>(null);
   const [refundId, setRefundId] = useState<string | null>(null);
+  const [amendId, setAmendId] = useState<string | null>(null);
   // Shows the new amount at once; the server figure replaces it when the list reloads.
   const [refundLeft, setRefundLeft] = useState<Record<string, number>>({});
   useEffect(() => setRefundLeft({}), [receipts]);
@@ -383,6 +385,13 @@ export function ReceiveTab({
                         <Link href={`/stock/note/receipt/${r.id}`} className="text-xs font-semibold" style={{ color: "var(--color-brand)" }}>
                           Print
                         </Link>{" "}
+                        {!r.cancelled && (
+                          <>
+                            <button type="button" className="text-xs font-semibold" style={{ color: "var(--color-brand)" }} onClick={() => setAmendId(amendId === r.id ? null : r.id)} disabled={busy}>
+                              Correct details
+                            </button>{" "}
+                          </>
+                        )}
                         {r.returned > 0 && (
                           <>
                             <Link href={`/stock/note/debit/${r.id}`} className="text-xs font-semibold" style={{ color: "var(--color-brand)" }}>
@@ -479,6 +488,18 @@ export function ReceiveTab({
                           setListMsg({ ok: true, text });
                         }}
                         onClose={() => setReturnId(null)}
+                      />
+                    )}
+
+                    {amendId === r.id && !r.cancelled && (
+                      <AmendForm
+                        receipt={{ id: r.id, number: r.number, bill_no: r.bill_no, bill_date: r.bill_date, due_on: r.due_on }}
+                        today={today}
+                        onDone={(text) => {
+                          setAmendId(null);
+                          setListMsg({ ok: true, text });
+                        }}
+                        onClose={() => setAmendId(null)}
                       />
                     )}
 
