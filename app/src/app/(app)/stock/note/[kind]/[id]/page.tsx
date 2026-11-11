@@ -100,10 +100,10 @@ export default async function StockNotePage({ params }: { params: Promise<{ kind
     const { data: m } = await supabase.from("material_issues").select("*").eq("id", id).maybeSingle();
     if (!m) notFound();
     const [{ data: ls }, { data: req }] = await Promise.all([
-      supabase.from("material_issue_lines").select("ingredient_id, qty, unit_cost").eq("issue_id", id),
+      supabase.from("material_issue_lines").select("ingredient_id, qty, unit_cost, batch_no, expiry_date").eq("issue_id", id),
       m.request_id ? supabase.from("material_requests").select("number").eq("id", m.request_id).maybeSingle() : Promise.resolve({ data: null }),
     ]);
-    const lines = (ls ?? []).map((l) => ({ name: meta[l.ingredient_id]?.name ?? "Item", unit: meta[l.ingredient_id]?.unit ?? "", qty: num(l.qty), rate: num(l.unit_cost), value: Math.round(num(l.qty) * num(l.unit_cost) * 100) / 100 }));
+    const lines = (ls ?? []).map((l) => ({ name: meta[l.ingredient_id]?.name ?? "Item", unit: meta[l.ingredient_id]?.unit ?? "", qty: num(l.qty), rate: num(l.unit_cost), value: Math.round(num(l.qty) * num(l.unit_cost) * 100) / 100, extra: [l.batch_no ? `Batch ${l.batch_no}` : "", l.expiry_date ? `Expiry ${l.expiry_date}` : ""].filter(Boolean).join(" · ") }));
     note = {
       title: "Material issue note",
       number: m.number,

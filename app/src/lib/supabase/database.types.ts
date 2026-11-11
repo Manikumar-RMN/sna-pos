@@ -2136,6 +2136,8 @@ export type Database = {
       }
       material_issue_lines: {
         Row: {
+          batch_no: string | null
+          expiry_date: string | null
           id: string
           ingredient_id: string
           issue_id: string
@@ -2144,6 +2146,8 @@ export type Database = {
           unit_cost: number
         }
         Insert: {
+          batch_no?: string | null
+          expiry_date?: string | null
           id?: string
           ingredient_id: string
           issue_id: string
@@ -2152,6 +2156,8 @@ export type Database = {
           unit_cost: number
         }
         Update: {
+          batch_no?: string | null
+          expiry_date?: string | null
           id?: string
           ingredient_id?: string
           issue_id?: string
