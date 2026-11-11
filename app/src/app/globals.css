@@ -543,3 +543,8 @@ h2,
     print-color-adjust: exact;
   }
 }
+
+/* Order screen (/pos): the side menu is hidden so the tables, the bill and the menu use the whole screen. */
+@media (min-width: 768px) {
+  body.pos-full [data-shell="side"] { display: none !important; }
+}

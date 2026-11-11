@@ -160,6 +160,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     <div className="min-h-screen md:flex md:gap-3 md:p-3">
       {/* Tablet and desktop: green icon rail */}
       <aside
+        data-shell="side"
         className={`kolam sticky top-3 hidden h-[calc(100vh-24px)] shrink-0 flex-col items-center gap-3 overflow-y-auto rounded-[22px] py-3.5 md:flex ${hospitality ? "w-[236px] px-2" : "w-[76px]"}`}
         style={{ background: "var(--color-brand)" }}
       >

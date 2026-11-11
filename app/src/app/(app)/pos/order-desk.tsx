@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { TableStrip } from "../floor/table-strip";
 import type { FloorRow } from "@/lib/table-status";
 import { deskUrl, destinationLabel, planSwitch, selectionKey } from "@/lib/order-desk";
@@ -71,12 +72,21 @@ export function OrderDesk({
   /** "Order moved to Table 4": set when the items followed, cleared after a few seconds, on the next change or on send. */
   const [notice, setNotice] = useState<string | null>(null);
   const carriedHere = useRef(false);
+  /** The table screen (all tables, nothing else) or the order screen of one table / the counter. */
+  const [showTables, setShowTables] = useState(showStrip && selection.kind === "counter");
+
+  // Full screen: the side menu is hidden while the order screen is open ("Menu" brings it back by leaving the screen).
+  useEffect(() => {
+    document.body.classList.add("pos-full");
+    return () => document.body.classList.remove("pos-full");
+  }, []);
 
   // A new table or bill chosen: phones show the bill first when there is one (the order first when items followed).
   useEffect(() => {
     setTab(hasBill && !carriedHere.current ? "bill" : "order");
     carriedHere.current = false;
     setCartCount(0);
+    setShowTables(showStrip && selection.kind === "counter");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selKey]);
 
@@ -145,16 +155,32 @@ export function OrderDesk({
             </span>
           )}
         </div>
-        <ScreenSwitch to="classic" after={classicAfter} />
+        <div className="flex items-center gap-3">
+          <ScreenSwitch to="classic" after={classicAfter} />
+          <Link href="/dashboard" className="btn border text-sm" style={{ borderColor: "var(--color-line)" }}>
+            ☰ Menu
+          </Link>
+          {showStrip && !showTables && (
+            <button
+              type="button"
+              className="btn btn-primary text-sm"
+              onClick={() => {
+                if (selection.kind === "counter") setShowTables(true);
+                else go("/pos", { key: "counter", runningBill: false, label: { kind: "counter" } });
+              }}
+            >
+              ← Tables
+            </button>
+          )}
+        </div>
       </div>
 
-      {showStrip && (
-        <div className="mb-4 max-h-60 overflow-y-auto">
+      {showStrip && showTables && (
+        <div className="mb-4">
           <TableStrip
             tables={tables}
             floor={floor}
             currency={currency}
-            compact
             selectedTableId={selectedTableId}
             selectedBillId={selection.kind === "bill" ? selection.billId : null}
             refreshMs={0}
@@ -164,7 +190,7 @@ export function OrderDesk({
               if (billId) go(deskUrl({ kind: "bill", billId }), { key: selectionKey({ kind: "bill", billId }), runningBill: true, label: { kind: "bill", tableNumber: t?.number ?? null } });
               else go(deskUrl({ kind: "table", tableId }), { key: selectionKey({ kind: "table", tableId }), runningBill: false, label });
             }}
-            counter={{ selected: selection.kind === "counter", onSelect: () => go("/pos", { key: "counter", runningBill: false, label: { kind: "counter" } }) }}
+            counter={{ selected: false, onSelect: () => setShowTables(false) }}
           />
         </div>
       )}
@@ -175,7 +201,7 @@ export function OrderDesk({
         </div>
       )}
 
-      {hasBill && (
+      {hasBill && !showTables && (
         <div className="no-print mb-3 grid grid-cols-2 gap-2 lg:hidden" role="tablist" aria-label="Order or bill">
           {(["order", "bill"] as const).map((k) => (
             <button
@@ -196,7 +222,7 @@ export function OrderDesk({
         </div>
       )}
 
-      <div className={hasBill ? "grid gap-4 lg:grid-cols-[400px_minmax(0,1fr)]" : ""}>
+      <div className={`${showTables ? "hidden " : ""}${hasBill ? "grid gap-4 lg:grid-cols-[400px_minmax(0,1fr)]" : ""}`}>
         <div id="order-menu" className={hasBill && tab !== "order" ? "hidden lg:block" : undefined}>
           <PosTerminal
             key={`${selKey}:${nonce}`}
@@ -218,6 +244,7 @@ export function OrderDesk({
               setNonce((n) => n + 1);
               setCartCount(0);
               setTab("order");
+              if (showStrip) setShowTables(true);
               router.replace(deskUrl({ kind: "counter" }));
             }}
           />
