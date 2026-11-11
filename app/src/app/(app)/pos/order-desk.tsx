@@ -210,7 +210,16 @@ export function OrderDesk({
             deskKey={selKey}
             deskTableId={selection.kind === "bill" ? selection.tableId : null}
             stashRef={stashRef}
-            onKotDone={setKot}
+            onKotDone={(done) => {
+              // The KOT is saved: back to the table strip with a fresh order form, like a till that returns to its table grid. The
+              // ticket prints in the background (KotPrinter below). The table shows as running; tapping it opens its bill. No
+              // router.refresh() here: it would reload the table page just left, and a table with one open bill goes straight to it.
+              setKot(done);
+              setNonce((n) => n + 1);
+              setCartCount(0);
+              setTab("order");
+              router.replace(deskUrl({ kind: "counter" }));
+            }}
           />
         </div>
         {hasBill && (
@@ -233,16 +242,9 @@ export function OrderDesk({
           printMm={kotMeta.printMm}
           largePrint={kotMeta.largePrint}
           onDone={() => {
+            // Printing is over: only the ticket state is cleared. The screen already went back to the table strip when the KOT was saved.
             setKot(null);
             setNotice(null);
-            // Back to the table strip with a fresh order form, like a till that returns to its table grid after a KOT: the table
-            // shows as running, and tapping it opens its bill (Check, discount, payment).
-            setNonce((n) => n + 1);
-            setCartCount(0);
-            setTab("order");
-            // No router.refresh() here: it would reload the table page that was just left, and a table with one open bill is sent
-            // straight on to that bill. Going to /pos already loads fresh tables.
-            router.replace(deskUrl({ kind: "counter" }));
           }}
         />
       )}
