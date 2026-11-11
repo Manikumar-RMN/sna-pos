@@ -104,7 +104,7 @@ export const STATE_HELP: Record<TableState, string> = {
 export const STATE_ORDER: TableState[] = ["free", "busy", "billed", "delayed", "kot_delayed", "reserved"];
 
 export const STATE_STYLE: Record<TableState, { borderColor: string; background?: string; borderStyle?: "solid" | "dashed"; color?: string }> = {
-  free: { borderColor: "var(--color-line)" },
+  free: { borderColor: "#2E8B3E", background: "#E3F4E1" },
   // Solid, dark tiles with white text (founder, 28 Oct 2026): red = KOT sent, blue = bill printed, maroon = open too long.
   busy: { borderColor: "#8F1B14", background: "#B3261E", color: "#FFFFFF" },
   billed: { borderColor: "#0F3A78", background: "#1D4F9F", color: "#FFFFFF" },

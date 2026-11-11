@@ -1261,7 +1261,7 @@ export function PosTerminal({
       <div>
         <div className="mb-3 flex flex-wrap items-center gap-x-3">
           <h1 className={inline ? "text-base font-bold tracking-tight" : "text-xl font-bold tracking-tight"}>
-            {addTo ? `${addTo.table ? `Table ${addTo.table}: add items to bill` : "Add items to bill"} ${addTo.billNumber}` : lockedTable ? `Table ${lockedTable.number}: new order` : deskKey ? "Counter: new order" : "Billing"}
+            {addTo ? `${addTo.table ? `Table ${addTo.table}: add items to bill` : "Add items to bill"} ${addTo.billNumber}` : lockedTable ? (inline ? `Table : ${lockedTable.number}  ·  Cover : ${coversNum ?? 0}` : `Table ${lockedTable.number}: new order`) : deskKey ? "Counter: new order" : "Billing"}
           </h1>
           {offline && (
             <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
@@ -2046,6 +2046,37 @@ export function PosTerminal({
                   ))}
                   {stockStrip.more > 0 && <div>and {stockStrip.more} more.</div>}
                   <div className="font-semibold">{stockStrip.footer}</div>
+                </div>
+              )}
+              {tableOrder && lines.length > 0 && (
+                <div className="mb-2" aria-label="Special instruction">
+                  <div className="mb-1 text-[11px] font-semibold" style={{ color: "var(--color-ink-3)" }}>
+                    Special instruction (for the last item: {lines[lines.length - 1].item.name})
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {["Less spicy", "Extra spicy", "No onion", "No garlic", "Less oil", "Less sugar", "Pack separately", "Hurry"].map((sp) => {
+                      const last = lines[lines.length - 1];
+                      const has = last.note.split(", ").includes(sp);
+                      return (
+                        <button
+                          key={sp}
+                          type="button"
+                          className="rounded-md border px-2 py-1 text-[11px] font-semibold"
+                          style={{
+                            borderColor: has ? "var(--color-brand)" : "var(--color-line)",
+                            background: has ? "var(--color-brand)" : "var(--color-surface)",
+                            color: has ? "#fff" : "var(--color-ink-2)",
+                          }}
+                          onClick={() => {
+                            const parts = last.note.split(", ").filter(Boolean);
+                            setNote(last.key, (has ? parts.filter((x) => x !== sp) : [...parts, sp]).join(", "));
+                          }}
+                        >
+                          {sp}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               <dl className="space-y-1 text-sm" aria-live="polite">
