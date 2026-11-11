@@ -1578,7 +1578,7 @@ export function PosTerminal({
             </div>
           )}
 
-          {askCovers && !addTo && orderType === "dine_in" && !offline && (
+          {askCovers && !addTo && !tableOrder && orderType === "dine_in" && !offline && (
             <div className="border-b px-4 py-2" style={{ borderColor: "var(--color-line)" }}>
               <div className="flex items-center justify-between gap-2">
                 <label htmlFor="covers" className="text-xs font-semibold">
@@ -1966,7 +1966,7 @@ export function PosTerminal({
                       />
                     </label>
                   )}
-                  {(canDiscount || canPay) && !senior && (
+                  {(canDiscount || canPay) && !senior && !tableOrder && (
                     <div className="flex items-center gap-2">
                       <label className="text-xs font-medium" style={{ color: "var(--color-ink-2)" }} htmlFor="discount">
                         Discount
@@ -1982,7 +1982,7 @@ export function PosTerminal({
                       />
                     </div>
                   )}
-                  {(canDiscount || canPay) && !senior && !nothingDiscountable && presetsHere.length > 0 && (
+                  {(canDiscount || canPay) && !senior && !tableOrder && !nothingDiscountable && presetsHere.length > 0 && (
                     <div className="flex flex-wrap gap-1.5" role="group" aria-label="Saved discounts">
                       {presetsHere.map((x) => (
                         <button
@@ -2185,7 +2185,7 @@ export function PosTerminal({
                   <button
                     onClick={() => submit("unpaid")}
                     disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved}
-                    className="btn btn-primary flex-1 text-base"
+                    className="btn btn-primary flex-1 whitespace-nowrap text-base"
                     title={tableOrder ? "Send the order to the kitchen and print the KOT. The bill stays open on the table; settle it from the bill." : "Send the order to the kitchen and print the KOT. The cashier takes the payment later."}
                   >
                     {pending ? "Saving…" : tableOrder ? "Save KOT" : "KOT"}
