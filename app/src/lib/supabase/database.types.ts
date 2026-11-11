@@ -8740,6 +8740,8 @@ export type Database = {
       report_discounts: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_pending_bills: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_pending_kot: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_group_sales: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_table_sales: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_popular_items: {
         Args: { p_from: string; p_to: string }
         Returns: Json
