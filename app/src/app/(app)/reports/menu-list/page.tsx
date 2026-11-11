@@ -16,7 +16,7 @@ export default async function MenuListPage({ searchParams }: { searchParams: Pro
   const { supabase, user } = ctx;
   const c = user.currency_code;
   const onlyActive = sp.active === "1";
-  let q = supabase.from("products").select("id, name, price, is_available, is_veg, prep_minutes, kitchen_station, categories(name)").is("deleted_at", null);
+  let q = supabase.from("products").select("id, name, price, is_available, is_veg, prep_minutes, kitchen_station, categories!products_category_id_fkey(name)").is("deleted_at", null);
   if (onlyActive) q = q.eq("is_available", true);
   const { data, error } = await q.order("name").limit(2000);
   const rows = ((error ? [] : (data ?? [])) as unknown as Row[]).sort((a, b) => (a.categories?.name ?? "~").localeCompare(b.categories?.name ?? "~") || a.name.localeCompare(b.name));

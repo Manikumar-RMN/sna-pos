@@ -26,7 +26,7 @@ export default async function KotDetailsPage({ searchParams }: { searchParams: P
   const tz = user.timezone;
   let q = supabase
     .from("kitchen_tickets")
-    .select("id, ticket_number, created_at, status, station, cancel_reason, branch_id, orders(bill_number, dining_tables(table_number)), kitchen_ticket_items(product_name, quantity, status)")
+    .select("id, ticket_number, created_at, status, station, cancel_reason, branch_id, orders(bill_number, dining_tables!orders_dining_table_id_fkey(table_number)), kitchen_ticket_items(product_name, quantity, status)")
     .gte("created_at", localDayStartIso(from, tz))
     .lt("created_at", localDayStartIso(addDays(to, 1), tz));
   if (scope.branchId) q = q.eq("branch_id", scope.branchId);

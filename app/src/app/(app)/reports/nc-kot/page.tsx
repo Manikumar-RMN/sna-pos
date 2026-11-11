@@ -26,7 +26,7 @@ export default async function NcKotPage({ searchParams }: { searchParams: Promis
   const c = user.currency_code;
   let q = supabase
     .from("orders")
-    .select("id, bill_number, business_date, branch_id, comp_kind, comp_reason, comp_by, subtotal, dining_tables(table_number)")
+    .select("id, bill_number, business_date, branch_id, comp_kind, comp_reason, comp_by, subtotal, dining_tables!orders_dining_table_id_fkey(table_number)")
     .not("comp_kind", "is", null)
     .neq("status", "voided")
     .gte("business_date", from)
