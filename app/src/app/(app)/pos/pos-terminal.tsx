@@ -352,6 +352,9 @@ export function PosTerminal({
   // Single order screen: guests at the table (dine-in), asked before the order is sent.
   const [covers, setCovers] = useState("");
   const coversNum = parseCovers(covers);
+  // Winsar flow: tapping a free table opens a cover keypad first (1-9, 0, 00, Back / Next).
+  const [coverKeypad, setCoverKeypad] = useState(askCovers && inline && !!lockedTable);
+  const [keypadText, setKeypadText] = useState("");
   // Open-priced dish: the price box, and the price chosen while its options are being picked.
   const [pricing, setPricing] = useState<MenuItem | null>(null);
   const [pickPrice, setPickPrice] = useState<number | null>(null);
@@ -2187,6 +2190,50 @@ export function PosTerminal({
           )}
         </div>
       </div>
+
+      {coverKeypad && lockedTable && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-label="Order details">
+          <div className="w-full max-w-sm rounded-xl p-4" style={{ background: "var(--color-surface)" }}>
+            <div className="mb-3 text-center text-sm font-bold">Order Details (Table {lockedTable.number})</div>
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-xs font-semibold">Cover</span>
+              <div className="field flex h-11 flex-1 items-center justify-center text-lg font-bold">{keypadText || "0"}</div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "00"].map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  className="h-12 rounded-lg border text-lg font-semibold"
+                  style={{ borderColor: "var(--color-line)" }}
+                  onClick={() => setKeypadText((t) => (t + k).replace(/^0+/, "").slice(0, 2))}
+                >
+                  {k}
+                </button>
+              ))}
+              <button type="button" className="h-12 rounded-lg border text-sm font-semibold" style={{ borderColor: "var(--color-line)" }} onClick={() => setKeypadText((t) => t.slice(0, -1))}>
+                ⌫
+              </button>
+            </div>
+            <div className="mt-3 flex justify-end gap-2">
+              <button type="button" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => router.push("/pos")}>
+                Back
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary px-6 text-sm"
+                disabled={!keypadText || Number(keypadText) < 1}
+                onClick={() => {
+                  setCovers(keypadText);
+                  setCoverKeypad(false);
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {offlineBill && snap && (
         <OfflineReceipt
