@@ -240,8 +240,9 @@ export function OrderDesk({
             setNonce((n) => n + 1);
             setCartCount(0);
             setTab("order");
+            // No router.refresh() here: it would reload the table page that was just left, and a table with one open bill is sent
+            // straight on to that bill. Going to /pos already loads fresh tables.
             router.replace(deskUrl({ kind: "counter" }));
-            router.refresh();
           }}
         />
       )}
