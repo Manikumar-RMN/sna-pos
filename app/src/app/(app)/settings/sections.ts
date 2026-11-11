@@ -27,6 +27,7 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
     { href: "/settings/printers", label: "Printers", hint: "What this device prints", group: "General", show: true },
     { href: "/settings/menu", label: "Menu", hint: "Dishes, prices, add-ons", group: "POS", show: pos && (true) },
     { href: "/settings/offers", label: "Happy hours and offers", hint: "Lower prices by day and time", group: "POS", show: pos && (can(user, "menu.manage")) },
+    { href: "/settings/nc-charge", label: "No-charge accounts", hint: "Who bears the cost of a free bill", group: "POS", show: pos && can(user, "settings.manage") },
     { href: "/settings/discounts", label: "Discounts", hint: "Saved discounts and the maximum allowed", group: "POS", show: pos && can(user, "settings.manage") },
     { href: "/settings/brands", label: "Brands and stalls", hint: "Cloud-kitchen brands, food-court stalls, settlement", group: "POS", show: pos && (setup || can(user, "report.view_sales")) },
     { href: "/settings/users", label: "Users", hint: "People, PINs, passwords", group: "General", show: true },

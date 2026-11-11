@@ -8,6 +8,7 @@ import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, stockWarnings, type CartItem, type PlaceOrderInput, type Quote, type Senior } from "./actions";
 import { makeComplimentary } from "../bills/actions";
+import { NcChargeSelect } from "../bills/nc-charge-select";
 import { customerFavourites, findCustomer, type GuestFavourites, type RegularGuest } from "../bills/actions";
 import { regularChipText } from "../bills/loyalty-math";
 import { loadLastRound } from "./repeat-round";
@@ -360,6 +361,8 @@ export function PosTerminal({
   // Winsar "NC KOT": the order is sent as a no-charge bill. The reason is asked here, as the database insists on one.
   const [ncKot, setNcKot] = useState(false);
   const [ncReason, setNcReason] = useState("");
+  const [ncCharge, setNcCharge] = useState("");
+  const [ncTargets, setNcTargets] = useState(0);
   // Winsar "Open +": a new dish made on the spot in the group being shown.
   const [quickOpen, setQuickOpen] = useState(false);
   /** Winsar "Open list": only the open-price dishes of the group being shown. */
@@ -1230,7 +1233,7 @@ export function PosTerminal({
       // the bill stays a normal one and the message says so, rather than leaving a free bill behind by accident.
       if (mode === "unpaid" && ncKot && ncReason.trim().length >= 3) {
         try {
-          const nc = await makeComplimentary({ orderId: res.orderId, kind: "complimentary", reason: ncReason.trim() });
+          const nc = await makeComplimentary({ orderId: res.orderId, kind: "complimentary", reason: ncReason.trim(), chargeTo: ncCharge || null });
           if (!nc.ok) setError(`The order was saved, but it is NOT no-charge: ${cleanMessage(nc.error)}`);
         } catch {
           setError("The order was saved, but the no-charge mark could not be set. Open the bill and set it there.");
@@ -2392,6 +2395,7 @@ export function PosTerminal({
                 onChange={(e) => setNcReason(e.target.value)}
               />
             )}
+            {ncKot && <NcChargeSelect value={ncCharge} onChange={setNcCharge} onCount={setNcTargets} />}
             <div className="mt-3 flex justify-end gap-2">
               <button type="button" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => router.push("/pos")}>
                 Back
@@ -2399,7 +2403,7 @@ export function PosTerminal({
               <button
                 type="button"
                 className="btn btn-primary px-6 text-sm"
-                disabled={!keypadText || Number(keypadText) < 1 || (ncKot && ncReason.trim().length < 3)}
+                disabled={!keypadText || Number(keypadText) < 1 || (ncKot && (ncReason.trim().length < 3 || (ncTargets > 0 && !ncCharge)))}
                 onClick={() => {
                   setCovers(keypadText);
                   setCoverKeypad(false);

@@ -82,12 +82,26 @@ export async function adjustBill(input: {
  * Complimentary bill (free for a guest) or staff meal: the whole bill comes off and it closes at 0.00.
  * Needs a manager (or a manager's PIN); the database checks this, records the reason and who approved.
  */
-export async function makeComplimentary(input: { orderId: string; kind: "complimentary" | "staff_meal"; reason: string }): Promise<ActionResult> {
+/** The active "charge to" accounts for a no-charge bill (Settings → No-charge accounts). Empty when none are set up. */
+export async function listNcTargets(): Promise<{ id: string; name: string }[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("list_nc_charge_targets", { p_all: false });
+  return ((data ?? []) as { id: string; name: string }[]).map((t) => ({ id: t.id, name: t.name }));
+}
+
+export async function makeComplimentary(input: { orderId: string; kind: "complimentary" | "staff_meal"; reason: string; chargeTo?: string | null }): Promise<ActionResult> {
   const reason = input.reason.trim();
   if (reason.length < 3) return { ok: false, error: "Write a short reason (for example the guest's name or the staff member's name)." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("make_complimentary", { p_order_id: input.orderId, p_kind: input.kind, p_reason: reason.slice(0, 200) });
   if (error) return { ok: false, error: friendlyDbError(error) };
+  if (input.chargeTo) {
+    const { error: e2 } = await supabase.rpc("set_comp_charge_to", { p_order_id: input.orderId, p_charge_to: input.chargeTo });
+    if (e2) {
+      refresh(input.orderId);
+      return { ok: false, error: `The bill is now no-charge, but who it is charged to was not saved: ${friendlyDbError(e2)}` };
+    }
+  }
   refresh(input.orderId);
   return { ok: true, message: input.kind === "complimentary" ? "Bill made complimentary. It is closed at 0.00." : "Bill made a staff meal. It is closed at 0.00." };
 }

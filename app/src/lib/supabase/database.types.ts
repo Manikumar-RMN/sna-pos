@@ -3654,6 +3654,7 @@ export type Database = {
           client_created_at: string
           client_ref: string | null
           comp_by: string | null
+          comp_charge_to: string | null
           comp_kind: string | null
           comp_reason: string | null
           covers: number | null
@@ -3713,6 +3714,7 @@ export type Database = {
           client_created_at: string
           client_ref?: string | null
           comp_by?: string | null
+          comp_charge_to?: string | null
           comp_kind?: string | null
           comp_reason?: string | null
           covers?: number | null
@@ -3772,6 +3774,7 @@ export type Database = {
           client_created_at?: string
           client_ref?: string | null
           comp_by?: string | null
+          comp_charge_to?: string | null
           comp_kind?: string | null
           comp_reason?: string | null
           covers?: number | null
@@ -5406,6 +5409,33 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      nc_charge_targets: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          restaurant_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          restaurant_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          restaurant_id?: string
+          sort_order?: number
+        }
+        Relationships: []
       }
       qr_orders: {
         Row: {
@@ -8314,6 +8344,9 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: { id: string; name: string; kind: string; value: number; valid_from: string | null; valid_to: string | null; order_types: string[] | null; outlet_ids: string[] | null; is_active: boolean; sort_order: number; created_at: string; days: number[] | null }[]
       }
+      list_nc_charge_targets: { Args: { p_all?: boolean }; Returns: { id: string; name: string; is_active: boolean; sort_order: number }[] }
+      save_nc_charge_target: { Args: { p_active?: boolean; p_id: string; p_name: string }; Returns: string }
+      set_comp_charge_to: { Args: { p_charge_to: string; p_order_id: string }; Returns: Json }
       list_reasons: {
         Args: { p_purpose?: string }
         Returns: { id: string; name: string; purposes: string[]; is_active: boolean; sort_order: number }[]

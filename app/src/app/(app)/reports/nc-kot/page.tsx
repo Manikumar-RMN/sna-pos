@@ -13,6 +13,7 @@ type Row = {
   comp_kind: string | null;
   comp_reason: string | null;
   comp_by: string | null;
+  comp_charge_to: string | null;
   subtotal: number | null;
   dining_tables: { table_number: string } | null;
 };
@@ -26,7 +27,7 @@ export default async function NcKotPage({ searchParams }: { searchParams: Promis
   const c = user.currency_code;
   let q = supabase
     .from("orders")
-    .select("id, bill_number, business_date, branch_id, comp_kind, comp_reason, comp_by, subtotal, dining_tables!orders_dining_table_id_fkey(table_number)")
+    .select("id, bill_number, business_date, branch_id, comp_kind, comp_reason, comp_by, comp_charge_to, subtotal, dining_tables!orders_dining_table_id_fkey(table_number)")
     .not("comp_kind", "is", null)
     .neq("status", "voided")
     .gte("business_date", from)
@@ -37,10 +38,13 @@ export default async function NcKotPage({ searchParams }: { searchParams: Promis
   const ids = [...new Set(rows.map((x) => x.comp_by).filter((x): x is string => !!x))];
   const { data: us } = ids.length ? await supabase.from("users").select("id, full_name").in("id", ids) : { data: [] as { id: string; full_name: string }[] };
   const nameOf = new Map((us ?? []).map((u) => [u.id, u.full_name]));
-  const head = ["Date", "Bill", "Table", ...(scope.all ? ["Outlet"] : []), "Type", "Reason", "Allowed by", "Value given"];
+  const tids = [...new Set(rows.map((x) => x.comp_charge_to).filter((x): x is string => !!x))];
+  const { data: ts } = tids.length ? await supabase.from("nc_charge_targets").select("id, name").in("id", tids) : { data: [] as { id: string; name: string }[] };
+  const targetOf = new Map((ts ?? []).map((t) => [t.id, t.name]));
+  const head = ["Date", "Bill", "Table", ...(scope.all ? ["Outlet"] : []), "Type", "Reason", "Charged to", "Allowed by", "Value given"];
   const kind = (k: string | null) => (k === "staff_meal" ? "Staff meal" : k === "complimentary" ? "Complimentary" : k ?? "—");
-  const csv = rows.map((x) => [x.business_date ?? "", x.bill_number ?? "", x.dining_tables?.table_number ?? "", ...(scope.all ? [scope.names.get(x.branch_id) ?? ""] : []), kind(x.comp_kind), x.comp_reason ?? "", x.comp_by ? nameOf.get(x.comp_by) ?? "" : "", Number(x.subtotal ?? 0)]);
-  const table = rows.map((x) => [x.business_date ?? "—", x.bill_number ?? "—", x.dining_tables?.table_number ?? "—", ...(scope.all ? [scope.names.get(x.branch_id) ?? "—"] : []), kind(x.comp_kind), x.comp_reason ?? "—", x.comp_by ? nameOf.get(x.comp_by) ?? "Unknown" : "—", money(Number(x.subtotal ?? 0), c)]);
+  const csv = rows.map((x) => [x.business_date ?? "", x.bill_number ?? "", x.dining_tables?.table_number ?? "", ...(scope.all ? [scope.names.get(x.branch_id) ?? ""] : []), kind(x.comp_kind), x.comp_reason ?? "", x.comp_charge_to ? targetOf.get(x.comp_charge_to) ?? "" : "", x.comp_by ? nameOf.get(x.comp_by) ?? "" : "", Number(x.subtotal ?? 0)]);
+  const table = rows.map((x) => [x.business_date ?? "—", x.bill_number ?? "—", x.dining_tables?.table_number ?? "—", ...(scope.all ? [scope.names.get(x.branch_id) ?? "—"] : []), kind(x.comp_kind), x.comp_reason ?? "—", x.comp_charge_to ? targetOf.get(x.comp_charge_to) ?? "—" : "—", x.comp_by ? nameOf.get(x.comp_by) ?? "Unknown" : "—", money(Number(x.subtotal ?? 0), c)]);
   const total = rows.reduce((t, x) => t + Number(x.subtotal ?? 0), 0);
   return (
     <ReportShell

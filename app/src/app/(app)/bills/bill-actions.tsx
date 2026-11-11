@@ -14,6 +14,7 @@ import { needsInternetText } from "@/lib/order-desk";
 import { MoveItemPanel } from "./move-item-panel";
 import { TipField } from "./tip-field";
 import { tipError, tipForRequest } from "./tip";
+import { NcChargeSelect } from "./nc-charge-select";
 import { undoComplimentary, kotDateTransfer, outletTransfer, reopenBill, adjustBill, setItemDiscount, setCategoryDiscount, setBillNoTax, makeComplimentary, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
 
 type Method = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
@@ -177,6 +178,8 @@ export function BillActions({
   const [ntReason, setNtReason] = useState("");
   const [compKind, setCompKind] = useState<"complimentary" | "staff_meal">("complimentary");
   const [compReason, setCompReason] = useState("");
+  const [compCharge, setCompCharge] = useState("");
+  const [compTargets, setCompTargets] = useState(0);
   const [unCompReason, setUnCompReason] = useState("");
   const [dateTo, setDateTo] = useState(businessDate ?? "");
   const [dateReason, setDateReason] = useState("");
@@ -794,10 +797,11 @@ export function BillActions({
                 onChange={(e) => setCompReason(e.target.value)}
                 maxLength={200}
               />
+              <NcChargeSelect value={compCharge} onChange={setCompCharge} onCount={setCompTargets} />
               <button
                 className="btn btn-primary mt-1 w-full text-sm"
-                disabled={pending || compReason.trim().length < 3}
-                onClick={() => run(() => makeComplimentary({ orderId, kind: compKind, reason: compReason }), () => setCompReason(""))}
+                disabled={pending || compReason.trim().length < 3 || (compTargets > 0 && !compCharge)}
+                onClick={() => run(() => makeComplimentary({ orderId, kind: compKind, reason: compReason, chargeTo: compCharge || null }), () => { setCompReason(""); setCompCharge(""); })}
               >
                 {pending ? "Saving…" : compKind === "complimentary" ? "Make complimentary" : "Make staff meal"}
               </button>

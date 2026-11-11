@@ -1,0 +1,6 @@
+-- 238: Winsar "NC KOT Charge To Accounts". Applied live as migration 238_nc_charge_to. It adds:
+--   table public.nc_charge_targets (id, restaurant_id, name, is_active, sort_order; RLS read for the restaurant; unique name per restaurant),
+--   column public.orders.comp_charge_to (uuid -> nc_charge_targets, on delete set null),
+--   list_nc_charge_targets(p_all), save_nc_charge_target(p_id, p_name, p_active), set_comp_charge_to(p_order_id, p_charge_to),
+--   and a re-created undo_complimentary that also clears comp_charge_to. make_complimentary itself is unchanged.
+-- See the live database (pg_get_functiondef) for the exact bodies. Rollback: 238_nc_charge_to_rollback.sql.
