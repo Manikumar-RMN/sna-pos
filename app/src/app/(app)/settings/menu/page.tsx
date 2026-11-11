@@ -69,6 +69,22 @@ export default async function MenuPage() {
         </Link>
       )}
 
+      {can(user, "tax.manage") && (
+        <Link
+          href="/settings/menu/bulk-tax"
+          className="card mb-4 flex min-h-14 flex-wrap items-center justify-between gap-2 p-4 text-sm font-bold"
+          style={{ color: "var(--color-brand)" }}
+        >
+          <span>
+            Change the tax of a menu group
+            <span className="block text-xs font-medium" style={{ color: "var(--color-ink-3)" }}>
+              Move all the dishes of a group to another tax group in one step.
+            </span>
+          </span>
+          <span aria-hidden="true">&rarr;</span>
+        </Link>
+      )}
+
       {can(user, "menu.manage") && (
         <MenuUpload
           taxGroups={taxGroups ?? []}

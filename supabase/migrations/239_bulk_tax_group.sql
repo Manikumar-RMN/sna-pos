@@ -1,0 +1,4 @@
+-- 239: Winsar "Outlet Tax Structure Update". Applied live as 239_bulk_tax_group: bulk_set_tax_group(p_category, p_tax_group, p_apply, p_reason).
+-- Needs tax.manage; counts first (p_apply false), then moves every dish of the group and its sub-groups to the tax group; the product guard
+-- trigger audits each item and the function writes one 'menu.bulk_tax_group' audit row. See the live database for the exact body.
+-- Rollback: 239_bulk_tax_group_rollback.sql (the moved items keep their new tax group; the audit rows hold the old ones).

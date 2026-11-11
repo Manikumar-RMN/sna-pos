@@ -8347,6 +8347,7 @@ export type Database = {
       list_nc_charge_targets: { Args: { p_all?: boolean }; Returns: { id: string; name: string; is_active: boolean; sort_order: number }[] }
       save_nc_charge_target: { Args: { p_active?: boolean; p_id: string; p_name: string }; Returns: string }
       set_comp_charge_to: { Args: { p_charge_to: string; p_order_id: string }; Returns: Json }
+      bulk_set_tax_group: { Args: { p_apply?: boolean; p_category: string; p_reason?: string; p_tax_group: string }; Returns: Json }
       list_reasons: {
         Args: { p_purpose?: string }
         Returns: { id: string; name: string; purposes: string[]; is_active: boolean; sort_order: number }[]
