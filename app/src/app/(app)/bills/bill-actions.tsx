@@ -825,8 +825,8 @@ export function BillActions({
             ))}
           </select>
           <div className="mt-2 flex gap-2">
-            <input className="field h-10 w-20 text-center text-sm" inputMode="numeric" value={cancelQty} onChange={(e) => setCancelQty(e.target.value)} aria-label="How many to cancel" />
-            <input className="field h-10 flex-1 text-sm" placeholder="Reason (required)" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
+            <input className="field h-10 w-20 shrink-0 text-center text-sm" inputMode="numeric" value={cancelQty} onChange={(e) => setCancelQty(e.target.value)} aria-label="How many to cancel" />
+            <input className="field h-10 min-w-0 flex-1 text-sm" placeholder="Reason (required)" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
           </div>
           {confirm === "cancel" ? (
             <div className="mt-3 flex gap-2">
