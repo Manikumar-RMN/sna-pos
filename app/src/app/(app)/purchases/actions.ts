@@ -412,8 +412,9 @@ export async function amendReceipt(input: { receiptId: string; billNo: string; b
   const { data, error } = await supabase.rpc("amend_receipt_details", {
     p_receipt: input.receiptId,
     p_bill_no: input.billNo ?? "",
-    p_bill_date: input.billDate || undefined,
-    p_due_on: input.dueOn || undefined,
+    // Always sent (null when blank) so the database function is found by its full argument list.
+    p_bill_date: (input.billDate || null) as unknown as string,
+    p_due_on: (input.dueOn || null) as unknown as string,
     p_reason: why,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
