@@ -532,9 +532,14 @@ export function BillActions({
               </Link>
             )}
             {embedded && (
-              <button type="button" className="btn btn-pay col-span-2 text-sm" onClick={() => setWin("pay")}>
-                Settle · {m(balance)}
-              </button>
+              <div className="col-span-2 grid grid-cols-[1fr_auto] gap-2">
+                <button type="button" className="btn btn-pay text-sm" onClick={() => setWin("pay")}>
+                  Settle · {m(balance)}
+                </button>
+                <Link href={`/bills/settle/${orderId}`} className="btn border text-sm" style={{ borderColor: "var(--color-brand)", color: "var(--color-brand-strong)" }} title="The full settlement screen: several payments, tips and a running balance">
+                  Settlement screen
+                </Link>
+              </div>
             )}
             {embedded && (
               <PanelButton label={checkOpen ? "Check ▲" : "Check ▼"} active={checkOpen} onClick={() => setCheckOpen((v) => !v)} />
