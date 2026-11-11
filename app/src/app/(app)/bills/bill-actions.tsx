@@ -457,6 +457,13 @@ export function BillActions({
             </p>
           )}
 
+          <PanelFrame
+            modal={embedded && panel !== null}
+            title={panel === "comp" ? "Complimentary / staff meal" : panel === "adjust" ? "Discount" : panel === "split" ? "Split bill" : panel === "move" ? "Move table" : panel === "moveItem" ? "Move item" : "Merge bills"}
+            error={error}
+            notice={notice}
+            onClose={() => setPanel(null)}
+          >
           {panel === "comp" && (
             <div className="mt-3 space-y-2 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
               <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
@@ -779,6 +786,7 @@ export function BillActions({
               )}
             </div>
           )}
+          </PanelFrame>
         </section>
       )}
 
@@ -1016,6 +1024,30 @@ export function BillActions({
           )}
         </section>
       )}
+    </div>
+  );
+}
+
+/** On the single order screen the opened panel shows in a medium window; elsewhere it stays inline. */
+function PanelFrame({ modal, title, error, notice, onClose, children }: { modal: boolean; title: string; error: string | null; notice: string | null; onClose: () => void; children: React.ReactNode }) {
+  if (!modal) return <>{children}</>;
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+      <div className="card max-h-[85vh] w-full max-w-md overflow-y-auto p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold">{title}</h2>
+          <button type="button" className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        {error && (
+          <p className="mt-2 rounded-md p-2 text-sm" style={{ color: "var(--color-bad)" }}>
+            {error}
+          </p>
+        )}
+        {notice && !error && <p className="mt-2 text-sm">{notice}</p>}
+        {children}
+      </div>
     </div>
   );
 }
