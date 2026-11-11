@@ -429,6 +429,8 @@ export function PosTerminal({
   const m = (n: number) => money(n, currency);
   const lines = Object.values(cart);
   /** Which table (or the counter) this order goes to, on the single order screen. */
+  // Winsar flow: a table order ends at KOT; the money is taken on the bill (Check → Settle). The counter keeps its one-tap Charge.
+  const tableOrder = inline && !!lockedTable;
   const whereLabel = addTo ? (addTo.table ? `Table ${addTo.table}` : null) : lockedTable ? `Table ${lockedTable.number}` : deskKey ? "Counter" : null;
   // Bars: liquor and food may not share a bill.
   const mixedLiquor = lines.some((l) => l.item.liquor) && lines.some((l) => !l.item.liquor);
@@ -1746,6 +1748,19 @@ export function PosTerminal({
                 This order has liquor and food. They go on separate bills: remove one kind, save, then bill the other.
               </p>
             )}
+            {inline && lines.length > 0 && (
+              <div
+                className="mb-1 flex items-center justify-between border-b pb-1 text-[11px] font-bold uppercase tracking-wide"
+                style={{ borderColor: "var(--color-line)", color: "var(--color-ink-3)" }}
+                aria-hidden="true"
+              >
+                <span>Item</span>
+                <span className="flex items-center gap-6">
+                  <span>Qty</span>
+                  <span>Price</span>
+                </span>
+              </div>
+            )}
             {lines.length === 0 ? (
               <p className="py-6 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
                 No items yet.
@@ -2050,6 +2065,7 @@ export function PosTerminal({
                 )}
               </dl>
 
+              {!tableOrder && (
               <div className="mt-3">
                 <div className="mb-1.5 text-xs font-medium" style={{ color: "var(--color-ink-2)" }}>
                   Payment
@@ -2097,6 +2113,7 @@ export function PosTerminal({
                   </div>
                 )}
               </div>
+              )}
 
               {maybeSaved && !saved && (
                 <ErrorBox text="The connection dropped while saving, so this bill may already be saved. Look in Bills before you save it again. To bill offline now, press the button again." />
@@ -2113,7 +2130,7 @@ export function PosTerminal({
                 <button onClick={clearAll} disabled={pending || lines.length === 0 || !!saved} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                   Clear
                 </button>
-                {canPay ? (
+                {canPay && !tableOrder ? (
                   <>
                     <button
                       onClick={() => submit("unpaid")}
@@ -2134,13 +2151,13 @@ export function PosTerminal({
                     onClick={() => submit("unpaid")}
                     disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved}
                     className="btn btn-primary flex-1 text-base"
-                    title="Send the order to the kitchen and print the KOT. The cashier takes the payment later."
+                    title={tableOrder ? "Send the order to the kitchen and print the KOT. The bill stays open on the table; settle it from the bill." : "Send the order to the kitchen and print the KOT. The cashier takes the payment later."}
                   >
                     {pending ? "Saving…" : "KOT"}
                   </button>
                 )}
               </div>
-              {canPay ? (
+              {canPay && !tableOrder ? (
                 <button
                   onClick={() => submit("split")}
                   disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved}
@@ -2151,7 +2168,7 @@ export function PosTerminal({
                 </button>
               ) : (
                 <p className="mt-2 text-center text-xs" style={{ color: "var(--color-ink-3)" }}>
-                  The cashier takes the payment.
+                  {tableOrder && canPay ? "Payment is taken on the bill: open the table again and press Settle." : "The cashier takes the payment."}
                 </p>
               )}
             </div>
