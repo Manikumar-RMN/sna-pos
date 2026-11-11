@@ -250,7 +250,7 @@ begin
        where ad.restaurant_id = v_rest and (v_rb is null or ad.branch_id = v_rb)
          and (p_supplier is null or ad.supplier_id = p_supplier))
     select jsonb_build_object(
-      'rows', coalesce((select jsonb_agg(jsonb_build_object('id', id, 'number', number, 'supplier', supplier,
+      'rows', coalesce((select jsonb_agg(jsonb_build_object('id', id, 'number', number, 'supplier', supplier, 'supplier_id', supplier_id,
                 'amount', round(amount, 2), 'used', round(applied_total, 2), 'left', round(left_over, 2),
                 'method', method, 'reference', reference, 'paid_on', paid_on, 'from_till', from_till,
                 'status', status, 'notes', notes)
