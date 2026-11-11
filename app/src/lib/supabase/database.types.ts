@@ -8182,6 +8182,7 @@ export type Database = {
       award_rfq: { Args: { p_awards: Json; p_place?: boolean; p_rfq: string }; Returns: Json }
       list_rfqs: { Args: Record<PropertyKey, never>; Returns: Json }
       get_rfq: { Args: { p_rfq: string }; Returns: Json }
+      report_fifo_valuation: { Args: Record<PropertyKey, never>; Returns: Json }
       pay_supplier_advance: {
         Args: { p_amount: number; p_client_ref?: string; p_from_till?: boolean; p_method: string; p_notes?: string; p_paid_on?: string; p_reference?: string; p_supplier: string }
         Returns: Json

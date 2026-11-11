@@ -50,6 +50,7 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Purchase and inventory", href: "/reports/xyz-analysis", title: "XYZ analysis", blurb: "How steady the weekly use of each ingredient is.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/department-use", title: "Use by department", blurb: "Stock issued to each department (cost centre) and what it cost.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/po-variance", title: "PO rate variance", blurb: "Price paid against the price on the purchase order.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/fifo-valuation", title: "Stock value: FIFO and average", blurb: "What is on hand valued two ways: the average cost used in your books, and FIFO for comparison.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/item-stock", title: "Item stock query", blurb: "One ingredient at a glance: stock, value, last purchases, use and days of cover.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/consumption-monthly", title: "Item consumption monthwise", blurb: "How much of each ingredient went out, month by month, with value.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/mr-audit", title: "Material request audit", blurb: "Every stock request: who asked, who decided, how long it took and what was issued.", need: "stock" },
