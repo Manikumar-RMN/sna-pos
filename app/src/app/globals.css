@@ -545,6 +545,6 @@ h2,
 }
 
 /* Order screen (/pos): the side menu is hidden so the tables, the bill and the menu use the whole screen. */
-@media (min-width: 768px) {
+@media (min-width: 640px) {
   body.pos-full [data-shell="side"] { display: none !important; }
 }

@@ -491,7 +491,8 @@ export function PosTerminal({
     }
     return out;
   }, [brandMenu, packingId, categoryParents]);
-  const activeTab = tab !== null && tabs.some((c) => c.id === tab) ? tab : null;
+  // Order screen: one category at a time (the first one to start with), like a till. Classic screen: "All" first.
+  const activeTab = tab !== null && tabs.some((c) => c.id === tab) ? tab : inline && tabs.length > 1 ? tabs[0].id : null;
   // The chosen main category's sub-categories (only those with dishes on sale).
   const subTabs = useMemo(() => {
     if (activeTab === null) return [];
@@ -1251,10 +1252,10 @@ export function PosTerminal({
   }
 
   return (
-    <div className={inline ? "grid gap-4 md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)]" : "grid gap-4 lg:grid-cols-[1fr_360px]"}>
+    <div className={inline ? "grid gap-3 sm:grid-cols-[270px_minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]" : "grid gap-4 lg:grid-cols-[1fr_360px]"}>
       <div>
         <div className="mb-3 flex flex-wrap items-center gap-x-3">
-          <h1 className="text-xl font-bold tracking-tight">
+          <h1 className={inline ? "text-base font-bold tracking-tight" : "text-xl font-bold tracking-tight"}>
             {addTo ? `${addTo.table ? `Table ${addTo.table}: add items to bill` : "Add items to bill"} ${addTo.billNumber}` : lockedTable ? `Table ${lockedTable.number}: new order` : deskKey ? "Counter: new order" : "Billing"}
           </h1>
           {offline && (
@@ -1276,7 +1277,7 @@ export function PosTerminal({
               {lines.length > 0 ? "(the items on this bill will have to be added again)" : ""}
             </span>
           )}
-          <span className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+          <span className={inline ? "hidden" : "text-xs"} style={{ color: "var(--color-ink-3)" }}>
             Tap an item to add it · prices {pricesIncludeTax ? `include ${taxName}` : `before ${taxName}`}
           </span>
           {customerDisplay && (
@@ -1381,7 +1382,7 @@ export function PosTerminal({
         )}
         {(tabs.length > 1 || Object.keys(categoryParents).length > 0) && (
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Menu categories">
-            {[{ id: null as string | null, name: "All" }, ...tabs].map((c) => {
+            {[...(inline && tabs.length > 1 ? [] : [{ id: null as string | null, name: "All" }]), ...tabs].map((c) => {
               // While a search is typed it looks everywhere, so no tab is shown as chosen.
               const on = !searching && activeTab === c.id;
               return (
@@ -1394,7 +1395,7 @@ export function PosTerminal({
                     setSubTab(null);
                     setSearch("");
                   }}
-                  className="min-h-[44px] shrink-0 whitespace-nowrap rounded-full border px-4 text-sm font-semibold"
+                  className={inline ? "min-h-[48px] min-w-[96px] shrink-0 whitespace-nowrap rounded-lg border px-4 text-sm font-bold uppercase" : "min-h-[44px] shrink-0 whitespace-nowrap rounded-full border px-4 text-sm font-semibold"}
                   style={{
                     borderColor: on ? "var(--color-brand)" : "var(--color-line)",
                     background: on ? "var(--color-brand)" : "var(--color-surface)",
@@ -1444,7 +1445,7 @@ export function PosTerminal({
               <h2 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: "var(--color-ink-3)" }}>
                 {cat.name}
               </h2>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className={inline ? "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid grid-cols-2 gap-2 sm:grid-cols-3"}>
                 {cat.items.map((item) => {
                   const inCart = item.variants ? item.variants.reduce((s, v) => s + qtyInCart(v.id), 0) : qtyInCart(item.id);
                   return (
@@ -1512,7 +1513,7 @@ export function PosTerminal({
       {lines.length > 0 && (
         <button
           type="button"
-          className={`fixed inset-x-3 bottom-3 z-40 flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold shadow-lg ${inline ? "md:hidden" : "lg:hidden"}`}
+          className={`fixed inset-x-3 bottom-3 z-40 flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold shadow-lg ${inline ? "sm:hidden" : "lg:hidden"}`}
           style={{ background: "var(--color-brand)", color: "#fff" }}
           onClick={() => document.getElementById("cart")?.scrollIntoView({ behavior: "smooth" })}
         >
@@ -1523,7 +1524,7 @@ export function PosTerminal({
         </button>
       )}
 
-      <div id="cart" className={inline ? "scroll-mt-4 pb-20 md:order-first md:sticky md:top-4 md:self-start md:pb-0" : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
+      <div id="cart" className={inline ? "scroll-mt-4 pb-20 sm:order-first sm:sticky sm:top-2 sm:self-start sm:pb-0" : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
         <div className="card flex max-h-[calc(100vh-2rem)] flex-col">
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
             <div className="text-sm font-bold">{addTo ? "Items to add" : "Current bill"}</div>
