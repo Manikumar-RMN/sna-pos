@@ -105,6 +105,8 @@ export function ReceiptView({
   const [needsPin, setNeedsPin] = useState(false);
   const printedHere = useRef(false);
   const [printError, setPrintError] = useState<string | null>(null);
+  /** Winsar "Estimate": the same bill printed as a proforma, marked clearly as not a tax invoice. */
+  const [estimate, setEstimate] = useState(false);
   // Ctrl+P / browser-menu print: what happened to its log entry (shown as a small notice, never blocks the print).
   const [declaredNote, setDeclaredNote] = useState<{ text: string; ref?: string; needsPin?: boolean } | null>(null);
   const [pinForDeclared, setPinForDeclared] = useState<string | null>(null);
@@ -249,9 +251,27 @@ export function ReceiptView({
             ← {backLabel}
           </Link>
         )}
-        <button onClick={() => void printBillLogged()} className="btn btn-primary h-10 px-4 text-sm">
-          Print
-        </button>
+        <span className="flex gap-2">
+          {(data.state === "unpaid" || data.state === "part-paid") && (
+            <button
+              onClick={() => {
+                setEstimate(true);
+                setTimeout(() => {
+                  void printBillLogged();
+                  setTimeout(() => setEstimate(false), 1500);
+                }, 50);
+              }}
+              className="btn border h-10 px-4 text-sm"
+              style={{ borderColor: "var(--color-brand)", color: "var(--color-brand-strong)" }}
+              title="Print the bill as an estimate for the guest to look at. It is not a tax invoice and takes no payment."
+            >
+              Estimate
+            </button>
+          )}
+          <button onClick={() => void printBillLogged()} className="btn btn-primary h-10 px-4 text-sm">
+            Print
+          </button>
+        </span>
       </div>
       {declaredNote && (
         <p className="no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)" }}>
@@ -293,7 +313,7 @@ export function ReceiptView({
         )}
         {(data.state === "unpaid" || data.state === "part-paid") && (
           <div className="mb-2 border-2 border-dashed py-1 text-center text-[1.09em] font-bold" style={{ borderColor: "#111" }}>
-            {data.state === "part-paid" ? `PART PAID — BALANCE ${m(data.balance)}` : "UNPAID — NOT A TAX INVOICE"}
+            {estimate ? "ESTIMATE — NOT A TAX INVOICE" : data.state === "part-paid" ? `PART PAID — BALANCE ${m(data.balance)}` : "UNPAID — NOT A TAX INVOICE"}
           </div>
         )}
 
