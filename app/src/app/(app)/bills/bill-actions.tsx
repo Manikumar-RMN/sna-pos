@@ -152,6 +152,11 @@ export function BillActions({
   const [panel, setPanel] = useState<Panel>(null);
   const [checkOpen, setCheckOpen] = useState(false);
   const [autoN, setAutoN] = useState(2);
+  // Partial split options (Winsar): what the NEW bill gets when it is split off.
+  const [splitNoTax, setSplitNoTax] = useState(false);
+  const [splitNoSc, setSplitNoSc] = useState(false);
+  const [splitDisc, setSplitDisc] = useState("");
+  const [splitWhy, setSplitWhy] = useState("");
   const [win, setWin] = useState<null | "pay" | "cancel" | "void" | "fix" | "refund" | "reopen">(null);
   const [showKots, setShowKots] = useState(false);
   const [moveTo, setMoveTo] = useState("");
@@ -946,6 +951,38 @@ export function BillActions({
                       );
                     })}
                   </ul>
+                  <div className="mt-3 rounded-md border p-2" style={{ borderColor: "var(--color-line)" }}>
+                    <div className="mb-1 text-xs font-bold">Options for the new bill (optional)</div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                      <label className="flex items-center gap-1.5">
+                        <input type="checkbox" checked={splitNoTax} onChange={(e) => setSplitNoTax(e.target.checked)} /> No tax
+                      </label>
+                      <label className="flex items-center gap-1.5">
+                        <input type="checkbox" checked={splitNoSc} onChange={(e) => setSplitNoSc(e.target.checked)} /> No service charge
+                      </label>
+                      <label className="flex items-center gap-1.5">
+                        Discount
+                        <input
+                          inputMode="decimal"
+                          className="input h-8 w-20 text-sm"
+                          value={splitDisc}
+                          onChange={(e) => setSplitDisc(e.target.value.replace(/[^0-9.]/g, ""))}
+                          placeholder="0.00"
+                        />
+                      </label>
+                    </div>
+                    {(splitNoTax || Number(splitDisc) > 0) && (
+                      <input
+                        className="input mt-2 h-8 w-full text-sm"
+                        value={splitWhy}
+                        onChange={(e) => setSplitWhy(e.target.value)}
+                        placeholder="Reason (needed for no tax or a discount)"
+                      />
+                    )}
+                    <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                      These apply to the new bill only. Each one needs the same manager right as on a normal bill.
+                    </p>
+                  </div>
                   <button
                     className="btn btn-primary mt-3 w-full text-sm"
                     disabled={pending || splitCount === 0 || splitCount >= lines.reduce((s, l) => s + l.qty, 0)}
@@ -968,6 +1005,25 @@ export function BillActions({
                         }
                         if (!res.ok) return setError(res.error);
                         splitRef.current = null;
+                        // Partial split options: set on the new bill only. If one is refused the bill still exists, so say so.
+                        const disc = Number(splitDisc) || 0;
+                        const why = splitWhy.trim();
+                        if ((splitNoTax || disc > 0) && why.length < 3) {
+                          return setError(`${res.message} Write a reason, then set the options on that bill from Running bills.`);
+                        }
+                        try {
+                          if (splitNoTax) {
+                            const r1 = await setBillNoTax({ orderId: res.newOrderId, on: true, reason: why });
+                            if (!r1.ok) return setError(`${res.message} But: ${r1.error}`);
+                          }
+                          if (disc > 0 || splitNoSc) {
+                            const r2 = await adjustBill({ orderId: res.newOrderId, discount: disc, reason: disc > 0 ? why : null, serviceCharge: splitNoSc ? false : null });
+                            if (!r2.ok) return setError(`${res.message} But: ${r2.error}`);
+                          }
+                        } catch {
+                          return setError(`${res.message} The options could not be saved; open that bill and set them there.`);
+                        }
+                        setSplitNoTax(false); setSplitNoSc(false); setSplitDisc(""); setSplitWhy("");
                         router.push(embedded ? `/pos?bill=${res.newOrderId}` : `/bills/${res.newOrderId}`);
                       });
                     }}
