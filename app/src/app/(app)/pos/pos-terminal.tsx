@@ -364,6 +364,8 @@ export function PosTerminal({
   const [quickOpen, setQuickOpen] = useState(false);
   /** Winsar "Open list": only the open-price dishes of the group being shown. */
   const [openOnly, setOpenOnly] = useState(false);
+  /** Winsar: the line you tapped in the bill. The special instruction and the stepper work on it. */
+  const [pickedLine, setPickedLine] = useState<string | null>(null);
   const [quickName, setQuickName] = useState("");
   const [quickPrice, setQuickPrice] = useState("");
   const [quickErr, setQuickErr] = useState<string | null>(null);
@@ -1811,9 +1813,13 @@ export function PosTerminal({
               <>
               <ul>
                 {lines.map((l) => (
-                  <li key={l.key} className="border-b py-2 last:border-0" style={{ borderColor: "var(--color-line)" }}>
+                  <li key={l.key} className="border-b py-2 last:border-0" style={{ borderColor: "var(--color-line)", background: tableOrder && pickedLine === l.key ? "var(--color-brand-soft)" : undefined }}>
                   <div className="flex items-center gap-2">
-                    <div className="min-w-0 flex-1">
+                    <div
+                      className={`min-w-0 flex-1${tableOrder ? " cursor-pointer" : ""}`}
+                      onClick={tableOrder ? () => setPickedLine((k) => (k === l.key ? null : l.key)) : undefined}
+                      title={tableOrder ? "Tap to choose this line for the special instruction" : undefined}
+                    >
                       <div className="truncate text-sm font-medium">{l.item.name}</div>
                       {l.options.length > 0 && (
                         <div className="truncate text-[11px]" style={{ color: "var(--color-ink-2)" }}>
@@ -2090,11 +2096,12 @@ export function PosTerminal({
               {tableOrder && lines.length > 0 && (
                 <div className="mb-2" aria-label="Special instruction">
                   <div className="mb-1 text-[11px] font-semibold" style={{ color: "var(--color-ink-3)" }}>
-                    Special instruction (for the last item: {lines[lines.length - 1].item.name})
+                    Special instruction for <b>{(lines.find((l) => l.key === pickedLine) ?? lines[lines.length - 1]).item.name}</b>
+                    {lines.length > 1 && !pickedLine ? " — tap a line above to choose another" : ""}
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {["Less spicy", "Extra spicy", "No onion", "No garlic", "Less oil", "Less sugar", "Pack separately", "Hurry"].map((sp) => {
-                      const last = lines[lines.length - 1];
+                      const last = lines.find((l) => l.key === pickedLine) ?? lines[lines.length - 1];
                       const has = last.note.split(", ").includes(sp);
                       return (
                         <button
@@ -2119,6 +2126,12 @@ export function PosTerminal({
                 </div>
               )}
               <dl className="space-y-1 text-sm" aria-live="polite">
+                {tableOrder && lines.length > 0 && (
+                  <div className="flex justify-between pb-1 text-xs font-bold" style={{ color: "var(--color-brand-strong)" }}>
+                    <dt>QTY : {lines.reduce((n, l) => n + l.qty, 0)}</dt>
+                    <dd />
+                  </div>
+                )}
                 <Row label="Subtotal" value={quote ? m(quote.subtotal) : lines.length ? "…" : m(0)} />
                 {quote && quote.discount > 0 && <Row label="Discount" value={`−${m(quote.discount)}`} color="var(--color-ok)" />}
                 {quote && quote.tax_exempt_amount > 0 && <Row label="VAT exemption" value={`−${m(quote.tax_exempt_amount)}`} color="var(--color-ok)" />}

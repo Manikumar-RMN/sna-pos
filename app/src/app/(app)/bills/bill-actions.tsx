@@ -68,6 +68,7 @@ export function BillActions({
   outlets = [],
   outletTables = [],
   serverName = null,
+  lineKot = {},
   discTools,
 }: {
   /** Manager tools: item discount, category discount, No Tax. Undefined hides them. */
@@ -129,6 +130,8 @@ export function BillActions({
   outletTables?: { id: string; number: string; branchId: string; busy: boolean }[];
   /** Who took the order: shown on each KOT round, as Winsar shows the steward. */
   serverName?: string | null;
+  /** Which KOT each line went out on: order_item_id -> { KOT number, time }. Winsar heads each round with this. */
+  lineKot?: Record<string, { no: string; at: string }>;
 }) {
   const router = useRouter();
   const online = useOnline();
@@ -478,19 +481,19 @@ export function BillActions({
           {embedded && lines.length > 0 && lines.some((l) => l.at) && (
             <div className="mt-2 overflow-hidden rounded-lg border text-sm" style={{ borderColor: "var(--color-line)" }}>
               {(() => {
-                const groups: { key: string; at: string; items: Line[] }[] = [];
+                const groups: { key: string; at: string; no: string | null; items: Line[] }[] = [];
                 for (const l of lines) {
-                  const k = (l.at ?? "").slice(0, 19);
+                  const k = lineKot[l.id]?.no ?? (l.at ?? "").slice(0, 19);
                   const g = groups[groups.length - 1];
                   if (g && g.key === k) g.items.push(l);
-                  else groups.push({ key: k, at: l.at ?? "", items: [l] });
+                  else groups.push({ key: k, at: lineKot[l.id]?.at ?? l.at ?? "", no: lineKot[l.id]?.no ?? null, items: [l] });
                 }
                 return groups.map((g, i) => (
                   <div key={g.key + i}>
                     <div className="px-2 py-1 text-center text-[11px] font-bold text-white" style={{ background: "#B8960C" }}>
-                      KOT round {i + 1}
-                      {g.at ? ` · ${new Date(g.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
+                      {g.no ? `KOT No : ${g.no}` : `KOT round ${i + 1}`}
                       {serverName ? ` · ${serverName}` : ""}
+                      {g.at ? ` · ${new Date(g.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
                     </div>
                     {g.items.map((l) => (
                       <div key={l.id} className="flex items-center justify-between gap-2 px-2 py-1" style={{ borderTop: "1px solid var(--color-line)" }}>
@@ -505,6 +508,10 @@ export function BillActions({
                   </div>
                 ));
               })()}
+              <div className="flex items-center justify-between px-2 py-1 text-xs font-bold" style={{ borderTop: "1px solid var(--color-line)", background: "var(--color-surface-2)" }}>
+                <span style={{ color: "var(--color-brand-strong)" }}>QTY : {lines.reduce((n, l) => n + l.qty, 0)}</span>
+                <span>{m(lines.reduce((n, l) => n + l.amount, 0))}</span>
+              </div>
             </div>
           )}
 
@@ -606,6 +613,9 @@ export function BillActions({
                 </div>
                 <input className="field h-10 text-sm" placeholder="Reason (required)" aria-label="Reason" value={idReason} onChange={(e) => setIdReason(e.target.value)} maxLength={200} />
                 <div className="grid grid-cols-2 gap-2">
+                  <span className="text-[11px] font-semibold" style={{ color: "var(--color-bad)" }}>
+                    {idItem ? `(Max disc : ${m(lines.find((l) => l.id === idItem)?.amount ?? 0)})` : ""}
+                  </span>
                   <button className="btn btn-primary text-sm" disabled={pending || !idItem || !(Number(idVal) > 0) || idReason.trim().length < 3} onClick={() => run(() => setItemDiscount({ orderId, itemId: idItem, kind: idKind, value: Number(idVal), reason: idReason }), () => { setIdVal(""); setIdReason(""); })}>
                     {pending ? "Saving…" : "Apply"}
                   </button>
