@@ -20,6 +20,7 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Sales", href: "/reports/day-summary", title: "Day summary", blurb: "One page for the day: sales, discounts, tax, payments, voids and what to watch.", need: "financial" },
   { group: "Sales", href: "/reports/session-sales", title: "Session sales", blurb: "Bills, sales and top items for each meal session.", need: "sales" },
   { group: "Sales", href: "/reports/z-reading", title: "Z reading", blurb: "The reading saved at each day close, with the Z number and the accumulated grand total.", need: "financial" },
+  { group: "Sales", href: "/reports/order-approval", title: "Order approval", blurb: "Table orders guests sent from the QR code: accepted, rejected, who decided and how long they waited.", need: "financial" },
   { group: "Sales", href: "/reports/cashier-settlement", title: "Cashier settlement", blurb: "What each cashier collected in each payment mode, and refunds approved.", need: "financial" },
   { group: "Sales", href: "/reports/settlement", title: "Settlement", blurb: "Payments by mode, refunds, net collected and payment list.", need: "financial" },
   { group: "Sales", href: "/reports/covers", title: "Cover analysis", blurb: "Guests and sales per guest, by day, outlet and waiter.", need: "sales" },
