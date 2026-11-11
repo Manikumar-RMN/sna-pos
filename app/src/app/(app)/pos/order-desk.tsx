@@ -233,14 +233,14 @@ export function OrderDesk({
           printMm={kotMeta.printMm}
           largePrint={kotMeta.largePrint}
           onDone={() => {
-            const done = kot;
             setKot(null);
             setNotice(null);
-            // A fresh order form (the sent items are on the bill now), and the bill beside it with the new total.
+            // Back to the table strip with a fresh order form, like a till that returns to its table grid after a KOT: the table
+            // shows as running, and tapping it opens its bill (Check, discount, payment).
             setNonce((n) => n + 1);
             setCartCount(0);
-            setTab("bill");
-            if (done) router.replace(deskUrl({ kind: "bill", billId: done.orderId }));
+            setTab("order");
+            router.replace(deskUrl({ kind: "counter" }));
             router.refresh();
           }}
         />
