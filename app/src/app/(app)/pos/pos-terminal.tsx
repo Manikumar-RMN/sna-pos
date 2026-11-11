@@ -2251,9 +2251,9 @@ export function PosTerminal({
                 >
                   Split payment (part cash, part card/UPI, or share between people)
                 </button>
-              ) : (
+              ) : tableOrder ? null : (
                 <p className="mt-2 text-center text-xs" style={{ color: "var(--color-ink-3)" }}>
-                  {tableOrder && canPay ? "Payment is taken on the bill: open the table again and press Settle." : "The cashier takes the payment."}
+                  {tableOrder && canPay ? "" : "The cashier takes the payment."}
                 </p>
               )}
             </div>

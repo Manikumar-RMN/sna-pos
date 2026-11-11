@@ -147,7 +147,7 @@ export function OrderDesk({
 
   return (
     <div>
-      <div className="no-print mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className={`no-print flex flex-wrap items-center justify-between gap-2 ${showTables ? "mb-3" : "mb-1"}`}>
         <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
           {!online && (
             <span className="rounded-full px-2.5 py-0.5 font-bold" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
@@ -157,7 +157,7 @@ export function OrderDesk({
         </div>
         <div className="flex items-center gap-3">
           <ScreenSwitch to="classic" after={classicAfter} />
-          <Link href="/pos/kot-cancel" className="btn border text-sm" style={{ borderColor: "var(--color-line)" }}>
+          <Link href="/pos/kot-cancel" className="btn border text-xs" style={{ borderColor: "var(--color-line)" }}>
             KOT cancel
           </Link>
           <Link href="/dashboard" className="btn border text-sm" style={{ borderColor: "var(--color-line)" }}>
