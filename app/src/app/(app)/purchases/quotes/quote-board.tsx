@@ -252,8 +252,9 @@ function Compare({ rfq, currency }: { rfq: RfqDetail; currency: string }) {
       }
       return { ok: true as const, message: saved === 0 ? "Type at least one rate first." : `Rates saved for ${saved} supplier${saved === 1 ? "" : "s"}.` };
     }, (r) => {
-      if (!r.message.startsWith("Type")) window.location.reload();
-      return r.message;
+      const text = r.message ?? "";
+      if (!text.startsWith("Type")) window.location.reload();
+      return text;
     });
   }
   function award(place: boolean) {
