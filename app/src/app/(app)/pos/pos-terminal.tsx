@@ -1397,11 +1397,15 @@ export function PosTerminal({
                     setSubTab(null);
                   }}
                   className="min-h-[40px] shrink-0 whitespace-nowrap rounded-lg border px-3 text-sm font-bold"
-                  style={{
-                    borderColor: on ? "var(--color-ink)" : "var(--color-line)",
-                    background: on ? "var(--color-ink)" : "var(--color-surface)",
-                    color: on ? "var(--color-surface)" : "var(--color-ink-2)",
-                  }}
+                  style={
+                    tableOrder
+                      ? { borderColor: "#1D6FD0", background: on ? "#1D6FD0" : "#4DABF7", color: "#FFFFFF" }
+                      : {
+                          borderColor: on ? "var(--color-ink)" : "var(--color-line)",
+                          background: on ? "var(--color-ink)" : "var(--color-surface)",
+                          color: on ? "var(--color-surface)" : "var(--color-ink-2)",
+                        }
+                  }
                 >
                   {b.name}
                 </button>
@@ -1409,7 +1413,7 @@ export function PosTerminal({
             })}
           </div>
         )}
-        {inline && canOpenPrice && !addTo && (
+        {inline && canOpenPrice && !addTo && !tableOrder && (
           <div className="mb-2 flex justify-end">
             <button type="button" className="rounded-md px-3 py-1 text-xs font-bold text-white" style={{ background: "#E8590C" }} onClick={() => { setQuickErr(null); setQuickOpen(true); }}>
               Open +
@@ -1472,7 +1476,7 @@ export function PosTerminal({
             No items match “{search}”.
           </p>
         )}
-        {!searching && topSellerIds.length > 0 && (
+        {!searching && !tableOrder && topSellerIds.length > 0 && (
           <TopSellers ids={topSellerIds} menu={menu} onTap={tapItem} />
         )}
         <div className="space-y-5">
@@ -1481,15 +1485,19 @@ export function PosTerminal({
               <h2 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: "var(--color-ink-3)" }}>
                 {cat.name}
               </h2>
-              <div className={inline ? "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid grid-cols-2 gap-2 sm:grid-cols-3"}>
+              <div className={tableOrder ? "grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : inline ? "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid grid-cols-2 gap-2 sm:grid-cols-3"}>
                 {cat.items.map((item) => {
                   const inCart = item.variants ? item.variants.reduce((s, v) => s + qtyInCart(v.id), 0) : qtyInCart(item.id);
                   return (
                     <button
                       key={item.id}
                       onClick={() => tapItem(item)}
-                      className="tap card relative flex flex-col items-start justify-between gap-1 p-3 text-left transition active:scale-[0.98]"
-                      style={{ borderColor: inCart ? "var(--color-brand)" : "var(--color-line)" }}
+                      className={`tap card relative flex flex-col items-start justify-between gap-1 text-left transition active:scale-[0.98] ${tableOrder ? "min-h-[58px] p-2" : "p-3"}`}
+                      style={
+                        tableOrder
+                          ? { borderColor: inCart ? "var(--color-brand)" : "#9A8C82", background: inCart ? "var(--color-brand-soft)" : "#BCAFA5" }
+                          : { borderColor: inCart ? "var(--color-brand)" : "var(--color-line)" }
+                      }
                     >
                       <span className="flex items-start gap-1.5 text-sm font-semibold leading-tight">
                         {item.is_veg != null && (
