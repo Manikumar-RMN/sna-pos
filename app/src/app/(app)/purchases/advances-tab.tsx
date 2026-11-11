@@ -165,7 +165,7 @@ function AdvanceCard({
       <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
         <Figure label="Paid" value={m(a.amount)} />
         <Figure label="Used on bills" value={m(a.used)} />
-        <Figure label="Left to use" value={m(a.left)} strong={a.left > 0} />
+        <Figure label="Left to use" value={m(a.status === "cancelled" ? 0 : a.left)} strong={a.status !== "cancelled" && a.left > 0} />
       </div>
 
       {a.onBills.length > 0 && (
