@@ -126,6 +126,7 @@ export function BillActions({
   const [voidReason, setVoidReason] = useState("");
   const [confirm, setConfirm] = useState<null | "void" | "refund" | "cancel">(null);
   const [panel, setPanel] = useState<Panel>(null);
+  const [win, setWin] = useState<null | "pay" | "cancel" | "void">(null);
   const [showKots, setShowKots] = useState(false);
   const [moveTo, setMoveTo] = useState("");
   const [mergeFrom, setMergeFrom] = useState("");
@@ -211,6 +212,7 @@ export function BillActions({
       }
       setConfirm(null);
       setPanel(null);
+      setWin(null);
       setVoidReason("");
       setRefundReason("");
       setRefundAmt("");
@@ -277,7 +279,14 @@ export function BillActions({
       )}
       {canKots && showKots && <KotSheet orderId={orderId} billNumber={billNumber} onClose={() => setShowKots(false)} onChanged={() => router.refresh()} />}
 
-      {showPay && (
+      {embedded && !showPay && showVoid && (
+        <button type="button" className="btn w-full border text-sm" style={{ borderColor: "var(--color-bad)", color: "var(--color-bad)" }} onClick={() => setWin("void")}>
+          Void bill…
+        </button>
+      )}
+
+      {showPay && (!embedded || win === "pay") && (
+        <PanelFrame modal={embedded} title="Take payment" error={error} notice={notice} onClose={() => setWin(null)}>
         <section className="card p-4">
           <div className="flex items-baseline justify-between">
             <h2 className="text-sm font-bold">Take payment</h2>
@@ -407,6 +416,7 @@ export function BillActions({
             </>
           )}
         </section>
+        </PanelFrame>
       )}
 
       {showPay && (
@@ -429,6 +439,11 @@ export function BillActions({
                 + Add items
               </Link>
             )}
+            {embedded && (
+              <button type="button" className="btn btn-pay col-span-2 text-sm" onClick={() => setWin("pay")}>
+                Settle · {m(balance)}
+              </button>
+            )}
             <PanelButton label="Split bill" active={panel === "split"} onClick={() => setPanel(panel === "split" ? null : "split")} />
             <PanelButton label="Move table" active={panel === "move"} onClick={() => setPanel(panel === "move" ? null : "move")} />
             <PanelButton
@@ -446,6 +461,10 @@ export function BillActions({
                 onClick={() => setPanel(panel === "adjust" ? null : "adjust")}
               />
             )}
+            {embedded && open && (canVoid || canAsk) && lines.length > 0 && !dayClosed && (
+              <PanelButton label="Cancel item" active={win === "cancel"} onClick={() => setWin("cancel")} />
+            )}
+            {embedded && showVoid && <PanelButton label="Void bill" active={win === "void"} onClick={() => setWin("void")} />}
             {showAdjust && !adjust?.senior && (
               <PanelButton label="Complimentary / staff meal" active={panel === "comp"} onClick={() => setPanel(panel === "comp" ? null : "comp")} />
             )}
@@ -790,7 +809,8 @@ export function BillActions({
         </section>
       )}
 
-      {open && (canVoid || canAsk) && lines.length > 0 && !dayClosed && (
+      {open && (canVoid || canAsk) && lines.length > 0 && !dayClosed && (!embedded || win === "cancel") && (
+        <PanelFrame modal={embedded} title="Cancel item" error={error} notice={notice} onClose={() => setWin(null)}>
         <section className="card p-4">
           <h2 className="text-sm font-bold"><Dual text="Cancel an item" /></h2>
           <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
@@ -833,6 +853,7 @@ export function BillActions({
             </button>
           )}
         </section>
+        </PanelFrame>
       )}
 
       {showBuyer && (
@@ -990,7 +1011,8 @@ export function BillActions({
         </section>
       )}
 
-      {showVoid && (
+      {showVoid && (!embedded || win === "void") && (
+        <PanelFrame modal={embedded} title="Void bill" error={error} notice={notice} onClose={() => setWin(null)}>
         <section className="card p-4">
           <h2 className="text-sm font-bold">Void bill</h2>
           <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
@@ -1023,6 +1045,7 @@ export function BillActions({
             </button>
           )}
         </section>
+        </PanelFrame>
       )}
     </div>
   );
