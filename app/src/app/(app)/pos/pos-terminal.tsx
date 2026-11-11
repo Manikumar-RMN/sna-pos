@@ -7,6 +7,7 @@ import { parseDiscountInput } from "@/lib/discount";
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, stockWarnings, type CartItem, type PlaceOrderInput, type Quote, type Senior } from "./actions";
+import { makeComplimentary } from "../bills/actions";
 import { customerFavourites, findCustomer, type GuestFavourites, type RegularGuest } from "../bills/actions";
 import { regularChipText } from "../bills/loyalty-math";
 import { loadLastRound } from "./repeat-round";
@@ -356,6 +357,9 @@ export function PosTerminal({
   // Winsar flow: tapping a free table opens a cover keypad first (1-9, 0, 00, Back / Next).
   const [coverKeypad, setCoverKeypad] = useState(askCovers && inline && !!lockedTable);
   const [keypadText, setKeypadText] = useState("");
+  // Winsar "NC KOT": the order is sent as a no-charge bill. The reason is asked here, as the database insists on one.
+  const [ncKot, setNcKot] = useState(false);
+  const [ncReason, setNcReason] = useState("");
   // Winsar "Open +": a new dish made on the spot in the group being shown.
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickName, setQuickName] = useState("");
@@ -1217,6 +1221,16 @@ export function PosTerminal({
       clearDeskCarry();
       setMaybeSaved(false);
       setSaved(next);
+      // Winsar NC KOT: the bill is marked no-charge the moment it is saved. If that is refused (no manager right),
+      // the bill stays a normal one and the message says so, rather than leaving a free bill behind by accident.
+      if (mode === "unpaid" && ncKot && ncReason.trim().length >= 3) {
+        try {
+          const nc = await makeComplimentary({ orderId: res.orderId, kind: "complimentary", reason: ncReason.trim() });
+          if (!nc.ok) setError(`The order was saved, but it is NOT no-charge: ${cleanMessage(nc.error)}`);
+        } catch {
+          setError("The order was saved, but the no-charge mark could not be set. Open the bill and set it there.");
+        }
+      }
       if (mode === "unpaid" && onKotDone) onKotDone({ orderId: res.orderId, billNumber: res.billNumber, where: whereText, token: res.tokenNo, kind: "new" });
       else router.push(next);
     });
@@ -1268,7 +1282,7 @@ export function PosTerminal({
       <div>
         <div className="mb-3 flex flex-wrap items-center gap-x-3">
           <h1 className={inline ? "text-base font-bold tracking-tight" : "text-xl font-bold tracking-tight"}>
-            {addTo ? `${addTo.table ? `Table ${addTo.table}: add items to bill` : "Add items to bill"} ${addTo.billNumber}` : lockedTable ? (inline ? `Table : ${lockedTable.number}  ·  Cover : ${coversNum ?? 0}` : `Table ${lockedTable.number}: new order`) : deskKey ? "Counter: new order" : "Billing"}
+            {addTo ? `${addTo.table ? `Table ${addTo.table}: add items to bill` : "Add items to bill"} ${addTo.billNumber}` : lockedTable ? (inline ? `Table : ${lockedTable.number}  ·  Cover : ${coversNum ?? 0}${ncKot ? "  ·  NC KOT" : ""}` : `Table ${lockedTable.number}: new order`) : deskKey ? "Counter: new order" : "Billing"}
           </h1>
           {offline && (
             <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
@@ -2304,6 +2318,20 @@ export function PosTerminal({
                 ⌫
               </button>
             </div>
+            <label className="mt-3 flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--color-line)" }}>
+              <span className="font-semibold">NC KOT <span className="font-normal" style={{ color: "var(--color-ink-3)" }}>(no charge)</span></span>
+              <input type="checkbox" className="h-5 w-5" checked={ncKot} onChange={(e) => setNcKot(e.target.checked)} />
+            </label>
+            {ncKot && (
+              <input
+                className="field mt-2 h-10 w-full text-sm"
+                placeholder="Reason for the free order, e.g. guest name"
+                aria-label="Reason for the no-charge order"
+                maxLength={200}
+                value={ncReason}
+                onChange={(e) => setNcReason(e.target.value)}
+              />
+            )}
             <div className="mt-3 flex justify-end gap-2">
               <button type="button" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => router.push("/pos")}>
                 Back
@@ -2311,7 +2339,7 @@ export function PosTerminal({
               <button
                 type="button"
                 className="btn btn-primary px-6 text-sm"
-                disabled={!keypadText || Number(keypadText) < 1}
+                disabled={!keypadText || Number(keypadText) < 1 || (ncKot && ncReason.trim().length < 3)}
                 onClick={() => {
                   setCovers(keypadText);
                   setCoverKeypad(false);

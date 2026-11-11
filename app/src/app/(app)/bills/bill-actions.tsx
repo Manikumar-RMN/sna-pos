@@ -14,7 +14,7 @@ import { needsInternetText } from "@/lib/order-desk";
 import { MoveItemPanel } from "./move-item-panel";
 import { TipField } from "./tip-field";
 import { tipError, tipForRequest } from "./tip";
-import { reopenBill, adjustBill, setItemDiscount, setCategoryDiscount, setBillNoTax, makeComplimentary, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
+import { undoComplimentary, kotDateTransfer, outletTransfer, reopenBill, adjustBill, setItemDiscount, setCategoryDiscount, setBillNoTax, makeComplimentary, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
 
 type Method = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type PaymentRow = { id: string; methodId: string; methodName: string; amount: number; rounded: boolean };
@@ -22,7 +22,7 @@ type Line = { id: string; name: string; options: string | null; qty: number; amo
 type TableOpt = { id: string; number: string; busy: boolean };
 type OtherBill = { id: string; billNumber: string; total: number; table: string | null; mergeable: boolean };
 type DiscTools = { categories: { id: string; name: string }[]; itemDisc: Record<string, { kind: "percent" | "amount"; value: number }>; noTax: boolean; noTaxAllowed: boolean };
-type Panel = null | "itemdisc" | "split" | "move" | "moveItem" | "merge" | "cancel" | "adjust" | "comp";
+type Panel = null | "itemdisc" | "split" | "move" | "moveItem" | "merge" | "cancel" | "adjust" | "comp" | "date" | "outlet";
 type Adjust = { discount: number; subtotal: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
 
 export function BillActions({
@@ -62,6 +62,12 @@ export function BillActions({
   otherBills,
   canMerge = true,
   embedded = false,
+  compNow = null,
+  businessDate = null,
+  branchId = null,
+  outlets = [],
+  outletTables = [],
+  serverName = null,
   discTools,
 }: {
   /** Manager tools: item discount, category discount, No Tax. Undefined hides them. */
@@ -113,6 +119,16 @@ export function BillActions({
   canMerge?: boolean;
   /** Shown inside the single order screen (/pos): "+ Add items" and a split go to that screen instead of the old pages. */
   embedded?: boolean;
+  /** Set when the bill is already a no-charge bill: its kind, so it can be charged again (Winsar "NoCharge KOT to KOT"). */
+  compNow?: "complimentary" | "staff_meal" | null;
+  /** The business day this bill counts towards (Winsar "KOT Date Transfer"). */
+  businessDate?: string | null;
+  /** The outlet the bill is in, and the other outlets it can move to (Winsar "KOT Table Transfer other outlet"). */
+  branchId?: string | null;
+  outlets?: { id: string; name: string }[];
+  outletTables?: { id: string; number: string; branchId: string; busy: boolean }[];
+  /** Who took the order: shown on each KOT round, as Winsar shows the steward. */
+  serverName?: string | null;
 }) {
   const router = useRouter();
   const online = useOnline();
@@ -153,6 +169,12 @@ export function BillActions({
   const [ntReason, setNtReason] = useState("");
   const [compKind, setCompKind] = useState<"complimentary" | "staff_meal">("complimentary");
   const [compReason, setCompReason] = useState("");
+  const [unCompReason, setUnCompReason] = useState("");
+  const [dateTo, setDateTo] = useState(businessDate ?? "");
+  const [dateReason, setDateReason] = useState("");
+  const [outletTo, setOutletTo] = useState("");
+  const [outletTable, setOutletTable] = useState<string | null>(null);
+  const [outletReason, setOutletReason] = useState("");
   const [scWanted, setScWanted] = useState<boolean>(adjust?.scOn ?? false);
   const [fixPay, setFixPay] = useState(paymentList.find((p) => !p.rounded)?.id ?? "");
   const [fixTo, setFixTo] = useState("");
@@ -468,6 +490,7 @@ export function BillActions({
                     <div className="px-2 py-1 text-center text-[11px] font-bold text-white" style={{ background: "#B8960C" }}>
                       KOT round {i + 1}
                       {g.at ? ` · ${new Date(g.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
+                      {serverName ? ` · ${serverName}` : ""}
                     </div>
                     {g.items.map((l) => (
                       <div key={l.id} className="flex items-center justify-between gap-2 px-2 py-1" style={{ borderTop: "1px solid var(--color-line)" }}>
@@ -537,6 +560,12 @@ export function BillActions({
             {showAdjust && !adjust?.senior && (
               <PanelButton label="Complimentary / staff meal" active={panel === "comp"} onClick={() => setPanel(panel === "comp" ? null : "comp")} />
             )}
+            {canVoid && !hasPayments && (
+              <PanelButton label="KOT date transfer" active={panel === "date"} onClick={() => setPanel(panel === "date" ? null : "date")} />
+            )}
+            {canVoid && !hasPayments && outlets.length > 1 && (
+              <PanelButton label="Move to another outlet" active={panel === "outlet"} onClick={() => setPanel(panel === "outlet" ? null : "outlet")} />
+            )}
             </>)}
           </div>
 
@@ -548,7 +577,7 @@ export function BillActions({
 
           <PanelFrame
             modal={embedded && panel !== null}
-            title={panel === "itemdisc" ? "Item / category discount" : panel === "comp" ? "Complimentary / staff meal" : panel === "adjust" ? "Discount" : panel === "split" ? "Split bill" : panel === "move" ? "Move table" : panel === "moveItem" ? "Move item" : "Merge bills"}
+            title={panel === "date" ? "KOT date transfer" : panel === "outlet" ? "Move to another outlet" : panel === "itemdisc" ? "Item / category discount" : panel === "comp" ? "Complimentary / staff meal" : panel === "adjust" ? "Discount" : panel === "split" ? "Split bill" : panel === "move" ? "Move table" : panel === "moveItem" ? "Move item" : "Merge bills"}
             error={error}
             notice={notice}
             onClose={() => setPanel(null)}
@@ -626,7 +655,97 @@ export function BillActions({
             </div>
           )}
 
-          {panel === "comp" && (
+          {panel === "date" && (
+            <div className="mt-3 space-y-2 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
+              <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+                The bill counts towards another business day. Only an unpaid bill, only a day that is not closed, and only within
+                seven days of {businessDate ?? "its day"}. The bill number does not change.
+              </p>
+              <label className="block text-xs font-semibold" htmlFor="kotdate">New business date</label>
+              <input id="kotdate" type="date" className="field h-10 w-full text-sm" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <input className="field h-10 w-full text-sm" placeholder="Reason" aria-label="Reason" maxLength={200} value={dateReason} onChange={(e) => setDateReason(e.target.value)} />
+              <button
+                className="btn btn-primary mt-1 w-full text-sm"
+                disabled={pending || !dateTo || dateTo === businessDate || dateReason.trim().length < 3}
+                onClick={() => run(() => kotDateTransfer({ orderId, date: dateTo, reason: dateReason }), () => setDateReason(""))}
+              >
+                {pending ? "Moving…" : "Move this bill to that day"}
+              </button>
+            </div>
+          )}
+
+          {panel === "outlet" && (
+            <div className="mt-3 space-y-2 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
+              <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+                An unpaid bill moves to another outlet, onto a free table there or to its counter. The bill keeps its number, so it
+                stays in the series of the outlet that opened it.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {outlets.filter((o) => o.id !== branchId).map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => { setOutletTo(o.id); setOutletTable(null); }}
+                    className="rounded-md border px-2.5 py-1 text-xs font-semibold"
+                    style={{ borderColor: outletTo === o.id ? "var(--color-brand)" : "var(--color-line)", background: outletTo === o.id ? "var(--color-brand)" : "transparent", color: outletTo === o.id ? "#fff" : "var(--color-ink-2)" }}
+                  >
+                    {o.name}
+                  </button>
+                ))}
+              </div>
+              {outletTo && (
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setOutletTable(null)}
+                    className="rounded-md border px-2.5 py-1 text-xs font-semibold"
+                    style={{ borderColor: outletTable === null ? "var(--color-brand)" : "var(--color-line)", background: outletTable === null ? "var(--color-brand)" : "transparent", color: outletTable === null ? "#fff" : "var(--color-ink-2)" }}
+                  >
+                    Counter
+                  </button>
+                  {outletTables.filter((t) => t.branchId === outletTo).map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      disabled={t.busy}
+                      onClick={() => setOutletTable(t.id)}
+                      className="rounded-md border px-2.5 py-1 text-xs font-semibold disabled:opacity-40"
+                      style={{ borderColor: outletTable === t.id ? "var(--color-brand)" : "var(--color-line)", background: outletTable === t.id ? "var(--color-brand)" : "transparent", color: outletTable === t.id ? "#fff" : "var(--color-ink-2)" }}
+                    >
+                      T{t.number}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <input className="field h-10 w-full text-sm" placeholder="Reason" aria-label="Reason" maxLength={200} value={outletReason} onChange={(e) => setOutletReason(e.target.value)} />
+              <button
+                className="btn btn-primary mt-1 w-full text-sm"
+                disabled={pending || !outletTo || outletReason.trim().length < 3}
+                onClick={() => run(() => outletTransfer({ orderId, branchId: outletTo, tableId: outletTable, reason: outletReason }), () => setOutletReason(""))}
+              >
+                {pending ? "Moving…" : "Move this bill to that outlet"}
+              </button>
+            </div>
+          )}
+
+          {panel === "comp" && compNow && (
+            <div className="mt-3 space-y-2 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
+              <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+                This bill is already {compNow === "complimentary" ? "complimentary" : "a staff meal"}. Charging it again puts the
+                items back at their prices, so the guest pays. A manager approves it.
+              </p>
+              <input className="field h-10 w-full text-sm" placeholder="Reason" aria-label="Reason" maxLength={200} value={unCompReason} onChange={(e) => setUnCompReason(e.target.value)} />
+              <button
+                className="btn btn-primary mt-1 w-full text-sm"
+                disabled={pending || unCompReason.trim().length < 3}
+                onClick={() => run(() => undoComplimentary({ orderId, reason: unCompReason }), () => setUnCompReason(""))}
+              >
+                {pending ? "Saving…" : "Charge this bill again"}
+              </button>
+            </div>
+          )}
+
+          {panel === "comp" && !compNow && (
             <div className="mt-3 space-y-2 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
               <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
                 The whole bill ({m(grandTotal)}) is taken off and the bill closes at 0.00. It shows on the reports as{" "}

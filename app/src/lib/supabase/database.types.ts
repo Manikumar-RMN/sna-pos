@@ -8237,6 +8237,15 @@ export type Database = {
         Args: { p_customer: string; p_reason: string }
         Returns: undefined
       }
+      undo_complimentary: { Args: { p_order_id: string; p_reason: string }; Returns: Json }
+      kot_date_transfer: {
+        Args: { p_business_date: string; p_order_id: string; p_reason: string }
+        Returns: Json
+      }
+      order_outlet_transfer: {
+        Args: { p_branch_id: string; p_order_id: string; p_reason: string; p_table_id: string | null }
+        Returns: Json
+      }
       kot_cancel: { Args: { p_reason: string; p_ticket_id: string }; Returns: Json }
       kot_cancel_item: {
         Args: { p_qty: number; p_reason: string; p_ticket_item_id: string }

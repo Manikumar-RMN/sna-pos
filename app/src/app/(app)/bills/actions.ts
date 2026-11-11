@@ -386,3 +386,42 @@ export async function removePointsDiscount(orderId: string): Promise<ActionResul
   refresh(orderId);
   return { ok: true, message: "Points taken off the bill and given back to the guest." };
 }
+
+/** Winsar "NoCharge KOT to KOT": take the complimentary / staff-meal mark off an unpaid bill so it is charged again. */
+export async function undoComplimentary(input: { orderId: string; reason: string }): Promise<ActionResult> {
+  const reason = input.reason.trim();
+  if (reason.length < 3) return { ok: false, error: "Write a short reason for charging this bill again." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("undo_complimentary", { p_order_id: input.orderId, p_reason: reason.slice(0, 200) });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  refresh(input.orderId);
+  return { ok: true, message: "The no-charge mark is off. The bill is charged again." };
+}
+
+/** Winsar "KOT Date Transfer": the bill counts towards another business day (unpaid bills, open days, within seven days). */
+export async function kotDateTransfer(input: { orderId: string; date: string; reason: string }): Promise<ActionResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) return { ok: false, error: "Choose the date." };
+  const reason = input.reason.trim();
+  if (reason.length < 3) return { ok: false, error: "Write a short reason for the date change." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("kot_date_transfer", { p_order_id: input.orderId, p_business_date: input.date, p_reason: reason.slice(0, 200) });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  refresh(input.orderId);
+  return { ok: true, message: `The bill now counts towards ${input.date}.` };
+}
+
+/** Winsar "KOT Table Transfer other outlet": an unpaid bill moves to another outlet, onto a free table there or its counter. */
+export async function outletTransfer(input: { orderId: string; branchId: string; tableId: string | null; reason: string }): Promise<ActionResult> {
+  const reason = input.reason.trim();
+  if (reason.length < 3) return { ok: false, error: "Write a short reason for the outlet change." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("order_outlet_transfer", {
+    p_order_id: input.orderId,
+    p_branch_id: input.branchId,
+    p_table_id: input.tableId,
+    p_reason: reason.slice(0, 200),
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  refresh(input.orderId);
+  return { ok: true, message: "The bill moved to the other outlet." };
+}

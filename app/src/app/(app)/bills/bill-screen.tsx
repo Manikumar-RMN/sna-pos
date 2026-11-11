@@ -123,6 +123,18 @@ export async function BillScreen({
 
   const busyTables = new Set((openBills ?? []).map((o) => o.dining_table_id).filter(Boolean));
 
+  // Winsar "KOT Table Transfer other outlet": the outlets of this restaurant and their tables, for an unpaid bill.
+  const canTransfer = open && !bill.dayClosed && can(user, "order.void") && bill.paidTotal === 0;
+  const [{ data: outletRows }, { data: allTables }] = canTransfer
+    ? await Promise.all([
+        supabase.from("branches").select("id, name").eq("is_active", true).order("name"),
+        supabase.from("dining_tables").select("id, table_number, branch_id").eq("is_active", true).eq("is_kiosk", false).order("table_number"),
+      ])
+    : [{ data: null }, { data: null }];
+  const { data: ordRow } = await supabase.from("orders").select("branch_id, waiter_id, cashier_id").eq("id", bill.id).maybeSingle();
+  const serverId = ordRow?.waiter_id ?? ordRow?.cashier_id ?? null;
+  const { data: serverRow } = serverId ? await supabase.from("users").select("full_name").eq("id", serverId).maybeSingle() : { data: null };
+
   return (
     <div>
       {offlineNotes.length > 0 && (
@@ -278,6 +290,12 @@ export async function BillScreen({
         hasPayments={r.payments.length > 0}
         tableId={bill.tableId}
         tables={[...(tables ?? [])].sort(byTableNumber).map((t) => ({ id: t.id, number: t.table_number, busy: busyTables.has(t.id) }))}
+        compNow={r.comp?.kind ?? null}
+        businessDate={bill.businessDate}
+        branchId={ordRow?.branch_id ?? null}
+        outlets={(outletRows ?? []).map((b) => ({ id: b.id, name: b.name }))}
+        outletTables={(allTables ?? []).map((t) => ({ id: t.id, number: t.table_number, branchId: t.branch_id, busy: busyTables.has(t.id) }))}
+        serverName={serverRow?.full_name ?? null}
         otherBills={(openBills ?? []).map((o) => ({
           id: o.id,
           billNumber: o.bill_number,
