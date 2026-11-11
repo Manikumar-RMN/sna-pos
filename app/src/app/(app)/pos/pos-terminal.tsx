@@ -362,6 +362,8 @@ export function PosTerminal({
   const [ncReason, setNcReason] = useState("");
   // Winsar "Open +": a new dish made on the spot in the group being shown.
   const [quickOpen, setQuickOpen] = useState(false);
+  /** Winsar "Open list": only the open-price dishes of the group being shown. */
+  const [openOnly, setOpenOnly] = useState(false);
   const [quickName, setQuickName] = useState("");
   const [quickPrice, setQuickPrice] = useState("");
   const [quickErr, setQuickErr] = useState<string | null>(null);
@@ -529,6 +531,7 @@ export function PosTerminal({
       if (q) return x.name.toLowerCase().includes(q) || (x.short_name ?? "").toLowerCase().includes(q);
       if (activeTab === null) return true;
       const main = categoryParents[x.category_id]?.id ?? x.category_id;
+      if (openOnly && !x.is_open_price) return false;
       return main === activeTab && (activeSub === null || x.category_id === activeSub);
     });
     const groups: { id: string; name: string; items: MenuItem[] }[] = [];
@@ -544,7 +547,7 @@ export function PosTerminal({
       g.items.push(x);
     }
     return groups;
-  }, [brandMenu, search, activeTab, activeSub, packingId, categoryParents]);
+  }, [brandMenu, search, activeTab, activeSub, packingId, categoryParents, openOnly]);
 
   /** Items in the cart; a weighed line counts as one. */
   const itemCount = lines.reduce((s, l) => s + (l.item.byWeight ? 1 : l.qty), 0);
@@ -1278,8 +1281,8 @@ export function PosTerminal({
   }
 
   return (
-    <div className={inline ? "grid gap-3 sm:grid-cols-[270px_minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]" : "grid gap-4 lg:grid-cols-[1fr_360px]"}>
-      <div>
+    <div className={inline ? `grid gap-3 sm:grid-cols-[270px_minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]${tableOrder ? " pb-16 sm:h-[calc(100dvh-8.5rem)] sm:overflow-hidden" : ""}` : "grid gap-4 lg:grid-cols-[1fr_360px]"}>
+      <div className={tableOrder ? "min-h-0 overflow-y-auto pr-1" : undefined}>
         <div className="mb-3 flex flex-wrap items-center gap-x-3">
           <h1 className={inline ? "text-base font-bold tracking-tight" : "text-xl font-bold tracking-tight"}>
             {addTo ? `${addTo.table ? `Table ${addTo.table}: add items to bill` : "Add items to bill"} ${addTo.billNumber}` : lockedTable ? (inline ? `Table : ${lockedTable.number}  ·  Cover : ${coversNum ?? 0}${ncKot ? "  ·  NC KOT" : ""}` : `Table ${lockedTable.number}: new order`) : deskKey ? "Counter: new order" : "Billing"}
@@ -1557,8 +1560,8 @@ export function PosTerminal({
         </button>
       )}
 
-      <div id="cart" className={inline ? "scroll-mt-4 pb-20 sm:order-first sm:sticky sm:top-2 sm:self-start sm:pb-0" : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
-        <div className="card flex max-h-[calc(100vh-2rem)] flex-col">
+      <div id="cart" className={inline ? (tableOrder ? "min-h-0 scroll-mt-4 sm:order-first" : "scroll-mt-4 pb-20 sm:order-first sm:sticky sm:top-2 sm:self-start sm:pb-0") : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
+        <div className={`card flex flex-col ${tableOrder ? "h-full" : "max-h-[calc(100vh-2rem)]"}`}>
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
             <div className="text-sm font-bold">{addTo ? "Items to add" : "Current bill"}</div>
             {addTo ? (
@@ -2188,7 +2191,7 @@ export function PosTerminal({
                 </p>
               )}
 
-              <div className="mt-3 flex gap-2">
+              <div className={`mt-3 flex gap-2${tableOrder ? " hidden" : ""}`}>
                 <button onClick={clearAll} disabled={pending || lines.length === 0 || !!saved} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                   Clear
                 </button>
@@ -2249,6 +2252,42 @@ export function PosTerminal({
           )}
         </div>
       </div>
+
+      {tableOrder && (
+        <div
+          className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-1.5 border-t px-2 py-2"
+          style={{ background: "var(--color-surface)", borderColor: "var(--color-line)" }}
+          role="group"
+          aria-label="Order buttons"
+        >
+          <WinBtn tone="#E8590C" onClick={() => { setOpenOnly(false); document.querySelector<HTMLInputElement>('input[placeholder^="Search the menu"]')?.focus(); }}>
+            Direct
+          </WinBtn>
+          <WinBtn tone="#E8590C" disabled={!canOpenPrice} title={canOpenPrice ? "Make a new dish in the group being shown" : "Needs the open-price right"} onClick={() => { setQuickErr(null); setQuickOpen(true); }}>
+            Open +
+          </WinBtn>
+          <WinBtn tone={openOnly ? "#5F3DC4" : "#E8590C"} onClick={() => setOpenOnly((v) => !v)} title="Show only the open-price dishes of this group">
+            Open list
+          </WinBtn>
+          <WinBtn tone="#E8590C" disabled={!addTo || repeating || pending || !!saved} title={addTo ? "Put the items of the last kitchen round back in the list" : "Only on a table that already has a round"} onClick={repeatLastRound}>
+            {repeating ? "…" : "Repeat"}
+          </WinBtn>
+          <span className="flex-1" />
+          <WinBtn tone="#1D4F9F" disabled={!deskTableId} title={deskTableId ? "Open the bill of this table" : "The bill opens once the first KOT is saved"} onClick={() => deskTableId && router.push("/pos")}>
+            Check ✓
+          </WinBtn>
+          <WinBtn
+            tone="#2E7D32"
+            disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved || lines.length === 0}
+            onClick={() => submit("unpaid")}
+          >
+            {pending ? "Saving…" : "Save Kot"}
+          </WinBtn>
+          <WinBtn tone="#6B7280" disabled={pending} onClick={() => router.push("/pos")}>
+            ‹ Back
+          </WinBtn>
+        </div>
+      )}
 
       {quickOpen && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-label="Open item creation">
@@ -2871,5 +2910,21 @@ function TopSellers({ ids, menu, onTap }: { ids: string[]; menu: MenuItem[]; onT
         ))}
       </div>
     </section>
+  );
+}
+
+/** One button on the Winsar-style bar at the foot of the order screen: small, solid colour, white letters. */
+function WinBtn({ children, tone, onClick, disabled = false, title }: { children: React.ReactNode; tone: string; onClick: () => void; disabled?: boolean; title?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className="min-h-10 shrink-0 rounded-md px-3 text-xs font-bold text-white disabled:opacity-40"
+      style={{ background: tone }}
+    >
+      {children}
+    </button>
   );
 }
