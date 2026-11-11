@@ -132,6 +132,7 @@ export function BillActions({
   const [confirm, setConfirm] = useState<null | "void" | "refund" | "cancel">(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [checkOpen, setCheckOpen] = useState(false);
+  const [autoN, setAutoN] = useState(2);
   const [win, setWin] = useState<null | "pay" | "cancel" | "void" | "fix" | "refund" | "reopen">(null);
   const [showKots, setShowKots] = useState(false);
   const [moveTo, setMoveTo] = useState("");
@@ -839,6 +840,52 @@ export function BillActions({
                   >
                     {pending ? "Splitting…" : `Move ${splitCount || ""} to a new bill`}
                   </button>
+                  <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
+                    <div className="mb-1 text-xs font-bold">Auto split</div>
+                    <p className="mb-2 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                      Shares the items one by one into this many bills (by number of items, not by amount). Tax and totals are worked out again for each bill.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {[2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setAutoN(n)}
+                          className="h-9 w-9 rounded-md border text-sm font-semibold"
+                          style={{ borderColor: autoN === n ? "var(--color-brand)" : "var(--color-line)", background: autoN === n ? "var(--color-brand)" : "transparent", color: autoN === n ? "#fff" : "var(--color-ink-2)" }}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                      <button
+                        className="btn btn-primary flex-1 text-sm"
+                        disabled={pending || lines.reduce((s, l) => s + l.qty, 0) < autoN}
+                        onClick={() => {
+                          setError(null);
+                          // Every unit goes to bill (i mod N). Bill 0 stays on this bill; the others are split off one after another.
+                          const bills: Record<string, number>[] = Array.from({ length: autoN }, () => ({}));
+                          let i = 0;
+                          for (const l of lines) for (let u = 0; u < l.qty; u++, i++) bills[i % autoN][l.id] = (bills[i % autoN][l.id] ?? 0) + 1;
+                          start(async () => {
+                            for (let b = 1; b < autoN; b++) {
+                              const items = Object.entries(bills[b]).map(([order_item_id, qty]) => ({ order_item_id, qty }));
+                              if (items.length === 0) continue;
+                              try {
+                                const res = await splitBill({ orderId, items, clientRef: crypto.randomUUID() });
+                                if (!res.ok) return setError(`${res.error} (${b - 1} of ${autoN - 1} bills were made; the rest are still on this bill.)`);
+                              } catch {
+                                return setError("The internet dropped while splitting. Look at the open bills before you press again.");
+                              }
+                            }
+                            router.push(embedded ? `/pos?bill=${orderId}` : `/bills/${orderId}`);
+                            router.refresh();
+                          });
+                        }}
+                      >
+                        {pending ? "Splitting…" : `Split into ${autoN} bills`}
+                      </button>
+                    </div>
+                  </div>
                 </>
               )}
             </div>

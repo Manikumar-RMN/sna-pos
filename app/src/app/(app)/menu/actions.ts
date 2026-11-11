@@ -548,3 +548,41 @@ export async function importMenu(
     unchangedItems: v.unchanged_items ?? 0,
   };
 }
+
+/**
+ * "Open +" on the order screen (Winsar): make a new dish on the spot, in the group being shown. It is a normal menu dish from then on
+ * (same tax group as its neighbours, no kitchen station). Needs the menu or open-price right; Row Level Security still guards the rows.
+ */
+export async function createQuickDish(input: { name: string; price: number; categoryId: string }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+  if (!can(user, "menu.manage") && !can(user, "order.open_price")) return { ok: false, error: "You do not have permission to make a new dish." };
+  const name = input.name.trim().slice(0, 60);
+  if (name.length < 2) return { ok: false, error: "Write the dish name." };
+  if (!(input.price >= 0) || input.price > 1_000_000) return { ok: false, error: "Enter the price." };
+  if (!/^[0-9a-f-]{36}$/i.test(input.categoryId)) return { ok: false, error: "Choose a group first." };
+  const supabase = await createClient();
+  // The category itself, or (a main category) its first sub-category that already has dishes: a dish is kept in the one that sells it.
+  const { data: kids } = await supabase.from("categories").select("id").eq("parent_id", input.categoryId);
+  const candidates = [input.categoryId, ...(kids ?? []).map((k) => k.id)];
+  let target: string | null = null;
+  let taxGroup: string | null = null;
+  for (const cid of [...candidates.slice(1), candidates[0]]) {
+    const { data: p } = await supabase.from("products").select("tax_group_id").eq("category_id", cid).is("deleted_at", null).limit(1).maybeSingle();
+    if (p?.tax_group_id) {
+      target = cid;
+      taxGroup = p.tax_group_id;
+      break;
+    }
+  }
+  if (!target || !taxGroup) return { ok: false, error: "This group has no dish yet to copy the tax from. Add the first dish in Settings → Menu." };
+  const { data, error } = await supabase
+    .from("products")
+    .insert({ restaurant_id: user.restaurant_id, category_id: target, tax_group_id: taxGroup, name, price: Math.round(input.price * 100) / 100 })
+    .select("id")
+    .single();
+  if (error || !data) return { ok: false, error: /duplicate|unique/i.test(error?.message ?? "") ? `${name} already exists.` : friendlyDbError(error ?? { message: "failed" }) };
+  revalidatePath("/pos");
+  revalidatePath("/settings/menu");
+  return { ok: true, id: data.id };
+}

@@ -10,6 +10,7 @@ import { addToBill, getOfflineSnapshot, placeOrder, quoteOrder, stockWarnings, t
 import { customerFavourites, findCustomer, type GuestFavourites, type RegularGuest } from "../bills/actions";
 import { regularChipText } from "../bills/loyalty-math";
 import { loadLastRound } from "./repeat-round";
+import { createQuickDish } from "../menu/actions";
 import { mapRoundToMenu } from "@/lib/repeat-round";
 import { coversError, deskCarryUsable, needsInternetText, openPriceError, openPriceValue, parseCovers } from "@/lib/order-desk";
 import { cashDue, deviceKey, offlineQuote, readQueue, readSnapshot, saveSnapshot, takeNumber, writeQueue, type OfflineBill, type Snapshot } from "@/lib/offline";
@@ -355,6 +356,12 @@ export function PosTerminal({
   // Winsar flow: tapping a free table opens a cover keypad first (1-9, 0, 00, Back / Next).
   const [coverKeypad, setCoverKeypad] = useState(askCovers && inline && !!lockedTable);
   const [keypadText, setKeypadText] = useState("");
+  // Winsar "Open +": a new dish made on the spot in the group being shown.
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickName, setQuickName] = useState("");
+  const [quickPrice, setQuickPrice] = useState("");
+  const [quickErr, setQuickErr] = useState<string | null>(null);
+  const [quickBusy, setQuickBusy] = useState(false);
   // Open-priced dish: the price box, and the price chosen while its options are being picked.
   const [pricing, setPricing] = useState<MenuItem | null>(null);
   const [pickPrice, setPickPrice] = useState<number | null>(null);
@@ -1385,6 +1392,13 @@ export function PosTerminal({
             })}
           </div>
         )}
+        {inline && canOpenPrice && !addTo && (
+          <div className="mb-2 flex justify-end">
+            <button type="button" className="rounded-md px-3 py-1 text-xs font-bold text-white" style={{ background: "#E8590C" }} onClick={() => { setQuickErr(null); setQuickOpen(true); }}>
+              Open +
+            </button>
+          </div>
+        )}
         {(tabs.length > 1 || Object.keys(categoryParents).length > 0) && (
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Menu categories">
             {[...(inline && tabs.length > 1 ? [] : [{ id: null as string | null, name: "All" }]), ...tabs].map((c) => {
@@ -2221,6 +2235,50 @@ export function PosTerminal({
           )}
         </div>
       </div>
+
+      {quickOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-label="Open item creation">
+          <div className="w-full max-w-sm rounded-xl p-4" style={{ background: "var(--color-surface)" }}>
+            <div className="mb-3 text-center text-sm font-bold" style={{ color: "#6D28D9" }}>Open Item Creation</div>
+            <p className="mb-2 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+              Group: {(subTabs.find((c) => c.id === activeSub)?.name ?? tabs.find((c) => c.id === activeTab)?.name) || "choose a group first"}. The dish is saved on the menu with the same tax as the other dishes in the group.
+            </p>
+            <label className="text-xs font-semibold" htmlFor="qd-name">Open item name</label>
+            <input id="qd-name" className="field mb-2 h-10 w-full text-sm" value={quickName} maxLength={60} onChange={(e) => setQuickName(e.target.value)} />
+            <label className="text-xs font-semibold" htmlFor="qd-rate">Sale rate</label>
+            <input id="qd-rate" className="field mb-2 h-10 w-full text-sm" inputMode="decimal" value={quickPrice} onChange={(e) => setQuickPrice(e.target.value.replace(/[^0-9.]/g, ""))} />
+            {quickErr && <p className="mb-2 text-xs" style={{ color: "var(--color-bad)" }}>{quickErr}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn border px-4 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setQuickOpen(false)}>Back</button>
+              <button
+                type="button"
+                className="btn btn-primary px-6 text-sm"
+                disabled={quickBusy || quickName.trim().length < 2 || !(Number(quickPrice) >= 0) || quickPrice === ""}
+                onClick={async () => {
+                  const cat = activeSub ?? activeTab;
+                  if (!cat) return setQuickErr("Choose a group first.");
+                  setQuickBusy(true);
+                  setQuickErr(null);
+                  try {
+                    const res = await createQuickDish({ name: quickName, price: Number(quickPrice), categoryId: cat });
+                    if (!res.ok) return setQuickErr(res.error);
+                    setQuickOpen(false);
+                    setQuickName("");
+                    setQuickPrice("");
+                    router.refresh();
+                  } catch {
+                    setQuickErr("Could not save. Check the internet and try again.");
+                  } finally {
+                    setQuickBusy(false);
+                  }
+                }}
+              >
+                {quickBusy ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {coverKeypad && lockedTable && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-label="Order details">
