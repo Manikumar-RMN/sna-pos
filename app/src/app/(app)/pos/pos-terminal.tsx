@@ -2199,7 +2199,7 @@ export function PosTerminal({
                   <button
                     onClick={() => submit("unpaid")}
                     disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved}
-                    className="btn btn-primary flex-1 whitespace-nowrap text-base"
+                    className="btn btn-primary min-w-0 flex-1 whitespace-nowrap px-2 text-sm"
                     title={tableOrder ? "Send the order to the kitchen and print the KOT. The bill stays open on the table; settle it from the bill." : "Send the order to the kitchen and print the KOT. The cashier takes the payment later."}
                   >
                     {pending ? "Saving…" : tableOrder ? "Save KOT" : "KOT"}
@@ -2208,7 +2208,7 @@ export function PosTerminal({
                     <button
                       onClick={() => router.push("/pos")}
                       disabled={pending}
-                      className="btn border px-4 text-sm"
+                      className="btn border shrink-0 px-3 text-sm"
                       style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}
                     >
                       Back
