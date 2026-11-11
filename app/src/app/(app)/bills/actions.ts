@@ -234,6 +234,17 @@ export async function voidBill(input: { orderId: string; reason: string }): Prom
   return { ok: true, message: "Bill voided." };
 }
 
+/** Cancel settlement: a paid bill goes back to unpaid so it can be settled again. Manager right; the database checks every rule. */
+export async function reopenBill(input: { orderId: string; reason: string }): Promise<ActionResult> {
+  const reason = input.reason.trim();
+  if (reason.length < 3) return { ok: false, error: "Write a short reason for cancelling the settlement." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reopen_order", { p_order_id: input.orderId, p_reason: reason });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  refresh(input.orderId);
+  return { ok: true, message: "Settlement cancelled. The bill is open again." };
+}
+
 /** Makes the private e-bill link (once) and returns it with the customer's phone if the bill has one. */
 export async function shareBillLink(orderId: string) {
   const supabase = await createClient();

@@ -14,7 +14,7 @@ import { needsInternetText } from "@/lib/order-desk";
 import { MoveItemPanel } from "./move-item-panel";
 import { TipField } from "./tip-field";
 import { tipError, tipForRequest } from "./tip";
-import { adjustBill, makeComplimentary, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
+import { reopenBill, adjustBill, makeComplimentary, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
 
 type Method = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type PaymentRow = { id: string; methodId: string; methodName: string; amount: number; rounded: boolean };
@@ -124,9 +124,10 @@ export function BillActions({
   const [refundAmt, setRefundAmt] = useState("");
   const [refundReason, setRefundReason] = useState("");
   const [voidReason, setVoidReason] = useState("");
+  const [reopenReason, setReopenReason] = useState("");
   const [confirm, setConfirm] = useState<null | "void" | "refund" | "cancel">(null);
   const [panel, setPanel] = useState<Panel>(null);
-  const [win, setWin] = useState<null | "pay" | "cancel" | "void" | "fix" | "refund">(null);
+  const [win, setWin] = useState<null | "pay" | "cancel" | "void" | "fix" | "refund" | "reopen">(null);
   const [showKots, setShowKots] = useState(false);
   const [moveTo, setMoveTo] = useState("");
   const [mergeFrom, setMergeFrom] = useState("");
@@ -171,6 +172,7 @@ export function BillActions({
   const fixRow = fixable.find((p) => p.id === fixPay) ?? fixable[0];
   const canAsk = canPay; // a cashier can ask a manager to approve with their PIN
   const showRefund = (canRefund || canAsk) && (state === "paid" || state === "part-refunded") && remaining > 0;
+  const showReopen = (canVoid || canAsk) && (state === "paid" || state === "part-paid") && refunded === 0 && !dayClosed;
   const showVoid = (canVoid || canAsk) && state !== "voided" && refunded === 0 && !dayClosed;
   const cancelLine = lines.find((l) => l.id === cancelId) ?? lines[0];
   const splitCount = Object.values(splitQty).reduce((s, q) => s + q, 0);
@@ -214,6 +216,7 @@ export function BillActions({
       setPanel(null);
       setWin(null);
       setVoidReason("");
+      setReopenReason("");
       setRefundReason("");
       setRefundAmt("");
       setTendered("");
@@ -278,6 +281,12 @@ export function BillActions({
         </button>
       )}
       {canKots && showKots && <KotSheet orderId={orderId} billNumber={billNumber} onClose={() => setShowKots(false)} onChanged={() => router.refresh()} />}
+
+      {embedded && !showPay && showReopen && (
+        <button type="button" className="btn w-full border text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setWin("reopen")}>
+          Cancel settlement…
+        </button>
+      )}
 
       {embedded && !showPay && (showFix || showRefund) && (
         <div className="grid grid-cols-2 gap-2">
@@ -1056,6 +1065,25 @@ export function BillActions({
             </button>
           )}
         </section>
+        </PanelFrame>
+      )}
+      {showReopen && (!embedded || win === "reopen") && (
+        <PanelFrame modal={embedded} title="Cancel settlement" error={error} notice={notice} onClose={() => setWin(null)}>
+          <section className="card p-4">
+            <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+              The payment is taken off and the bill is open again, so it can be settled again (for example with the right payment mode). Recorded with your name and reason.
+              Only for bills paid by cash, UPI or card in the shift that is still open. After that, void the bill or use a credit note.
+            </p>
+            <input className="field mt-3 h-10 min-w-0 text-sm" placeholder="Reason (required)" value={reopenReason} onChange={(e) => setReopenReason(e.target.value)} />
+            <button
+              className="btn mt-3 w-full text-sm text-white"
+              style={{ background: "var(--color-bad)" }}
+              disabled={pending || reopenReason.trim().length < 3}
+              onClick={() => run(() => reopenBill({ orderId, reason: reopenReason }))}
+            >
+              {pending ? "Saving…" : "Cancel settlement"}
+            </button>
+          </section>
         </PanelFrame>
       )}
     </div>
