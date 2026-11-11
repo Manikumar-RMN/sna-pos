@@ -18,7 +18,7 @@ import { reopenBill, adjustBill, setItemDiscount, setCategoryDiscount, setBillNo
 
 type Method = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type PaymentRow = { id: string; methodId: string; methodName: string; amount: number; rounded: boolean };
-type Line = { id: string; name: string; options: string | null; qty: number; amount: number };
+type Line = { id: string; name: string; options: string | null; qty: number; amount: number; at?: string };
 type TableOpt = { id: string; number: string; busy: boolean };
 type OtherBill = { id: string; billNumber: string; total: number; table: string | null; mergeable: boolean };
 type DiscTools = { categories: { id: string; name: string }[]; itemDisc: Record<string, { kind: "percent" | "amount"; value: number }>; noTax: boolean; noTaxAllowed: boolean };
@@ -131,6 +131,7 @@ export function BillActions({
   const [reopenReason, setReopenReason] = useState("");
   const [confirm, setConfirm] = useState<null | "void" | "refund" | "cancel">(null);
   const [panel, setPanel] = useState<Panel>(null);
+  const [checkOpen, setCheckOpen] = useState(false);
   const [win, setWin] = useState<null | "pay" | "cancel" | "void" | "fix" | "refund" | "reopen">(null);
   const [showKots, setShowKots] = useState(false);
   const [moveTo, setMoveTo] = useState("");
@@ -449,7 +450,39 @@ export function BillActions({
 
       {showPay && (
         <section className="card p-4">
-          <h2 className="text-sm font-bold">Table &amp; items</h2>
+          <h2 className="text-sm font-bold">{embedded ? "Order so far" : "Table & items"}</h2>
+
+          {embedded && lines.length > 0 && lines.some((l) => l.at) && (
+            <div className="mt-2 overflow-hidden rounded-lg border text-sm" style={{ borderColor: "var(--color-line)" }}>
+              {(() => {
+                const groups: { key: string; at: string; items: Line[] }[] = [];
+                for (const l of lines) {
+                  const k = (l.at ?? "").slice(0, 19);
+                  const g = groups[groups.length - 1];
+                  if (g && g.key === k) g.items.push(l);
+                  else groups.push({ key: k, at: l.at ?? "", items: [l] });
+                }
+                return groups.map((g, i) => (
+                  <div key={g.key + i}>
+                    <div className="px-2 py-1 text-center text-[11px] font-bold text-white" style={{ background: "#B8960C" }}>
+                      KOT round {i + 1}
+                      {g.at ? ` · ${new Date(g.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
+                    </div>
+                    {g.items.map((l) => (
+                      <div key={l.id} className="flex items-center justify-between gap-2 px-2 py-1" style={{ borderTop: "1px solid var(--color-line)" }}>
+                        <span className="min-w-0 flex-1 truncate">
+                          {l.name}
+                          {l.options ? <span style={{ color: "var(--color-ink-3)" }}> · {l.options}</span> : null}
+                        </span>
+                        <span className="w-8 text-center">{l.qty}</span>
+                        <span className="w-16 text-right">{m(l.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
 
           <div className="mt-3 grid grid-cols-2 gap-2">
             {embedded ? (
@@ -472,6 +505,10 @@ export function BillActions({
                 Settle · {m(balance)}
               </button>
             )}
+            {embedded && (
+              <PanelButton label={checkOpen ? "Check ▲" : "Check ▼"} active={checkOpen} onClick={() => setCheckOpen((v) => !v)} />
+            )}
+            {(!embedded || checkOpen) && (<>
             <PanelButton label="Split bill" active={panel === "split"} onClick={() => setPanel(panel === "split" ? null : "split")} />
             <PanelButton label="Move table" active={panel === "move"} onClick={() => setPanel(panel === "move" ? null : "move")} />
             <PanelButton
@@ -499,6 +536,7 @@ export function BillActions({
             {showAdjust && !adjust?.senior && (
               <PanelButton label="Complimentary / staff meal" active={panel === "comp"} onClick={() => setPanel(panel === "comp" ? null : "comp")} />
             )}
+            </>)}
           </div>
 
           {!online && (

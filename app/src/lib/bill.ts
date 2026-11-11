@@ -34,7 +34,7 @@ export type BillDetail = {
   /** Still to pay (unpaid / part-paid bills). */
   balance: number;
   /** Items still on the bill, for cancel / split. */
-  lines: { id: string; name: string; options: string | null; qty: number; amount: number; /** The dish was marked "no discount" when it was ordered (order_items.discount_blocked). */ blocked: boolean }[];
+  lines: { id: string; name: string; options: string | null; qty: number; amount: number; /** When the dish was sent (one KOT round shares a time). */ at: string; /** The dish was marked "no discount" when it was ordered (order_items.discount_blocked). */ blocked: boolean }[];
   cancelled: { name: string; qty: number; reason: string | null }[];
   tableId: string | null;
   hasDiscount: boolean;
@@ -252,6 +252,7 @@ export async function getBill(orderId: string): Promise<BillDetail | null> {
       options: it.options_text,
       qty: Number(it.quantity),
       amount: Number(it.line_subtotal),
+      at: it.created_at,
       blocked: !!it.discount_blocked,
     })),
     cancelled: (items.data ?? [])
