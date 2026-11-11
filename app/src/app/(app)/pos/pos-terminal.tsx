@@ -1910,7 +1910,7 @@ export function PosTerminal({
                 </p>
               )}
               {error && !saved && <ErrorBox text={error} />}
-              {saved && <SavedBox text="Added and sent to the kitchen. Printing the KOT…" slow={savedSlow} onOpen={() => router.push(saved)} />}
+              {saved && <SavedBox text="Added and sent to the kitchen. Printing the KOT…" quiet={inline} slow={savedSlow} onOpen={() => router.push(saved)} />}
               <div className="mt-3 flex gap-2">
                 {!inline && (
                   <button onClick={() => router.push(`/bills/${addTo.id}`)} disabled={pending} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
@@ -2099,7 +2099,7 @@ export function PosTerminal({
                 <ErrorBox text="The connection dropped while saving, so this bill may already be saved. Look in Bills before you save it again. To bill offline now, press the button again." />
               )}
               {error && !saved && <ErrorBox text={error} />}
-              {saved && <SavedBox text={saved.startsWith("/pos/kot/") ? "Sent to the kitchen. Printing the KOT…" : "Saved. Opening the bill…"} slow={savedSlow} onOpen={() => router.push(saved)} onNext={startNextBill} />}
+              {saved && <SavedBox text={saved.startsWith("/pos/kot/") ? "Sent to the kitchen. Printing the KOT…" : "Saved. Opening the bill…"} quiet={inline && saved.startsWith("/pos/kot/")} slow={savedSlow} onOpen={() => router.push(saved)} onNext={startNextBill} />}
               {needSeparate && lines.length > 0 && (
                 <p className="mt-3 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
                   Table {chosenTable?.number} already has an open bill. Add to it, or tick &ldquo;Start a separate bill for this table&rdquo; above.
@@ -2119,7 +2119,7 @@ export function PosTerminal({
                       style={{ borderColor: "var(--color-brand)", background: "var(--color-surface)", color: "var(--color-brand-strong, var(--color-brand))" }}
                       title="Send the order to the kitchen and print the KOT. The bill stays open: print it and take the payment later."
                     >
-                      {inline ? "Send to kitchen" : "KOT"}
+                      KOT
                     </button>
                     <button onClick={() => submit("pay")} disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved} className="btn btn-pay flex-1 text-base">
                       {pending ? "Saving…" : <Dual text="Charge" />}
@@ -2133,7 +2133,7 @@ export function PosTerminal({
                     className="btn btn-primary flex-1 text-base"
                     title="Send the order to the kitchen and print the KOT. The cashier takes the payment later."
                   >
-                    {pending ? "Saving…" : inline ? "Send to kitchen" : "KOT"}
+                    {pending ? "Saving…" : "KOT"}
                   </button>
                 )}
               </div>
@@ -2511,7 +2511,9 @@ export function OptionPicker({
 }
 
 /** Shown from the moment a bill is saved until the screen has moved on to it. */
-function SavedBox({ text, slow, onOpen, onNext }: { text: string; slow: boolean; onOpen: () => void; onNext?: () => void }) {
+function SavedBox({ text, slow, quiet = false, onOpen, onNext }: { text: string; slow: boolean; quiet?: boolean; onOpen: () => void; onNext?: () => void }) {
+  // quiet (a KOT on the single order screen): no message while the ticket prints; it only appears if this takes too long.
+  if (quiet && !slow) return null;
   return (
     <div className="mt-3 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-ok-soft)", color: "var(--color-ok)" }}>
       <b>{text}</b>

@@ -65,6 +65,15 @@ export function KotPrinter({
   const next = backToBill ? `/bills/${orderId}` : "/pos";
   const info = { billNumber, where, token, timezone, printMm, largePrint };
 
+  /**
+   * On the single order screen nothing is announced or asked: the ticket prints and the screen moves on at once. Only a problem, or
+   * "nothing went to the kitchen" (items held for a later course), keeps the card on screen. Elsewhere it counts down as before.
+   */
+  function moveOn(tickets: number): number | null {
+    if (!embedded) return MOVE_ON_AFTER;
+    return tickets > 0 ? 0 : null;
+  }
+
   /** Leaves this screen: back to the order screen (embedded) or on to the next page. */
   function finish() {
     if (embedded) onDone?.();
@@ -94,7 +103,7 @@ export function KotPrinter({
       if (!dev.kotHere) {
         setDeviceOff(true);
         setStatus("done");
-        setCountdown(MOVE_ON_AFTER);
+        setCountdown(moveOn(res.slips.length));
         return;
       }
       const fresh = res.slips.filter((s) => !s.printed);
@@ -102,7 +111,7 @@ export function KotPrinter({
       const mine = fresh.filter((s) => claimed.has(s.id));
       if (mine.length === 0) {
         setStatus("done");
-        setCountdown(MOVE_ON_AFTER);
+        setCountdown(moveOn(res.slips.length));
         return;
       }
       setPrinting(mine);
@@ -121,7 +130,7 @@ export function KotPrinter({
       setPrintedHere(printing);
       setPrinting([]);
       setStatus("done");
-      setCountdown(MOVE_ON_AFTER);
+      setCountdown(moveOn(printing.length));
     }, 60);
     return () => {
       alive = false;
@@ -327,9 +336,11 @@ export function KotPrinter({
         />
       )}
       {embedded ? (
+        (error || printError || (status === "done" && list.length === 0)) && (
         <div className="no-print fixed inset-0 z-40 grid place-items-center p-4" style={{ background: "rgba(10,8,20,.55)" }}>
           <div className="w-full max-w-md">{card}</div>
         </div>
+        )
       ) : (
         <div className="mx-auto max-w-md">{card}</div>
       )}
