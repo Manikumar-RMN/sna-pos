@@ -964,7 +964,7 @@ export function BillActions({
                         Discount
                         <input
                           inputMode="decimal"
-                          className="input h-8 w-20 text-sm"
+                          className="field h-8 w-20 text-sm"
                           value={splitDisc}
                           onChange={(e) => setSplitDisc(e.target.value.replace(/[^0-9.]/g, ""))}
                           placeholder="0.00"
@@ -973,7 +973,7 @@ export function BillActions({
                     </div>
                     {(splitNoTax || Number(splitDisc) > 0) && (
                       <input
-                        className="input mt-2 h-8 w-full text-sm"
+                        className="field mt-2 h-8 w-full text-sm"
                         value={splitWhy}
                         onChange={(e) => setSplitWhy(e.target.value)}
                         placeholder="Reason (needed for no tax or a discount)"
