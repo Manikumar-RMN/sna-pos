@@ -8176,6 +8176,12 @@ export type Database = {
       report_supplier_statement: { Args: { p_from: string; p_supplier: string; p_to: string }; Returns: Json }
       report_supplier_ageing: { Args: { p_asof?: string }; Returns: Json }
       report_supplier_advances: { Args: { p_supplier?: string }; Returns: Json }
+      create_rfq: { Args: { p_lines: Json; p_needed_by?: string; p_notes?: string; p_suppliers: string[] }; Returns: Json }
+      save_rfq_quotes: { Args: { p_quotes: Json; p_rfq: string; p_supplier: string }; Returns: Json }
+      cancel_rfq: { Args: { p_reason: string; p_rfq: string }; Returns: Json }
+      award_rfq: { Args: { p_awards: Json; p_place?: boolean; p_rfq: string }; Returns: Json }
+      list_rfqs: { Args: Record<PropertyKey, never>; Returns: Json }
+      get_rfq: { Args: { p_rfq: string }; Returns: Json }
       pay_supplier_advance: {
         Args: { p_amount: number; p_client_ref?: string; p_from_till?: boolean; p_method: string; p_notes?: string; p_paid_on?: string; p_reference?: string; p_supplier: string }
         Returns: Json
