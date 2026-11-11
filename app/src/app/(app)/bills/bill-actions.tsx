@@ -231,7 +231,7 @@ export function BillActions({
 
   const showBuyer = buyer !== undefined && state !== "voided" && !dayClosed && (canPay || canVoid);
   const showFire = open && heldCount > 0 && !dayClosed;
-  if (!showPay && !showRefund && !showVoid && !showFix && !showBuyer && !showFire && !canKots && !notice) return null;
+  if (!showPay && !showRefund && !showVoid && !showFix && !showBuyer && !showFire && !showReopen && !canKots && !notice) return null;
 
   return (
     <div className="no-print mx-auto mt-4 max-w-sm space-y-3">

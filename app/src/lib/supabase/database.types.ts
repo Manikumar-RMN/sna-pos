@@ -8683,6 +8683,10 @@ export type Database = {
         Args: { p_id: string; p_reason: string }
         Returns: undefined
       }
+      reopen_order: {
+        Args: { p_order_id: string; p_reason: string }
+        Returns: Json
+      }
       remove_counter_device: {
         Args: { p_device_id: string }
         Returns: undefined
