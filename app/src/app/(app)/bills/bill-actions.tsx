@@ -126,7 +126,7 @@ export function BillActions({
   const [voidReason, setVoidReason] = useState("");
   const [confirm, setConfirm] = useState<null | "void" | "refund" | "cancel">(null);
   const [panel, setPanel] = useState<Panel>(null);
-  const [win, setWin] = useState<null | "pay" | "cancel" | "void">(null);
+  const [win, setWin] = useState<null | "pay" | "cancel" | "void" | "fix" | "refund">(null);
   const [showKots, setShowKots] = useState(false);
   const [moveTo, setMoveTo] = useState("");
   const [mergeFrom, setMergeFrom] = useState("");
@@ -278,6 +278,13 @@ export function BillActions({
         </button>
       )}
       {canKots && showKots && <KotSheet orderId={orderId} billNumber={billNumber} onClose={() => setShowKots(false)} onChanged={() => router.refresh()} />}
+
+      {embedded && !showPay && (showFix || showRefund) && (
+        <div className="grid grid-cols-2 gap-2">
+          {showFix && <PanelButton label="Change payment mode" active={win === "fix"} onClick={() => setWin("fix")} />}
+          {showRefund && <PanelButton label="Refund / credit note" active={win === "refund"} onClick={() => setWin("refund")} />}
+        </div>
+      )}
 
       {embedded && !showPay && showVoid && (
         <button type="button" className="btn w-full border text-sm" style={{ borderColor: "var(--color-bad)", color: "var(--color-bad)" }} onClick={() => setWin("void")}>
@@ -881,7 +888,8 @@ export function BillActions({
         </details>
       )}
 
-      {showFix && fixRow && (
+      {showFix && fixRow && (!embedded || win === "fix") && (
+        <PanelFrame modal={embedded} title="Change payment mode" error={error} notice={notice} onClose={() => setWin(null)}>
         <section className="card p-4">
           <h2 className="text-sm font-bold">Change payment mode</h2>
           <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
@@ -932,9 +940,11 @@ export function BillActions({
             {pending ? "Saving…" : `Change ${fixRow.methodName} ${m(fixRow.amount)} to ${methods.find((x) => x.id === fixTo)?.name ?? "…"}`}
           </button>
         </section>
+        </PanelFrame>
       )}
 
-      {showRefund && (
+      {showRefund && (!embedded || win === "refund") && (
+        <PanelFrame modal={embedded} title="Refund / credit note" error={error} notice={notice} onClose={() => setWin(null)}>
         <section className="card p-4">
           <h2 className="text-sm font-bold">Refund (credit note)</h2>
           <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
@@ -1009,6 +1019,7 @@ export function BillActions({
             </button>
           )}
         </section>
+        </PanelFrame>
       )}
 
       {showVoid && (!embedded || win === "void") && (
