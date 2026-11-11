@@ -1,0 +1,2 @@
+-- 234: report_cashier_settlement and report_day_summary (read-only reports). Applied live from the same text; see the functions in the database.
+-- Rollback: drop function public.report_cashier_settlement(date,date); drop function public.report_day_summary(date,date);

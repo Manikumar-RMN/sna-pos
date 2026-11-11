@@ -8710,6 +8710,8 @@ export type Database = {
         Args: { p_order_id: string; p_on: boolean; p_reason: string }
         Returns: Json
       }
+      report_cashier_settlement: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_day_summary: { Args: { p_from: string; p_to: string }; Returns: Json }
       reopen_order: {
         Args: { p_order_id: string; p_reason: string }
         Returns: Json
