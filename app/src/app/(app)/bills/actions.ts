@@ -235,6 +235,50 @@ export async function voidBill(input: { orderId: string; reason: string }): Prom
 }
 
 /** Cancel settlement: a paid bill goes back to unpaid so it can be settled again. Manager right; the database checks every rule. */
+/** Item discount (percent or amount) on one line of an unpaid bill. Manager right; reason required; value 0 removes it. */
+export async function setItemDiscount(input: { orderId: string; itemId: string; kind: "percent" | "amount"; value: number; reason: string }): Promise<ActionResult> {
+  if (!(input.value >= 0)) return { ok: false, error: "Enter a discount of zero or more." };
+  if (input.value > 0 && input.reason.trim().length < 3) return { ok: false, error: "Write a short reason for the discount." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_item_discount", {
+    p_order_id: input.orderId,
+    p_item_id: input.itemId,
+    p_kind: input.value > 0 ? input.kind : "none",
+    p_value: input.value,
+    p_reason: input.reason.trim() || "removed",
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  refresh(input.orderId);
+  return { ok: true, message: `Item discount saved. New total ${Number((data as { grand_total?: number } | null)?.grand_total ?? 0).toFixed(2)}.` };
+}
+
+/** Percent discount on every item of one category on an unpaid bill. */
+export async function setCategoryDiscount(input: { orderId: string; categoryId: string; percent: number; reason: string }): Promise<ActionResult> {
+  if (!input.categoryId) return { ok: false, error: "Choose a category." };
+  if (!(input.percent >= 0 && input.percent <= 100)) return { ok: false, error: "Enter a percentage between 0 and 100." };
+  if (input.percent > 0 && input.reason.trim().length < 3) return { ok: false, error: "Write a short reason for the discount." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_category_discount", {
+    p_order_id: input.orderId,
+    p_category_id: input.categoryId,
+    p_percent: input.percent,
+    p_reason: input.reason.trim() || "removed",
+  });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  refresh(input.orderId);
+  return { ok: true, message: `Category discount saved. New total ${Number((data as { grand_total?: number } | null)?.grand_total ?? 0).toFixed(2)}.` };
+}
+
+/** Take tax off a bill (or put it back). Only where the owner allowed it; manager right; reason required; audited. */
+export async function setBillNoTax(input: { orderId: string; on: boolean; reason: string }): Promise<ActionResult> {
+  if (input.reason.trim().length < 3) return { ok: false, error: "Write a short reason." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_bill_no_tax", { p_order_id: input.orderId, p_on: input.on, p_reason: input.reason.trim() });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  refresh(input.orderId);
+  return { ok: true, message: `${input.on ? "Tax taken off" : "Tax put back on"}. New total ${Number((data as { grand_total?: number } | null)?.grand_total ?? 0).toFixed(2)}.` };
+}
+
 export async function reopenBill(input: { orderId: string; reason: string }): Promise<ActionResult> {
   const reason = input.reason.trim();
   if (reason.length < 3) return { ok: false, error: "Write a short reason for cancelling the settlement." };

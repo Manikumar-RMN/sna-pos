@@ -824,6 +824,7 @@ export type Database = {
           service_charge_label: string
           service_charge_percent: number
           service_charge_taxable: boolean
+          allow_no_tax: boolean
           shifts_enabled: boolean
           token_numbers: string
           updated_at: string
@@ -848,6 +849,7 @@ export type Database = {
           service_charge_label?: string
           service_charge_percent?: number
           service_charge_taxable?: boolean
+          allow_no_tax?: boolean
           shifts_enabled?: boolean
           token_numbers?: string
           updated_at?: string
@@ -872,6 +874,7 @@ export type Database = {
           service_charge_label?: string
           service_charge_percent?: number
           service_charge_taxable?: boolean
+          allow_no_tax?: boolean
           shifts_enabled?: boolean
           token_numbers?: string
           updated_at?: string
@@ -3420,6 +3423,10 @@ export type Database = {
           cancelled_by: string | null
           cancelled_qty: number
           discount_blocked: boolean
+          disc_by: string | null
+          disc_kind: string | null
+          disc_reason: string | null
+          disc_value: number
           list_price: number | null
           offer_name: string | null
           created_at: string
@@ -3454,6 +3461,10 @@ export type Database = {
           cancelled_by?: string | null
           cancelled_qty?: number
           discount_blocked?: boolean
+          disc_by?: string | null
+          disc_kind?: string | null
+          disc_reason?: string | null
+          disc_value?: number
           list_price?: number | null
           offer_name?: string | null
           created_at?: string
@@ -3488,6 +3499,10 @@ export type Database = {
           cancelled_by?: string | null
           cancelled_qty?: number
           discount_blocked?: boolean
+          disc_by?: string | null
+          disc_kind?: string | null
+          disc_reason?: string | null
+          disc_value?: number
           list_price?: number | null
           offer_name?: string | null
           created_at?: string
@@ -8682,6 +8697,18 @@ export type Database = {
       reject_qr_order: {
         Args: { p_id: string; p_reason: string }
         Returns: undefined
+      }
+      set_item_discount: {
+        Args: { p_order_id: string; p_item_id: string; p_kind: string; p_value: number; p_reason: string }
+        Returns: Json
+      }
+      set_category_discount: {
+        Args: { p_order_id: string; p_category_id: string; p_percent: number; p_reason: string }
+        Returns: Json
+      }
+      set_bill_no_tax: {
+        Args: { p_order_id: string; p_on: boolean; p_reason: string }
+        Returns: Json
       }
       reopen_order: {
         Args: { p_order_id: string; p_reason: string }

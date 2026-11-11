@@ -71,6 +71,24 @@ export async function BillScreen({
     ? { ...r, loyalty: receiptLoyalty((ledgerRes.data ?? []) as { kind: string; points: number }[], guest.points) }
     : r;
 
+  // Stage 3: item / category discount and "No Tax" (manager right, unpaid bill, no senior/PWD discount).
+  let discTools:
+    | { categories: { id: string; name: string }[]; itemDisc: Record<string, { kind: "percent" | "amount"; value: number }>; noTax: boolean; noTaxAllowed: boolean }
+    | undefined;
+  if (open && !bill.dayClosed && can(user, "order.discount") && !bill.adjust.senior && bill.paidTotal === 0) {
+    const { data: its } = await supabase.from("order_items").select("id, product_id, disc_kind, disc_value").eq("order_id", bill.id).is("cancelled_at", null);
+    const pids = [...new Set((its ?? []).map((x) => x.product_id).filter((x): x is string => !!x))];
+    const { data: prods } = pids.length ? await supabase.from("products").select("id, category_id").in("id", pids) : { data: [] as { id: string; category_id: string | null }[] };
+    const cids = [...new Set((prods ?? []).map((x) => x.category_id).filter((x): x is string => !!x))];
+    const { data: cats } = cids.length ? await supabase.from("categories").select("id, name").in("id", cids) : { data: [] as { id: string; name: string }[] };
+    const { data: ord } = await supabase.from("orders").select("branch_id, calc_params").eq("id", bill.id).maybeSingle();
+    const { data: bset } = ord?.branch_id ? await supabase.from("branch_settings").select("allow_no_tax").eq("branch_id", ord.branch_id).maybeSingle() : { data: null };
+    const itemDisc: Record<string, { kind: "percent" | "amount"; value: number }> = {};
+    for (const x of its ?? []) if (x.disc_kind && Number(x.disc_value) > 0) itemDisc[x.id] = { kind: x.disc_kind === "amount" ? "amount" : "percent", value: Number(x.disc_value) };
+    const cp = (ord?.calc_params ?? {}) as { no_tax?: boolean };
+    discTools = { categories: cats ?? [], itemDisc, noTax: !!cp.no_tax, noTaxAllowed: !!bset?.allow_no_tax };
+  }
+
   const [{ data: methods }, { data: shift }, { data: tables }, { data: openBills }, { data: mergedTo }] = await Promise.all([
     supabase.from("payment_methods").select("id, name, kind, ask_reference, upi_id").eq("is_active", true).not("kind", "in", "(gift_card,loyalty)").order("display_order"),
     supabase.from("shifts").select("id").eq("status", "open").limit(1).maybeSingle(),
@@ -240,6 +258,7 @@ export async function BillScreen({
         canKots={open && !bill.dayClosed && can(user, "order.create")}
         adjust={bill.adjust}
         discountPool={pool}
+        discTools={discTools}
         presets={(presetRows ?? []).map((x: { id: string; name: string; kind: string; value: number }) => ({ id: x.id, name: x.name, kind: x.kind === "amount" ? "amount" : "percent", value: Number(x.value) }))}
         loyaltyDiscount={loyalApplied.discount}
         canChangeMode={can(user, "payment.change_mode")}

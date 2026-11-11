@@ -14,14 +14,15 @@ import { needsInternetText } from "@/lib/order-desk";
 import { MoveItemPanel } from "./move-item-panel";
 import { TipField } from "./tip-field";
 import { tipError, tipForRequest } from "./tip";
-import { reopenBill, adjustBill, makeComplimentary, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
+import { reopenBill, adjustBill, setItemDiscount, setCategoryDiscount, setBillNoTax, makeComplimentary, cancelItem, changePaymentMode, fireHeld, issueCreditNote, setBillCustomer, mergeBills, moveTable, payBill, splitBill, voidBill } from "./actions";
 
 type Method = { id: string; name: string; kind: string; ask_reference: boolean; upi_id?: string | null };
 type PaymentRow = { id: string; methodId: string; methodName: string; amount: number; rounded: boolean };
 type Line = { id: string; name: string; options: string | null; qty: number; amount: number };
 type TableOpt = { id: string; number: string; busy: boolean };
 type OtherBill = { id: string; billNumber: string; total: number; table: string | null; mergeable: boolean };
-type Panel = null | "split" | "move" | "moveItem" | "merge" | "cancel" | "adjust" | "comp";
+type DiscTools = { categories: { id: string; name: string }[]; itemDisc: Record<string, { kind: "percent" | "amount"; value: number }>; noTax: boolean; noTaxAllowed: boolean };
+type Panel = null | "itemdisc" | "split" | "move" | "moveItem" | "merge" | "cancel" | "adjust" | "comp";
 type Adjust = { discount: number; subtotal: number; scAvailable: boolean; scOn: boolean; scPercent: number; scLabel: string; senior: boolean };
 
 export function BillActions({
@@ -61,7 +62,10 @@ export function BillActions({
   otherBills,
   canMerge = true,
   embedded = false,
+  discTools,
 }: {
+  /** Manager tools: item discount, category discount, No Tax. Undefined hides them. */
+  discTools?: DiscTools;
   /** Total of the lines that can take a discount (lines marked "do not discount" are left out). Omit = the whole subtotal. */
   discountPool?: number;
   /** Saved discounts the owner set up (Settings → Discounts). A tap fills the amount and the reason. */
@@ -137,6 +141,14 @@ export function BillActions({
   const [cancelReason, setCancelReason] = useState("");
   const [discAmt, setDiscAmt] = useState(adjust && adjust.discount > 0 ? String(adjust.discount) : "");
   const [discReason, setDiscReason] = useState("");
+  const [idItem, setIdItem] = useState(lines[0]?.id ?? "");
+  const [idKind, setIdKind] = useState<"percent" | "amount">("percent");
+  const [idVal, setIdVal] = useState("");
+  const [idReason, setIdReason] = useState("");
+  const [catId, setCatId] = useState(discTools?.categories[0]?.id ?? "");
+  const [catPct, setCatPct] = useState("");
+  const [catReason, setCatReason] = useState("");
+  const [ntReason, setNtReason] = useState("");
   const [compKind, setCompKind] = useState<"complimentary" | "staff_meal">("complimentary");
   const [compReason, setCompReason] = useState("");
   const [scWanted, setScWanted] = useState<boolean>(adjust?.scOn ?? false);
@@ -477,6 +489,9 @@ export function BillActions({
                 onClick={() => setPanel(panel === "adjust" ? null : "adjust")}
               />
             )}
+            {discTools && lines.length > 0 && (
+              <PanelButton label="Item / category discount" active={panel === "itemdisc"} onClick={() => setPanel(panel === "itemdisc" ? null : "itemdisc")} />
+            )}
             {embedded && open && (canVoid || canAsk) && lines.length > 0 && !dayClosed && (
               <PanelButton label="Cancel item" active={win === "cancel"} onClick={() => setWin("cancel")} />
             )}
@@ -494,11 +509,84 @@ export function BillActions({
 
           <PanelFrame
             modal={embedded && panel !== null}
-            title={panel === "comp" ? "Complimentary / staff meal" : panel === "adjust" ? "Discount" : panel === "split" ? "Split bill" : panel === "move" ? "Move table" : panel === "moveItem" ? "Move item" : "Merge bills"}
+            title={panel === "itemdisc" ? "Item / category discount" : panel === "comp" ? "Complimentary / staff meal" : panel === "adjust" ? "Discount" : panel === "split" ? "Split bill" : panel === "move" ? "Move table" : panel === "moveItem" ? "Move item" : "Merge bills"}
             error={error}
             notice={notice}
             onClose={() => setPanel(null)}
           >
+          {panel === "itemdisc" && discTools && (
+            <div className="mt-3 space-y-4 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold">Item discount</h3>
+                <select className="field h-10 text-sm" aria-label="Item" value={idItem} onChange={(e) => setIdItem(e.target.value)}>
+                  {lines.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.qty} × {l.name} · {m(l.amount)}
+                      {discTools.itemDisc[l.id] ? ` (now ${discTools.itemDisc[l.id].value}${discTools.itemDisc[l.id].kind === "percent" ? "%" : ""} off)` : ""}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-2">
+                  <div className="grid w-28 shrink-0 grid-cols-2 gap-1" role="radiogroup" aria-label="Kind">
+                    {(["percent", "amount"] as const).map((k) => (
+                      <button key={k} role="radio" aria-checked={idKind === k} className="btn border text-sm" style={{ borderColor: idKind === k ? "var(--color-brand)" : "var(--color-line)", background: idKind === k ? "var(--color-brand-soft)" : undefined }} onClick={() => setIdKind(k)}>
+                        {k === "percent" ? "%" : currency}
+                      </button>
+                    ))}
+                  </div>
+                  <input className="field h-10 min-w-0 flex-1 text-sm" inputMode="decimal" placeholder={idKind === "percent" ? "e.g. 10" : "Amount off"} aria-label="Discount value" value={idVal} onChange={(e) => setIdVal(e.target.value)} />
+                </div>
+                <input className="field h-10 text-sm" placeholder="Reason (required)" aria-label="Reason" value={idReason} onChange={(e) => setIdReason(e.target.value)} maxLength={200} />
+                <div className="grid grid-cols-2 gap-2">
+                  <button className="btn btn-primary text-sm" disabled={pending || !idItem || !(Number(idVal) > 0) || idReason.trim().length < 3} onClick={() => run(() => setItemDiscount({ orderId, itemId: idItem, kind: idKind, value: Number(idVal), reason: idReason }), () => { setIdVal(""); setIdReason(""); })}>
+                    {pending ? "Saving…" : "Apply"}
+                  </button>
+                  <button className="btn border text-sm" disabled={pending || !discTools.itemDisc[idItem]} onClick={() => run(() => setItemDiscount({ orderId, itemId: idItem, kind: "percent", value: 0, reason: "" }))}>
+                    Remove
+                  </button>
+                </div>
+              </div>
+
+              {discTools.categories.length > 0 && (
+                <div className="space-y-2 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
+                  <h3 className="text-xs font-bold">Category discount (%)</h3>
+                  <select className="field h-10 text-sm" aria-label="Category" value={catId} onChange={(e) => setCatId(e.target.value)}>
+                    {discTools.categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input className="field h-10 text-sm" inputMode="decimal" placeholder="Percent off every item in the category" aria-label="Category percent" value={catPct} onChange={(e) => setCatPct(e.target.value)} />
+                  <input className="field h-10 text-sm" placeholder="Reason (required)" aria-label="Category reason" value={catReason} onChange={(e) => setCatReason(e.target.value)} maxLength={200} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className="btn btn-primary text-sm" disabled={pending || !catId || !(Number(catPct) > 0) || catReason.trim().length < 3} onClick={() => run(() => setCategoryDiscount({ orderId, categoryId: catId, percent: Number(catPct), reason: catReason }), () => { setCatPct(""); setCatReason(""); })}>
+                      {pending ? "Saving…" : "Apply"}
+                    </button>
+                    <button className="btn border text-sm" disabled={pending || !catId} onClick={() => run(() => setCategoryDiscount({ orderId, categoryId: catId, percent: 0, reason: "" }))}>
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {(discTools.noTaxAllowed || discTools.noTax) && (
+                <div className="space-y-2 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
+                  <h3 className="text-xs font-bold">No tax</h3>
+                  <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+                    {discTools.noTax
+                      ? "Tax is taken off this bill."
+                      : "Takes the tax off this whole bill. Only for a customer who does not have to pay it (for example a tax-exempt buyer). It is recorded with your reason."}
+                  </p>
+                  <input className="field h-10 text-sm" placeholder="Reason (required)" aria-label="No tax reason" value={ntReason} onChange={(e) => setNtReason(e.target.value)} maxLength={200} />
+                  <button className="btn btn-primary w-full text-sm" disabled={pending || ntReason.trim().length < 3} onClick={() => run(() => setBillNoTax({ orderId, on: !discTools.noTax, reason: ntReason }), () => setNtReason(""))}>
+                    {pending ? "Saving…" : discTools.noTax ? "Put tax back" : "Take tax off this bill"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {panel === "comp" && (
             <div className="mt-3 space-y-2 border-t pt-3" style={{ borderColor: "var(--color-line)" }}>
               <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
