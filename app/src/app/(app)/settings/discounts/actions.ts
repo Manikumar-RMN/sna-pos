@@ -14,6 +14,8 @@ export type DiscountInput = {
   valid_to: string | null;
   order_types: string[];
   outlet_ids: string[] | null;
+  /** 1 = Monday ... 7 = Sunday; null = every day. */
+  days: number[] | null;
   is_active: boolean;
 };
 
@@ -41,6 +43,7 @@ export async function saveDiscount(input: DiscountInput): Promise<{ error: strin
     p_order_types: input.order_types,
     p_outlet_ids: input.outlet_ids ?? undefined,
     p_active: input.is_active,
+    p_days: input.days && input.days.length > 0 && input.days.length < 7 ? input.days : undefined,
   });
   if (error) return { error: clean(friendlyDbError(error)) };
   revalidatePath("/settings/discounts");

@@ -14,6 +14,7 @@ export type DiscountRow = {
   valid_to: string | null;
   order_types: string[];
   outlet_ids: string[] | null;
+  days: number[] | null;
   is_active: boolean;
 };
 
@@ -23,7 +24,9 @@ const TYPES: { key: string; label: string }[] = [
   { key: "delivery", label: "Delivery" },
 ];
 
-const blank = (): DiscountInput => ({ id: null, name: "", kind: "percent", value: 10, valid_from: null, valid_to: null, order_types: TYPES.map((t) => t.key), outlet_ids: null, is_active: true });
+const blank = (): DiscountInput => ({ id: null, name: "", kind: "percent", value: 10, valid_from: null, valid_to: null, order_types: TYPES.map((t) => t.key), outlet_ids: null, days: null, is_active: true });
+
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function Discounts({
   canEdit,
@@ -115,6 +118,7 @@ export function Discounts({
                 <div className="text-xs" style={{ color: "var(--color-ink-2)" }}>
                   <b>{d.kind === "percent" ? `${Number(d.value)}%` : money(Number(d.value), currency)}</b> · {d.order_types.length === 3 ? "All kinds of bill" : d.order_types.map((t) => TYPES.find((x) => x.key === t)?.label ?? t).join(", ")}
                   {d.outlet_ids && ` · ${d.outlet_ids.map((id) => branches.find((b) => b.id === id)?.name ?? "outlet").join(", ")} only`}
+                  {d.days && d.days.length < 7 && ` · ${d.days.map((n) => DAYS[n - 1]).join(", ")} only`}
                   {(d.valid_from || d.valid_to) && ` · ${d.valid_from ?? "…"} to ${d.valid_to ?? "…"}`}
                 </div>
               </div>
@@ -175,6 +179,30 @@ export function Discounts({
                   {t.label}
                 </label>
               ))}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-medium">Days of the week (none ticked = every day)</div>
+            <div className="mt-1 flex flex-wrap gap-3 text-sm">
+              {DAYS.map((label, i) => {
+                const n = i + 1;
+                const on = !!form.days?.includes(n);
+                return (
+                  <label key={n} className="flex items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5"
+                      checked={on}
+                      onChange={() => {
+                        const cur = form.days ?? [];
+                        const next = on ? cur.filter((x) => x !== n) : [...cur, n].sort();
+                        setForm({ ...form, days: next.length ? next : null });
+                      }}
+                    />
+                    {label}
+                  </label>
+                );
+              })}
             </div>
           </div>
           {branches.length > 1 && (

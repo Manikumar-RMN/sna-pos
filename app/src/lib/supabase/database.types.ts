@@ -8312,7 +8312,7 @@ export type Database = {
       }
       list_discount_presets_admin: {
         Args: Record<PropertyKey, never>
-        Returns: { id: string; name: string; kind: string; value: number; valid_from: string | null; valid_to: string | null; order_types: string[] | null; outlet_ids: string[] | null; is_active: boolean; sort_order: number; created_at: string }[]
+        Returns: { id: string; name: string; kind: string; value: number; valid_from: string | null; valid_to: string | null; order_types: string[] | null; outlet_ids: string[] | null; is_active: boolean; sort_order: number; created_at: string; days: number[] | null }[]
       }
       list_reasons: {
         Args: { p_purpose?: string }
@@ -8323,7 +8323,7 @@ export type Database = {
         Returns: { source: string; reason: string; staff: string; n: number; amount: number }[]
       }
       save_discount_preset: {
-        Args: { p_active?: boolean; p_id?: string; p_kind: string; p_name: string; p_order_types?: string[]; p_outlet_ids?: string[]; p_sort?: number; p_valid_from?: string; p_valid_to?: string; p_value: number }
+        Args: { p_active?: boolean; p_days?: number[]; p_id?: string; p_kind: string; p_name: string; p_order_types?: string[]; p_outlet_ids?: string[]; p_sort?: number; p_valid_from?: string; p_valid_to?: string; p_value: number }
         Returns: string
       }
       save_reason: { Args: { p_active?: boolean; p_id?: string; p_name: string; p_purposes?: string[]; p_sort?: number }; Returns: string }
