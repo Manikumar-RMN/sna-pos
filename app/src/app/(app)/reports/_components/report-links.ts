@@ -31,6 +31,7 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Sales", href: "/reports/settlement", title: "Settlement", blurb: "Payments by mode, refunds, net collected and payment list.", need: "financial" },
   { group: "Sales", href: "/reports/covers", title: "Cover analysis", blurb: "Guests and sales per guest, by day, outlet and waiter.", need: "sales" },
   { group: "Sales", href: "/reports/tips", title: "Tips", blurb: "Tips by day, payment mode and waiter. Not part of sales.", need: "financial" },
+  { group: "Sales", href: "/reports/sales-billwise", title: "Sales bill-wise register", blurb: "One line per bill with customer GSTIN, taxable value and CGST/SGST/IGST; tick to see every item with its HSN/SAC.", need: "financial" },
   { group: "Sales", href: "/reports/gstr-1", title: "GSTR-1 working sheet", blurb: "India GST return figures: B2B bills, B2C by rate, credit notes, HSN summary and invoices issued.", need: "financial" },
   { group: "Sales", href: "/reports/tax", title: "Tax report", blurb: "Taxable amount and tax for each tax and rate.", need: "financial" },
   { group: "Items & staff", href: "/reports/popular-items", title: "Popular items", blurb: "The items that sell the most, by units and amount.", need: "sales" },

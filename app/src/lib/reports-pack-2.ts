@@ -164,6 +164,10 @@ export type BillDetail = {
   discount: number;
   serviceCharge: number;
   tax: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  session: string;
   rounding: number;
   grandTotal: number;
   payments: BillPayment[];
@@ -193,6 +197,10 @@ export function parseBillsDetail(json: unknown): { rows: BillDetail[]; cap: Capp
     discount: num(r.discount),
     serviceCharge: num(r.service_charge),
     tax: num(r.tax),
+    cgst: num(r.cgst),
+    sgst: num(r.sgst),
+    igst: num(r.igst),
+    session: text(r.session, "Other"),
     rounding: num(r.rounding),
     grandTotal: num(r.grand_total),
     payments: parsePayments(r.payments),
