@@ -285,7 +285,7 @@ export function ReceiptView({
         />
       )}
       {estimate && (
-        <div className={`no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm ${hideBack ? "mt-6" : ""}`} role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)", ...(hideBack ? { width: `${paper.screenPx + 32}px`, maxWidth: "100%" } : {}) }}>
+        <div className={`no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm ${hideBack ? "mt-6" : ""}`} role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)", ...(hideBack ? { width: `${paper.screenPx}px`, maxWidth: "100%" } : {}) }}>
           <span className="font-semibold">Estimate preview: not a tax invoice, not counted as a print.</span>
           <span className="flex gap-2">
             <button className="btn btn-primary h-9 px-3 text-sm" onClick={printEstimate}>
