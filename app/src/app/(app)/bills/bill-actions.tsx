@@ -70,6 +70,7 @@ export function BillActions({
   outletTables = [],
   serverName = null,
   lineKot = {},
+  totals = null,
   discTools,
 }: {
   /** Manager tools: item discount, category discount, No Tax. Undefined hides them. */
@@ -133,6 +134,8 @@ export function BillActions({
   serverName?: string | null;
   /** Which KOT each line went out on: order_item_id -> { KOT number, time }. Winsar heads each round with this. */
   lineKot?: Record<string, { no: string; at: string }>;
+  /** Sub total, discount and tax of the bill, shown under the order list (Winsar shows them under its list). */
+  totals?: { subtotal: number; discount: number; tax: number } | null;
 }) {
   const router = useRouter();
   const online = useOnline();
@@ -483,7 +486,7 @@ export function BillActions({
       )}
 
       {showPay && (
-        <section className="card p-4">
+        <section className={embedded ? "card order-first p-4" : "card p-4"}>
           <h2 className="text-sm font-bold">{embedded ? "Order so far" : "Table & items"}</h2>
 
           {embedded && lines.length > 0 && lines.some((l) => l.at) && (
@@ -509,6 +512,22 @@ export function BillActions({
                           {l.name}
                           {l.options ? <span style={{ color: "var(--color-ink-3)" }}> · {l.options}</span> : null}
                         </span>
+                        {open && (canVoid || canAsk) && !dayClosed ? (
+                          <button
+                            type="button"
+                            className="h-6 w-6 shrink-0 rounded-full border text-sm font-bold leading-none"
+                            style={{ borderColor: "var(--color-line)", color: "var(--color-bad)" }}
+                            aria-label={`Cancel one ${l.name}`}
+                            title="Cancel one (a reason is asked)"
+                            onClick={() => {
+                              setCancelId(l.id);
+                              setCancelQty("1");
+                              setWin("cancel");
+                            }}
+                          >
+                            −
+                          </button>
+                        ) : null}
                         <span className="w-8 text-center">{l.qty}</span>
                         <span className="w-16 text-right">{m(l.amount)}</span>
                       </div>
@@ -519,6 +538,29 @@ export function BillActions({
               <div className="flex items-center justify-between px-2 py-1 text-xs font-bold" style={{ borderTop: "1px solid var(--color-line)", background: "var(--color-surface-2)" }}>
                 <span style={{ color: "var(--color-brand-strong)" }}>QTY : {lines.reduce((n, l) => n + l.qty, 0)}</span>
                 <span>{m(lines.reduce((n, l) => n + l.amount, 0))}</span>
+              </div>
+            </div>
+          )}
+
+          {embedded && totals && lines.length > 0 && (
+            <div className="mt-2 rounded-lg border px-2 py-1.5 text-sm" style={{ borderColor: "var(--color-line)" }}>
+              <div className="flex justify-between text-xs" style={{ color: "var(--color-ink-3)" }}>
+                <span>Sub total</span>
+                <span>{m(totals.subtotal)}</span>
+              </div>
+              {totals.discount > 0 && (
+                <div className="flex justify-between text-xs" style={{ color: "var(--color-ink-3)" }}>
+                  <span>Discount</span>
+                  <span>−{m(totals.discount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-xs" style={{ color: "var(--color-ink-3)" }}>
+                <span>Taxes</span>
+                <span>{m(totals.tax)}</span>
+              </div>
+              <div className="mt-0.5 flex justify-between border-t pt-0.5 font-bold" style={{ borderColor: "var(--color-line)" }}>
+                <span>Total</span>
+                <span>{m(grandTotal)}</span>
               </div>
             </div>
           )}

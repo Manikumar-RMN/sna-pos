@@ -147,7 +147,8 @@ export async function BillScreen({
   }
 
   return (
-    <div>
+    <div className={embedded ? "flex flex-col gap-3" : undefined}>
+      <div className={embedded ? "order-2" : undefined}>
       {offlineNotes.length > 0 && (
         <div className="no-print card mx-auto mb-3 max-w-sm p-3 text-sm" role="alert" style={{ borderColor: "var(--color-bad)" }}>
           <b>This bill was made offline and needed a correction:</b>
@@ -264,7 +265,10 @@ export async function BillScreen({
         />
       )}
 
+      </div>
+
       <BillActions
+        totals={{ subtotal: r.subtotal, discount: r.discount, tax: r.taxTotal }}
         orderId={bill.id}
         billNumber={r.billNumber}
         state={r.state}
