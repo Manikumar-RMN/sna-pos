@@ -459,6 +459,7 @@ export function PosTerminal({
   /** On wide screens the new items are listed inside the bill's "Order so far" box (one list, like Winsar): the slot is a div in that box. */
   const [wide, setWide] = useState(false);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const [totalSlot, setTotalSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
     if (!billOrder) return;
     const mq = window.matchMedia("(min-width: 1280px)");
@@ -469,10 +470,16 @@ export function PosTerminal({
   }, [billOrder]);
   useEffect(() => {
     if (!billOrder) return;
-    const find = () => setSlot((prev) => {
-      const el = document.getElementById("desk-new-rows");
-      return prev === el ? prev : el;
-    });
+    const find = () => {
+      setSlot((prev) => {
+        const el = document.getElementById("desk-new-rows");
+        return prev === el ? prev : el;
+      });
+      setTotalSlot((prev) => {
+        const el = document.getElementById("desk-new-total");
+        return prev === el ? prev : el;
+      });
+    };
     find();
     const t = setInterval(find, 400);
     return () => clearInterval(t);
@@ -758,7 +765,7 @@ export function PosTerminal({
     }
   }
   useEffect(() => {
-    if (addTo || lines.length === 0) {
+    if ((addTo && !billOrder) || lines.length === 0) {
       // A reply still on its way for the cart as it was must not put its total back.
       reqId.current++;
       setQuote(null);
@@ -786,10 +793,10 @@ export function PosTerminal({
       setQuoting(false);
       if (res.ok) {
         setQuote(res.quote);
-        setError(null);
+        if (!billOrder) setError(null);
       } else {
         setQuote(null);
-        setError(res.error);
+        if (!billOrder) setError(res.error);
       }
     }, 250);
     return () => clearTimeout(t);
@@ -2028,6 +2035,15 @@ export function PosTerminal({
           )}
 
           {merged ? (slot ? createPortal(listBox, slot) : null) : listBox}
+          {merged && totalSlot && quote && lines.length > 0
+            ? createPortal(
+                <div className="mt-0.5 flex justify-between text-xs font-bold" style={{ color: "#1D4F9F" }} title="An estimate: the bill's tax, service charge and rounding are worked out again when the items are sent">
+                  <span>With new items (est.)</span>
+                  <span>{m(Math.round((Number(totalSlot.dataset.total ?? 0) + quote.grand_total) * 100) / 100)}</span>
+                </div>,
+                totalSlot,
+              )
+            : null}
 
           {addTo ? (
             <div className="border-t px-4 py-3" style={{ borderColor: "var(--color-line)" }}>

@@ -760,6 +760,7 @@ export function BillActions({
                 <span>Total</span>
                 <span>{m(grandTotal)}</span>
               </div>
+              <div id="desk-new-total" data-total={grandTotal} />
             </div>
           )}
 
