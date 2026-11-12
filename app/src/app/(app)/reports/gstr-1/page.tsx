@@ -2,6 +2,7 @@ import { money } from "@/lib/format";
 import { reportRpcError } from "@/lib/reports-pack";
 import { Empty, Err, Note } from "../_components/ui";
 import { loadReport } from "../_components/report-context";
+import type { XlsxSheet } from "@/lib/xlsx";
 import { ReportShell } from "../_components/report-shell";
 import { ReportTable } from "../_components/report-table";
 
@@ -58,6 +59,17 @@ export default async function Gstr1Page({ searchParams }: { searchParams: Promis
     ...hsn.map((x) => [`12 HSN ${x.supply}`, x.hsn, x.uqc, "", "", x.rate, x.taxable, x.igst, x.cgst, x.sgst, x.total]),
   ];
 
+  const num = (x: Reg) => [x.number, x.date, x.buyer_gstin ?? "", x.buyer_name ?? "", x.rate ?? "", x.taxable, x.igst, x.cgst, x.sgst, x.total];
+  const numHead = ["Number", "Date", "GSTIN", "Customer", "Rate %", "Taxable value", "IGST", "CGST", "SGST", "Total"];
+  const xlsxSheets: XlsxSheet[] = [
+    { name: "4A B2B", header: numHead, rows: b2b.map(num) },
+    { name: "7 B2C others", header: ["Rate %", "Bills", "Taxable value", "IGST", "CGST", "SGST", "Total"], rows: rates.map((rt) => { const l = b2cTaxed.filter((x) => x.rate === rt); return [rt, l.length, sum(l, (x) => x.taxable), sum(l, (x) => x.igst), sum(l, (x) => x.cgst), sum(l, (x) => x.sgst), sum(l, (x) => x.total)]; }) },
+    { name: "8 Nil rated", header: ["Bills", "Taxable value", "Total"], rows: nilRated.length > 0 ? [[nilRated.length, sum(nilRated, (x) => x.taxable), sum(nilRated, (x) => x.total)]] : [] },
+    { name: "9B Credit notes", header: numHead, rows: notes.map(num) },
+    { name: "12 HSN summary", header: ["Supply", "HSN / SAC", "Unit", "Rate %", "Quantity", "Taxable value", "IGST", "CGST", "SGST", "Total"], rows: hsn.map((x) => [x.supply, x.hsn, x.uqc, x.rate, x.quantity, x.taxable, x.igst, x.cgst, x.sgst, x.total]) },
+    { name: "13 Invoices issued", header: ["Bill number", "Status"], rows: [...sales, ...voided].sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true })).map((x) => [x.number, x.status === "voided" ? "Cancelled" : "Issued"]) },
+  ];
+
   return (
     <ReportShell
       ctx={ctx}
@@ -65,6 +77,7 @@ export default async function Gstr1Page({ searchParams }: { searchParams: Promis
       basePath="/reports/gstr-1"
       basis="finished bills and credit notes · by business day · India GST"
       landscape
+      xlsx={reg.length > 0 || hsn.length > 0 ? { filename: `gstr1_${from}_${to}.xlsx`, sheets: xlsxSheets } : null}
       excel={csv.length > 0 ? { filename: `gstr1_${from}_${to}.csv`, header: ["Table", "Number / detail", "Date / unit", "GSTIN", "Customer", "Rate %", "Taxable value", "IGST", "CGST", "SGST", "Total"], rows: csv } : null}
     >
       <div className="space-y-6">

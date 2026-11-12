@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { longDate } from "@/lib/format";
 import { rangeText } from "@/lib/report-shell";
 import { CsvButton } from "../csv-button";
+import { XlsxButton } from "../xlsx-button";
+import type { XlsxSheet } from "@/lib/xlsx";
 import { FilterForm, type FilterToggle } from "./filter-form";
 import { OutletBanner } from "./outlet-banner";
 import { PrintButton } from "./print-button";
@@ -33,6 +35,7 @@ export function ReportShell({
   note,
   toggles,
   excel,
+  xlsx,
   landscape = false,
   children,
 }: {
@@ -44,6 +47,8 @@ export function ReportShell({
   toggles?: FilterToggle[];
   /** Data for the Excel (CSV) button; leave out or pass null when there is nothing to export. */
   excel?: ReportExcel | null;
+  /** An Excel (.xlsx) workbook with one sheet per section, for reports that have several tables. Shown beside the CSV button. */
+  xlsx?: { filename: string; sheets: XlsxSheet[] } | null;
   /** Print on A4 landscape (wide tables). Default is A4 portrait. */
   landscape?: boolean;
   children: ReactNode;
@@ -83,6 +88,7 @@ export function ReportShell({
 
         <FilterForm basePath={basePath} from={from} to={to} range={ctx.range} max={ctx.today} toggles={toggles}>
           <PrintButton />
+          {xlsx ? <XlsxButton filename={xlsx.filename} sheets={xlsx.sheets} className="rpt-btn" /> : null}
           {excel ? <CsvButton filename={excel.filename} header={excel.header} rows={excel.rows} label="Excel (CSV)" className="rpt-btn" /> : null}
         </FilterForm>
 

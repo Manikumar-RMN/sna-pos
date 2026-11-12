@@ -5,6 +5,8 @@ import { friendlyDbError } from "@/lib/db-error";
 import { addDays, dateTime, isYmd, longDate, money, orderTypeLabel, todayIn } from "@/lib/format";
 import { outletScope } from "@/lib/reports-pack";
 import { CsvButton } from "../csv-button";
+import { XlsxButton } from "../xlsx-button";
+import type { XlsxSheet } from "@/lib/xlsx";
 import { OutletBanner } from "../_components/outlet-banner";
 import { FilterForm } from "../_components/filter-form";
 import { PrintButton } from "../_components/print-button";
@@ -149,9 +151,8 @@ export default async function SalesSummaryPage({
   const unpaidBills = Number(rep?.summary.unpaid_bills ?? 0);
   const unpaidCount = `${unpaidBills} bill${unpaidBills === 1 ? "" : "s"}`;
 
-  const sec = (title: string, head: string[], body: (string | number)[][]): (string | number)[][] =>
-    body.length === 0 ? [] : [[], [title], head, ...body];
-  const exportRows: (string | number)[][] = rep ? [
+  const sec = (name: string, header: string[], rows: (string | number)[][]): XlsxSheet[] => (rows.length === 0 ? [] : [{ name, header, rows }]);
+  const exportSheets: XlsxSheet[] = rep ? [
     ...sec("Summary", ["Item", "Value"], [
       ["Bills", rep.summary.bills], ["Gross sales", rep.summary.gross_sales], ["Discounts", rep.summary.discounts], ["Net sales", rep.summary.net_sales],
       ["Service charge", rep.summary.service_charge], ["Tax", rep.summary.tax], ["Rounding", rep.summary.rounding], ["Total billed", rep.summary.total_billed],
@@ -220,12 +221,10 @@ export default async function SalesSummaryPage({
 
       <FilterForm basePath="/reports/sales-summary" from={from} to={to} range={range} max={today}>
         {rep && (
-          <CsvButton
-            filename={`sales_summary_${from}_${to}.csv`}
-            label="Excel (CSV)"
+          <XlsxButton
+            filename={`sales_summary_${from}_${to}.xlsx`}
             className="rpt-btn"
-            header={["Sales summary", scope.label, from, to]}
-            rows={exportRows}
+            sheets={exportSheets}
           />
         )}
         <PrintButton />
