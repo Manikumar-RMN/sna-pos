@@ -1514,7 +1514,13 @@ export function PosTerminal({
               )}
               </>
             )}
-          </div>
+                      {merged && lines.length > 0 && (
+              <div className="-mx-2 mt-1 flex items-center justify-between border-t px-2 pt-1 text-xs font-bold" style={{ borderColor: "var(--color-line)", color: "#1D4F9F" }}>
+                <span>New items · {itemCount}</span>
+                <span title="Before the tax on these items; the bill total is worked out when they are sent">{m(addSubtotal)}</span>
+              </div>
+            )}
+</div>
   );
 
   return (
