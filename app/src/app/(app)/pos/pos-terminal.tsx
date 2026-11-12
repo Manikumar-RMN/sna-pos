@@ -2080,9 +2080,12 @@ export function PosTerminal({
                     Clear
                   </button>
                 )}
-                <button onClick={submitAdd} disabled={pending || lines.length === 0 || offline || !!saved} className="btn btn-primary flex-1">
-                  {pending ? "Adding…" : `KOT · add ${itemCount || ""} to bill`}
-                </button>
+                {/* On the single order screen the bottom bar's "Save Kot" does this; only the older screens keep this button. */}
+                {!winStyle && (
+                  <button onClick={submitAdd} disabled={pending || lines.length === 0 || offline || !!saved} className="btn btn-primary flex-1">
+                    {pending ? "Adding…" : `KOT · add ${itemCount || ""} to bill`}
+                  </button>
+                )}
               </div>
             </div>
           ) : (

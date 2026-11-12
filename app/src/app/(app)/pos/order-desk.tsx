@@ -9,7 +9,6 @@ import { deskUrl, destinationLabel, planSwitch, selectionKey } from "@/lib/order
 import { useOnline } from "@/lib/use-online";
 import { PosTerminal, type AddTo, type KotDone } from "./pos-terminal";
 import { KotPrinter } from "./kot/[orderId]/kot-printer";
-import { ScreenSwitch } from "./screen-switch";
 
 type TerminalBase = Omit<ComponentProps<typeof PosTerminal>, "addTo" | "lockedTable" | "inline" | "onKotDone" | "askCovers" | "onCartCount" | "deskKey" | "deskTableId" | "stashRef">;
 
@@ -146,7 +145,6 @@ export function OrderDesk({
   }
 
   const selectedTableId = selection.kind === "table" ? selection.tableId : selection.kind === "bill" ? selection.tableId : null;
-  const classicAfter = selection.kind === "bill" ? `/bills/${selection.billId}` : "/pos";
 
   return (
     <div>
@@ -159,7 +157,6 @@ export function OrderDesk({
           )}
         </div>
         <div className="flex items-center gap-3">
-          <ScreenSwitch to="classic" after={classicAfter} />
           <Link href="/pos/kot-cancel" className="btn border text-xs" style={{ borderColor: "var(--color-line)" }}>
             KOT cancel
           </Link>
