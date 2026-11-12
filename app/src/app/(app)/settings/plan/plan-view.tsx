@@ -64,8 +64,8 @@ export function PlanView({ plan, isOwner }: { plan: Plan; isOwner: boolean }) {
       )}
 
       {[
-        { title: "Included", note: "Part of your plan.", items: addons.filter((m) => !price(m.key)) },
-        { title: "Add-on modules", note: "Charged monthly. Ask here and the SNA team switches it on.", items: addons.filter((m) => !!price(m.key)) },
+        { title: "Included", note: "Part of your plan.", items: addons.filter((m) => !price(m.key) && m.key !== "stock") },
+        { title: "Add-on modules", note: "Charged monthly. Ask here and the SNA team switches it on.", items: addons.filter((m) => !!price(m.key) || m.key === "stock") },
       ]
         .filter((g) => g.items.length > 0)
         .map((g) => (
