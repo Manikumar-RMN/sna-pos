@@ -88,9 +88,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     { key: "home", title: "Home", icon: "home", items: [{ href: "/dashboard", label: "Home" }] },
     {
       key: "pos", title: "POS", icon: "pos",
-      items: pick(["/pos", "/captain", "/table-orders", "/kitchen", "/bills", "/preorders", "/deliveries", "/online-orders", "/accounts", "/customers", "/reservations", "/loyalty", "/shift", "/timesheets"]),
+      items: pick(["/pos", "/captain", "/table-orders", "/kitchen", "/bills", "/preorders", "/deliveries", "/online-orders", "/accounts", "/customers", "/reservations", "/loyalty", "/shift", "/timesheets"]).sort((a, b) => a.label.localeCompare(b.label)),
     },
-    { key: "inventory", title: "Purchase and inventory", icon: "inventory", items: pick(["/stock", "/purchases"]) },
+    { key: "inventory", title: "Purchase and inventory", icon: "inventory", items: pick(["/stock", "/purchases"]).sort((a, b) => a.label.localeCompare(b.label)) },
     {
       key: "reports", title: "Reports", icon: "reports",
       // A to Z by name, so the list is easy to scan.

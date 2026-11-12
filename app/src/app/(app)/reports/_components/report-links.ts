@@ -123,5 +123,7 @@ export function groupReportLinks(access: ReportAccess, section?: SectionKey): { 
     if (last && last.group === g) last.items.push(l);
     else out.push({ group: g, items: [l] });
   }
-  return out;
+  // A to Z: the headings, and the reports under each heading. The report with no heading (Sales summary) stays first.
+  for (const o of out) o.items.sort((a, b) => a.title.localeCompare(b.title));
+  return out.sort((a, b) => (a.group === null ? -1 : b.group === null ? 1 : a.group.localeCompare(b.group)));
 }
