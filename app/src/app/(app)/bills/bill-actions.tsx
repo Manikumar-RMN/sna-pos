@@ -429,10 +429,10 @@ export function BillActions({
 
       {showPay && (!embedded || win === "pay") && (
         <PanelFrame modal={embedded} title="Take payment" error={error} notice={notice} onClose={() => setWin(null)}>
-        <section className="card p-4">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-sm font-bold">Take payment</h2>
-            <span className="text-sm">
+        <section className={embedded ? "p-1" : "card p-4"}>
+          <div className={`flex items-baseline ${embedded ? "justify-end" : "justify-between"}`}>
+            {!embedded && <h2 className="text-sm font-bold">Take payment</h2>}
+            <span className={embedded ? "text-base" : "text-sm"}>
               {state === "part-paid" ? "Balance " : "To pay "}
               <b>{m(balance)}</b>
             </span>
@@ -511,11 +511,13 @@ export function BillActions({
                 />
               )}
               {isCash && (
-                <div className="mt-2 flex items-center gap-2">
-                  <input className="field h-10 flex-1 text-sm" inputMode="decimal" placeholder="Cash received" value={tendered} onChange={(e) => setTendered(e.target.value)} />
-                  <span className="text-sm">
-                    Change <b>{m(change)}</b>
-                  </span>
+                <div className="mt-3">
+                  <input className="field h-10 w-full text-sm" inputMode="decimal" placeholder="Cash received" value={tendered} onChange={(e) => setTendered(e.target.value)} />
+                  <div className="mt-1 flex justify-end text-sm">
+                    <span>
+                      Change <b>{m(change)}</b>
+                    </span>
+                  </div>
                 </div>
               )}
               {isCash && due > 0 && (
