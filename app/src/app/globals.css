@@ -295,13 +295,23 @@ h2,
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 12.5px;
+  font-size: 13.5px;
+}
+/* Summary tables with just a label and a value should not stretch across the whole page. */
+.rpt-scroll:has(.rpt-table:not(:has(th:nth-child(3)))) {
+  max-width: 34rem;
 }
 .rpt-table th,
 .rpt-table td {
   border-bottom: 1px solid var(--color-line);
-  padding: 6px 8px;
+  padding: 8px 10px;
   white-space: nowrap;
+}
+/* Long column titles wrap instead of pushing the table off the page. */
+.rpt-table thead th {
+  white-space: normal;
+  line-height: 1.25;
+  vertical-align: bottom;
 }
 .rpt-table td:first-child {
   white-space: normal;
@@ -314,7 +324,7 @@ h2,
   z-index: 1;
   background: var(--color-brand-strong);
   color: #fff;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;

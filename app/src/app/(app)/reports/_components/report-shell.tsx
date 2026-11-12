@@ -75,16 +75,15 @@ export function ReportShell({
           <strong>{scope.label}</strong> · {dates} · {basis}
           {note ? ` · ${note}` : ""}
         </p>
-        <div className="no-print">
-          <OutletBanner scope={scope} info={ctx.info} showPicker={ctx.showPicker} />
-        </div>
+        {(ctx.showPicker || scope.all) && (
+          <div className="no-print">
+            <OutletBanner scope={scope} info={ctx.info} showPicker={ctx.showPicker} />
+          </div>
+        )}
 
         <FilterForm basePath={basePath} from={from} to={to} range={ctx.range} max={ctx.today} toggles={toggles}>
           <PrintButton />
           {excel ? <CsvButton filename={excel.filename} header={excel.header} rows={excel.rows} label="Excel (CSV)" className="rpt-btn" /> : null}
-          <Link href="/reports" className="rpt-btn">
-            Back
-          </Link>
         </FilterForm>
 
         {ctx.clamped && <Notice>Reports cover at most one year, so only the latest 366 days of the range you chose are shown.</Notice>}

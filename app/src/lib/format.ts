@@ -14,8 +14,10 @@ const LOCALE: Record<string, string> = {
 };
 
 export function money(n: number | string | null | undefined, currency = "INR"): string {
-  const v = Number(n ?? 0);
+  let v = Number(n ?? 0);
   const digits = ZERO_DECIMAL.has(currency) ? 0 : 2;
+  // A tiny negative (or -0) would print as "-₹0.00"; show it as plain zero.
+  if (Math.abs(v) < 0.5 * 10 ** -digits) v = 0;
   try {
     return new Intl.NumberFormat(LOCALE[currency] ?? "en-US", {
       style: "currency",
