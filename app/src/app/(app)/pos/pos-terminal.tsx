@@ -2373,9 +2373,6 @@ export function PosTerminal({
           role="group"
           aria-label="Order buttons"
         >
-          <WinBtn tone="#E8590C" onClick={() => { setOpenOnly(false); document.querySelector<HTMLInputElement>('input[placeholder^="Search the menu"]')?.focus(); }}>
-            Direct
-          </WinBtn>
           <WinBtn tone="#E8590C" disabled={!canOpenPrice} title={canOpenPrice ? "Make a new dish in the group being shown" : "Needs the open-price right"} onClick={() => { setQuickErr(null); setQuickOpen(true); }}>
             Open +
           </WinBtn>
