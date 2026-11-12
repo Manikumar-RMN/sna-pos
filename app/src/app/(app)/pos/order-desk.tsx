@@ -227,7 +227,7 @@ export function OrderDesk({
         </div>
       )}
 
-      <div className={`${showTables ? "hidden " : ""}${billMode ? "grid gap-4 pb-16 xl:h-[calc(100dvh-8.5rem)] xl:grid-cols-[400px_minmax(0,1fr)] xl:grid-rows-[auto_minmax(0,1fr)]" : hasBill ? "grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]" : ""}`}>
+      <div className={`${showTables ? "hidden " : ""}${billMode ? "grid gap-4 pb-16 xl:h-[calc(100dvh-8.5rem)] xl:grid-cols-[400px_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)_auto]" : hasBill ? "grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]" : ""}`}>
         <div id="order-menu" className={hasBill && tab !== "order" ? `hidden ${billMode ? "xl:contents" : "xl:block"}` : billMode ? "xl:contents" : undefined}>
           <PosTerminal
             key={`${selKey}:${nonce}`}
@@ -258,7 +258,7 @@ export function OrderDesk({
         </div>
         {hasBill && (
           <aside
-            className={`${tab === "bill" ? "" : "hidden"} xl:block ${billMode ? "xl:col-start-1 xl:row-start-1 xl:max-h-[40dvh] xl:overflow-y-auto" : "xl:order-first xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto"}`}
+            className={`${tab === "bill" ? "" : "hidden"} xl:block ${billMode ? "xl:col-start-1 xl:row-start-1 xl:overflow-y-auto" : "xl:order-first xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto"}`}
             aria-label="Running bill"
           >
             {billPanel}

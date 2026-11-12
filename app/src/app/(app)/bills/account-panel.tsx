@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import { chargeToAccount } from "../accounts/actions";
@@ -14,11 +14,21 @@ export function AccountPanel({ orderId, accounts, currency }: { orderId: string;
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
+  const boxRef = useRef<HTMLDivElement>(null);
+  // The Company button of the Check screen opens this box.
+  useEffect(() => {
+    const on = () => {
+      setOpen(true);
+      setTimeout(() => boxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+    };
+    window.addEventListener("sna-desk-company", on);
+    return () => window.removeEventListener("sna-desk-company", on);
+  }, []);
   const usable = accounts.filter((a) => a.limit != null);
   if (usable.length === 0) return null;
   const shown = usable.filter((a) => !q.trim() || `${a.name} ${a.phone ?? ""} ${a.company ?? ""}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 8);
   return (
-    <div className="no-print card mx-auto mt-3 max-w-sm p-4">
+    <div ref={boxRef} className="no-print card mx-auto mt-3 max-w-sm p-4">
       {!open ? (
         <button className="w-full text-left text-sm font-semibold" style={{ color: "var(--color-brand)" }} onClick={() => setOpen(true)}>
           Due: charge to a customer account (pay later) →

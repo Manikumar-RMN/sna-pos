@@ -63,6 +63,7 @@ export function BillActions({
   otherBills,
   canMerge = true,
   embedded = false,
+  companyAccounts = 0,
   compNow = null,
   businessDate = null,
   branchId = null,
@@ -122,6 +123,8 @@ export function BillActions({
   canMerge?: boolean;
   /** Shown inside the single order screen (/pos): "+ Add items" and a split go to that screen instead of the old pages. */
   embedded?: boolean;
+  /** How many customer credit accounts can take this bill (the Company button of the Check screen). */
+  companyAccounts?: number;
   /** Set when the bill is already a no-charge bill: its kind, so it can be charged again (Winsar "NoCharge KOT to KOT"). */
   compNow?: "complimentary" | "staff_meal" | null;
   /** The business day this bill counts towards (Winsar "KOT Date Transfer"). */
@@ -638,6 +641,19 @@ export function BillActions({
             {showAdjust && !adjust?.senior && <PanelButton label="Complimentary / staff meal" active={panel === "comp"} onClick={() => setPanel("comp")} />}
             {canVoid && !hasPayments && <PanelButton label="KOT date transfer" active={panel === "date"} onClick={() => setPanel("date")} />}
             {canVoid && !hasPayments && outlets.length > 1 && <PanelButton label="Move to another outlet" active={panel === "outlet"} onClick={() => setPanel("outlet")} />}
+            <button
+              type="button"
+              className="btn border text-sm"
+              style={{ borderColor: "var(--color-line)" }}
+              disabled={companyAccounts === 0}
+              title={companyAccounts === 0 ? "No customer credit accounts are set up (Accounts)" : "Charge this bill to a company / customer account (pay later)"}
+              onClick={() => { setCheckOpen(false); window.dispatchEvent(new Event("sna-desk-company")); }}
+            >
+              Company
+            </button>
+            <Link href={`/bills/settle/${orderId}`} className="btn border text-center text-sm" style={{ borderColor: "var(--color-line)" }} title="Take an advance: add a payment smaller than the balance on the settlement screen; the bill stays part-paid">
+              Advance
+            </Link>
             <button type="button" className="btn border text-sm" style={{ borderColor: "var(--color-brand)", color: "var(--color-brand-strong)" }} title="Print the bill as an estimate for the guest. It is not a tax invoice." onClick={() => window.dispatchEvent(new Event("sna-desk-estimate"))}>
               Estimate
             </button>
@@ -716,6 +732,7 @@ export function BillActions({
                   </div>
                 ));
               })()}
+              <div id="desk-new-rows" />
               <div className="flex items-center justify-between px-2 py-1 text-xs font-bold" style={{ borderTop: "1px solid var(--color-line)", background: "var(--color-surface-2)" }}>
                 <span style={{ color: "var(--color-brand-strong)" }}>QTY : {lines.reduce((n, l) => n + l.qty, 0)}</span>
                 <span>{m(lines.reduce((n, l) => n + l.amount, 0))}</span>

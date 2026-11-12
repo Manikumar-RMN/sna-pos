@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { money, orderTypeLabel, roundCash } from "@/lib/format";
 import { parseDiscountInput } from "@/lib/discount";
@@ -455,6 +456,28 @@ export function PosTerminal({
   /** A running bill on the single order screen (/pos?bill=): the new items use the same list-left, menu-right look and bottom bar as a new table order. */
   const billOrder = inline && !!addTo && !!deskKey;
   const winStyle = tableOrder || billOrder;
+  /** On wide screens the new items are listed inside the bill's "Order so far" box (one list, like Winsar): the slot is a div in that box. */
+  const [wide, setWide] = useState(false);
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!billOrder) return;
+    const mq = window.matchMedia("(min-width: 1280px)");
+    const on = () => setWide(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [billOrder]);
+  useEffect(() => {
+    if (!billOrder) return;
+    const find = () => setSlot((prev) => {
+      const el = document.getElementById("desk-new-rows");
+      return prev === el ? prev : el;
+    });
+    find();
+    const t = setInterval(find, 400);
+    return () => clearInterval(t);
+  }, [billOrder]);
+  const merged = billOrder && wide && !!slot;
   const whereLabel = addTo ? (addTo.table ? `Table ${addTo.table}` : null) : lockedTable ? `Table ${lockedTable.number}` : deskKey ? "Counter" : null;
   // Bars: liquor and food may not share a bill.
   const mixedLiquor = lines.some((l) => l.item.liquor) && lines.some((l) => !l.item.liquor);
@@ -1321,6 +1344,179 @@ export function PosTerminal({
     });
   }
 
+  const listBox = (
+          <div className={merged ? "border-t px-2 py-1" : "flex-1 overflow-y-auto px-4 py-2"} style={merged ? { borderColor: "var(--color-line)" } : undefined}>
+            {merged && lines.length > 0 && (
+              <div className="-mx-2 mb-1 px-2 py-1 text-center text-[11px] font-bold text-white" style={{ background: "#1D4F9F" }}>
+                New items · not sent yet
+              </div>
+            )}
+            {mixedLiquor && (
+              <p className="mb-2 rounded-lg px-3 py-2 text-xs font-semibold" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+                This order has liquor and food. They go on separate bills: remove one kind, save, then bill the other.
+              </p>
+            )}
+            {inline && lines.length > 0 && (
+              <div
+                className="mb-1 flex items-center justify-between border-b pb-1 text-[11px] font-bold uppercase tracking-wide"
+                style={{ borderColor: "var(--color-line)", color: "var(--color-ink-3)" }}
+                aria-hidden="true"
+              >
+                <span>Item</span>
+                <span className="flex items-center gap-6">
+                  <span>Qty</span>
+                  <span>Price</span>
+                </span>
+              </div>
+            )}
+            {lines.length === 0 ? (
+              merged ? null : <p className="py-6 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
+                No items yet.
+              </p>
+            ) : (
+              <>
+              <ul>
+                {lines.map((l) => (
+                  <li key={l.key} className="border-b py-2 last:border-0" style={{ borderColor: "var(--color-line)", background: tableOrder && pickedLine === l.key ? "var(--color-brand-soft)" : undefined }}>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`min-w-0 flex-1${tableOrder ? " cursor-pointer" : ""}`}
+                      onClick={tableOrder ? () => setPickedLine((k) => (k === l.key ? null : l.key)) : undefined}
+                      title={tableOrder ? "Tap to choose this line for the special instruction" : undefined}
+                    >
+                      <div className="truncate text-sm font-medium">{l.item.name}</div>
+                      {l.options.length > 0 && (
+                        <div className="truncate text-[11px]" style={{ color: "var(--color-ink-2)" }}>
+                          {l.options.map((o) => o.name).join(", ")}
+                        </div>
+                      )}
+                      <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+                        {m(unitPrice(l))}
+                        {l.openPrice != null && " · open price"}
+                        {noDisc(l) && (
+                          <span className="ml-1.5 rounded px-1 text-[10px] font-semibold" style={{ background: "var(--color-surface-2, #eee)", color: "var(--color-ink-2)" }} title="This item cannot be discounted">
+                            No discount
+                          </span>
+                        )}
+                        {warnedIds.has(l.item.id) && (
+                          <span className="ml-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "var(--color-warn)" }} title="An ingredient for this dish is running short" aria-label="Stock is short for this dish" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {l.item.byWeight ? (
+                        <>
+                          <button onClick={() => setWeighing({ item: l.item, key: l.key, kg: l.qty })} className="rounded-md border px-2 py-1 text-sm font-semibold" style={{ borderColor: "var(--color-line)" }} aria-label={`Change the weight of ${l.item.name}`}>
+                            {qtyText(l.qty, true)}
+                          </button>
+                          <button onClick={() => step(l.key, -l.qty)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`Remove ${l.item.name}`}>
+                            ✕
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => step(l.key, -1)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`One less ${l.item.name}`}>
+                            −
+                          </button>
+                          <span className="w-5 text-center text-sm font-semibold">{l.qty}</span>
+                          <button onClick={() => step(l.key, 1)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`One more ${l.item.name}`}>
+                            +
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    <div className="w-20 text-right text-sm font-semibold">{m(Math.round(unitPrice(l) * l.qty * 100) / 100)}</div>
+                  </div>
+                  {noteOpen === l.key ? (
+                    <div className="mt-2 space-y-1.5">
+                      <input
+                        className="field h-9 text-sm"
+                        placeholder="Note for the kitchen, e.g. no onion"
+                        value={l.note}
+                        maxLength={200}
+                        autoFocus
+                        onChange={(e) => setNote(l.key, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") setNoteOpen(null);
+                        }}
+                        aria-label={`Kitchen note for ${l.item.name}`}
+                      />
+                      <div className="flex flex-wrap gap-1">
+                        {QUICK_NOTES.map((q) => (
+                          <button
+                            key={q}
+                            type="button"
+                            className="rounded-md border px-2 py-1 text-[11px] font-semibold"
+                            style={{ borderColor: "var(--color-line)" }}
+                            onClick={() => setNote(l.key, l.note.trim() ? (l.note.includes(q) ? l.note : `${l.note.trim()}, ${q}`) : q)}
+                          >
+                            {q}
+                          </button>
+                        ))}
+                        <button type="button" className="ml-auto rounded-md px-2 py-1 text-[11px] font-bold" style={{ color: "var(--color-brand-strong)" }} onClick={() => setNoteOpen(null)}>
+                          Done
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-1 flex items-center gap-3">
+                      <button
+                        type="button"
+                        className="text-left text-[11px] font-semibold"
+                        style={{ color: l.note ? "var(--color-warn)" : "var(--color-ink-3)" }}
+                        onClick={() => setNoteOpen(l.key)}
+                      >
+                        {l.note ? `Note: ${l.note}` : <Dual text="+ Kitchen note" />}
+                      </button>
+                      {!offline && allowHold && (
+                        <button
+                          type="button"
+                          className="rounded-md px-1.5 text-[11px] font-semibold"
+                          aria-pressed={!!l.hold}
+                          style={l.hold ? { background: "var(--color-warn-soft)", color: "var(--color-warn)" } : { color: "var(--color-ink-3)" }}
+                          onClick={() => toggleHold(l.key)}
+                          title="Hold for the next course; send it to the kitchen from the bill later"
+                        >
+                          {l.hold ? "Held — next course" : <Dual text="Hold" />}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  </li>
+                ))}
+              </ul>
+              {packRule && (
+                <label className="tap flex items-center gap-2 border-t text-sm" style={{ borderColor: "var(--color-line)" }}>
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium">{addTo ? "Add packing charge" : "Packing charge"}</span>
+                    {packRule.per === "item" && (
+                      <span className="ml-1.5 text-xs" style={{ color: "var(--color-ink-3)" }}>
+                        {m(packRule.price)} × {packingQty}
+                      </span>
+                    )}
+                    {addTo && (
+                      <span className="block text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                        This bill may already have one.
+                      </span>
+                    )}
+                  </span>
+                  <span className={packingTicked ? "font-semibold" : undefined} style={packingTicked ? undefined : { color: "var(--color-ink-3)" }}>
+                    {m(packingAmount)}
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 shrink-0"
+                    checked={packingTicked}
+                    onChange={(e) => setPackingChoice(e.target.checked)}
+                    aria-label="Add the packing charge to this bill"
+                  />
+                </label>
+              )}
+              </>
+            )}
+          </div>
+  );
+
   return (
     <div className={inline ? `grid gap-3 sm:grid-cols-[270px_minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]${tableOrder ? " pb-16 sm:h-[calc(100dvh-8.5rem)] sm:overflow-hidden" : ""}${billOrder ? " pb-16 xl:contents" : ""}` : "grid gap-4 lg:grid-cols-[1fr_360px]"}>
       <div className={tableOrder ? "min-h-0 overflow-y-auto pr-1" : billOrder ? "min-h-0 overflow-y-auto pr-1 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:h-[calc(100dvh-8.5rem)]" : undefined}>
@@ -1825,171 +2021,7 @@ export function PosTerminal({
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto px-4 py-2">
-            {mixedLiquor && (
-              <p className="mb-2 rounded-lg px-3 py-2 text-xs font-semibold" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
-                This order has liquor and food. They go on separate bills: remove one kind, save, then bill the other.
-              </p>
-            )}
-            {inline && lines.length > 0 && (
-              <div
-                className="mb-1 flex items-center justify-between border-b pb-1 text-[11px] font-bold uppercase tracking-wide"
-                style={{ borderColor: "var(--color-line)", color: "var(--color-ink-3)" }}
-                aria-hidden="true"
-              >
-                <span>Item</span>
-                <span className="flex items-center gap-6">
-                  <span>Qty</span>
-                  <span>Price</span>
-                </span>
-              </div>
-            )}
-            {lines.length === 0 ? (
-              <p className="py-6 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
-                No items yet.
-              </p>
-            ) : (
-              <>
-              <ul>
-                {lines.map((l) => (
-                  <li key={l.key} className="border-b py-2 last:border-0" style={{ borderColor: "var(--color-line)", background: tableOrder && pickedLine === l.key ? "var(--color-brand-soft)" : undefined }}>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`min-w-0 flex-1${tableOrder ? " cursor-pointer" : ""}`}
-                      onClick={tableOrder ? () => setPickedLine((k) => (k === l.key ? null : l.key)) : undefined}
-                      title={tableOrder ? "Tap to choose this line for the special instruction" : undefined}
-                    >
-                      <div className="truncate text-sm font-medium">{l.item.name}</div>
-                      {l.options.length > 0 && (
-                        <div className="truncate text-[11px]" style={{ color: "var(--color-ink-2)" }}>
-                          {l.options.map((o) => o.name).join(", ")}
-                        </div>
-                      )}
-                      <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
-                        {m(unitPrice(l))}
-                        {l.openPrice != null && " · open price"}
-                        {noDisc(l) && (
-                          <span className="ml-1.5 rounded px-1 text-[10px] font-semibold" style={{ background: "var(--color-surface-2, #eee)", color: "var(--color-ink-2)" }} title="This item cannot be discounted">
-                            No discount
-                          </span>
-                        )}
-                        {warnedIds.has(l.item.id) && (
-                          <span className="ml-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "var(--color-warn)" }} title="An ingredient for this dish is running short" aria-label="Stock is short for this dish" />
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {l.item.byWeight ? (
-                        <>
-                          <button onClick={() => setWeighing({ item: l.item, key: l.key, kg: l.qty })} className="rounded-md border px-2 py-1 text-sm font-semibold" style={{ borderColor: "var(--color-line)" }} aria-label={`Change the weight of ${l.item.name}`}>
-                            {qtyText(l.qty, true)}
-                          </button>
-                          <button onClick={() => step(l.key, -l.qty)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`Remove ${l.item.name}`}>
-                            ✕
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => step(l.key, -1)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`One less ${l.item.name}`}>
-                            −
-                          </button>
-                          <span className="w-5 text-center text-sm font-semibold">{l.qty}</span>
-                          <button onClick={() => step(l.key, 1)} className="grid h-8 w-8 place-items-center rounded-md border text-base" style={{ borderColor: "var(--color-line)" }} aria-label={`One more ${l.item.name}`}>
-                            +
-                          </button>
-                        </>
-                      )}
-                    </div>
-                    <div className="w-20 text-right text-sm font-semibold">{m(Math.round(unitPrice(l) * l.qty * 100) / 100)}</div>
-                  </div>
-                  {noteOpen === l.key ? (
-                    <div className="mt-2 space-y-1.5">
-                      <input
-                        className="field h-9 text-sm"
-                        placeholder="Note for the kitchen, e.g. no onion"
-                        value={l.note}
-                        maxLength={200}
-                        autoFocus
-                        onChange={(e) => setNote(l.key, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") setNoteOpen(null);
-                        }}
-                        aria-label={`Kitchen note for ${l.item.name}`}
-                      />
-                      <div className="flex flex-wrap gap-1">
-                        {QUICK_NOTES.map((q) => (
-                          <button
-                            key={q}
-                            type="button"
-                            className="rounded-md border px-2 py-1 text-[11px] font-semibold"
-                            style={{ borderColor: "var(--color-line)" }}
-                            onClick={() => setNote(l.key, l.note.trim() ? (l.note.includes(q) ? l.note : `${l.note.trim()}, ${q}`) : q)}
-                          >
-                            {q}
-                          </button>
-                        ))}
-                        <button type="button" className="ml-auto rounded-md px-2 py-1 text-[11px] font-bold" style={{ color: "var(--color-brand-strong)" }} onClick={() => setNoteOpen(null)}>
-                          Done
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-1 flex items-center gap-3">
-                      <button
-                        type="button"
-                        className="text-left text-[11px] font-semibold"
-                        style={{ color: l.note ? "var(--color-warn)" : "var(--color-ink-3)" }}
-                        onClick={() => setNoteOpen(l.key)}
-                      >
-                        {l.note ? `Note: ${l.note}` : <Dual text="+ Kitchen note" />}
-                      </button>
-                      {!offline && allowHold && (
-                        <button
-                          type="button"
-                          className="rounded-md px-1.5 text-[11px] font-semibold"
-                          aria-pressed={!!l.hold}
-                          style={l.hold ? { background: "var(--color-warn-soft)", color: "var(--color-warn)" } : { color: "var(--color-ink-3)" }}
-                          onClick={() => toggleHold(l.key)}
-                          title="Hold for the next course; send it to the kitchen from the bill later"
-                        >
-                          {l.hold ? "Held — next course" : <Dual text="Hold" />}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  </li>
-                ))}
-              </ul>
-              {packRule && (
-                <label className="tap flex items-center gap-2 border-t text-sm" style={{ borderColor: "var(--color-line)" }}>
-                  <span className="min-w-0 flex-1">
-                    <span className="font-medium">{addTo ? "Add packing charge" : "Packing charge"}</span>
-                    {packRule.per === "item" && (
-                      <span className="ml-1.5 text-xs" style={{ color: "var(--color-ink-3)" }}>
-                        {m(packRule.price)} × {packingQty}
-                      </span>
-                    )}
-                    {addTo && (
-                      <span className="block text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-                        This bill may already have one.
-                      </span>
-                    )}
-                  </span>
-                  <span className={packingTicked ? "font-semibold" : undefined} style={packingTicked ? undefined : { color: "var(--color-ink-3)" }}>
-                    {m(packingAmount)}
-                  </span>
-                  <input
-                    type="checkbox"
-                    className="h-5 w-5 shrink-0"
-                    checked={packingTicked}
-                    onChange={(e) => setPackingChoice(e.target.checked)}
-                    aria-label="Add the packing charge to this bill"
-                  />
-                </label>
-              )}
-              </>
-            )}
-          </div>
+          {merged ? (slot ? createPortal(listBox, slot) : null) : listBox}
 
           {addTo ? (
             <div className="border-t px-4 py-3" style={{ borderColor: "var(--color-line)" }}>

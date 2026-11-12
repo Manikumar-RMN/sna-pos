@@ -300,6 +300,7 @@ export async function BillScreen({
         cashRounding={bill.cashRoundingMode}
         splitPay={splitPay}
         embedded={embedded}
+        companyAccounts={((accounts ?? []) as unknown as { limit: number | null }[]).filter((a) => a.limit != null).length}
         lines={bill.lines}
         hasDiscount={bill.hasDiscount}
         hasPayments={r.payments.length > 0}
