@@ -6,6 +6,10 @@ import type { ReactNode } from "react";
  *
  * `rows` and `total` are cells already formatted as text. `total` lines up with `head`, e.g.
  * ["TOTAL", "120", "₹4,500.00"]. Columns listed in `textCols` are left-aligned text, the rest are numbers.
+ *
+ * `groupBy` splits the rows by the text in column `col` (for example the Outlet column when several outlets are in view): each group gets a
+ * heading row, its rows, and, when `subtotal` is given, a subtotal row. `subtotal` receives the original row numbers of that group and
+ * returns cells lined up with `head`. The TOTAL row at the bottom stays the grand total.
  */
 export function ReportTable({
   head,
@@ -13,12 +17,14 @@ export function ReportTable({
   total,
   textCols = [0],
   zebra = false,
+  groupBy,
 }: {
   head: string[];
   rows: ReactNode[][];
   total?: ReactNode[];
   textCols?: number[];
   zebra?: boolean;
+  groupBy?: { col: number; subtotal?: (rowNumbers: number[]) => ReactNode[] };
 }) {
   const align = (i: number) => (textCols.includes(i) ? "text-left" : "text-right");
   return (
@@ -33,17 +39,44 @@ export function ReportTable({
             ))}
           </tr>
         </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={i}>
-              {r.map((cell, j) => (
-                <td key={j} className={align(j)}>
-                  {cell}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
+        {groupBy ? (
+          [...new Set(rows.map((r) => String(r[groupBy.col] ?? "")))]
+            .sort((a, b) => a.localeCompare(b))
+            .map((g) => {
+              const idx = rows.map((_, i) => i).filter((i) => String(rows[i][groupBy.col] ?? "") === g);
+              return (
+                <tbody key={g}>
+                  <tr>
+                    <td colSpan={head.length} className="text-left font-bold" style={{ background: "var(--color-brand-soft)" }}>
+                      {head[groupBy.col]}: {g || "—"}
+                    </td>
+                  </tr>
+                  {idx.map((i) => (
+                    <tr key={i}>
+                      {rows[i].map((cell, j) => (
+                        <td key={j} className={align(j)}>
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  {groupBy.subtotal && <TotalRow cells={groupBy.subtotal(idx)} textCols={textCols} />}
+                </tbody>
+              );
+            })
+        ) : (
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i}>
+                {r.map((cell, j) => (
+                  <td key={j} className={align(j)}>
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        )}
         {total && (
           <tfoot>
             <TotalRow cells={total} textCols={textCols} />

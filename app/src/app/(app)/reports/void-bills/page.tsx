@@ -61,6 +61,7 @@ export default async function VoidBillsPage({ searchParams }: { searchParams: Pr
             <ReportTable
               head={head}
               textCols={Array.from({ length: textCount }, (_, i) => i)}
+              groupBy={scope.all ? { col: head.indexOf("Outlet"), subtotal: (idx) => [`Outlet total (${idx.length} bills)`, ...Array<string>(textCount - 1).fill(""), money(idx.reduce((x, i) => x + rows[i].amount, 0), c)] } : undefined}
               rows={rows.map((b) => [...line(b), money(b.amount, c)])}
               total={[`TOTAL (${totals.bills} bills)`, ...Array<string>(textCount - 1).fill(""), money(totals.amount, c)]}
             />

@@ -50,6 +50,12 @@ export default async function WaiterSalesPage({ searchParams }: { searchParams: 
                 money(safeAverage(totalSales, totalBills), c),
               ]}
               textCols={scope.all ? [0, 1] : [0]}
+              groupBy={scope.all ? { col: 1, subtotal: (idx) => {
+                const bills = idx.reduce((x, i) => x + waiters[i].bills, 0);
+                const covers = idx.reduce((x, i) => x + waiters[i].covers, 0);
+                const sales = idx.reduce((x, i) => x + waiters[i].total, 0);
+                return ["Outlet total", "", String(bills), covers > 0 ? String(covers) : "—", money(sales, c), money(safeAverage(sales, bills), c)];
+              } } : undefined}
               rows={waiters.map((w) => {
                 const cells = line(w).map(String);
                 const i = scope.all ? 2 : 1;

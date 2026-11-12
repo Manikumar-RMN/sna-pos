@@ -32,7 +32,10 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
       {err ? <Err e={err} /> : rows.length === 0 ? <Empty text="No goods received in this period." /> : (
         <>
           {o.truncated === true && <Notice>Only the newest {n(o.row_limit)} lines are listed. Choose a shorter period to see every line.</Notice>}
-          <ReportTable head={head} textCols={text} rows={cells} total={["TOTAL", ...head.slice(1, -4).map(() => ""), money(n(t.value), c), "", "", `${n(t.receipts)} receipts`]} />
+          <ReportTable head={head} textCols={text} rows={cells} groupBy={scope.all ? { col: 2, subtotal: (idx) => {
+            const live = idx.map((i) => rows[i]).filter((x) => x.status !== "cancelled");
+            return ["Outlet total", ...head.slice(1, -4).map(() => ""), money(live.reduce((a, x) => a + n(x.line_total), 0), c), "", "", `${new Set(live.map((x) => s(x.number))).size} receipts`];
+          } } : undefined} total={["TOTAL", ...head.slice(1, -4).map(() => ""), money(n(t.value), c), "", "", `${n(t.receipts)} receipts`]} />
           <Note>Cancelled receipts are listed but not counted in the total. Rate is the price you paid per unit, as entered on the receipt. Tax is the line tax; Claim back shows it only where it can be claimed from the tax office (the supplier has a tax number and the restaurant claims input tax).</Note>
         </>
       )}

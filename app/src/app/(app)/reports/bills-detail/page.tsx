@@ -102,6 +102,7 @@ export default async function BillsDetailPage({ searchParams }: { searchParams: 
               head={head}
               textCols={textCols}
               zebra
+              groupBy={scope.all ? { col: lead.indexOf("Outlet"), subtotal: (idx) => [`Outlet total (${idx.length} bills)`, ...Array<string>(lead.length - 1).fill(""), ...amountCols.map((a) => money(idx.reduce((x, i) => x + a.value(rows[i]), 0), c)), ""] } : undefined}
               rows={rows.map((b) => [...line(b), ...amountCols.map((a) => money(a.value(b), c)), paymentsText(b.payments, (n) => money(n, c)) || "—"])}
               total={[`TOTAL (${totals.bills} bills)`, ...Array<string>(lead.length - 1).fill(""), ...amountCols.map((a) => money(a.total, c)), ""]}
             />
