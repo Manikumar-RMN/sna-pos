@@ -7,9 +7,11 @@ import { ReportShell } from "../_components/report-shell";
 import { ReportTable } from "../_components/report-table";
 import { BillsByMode } from "./bills-by-mode";
 
-export default async function SettlementPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string; bybill?: string }> }) {
+export default async function SettlementPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string; bybill?: string; time?: string; ref?: string }> }) {
   const sp = await searchParams;
   const byBill = sp.bybill === "1";
+  const showTime = sp.time === "1";
+  const showRef = sp.ref === "1";
   const r = await loadReport(sp, { title: "Settlement", need: "financial" });
   if (!r.ok) return r.denied;
   const { ctx } = r;
@@ -66,7 +68,7 @@ export default async function SettlementPage({ searchParams }: { searchParams: P
       basePath="/reports/settlement"
       basis="payments on finished bills · refunds by the day they were given"
       landscape
-      toggles={[{ name: "bybill", label: "Payment detail: one line per bill, a column for each mode", checked: byBill }]}
+      toggles={[{ name: "bybill", label: "Payment detail: one line per bill, a column for each mode", checked: byBill }, ...(byBill ? [{ name: "time", label: "Time", checked: showTime }, { name: "ref", label: "Reference", checked: showRef }] : [])]}
       excel={excel}
     >
       <div>
@@ -118,7 +120,7 @@ export default async function SettlementPage({ searchParams }: { searchParams: P
               {s.rows.length === 0 ? (
                 <Empty text="No payments in this period." />
               ) : byBill ? (
-                <BillsByMode rows={s.rows} currency={c} showOutlet={scope.all} />
+                <BillsByMode rows={s.rows} currency={c} showOutlet={scope.all} showTime={showTime} showRef={showRef} timezone={user.timezone} />
               ) : (
                 <ReportTable
                   head={detailHead}

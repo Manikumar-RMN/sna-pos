@@ -8475,6 +8475,8 @@ export type Database = {
       gstr1_hsn_summary: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_purchase_billwise: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_sales_billwise: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_settlement_type: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_advances: { Args: { p_from: string; p_to: string }; Returns: Json }
       import_menu: { Args: { p_apply?: boolean; p_rows: Json }; Returns: Json }
       floor_status: {
         Args: never

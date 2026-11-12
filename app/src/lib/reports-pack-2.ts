@@ -168,6 +168,10 @@ export type BillDetail = {
   sgst: number;
   igst: number;
   session: string;
+  buyerName: string | null;
+  buyerGstin: string | null;
+  tips: number;
+  items: string | null;
   rounding: number;
   grandTotal: number;
   payments: BillPayment[];
@@ -201,6 +205,10 @@ export function parseBillsDetail(json: unknown): { rows: BillDetail[]; cap: Capp
     sgst: num(r.sgst),
     igst: num(r.igst),
     session: text(r.session, "Other"),
+    buyerName: textOrNull(r.buyer_name),
+    buyerGstin: textOrNull(r.buyer_gstin),
+    tips: num(r.tips),
+    items: textOrNull(r.items),
     rounding: num(r.rounding),
     grandTotal: num(r.grand_total),
     payments: parsePayments(r.payments),
