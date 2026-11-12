@@ -6,15 +6,11 @@ import type { OutletScope } from "@/lib/reports-pack";
  * to switch between one outlet and All outlets; the page then reads again for the new choice.
  */
 export function OutletBanner({ scope, info, showPicker }: { scope: OutletScope; info: OutletInfo | null; showPicker: boolean }) {
+  // The outlet is already named in the line above the filters, so this is just the picker (and a note for "All outlets").
   return (
-    <div className="card mb-4 flex flex-wrap items-center justify-between gap-2 p-3">
-      <div>
-        <div className="text-sm font-bold">{scope.label}</div>
-        {scope.all && (
-          <div className="text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-            Totals include all outlets.
-          </div>
-        )}
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+        {scope.all ? "Totals include all outlets." : ""}
       </div>
       {showPicker && info ? (
         <div className="flex items-center gap-2">
