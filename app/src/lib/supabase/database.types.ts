@@ -8472,6 +8472,8 @@ export type Database = {
       gift_card_history: { Args: { p_code: string }; Returns: Json }
       gift_card_lookup: { Args: { p_code: string }; Returns: Json }
       gst_register: { Args: { p_from: string; p_to: string }; Returns: Json }
+      gstr1_hsn_summary: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_purchase_billwise: { Args: { p_from: string; p_to: string }; Returns: Json }
       import_menu: { Args: { p_apply?: boolean; p_rows: Json }; Returns: Json }
       floor_status: {
         Args: never
