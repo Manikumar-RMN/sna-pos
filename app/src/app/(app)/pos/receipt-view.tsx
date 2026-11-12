@@ -240,7 +240,10 @@ export function ReceiptView({
   const vatable = Math.round((data.netSales - data.exemptSales + data.seniorDiscount) * 100) / 100;
 
   return (
-    <div className="mx-auto max-w-sm">
+    <div
+      className={hideBack && estimate ? "fixed inset-0 z-[70] overflow-y-auto p-4 [&>*]:mx-auto [&>*:not(#receipt)]:max-w-sm" : "mx-auto max-w-sm"}
+      style={hideBack && estimate ? { background: "rgba(10,8,20,.55)" } : undefined}
+    >
       <style>{`
         @media print {
           body * { visibility: hidden !important; }
