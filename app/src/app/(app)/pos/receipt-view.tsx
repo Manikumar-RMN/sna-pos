@@ -285,7 +285,7 @@ export function ReceiptView({
         />
       )}
       {estimate && (
-        <div className="no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)" }}>
+        <div className={`no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm ${hideBack ? "mt-6 w-full max-w-sm" : ""}`} role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)" }}>
           <span className="font-semibold">Estimate preview: not a tax invoice, not counted as a print.</span>
           <span className="flex gap-2">
             <button className="btn btn-primary h-9 px-3 text-sm" onClick={printEstimate}>
@@ -297,7 +297,7 @@ export function ReceiptView({
           </span>
         </div>
       )}
-      <div className={`no-print mb-3 flex items-center ${hideBack ? "justify-end" : "justify-between"}`}>
+      <div className={`no-print mb-3 items-center ${hideBack ? (estimate ? "hidden" : "flex justify-end") : "flex justify-between"}`}>
         {!hideBack && (
           <Link href={backHref} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
             ← {backLabel}
