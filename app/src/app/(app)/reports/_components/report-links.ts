@@ -49,6 +49,7 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Purchase and inventory", href: "/reports/stock-ledger", title: "Stock ledger", blurb: "Every in and out of one ingredient, with a running balance and value.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/receipts", title: "Receipts list", blurb: "Every item received from suppliers, with bill, rate and value.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/supplier-purchases", title: "Supplier-wise purchases", blurb: "What you bought from each supplier, what went back, and what is still owed.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/purchase-billwise", title: "Purchase bill-wise register", blurb: "One line per supplier bill received, with CGST, SGST and IGST and the tax you can claim.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/input-tax", title: "Input tax (purchases)", blurb: "Tax paid on purchases by rate and HSN, split into CGST, SGST and IGST, with what you can claim.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/supplier-statement", title: "Supplier statement", blurb: "One supplier: bills, goods returned, payments and refunds with a running balance.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/supplier-ageing", title: "Supplier ageing", blurb: "What you owe each supplier, by how many days past the due date.", need: "stock" },
