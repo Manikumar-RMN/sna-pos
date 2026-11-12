@@ -1,0 +1,1 @@
+-- Rollback: re-run the kot_date_transfer definition from 235_nc_kot_date_outlet_transfer.sql.
