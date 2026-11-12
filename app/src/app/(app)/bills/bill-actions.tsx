@@ -254,6 +254,50 @@ export function BillActions({
     !!adjust && state === "unpaid" && !hasPayments && (canPay || canDiscount);
   const adjustChanged = !!adjust && (discNum !== adjust.discount || (adjust.scAvailable && scWanted !== adjust.scOn));
 
+  /** Moves the chosen quantities (splitQty) to a new bill, with the options for the new bill. Used by the split panel and the Check screen. */
+  function runSplit() {
+      setError(null);
+      const items = Object.entries(splitQty)
+        .filter(([, qty]) => qty > 0)
+        .map(([order_item_id, qty]) => ({ order_item_id, qty }))
+        .sort((a, b) => a.order_item_id.localeCompare(b.order_item_id));
+      const key = JSON.stringify(items);
+      if (splitRef.current?.key !== key) splitRef.current = { key, id: crypto.randomUUID() };
+      const clientRef = splitRef.current.id;
+      start(async () => {
+        let res: Awaited<ReturnType<typeof splitBill>>;
+        try {
+          res = await splitBill({ orderId, items, clientRef });
+        } catch {
+          // No reply from the server. The same request id makes pressing the button again safe.
+          return setError("The internet dropped while splitting. Press the button again — the bill will not be split twice.");
+        }
+        if (!res.ok) return setError(res.error);
+        splitRef.current = null;
+        setSplitQty({});
+        // Partial split options: set on the new bill only. If one is refused the bill still exists, so say so.
+        const disc = Number(splitDisc) || 0;
+        const why = splitWhy.trim();
+        if ((splitNoTax || disc > 0) && why.length < 3) {
+          return setError(`${res.message} Write a reason, then set the options on that bill from Running bills.`);
+        }
+        try {
+          if (splitNoTax) {
+            const r1 = await setBillNoTax({ orderId: res.newOrderId, on: true, reason: why });
+            if (!r1.ok) return setError(`${res.message} But: ${r1.error}`);
+          }
+          if (disc > 0 || splitNoSc) {
+            const r2 = await adjustBill({ orderId: res.newOrderId, discount: disc, reason: disc > 0 ? why : null, serviceCharge: splitNoSc ? false : null });
+            if (!r2.ok) return setError(`${res.message} But: ${r2.error}`);
+          }
+        } catch {
+          return setError(`${res.message} The options could not be saved; open that bill and set them there.`);
+        }
+        setSplitNoTax(false); setSplitNoSc(false); setSplitDisc(""); setSplitWhy("");
+        router.push(embedded ? `/pos?bill=${res.newOrderId}` : `/bills/${res.newOrderId}`);
+      });
+  }
+
   function run(fn: () => Promise<{ ok: boolean; error?: string; message?: string }>, after?: () => void) {
     setError(null);
     setNotice(null);
@@ -494,6 +538,109 @@ export function BillActions({
         </PanelFrame>
       )}
 
+      {embedded && checkOpen && showPay && (
+        <div className="fixed inset-0 z-40 flex flex-col gap-3 overflow-y-auto p-3" style={{ background: "var(--color-surface-2, #f6f3ea)" }} role="dialog" aria-label="Check">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-base font-bold">Check · bill {billNumber}</div>
+            <div className="flex items-center gap-2">
+              {discTools && (
+                <button type="button" className="btn border text-sm" style={{ borderColor: discTools.noTax ? "var(--color-brand)" : "var(--color-line)" }} onClick={() => setPanel("itemdisc")} title="Take the tax off this bill (needs the owner's permission for this outlet)">
+                  No Tax {discTools.noTax ? "· ON" : ""}
+                </button>
+              )}
+              {adjust?.scAvailable && (
+                <button type="button" className="btn border text-sm" style={{ borderColor: !adjust.scOn ? "var(--color-brand)" : "var(--color-line)" }} onClick={() => setPanel("adjust")} title="Take the service charge off this bill">
+                  No S.C. {!adjust.scOn ? "· ON" : ""}
+                </button>
+              )}
+              <button type="button" className="btn btn-primary text-sm" onClick={() => setCheckOpen(false)}>
+                ← Back
+              </button>
+            </div>
+          </div>
+
+          {splitBlocked && <p className="rounded-md border p-2 text-xs" style={{ borderColor: "var(--color-line)", color: "var(--color-ink-3)" }}>{splitBlocked}</p>}
+
+          <div className="grid min-h-0 gap-3 md:grid-cols-2">
+            {([1, 2] as const).map((n) => {
+              const rows = lines
+                .map((l) => ({ l, q: n === 1 ? l.qty - (splitQty[l.id] ?? 0) : splitQty[l.id] ?? 0 }))
+                .filter((r) => r.q > 0);
+              const sum = rows.reduce((t, r) => t + (r.l.amount / r.l.qty) * r.q, 0);
+              return (
+                <section key={n} className="card flex min-h-[220px] flex-col p-3">
+                  <div className="flex items-center justify-between border-b pb-2 text-sm font-bold" style={{ borderColor: "var(--color-line)" }}>
+                    <span>{n === 1 ? "Check 1 · this bill" : "Check 2 · new bill"}</span>
+                    <span>{m(sum)}</span>
+                  </div>
+                  <ul className="flex-1 divide-y text-sm" style={{ borderColor: "var(--color-line)" }}>
+                    {rows.length === 0 && (
+                      <li className="py-6 text-center text-xs" style={{ color: "var(--color-ink-3)" }}>
+                        {n === 1 ? "Nothing left on this bill." : "Tap → on an item to move one to the new bill."}
+                      </li>
+                    )}
+                    {rows.map(({ l, q }) => (
+                      <li key={l.id} className="flex items-center gap-2 py-1.5">
+                        {n === 2 && (
+                          <button type="button" className="h-8 w-8 shrink-0 rounded-full border font-bold" style={{ borderColor: "var(--color-line)" }} aria-label={`Move one ${l.name} back`} onClick={() => setSplitQty((c) => ({ ...c, [l.id]: Math.max(0, (c[l.id] ?? 0) - 1) }))}>
+                            ←
+                          </button>
+                        )}
+                        <span className="min-w-0 flex-1 truncate">
+                          {l.name}
+                          {l.options ? <span style={{ color: "var(--color-ink-3)" }}> · {l.options}</span> : null}
+                        </span>
+                        <span className="w-8 text-center">{q}</span>
+                        <span className="w-16 text-right">{m((l.amount / l.qty) * q)}</span>
+                        {n === 1 && (
+                          <button type="button" disabled={!!splitBlocked} className="h-8 w-8 shrink-0 rounded-full border font-bold disabled:opacity-40" style={{ borderColor: "var(--color-line)" }} aria-label={`Move one ${l.name} to the new bill`} onClick={() => setSplitQty((c) => ({ ...c, [l.id]: Math.min(l.qty, (c[l.id] ?? 0) + 1) }))}>
+                            →
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+
+          {totals && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--color-line)" }}>
+              <span>Sub total {m(totals.subtotal)}</span>
+              {totals.discount > 0 && <span>Discount −{m(totals.discount)}</span>}
+              <span>Taxes {m(totals.tax)}</span>
+              <span className="font-bold">Total {m(grandTotal)}</span>
+            </div>
+          )}
+
+          {(error || notice) && <p className="text-sm" style={{ color: error ? "var(--color-bad)" : undefined }}>{error ?? notice}</p>}
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+            <button type="button" className="btn btn-primary text-sm" disabled={pending || !!splitBlocked || splitCount === 0 || splitCount >= lines.reduce((t, l) => t + l.qty, 0)} onClick={runSplit}>
+              {pending ? "Splitting…" : splitCount > 0 ? `Split (${splitCount} to Check 2)` : "Split"}
+            </button>
+            <PanelButton label="Split options / Auto split" active={panel === "split"} disabled={!!splitBlocked} onClick={() => setPanel("split")} />
+            {showAdjust && <PanelButton label={adjust?.scAvailable ? "Discount / service" : "Discount"} active={panel === "adjust"} onClick={() => setPanel("adjust")} />}
+            {discTools && lines.length > 0 && <PanelButton label="Item Disc" active={panel === "itemdisc"} onClick={() => setPanel("itemdisc")} />}
+            <PanelButton label="Move table" active={panel === "move"} onClick={() => setPanel("move")} />
+            <PanelButton label="Move item" active={panel === "moveItem"} disabled={!online} title={online ? undefined : needsInternetText("move_item")} onClick={() => setPanel("moveItem")} />
+            {canMerge && <PanelButton label="Merge bills" active={panel === "merge"} onClick={() => setPanel("merge")} />}
+            {open && (canVoid || canAsk) && lines.length > 0 && !dayClosed && <PanelButton label="Cancel item" active={win === "cancel"} onClick={() => setWin("cancel")} />}
+            {showVoid && <PanelButton label="Void bill" active={win === "void"} onClick={() => setWin("void")} />}
+            {showAdjust && !adjust?.senior && <PanelButton label="Complimentary / staff meal" active={panel === "comp"} onClick={() => setPanel("comp")} />}
+            {canVoid && !hasPayments && <PanelButton label="KOT date transfer" active={panel === "date"} onClick={() => setPanel("date")} />}
+            {canVoid && !hasPayments && outlets.length > 1 && <PanelButton label="Move to another outlet" active={panel === "outlet"} onClick={() => setPanel("outlet")} />}
+            <button type="button" className="btn btn-pay text-sm" onClick={() => { setCheckOpen(false); setWin("pay"); }}>
+              Settle · {m(balance)}
+            </button>
+            <Link href={`/bills/settle/${orderId}`} className="btn border text-center text-sm" style={{ borderColor: "var(--color-brand)", color: "var(--color-brand-strong)" }}>
+              Settlement screen
+            </Link>
+          </div>
+        </div>
+      )}
+
       {showPay && (
         <section className={embedded ? "card order-first p-4" : "card p-4"}>
           <h2 className="text-sm font-bold">{embedded ? "Order so far" : "Table & items"}</h2>
@@ -601,9 +748,9 @@ export function BillActions({
               </div>
             )}
             {embedded && (
-              <PanelButton label={checkOpen ? "Check ▲" : "Check ▼"} active={checkOpen} onClick={() => setCheckOpen((v) => !v)} />
+              <PanelButton label="Check ✓" active={checkOpen} onClick={() => setCheckOpen(true)} />
             )}
-            {(!embedded || checkOpen) && (<>
+            {!embedded && (<>
             <PanelButton label="Split bill" active={panel === "split"} onClick={() => setPanel(panel === "split" ? null : "split")} />
             <PanelButton label="Move table" active={panel === "move"} onClick={() => setPanel(panel === "move" ? null : "move")} />
             <PanelButton
@@ -1043,48 +1190,7 @@ export function BillActions({
                   <button
                     className="btn btn-primary mt-3 w-full text-sm"
                     disabled={pending || splitCount === 0 || splitCount >= lines.reduce((s, l) => s + l.qty, 0)}
-                    onClick={() => {
-                      setError(null);
-                      const items = Object.entries(splitQty)
-                        .filter(([, qty]) => qty > 0)
-                        .map(([order_item_id, qty]) => ({ order_item_id, qty }))
-                        .sort((a, b) => a.order_item_id.localeCompare(b.order_item_id));
-                      const key = JSON.stringify(items);
-                      if (splitRef.current?.key !== key) splitRef.current = { key, id: crypto.randomUUID() };
-                      const clientRef = splitRef.current.id;
-                      start(async () => {
-                        let res: Awaited<ReturnType<typeof splitBill>>;
-                        try {
-                          res = await splitBill({ orderId, items, clientRef });
-                        } catch {
-                          // No reply from the server. The same request id makes pressing the button again safe.
-                          return setError("The internet dropped while splitting. Press the button again — the bill will not be split twice.");
-                        }
-                        if (!res.ok) return setError(res.error);
-                        splitRef.current = null;
-                        setSplitQty({});
-                        // Partial split options: set on the new bill only. If one is refused the bill still exists, so say so.
-                        const disc = Number(splitDisc) || 0;
-                        const why = splitWhy.trim();
-                        if ((splitNoTax || disc > 0) && why.length < 3) {
-                          return setError(`${res.message} Write a reason, then set the options on that bill from Running bills.`);
-                        }
-                        try {
-                          if (splitNoTax) {
-                            const r1 = await setBillNoTax({ orderId: res.newOrderId, on: true, reason: why });
-                            if (!r1.ok) return setError(`${res.message} But: ${r1.error}`);
-                          }
-                          if (disc > 0 || splitNoSc) {
-                            const r2 = await adjustBill({ orderId: res.newOrderId, discount: disc, reason: disc > 0 ? why : null, serviceCharge: splitNoSc ? false : null });
-                            if (!r2.ok) return setError(`${res.message} But: ${r2.error}`);
-                          }
-                        } catch {
-                          return setError(`${res.message} The options could not be saved; open that bill and set them there.`);
-                        }
-                        setSplitNoTax(false); setSplitNoSc(false); setSplitDisc(""); setSplitWhy("");
-                        router.push(embedded ? `/pos?bill=${res.newOrderId}` : `/bills/${res.newOrderId}`);
-                      });
-                    }}
+                    onClick={runSplit}
                   >
                     {pending ? "Splitting…" : `Move ${splitCount || ""} to a new bill`}
                   </button>
