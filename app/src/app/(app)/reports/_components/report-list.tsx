@@ -10,12 +10,11 @@ export function ReportList({ access, section, keep }: { access: ReportAccess; se
         <section key={g.group ?? "top"} className="rc-card">
           <h3>{g.group ?? "Sales summary"}</h3>
           {g.items.map((l) => {
-            const here = l.href === "/reports";
             return (
-              <Link key={l.href} href={here ? "#sales-summary" : `${l.href}${keep}`} className="rc-row">
+              <Link key={l.href} href={`${l.href}${keep}`} className="rc-row">
                 <span className="rc-t">{l.title}</span>
                 <span className="rc-d">{l.blurb}</span>
-                <span className="rc-go">{here ? "View below ↓" : "Open →"}</span>
+                <span className="rc-go">Open →</span>
               </Link>
             );
           })}

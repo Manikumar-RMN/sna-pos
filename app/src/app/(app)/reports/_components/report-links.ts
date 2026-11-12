@@ -9,7 +9,7 @@ export type ReportLink = {
 };
 
 export const REPORT_LINKS: ReportLink[] = [
-  { href: "/reports", title: "Sales summary", blurb: "Sales, tax, payments, hours and items for the period.", need: "sales" },
+  { href: "/reports/sales-summary", title: "Sales summary", blurb: "Sales, tax, payments, hours and items for the period.", need: "sales" },
   { group: "Operations", href: "/reports/pending-kot", title: "Pending KOT", blurb: "Kitchen tickets with food still waiting.", need: "sales" },
   { group: "Operations", href: "/reports/pending-bills", title: "Pending bills", blurb: "Open bills and bills not fully paid, with balance and age.", need: "sales" },
   { group: "Operations", href: "/reports/table-turnaround", title: "Table turnaround time", blurb: "How long each table stays occupied, by day and by table.", need: "sales" },
