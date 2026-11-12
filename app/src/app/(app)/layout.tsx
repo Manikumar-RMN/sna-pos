@@ -50,7 +50,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     users: can(user, "user.manage"),
   };
   // The same four groups as the side menu: POS, Purchase and inventory, Loyalty and Audit reports (only the ones this client has).
-  const reportItems = REPORT_SECTIONS.filter((x) => groupReportLinks(reportAccess, x.key).length > 0).map((x) => ({ href: x.href, label: x.title, also: REPORT_LINKS.filter((r) => r.href !== "/reports" && sectionKey(r) === x.key).map((r) => r.href) }));
+  const reportItems = REPORT_SECTIONS.filter((x) => groupReportLinks(reportAccess, x.key).length > 0).map((x) => ({ href: x.href, label: x.title, also: REPORT_LINKS.filter((r) => r.href !== "/reports" && sectionKey(r) === x.key).map((r) => r.href) })).sort((a, b) => a.label.localeCompare(b.label));
   // Modules the client bought: POS and Reports/MIS are switchable like the others.
   const posOn = has(user, "pos");
   const misOn = has(user, "reports_mis");
@@ -93,6 +93,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     { key: "inventory", title: "Purchase and inventory", icon: "inventory", items: pick(["/stock", "/purchases"]) },
     {
       key: "reports", title: "Reports", icon: "reports",
+      // A to Z by name, so the list is easy to scan.
       items: [
         ...pick(["/owner"]),
         ...(visibleLinks.some((l) => l.href === "/reports")
@@ -103,7 +104,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
               also: REPORT_LINKS.filter((r) => r.href !== "/reports" && sectionKey(r) === s.key).map((r) => r.href),
             }))
           : []),
-      ],
+      ].sort((a, b) => a.label.localeCompare(b.label)),
     },
     { key: "setup", title: "Setup", icon: "setup", items: pick(["/settings"]) },
     { key: "help", title: "Help", icon: "help", items: pick(["/help"]) },
