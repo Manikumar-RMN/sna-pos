@@ -3,6 +3,7 @@ import { can, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayIn } from "@/lib/format";
 import { CsvButton } from "../csv-button";
+import { XlsxButton } from "../xlsx-button";
 import { PrintButton } from "../_components/print-button";
 
 /** User list, like Winsar's User List report: every user with role, department, designation, status and relieving date. */
@@ -48,7 +49,8 @@ export default async function UserListPage() {
         </Link>
         <div className="flex gap-2">
           <PrintButton />
-          <CsvButton filename="user_list.csv" header={head} rows={rows} label="Excel (CSV)" className="rpt-btn" />
+          <XlsxButton filename="user_list.xlsx" sheets={[{ name: "User list", header: head, rows }]} className="rpt-btn" />
+          <CsvButton filename="user_list.csv" header={head} rows={rows} label="CSV" className="rpt-btn" />
         </div>
       </div>
       <h2 className="text-xl font-bold">User list</h2>

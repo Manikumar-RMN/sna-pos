@@ -17,7 +17,7 @@ export type ReportExcel = { filename: string; header: string[]; rows: (string | 
 /**
  * The frame every report page uses, in the style of the WinCloud report screens: a white panel with the report name
  * and a way back, the outlet line (with the outlet picker for people who have several outlets), the filter form
- * (From/To, quick presets, toggles, Display), Print, Excel (CSV) and Back buttons, then the report itself.
+ * (From/To, quick presets, toggles, Display), Print, Excel (.xlsx), CSV and Back buttons, then the report itself.
  * Printing hides the menus, filters and buttons and adds a header (business, report, outlet, dates, print time).
  *
  *   <ReportShell ctx={ctx} title="Popular items" basePath="/reports/popular-items"
@@ -45,7 +45,7 @@ export function ReportShell({
   basis?: string;
   note?: string;
   toggles?: FilterToggle[];
-  /** Data for the Excel (CSV) button; leave out or pass null when there is nothing to export. */
+  /** Data for the Excel (.xlsx) and CSV buttons; leave out or pass null when there is nothing to export. */
   excel?: ReportExcel | null;
   /** An Excel (.xlsx) workbook with one sheet per section, for reports that have several tables. Shown beside the CSV button. */
   xlsx?: { filename: string; sheets: XlsxSheet[] } | null;
@@ -88,8 +88,9 @@ export function ReportShell({
 
         <FilterForm basePath={basePath} from={from} to={to} range={ctx.range} max={ctx.today} toggles={toggles}>
           <PrintButton />
-          {xlsx ? <XlsxButton filename={xlsx.filename} sheets={xlsx.sheets} className="rpt-btn" /> : null}
-          {excel ? <CsvButton filename={excel.filename} header={excel.header} rows={excel.rows} label="Excel (CSV)" className="rpt-btn" /> : null}
+          {/* Excel (.xlsx) is the standard download on every report; CSV stays beside it for accounting software that imports it. */}
+          {xlsx ? <XlsxButton filename={xlsx.filename} sheets={xlsx.sheets} className="rpt-btn" /> : excel ? <XlsxButton filename={excel.filename.replace(/\.csv$/i, ".xlsx")} sheets={[{ name: title, header: excel.header, rows: excel.rows }]} className="rpt-btn" /> : null}
+          {excel ? <CsvButton filename={excel.filename} header={excel.header} rows={excel.rows} label="CSV" className="rpt-btn" /> : null}
         </FilterForm>
 
         {ctx.clamped && <Notice>Reports cover at most one year, so only the latest 366 days of the range you chose are shown.</Notice>}
