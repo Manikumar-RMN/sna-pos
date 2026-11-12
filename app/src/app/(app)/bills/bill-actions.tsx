@@ -1700,7 +1700,7 @@ function PanelFrame({ modal, title, error, notice, onClose, children }: { modal:
   if (!modal) return <>{children}</>;
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
-      <div className="card max-h-[85vh] w-full max-w-md overflow-y-auto p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="card max-h-[calc(85vh/var(--z))] w-full max-w-md overflow-y-auto p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold">{title}</h2>
           <button type="button" className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={onClose} aria-label="Close">

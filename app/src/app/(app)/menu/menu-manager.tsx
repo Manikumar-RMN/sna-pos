@@ -1114,7 +1114,7 @@ function OptionGroupModal({ group, dishes, currency, onClose }: { group: OptionG
           <span>Extra price</span>
           <span />
         </div>
-        <div className="max-h-[40vh] space-y-2 overflow-y-auto">
+        <div className="max-h-[calc(40vh/var(--z))] space-y-2 overflow-y-auto">
           {rows.map((r, i) => (
             <div key={i} className="grid grid-cols-[1fr_110px_28px] items-center gap-2">
               <div className="min-w-0">

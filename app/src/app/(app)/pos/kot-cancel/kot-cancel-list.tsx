@@ -18,7 +18,7 @@ export function KotCancelList({ rows }: { rows: KotRow[] }) {
   return (
     <div className="card p-3">
       <input className="field mb-2 h-9 w-full text-sm" placeholder="Filter by table or KOT no." value={filter} onChange={(e) => setFilter(e.target.value)} />
-      <div className="max-h-[50vh] overflow-y-auto rounded-lg border text-sm" style={{ borderColor: "var(--color-line)" }}>
+      <div className="max-h-[calc(50vh/var(--z))] overflow-y-auto rounded-lg border text-sm" style={{ borderColor: "var(--color-line)" }}>
         <div className="grid grid-cols-[60px_70px_1fr_90px] gap-2 px-2 py-1 text-[11px] font-bold" style={{ background: "var(--color-surface-2)" }}>
           <span>Table</span>
           <span>KOT no</span>

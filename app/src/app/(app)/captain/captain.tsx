@@ -438,7 +438,7 @@ function OrderView({
 
       {showCart && (
         <div className="fixed inset-0 z-50 grid items-end sm:place-items-center sm:p-4" style={{ background: "rgba(10,8,20,.55)" }} onClick={(e) => e.target === e.currentTarget && setShowCart(false)}>
-          <div className="card max-h-[85vh] w-full max-w-md overflow-y-auto rounded-b-none p-5 sm:rounded-b-2xl" style={{ background: "var(--color-surface)" }} role="dialog" aria-label="This order">
+          <div className="card max-h-[calc(85vh/var(--z))] w-full max-w-md overflow-y-auto rounded-b-none p-5 sm:rounded-b-2xl" style={{ background: "var(--color-surface)" }} role="dialog" aria-label="This order">
             <h3 className="text-lg font-bold">This order</h3>
             <div className="mt-3 space-y-3">
               {cart.map((l, i) => (

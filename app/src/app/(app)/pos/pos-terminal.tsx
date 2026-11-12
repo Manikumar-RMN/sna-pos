@@ -1817,7 +1817,7 @@ export function PosTerminal({
       )}
 
       <div id="cart" className={inline ? (tableOrder ? "min-h-0 scroll-mt-4 sm:order-first" : billOrder ? "min-h-0 scroll-mt-4 pb-20 sm:order-first xl:col-start-1 xl:row-start-2 xl:pb-0" : "scroll-mt-4 pb-20 sm:order-first sm:sticky sm:top-2 sm:self-start sm:pb-0") : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
-        <div className={`card flex flex-col ${winStyle ? "h-full" : "max-h-[calc(100vh-2rem)]"}`}>
+        <div className={`card flex flex-col ${winStyle ? "h-full" : "max-h-[calc(100vh/var(--z)_-_2rem)]"}`}>
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
             <div className="whitespace-nowrap text-sm font-bold">{addTo ? "Items to add" : "Current bill"}</div>
             {addTo ? (
@@ -2809,7 +2809,7 @@ export function OptionPicker({
     >
       <div className="card w-full max-w-md p-5" style={{ background: "var(--color-surface)" }} role="dialog" aria-label={`Options for ${item.name}`}>
         <h3 className="text-lg font-bold">{item.name}</h3>
-        <div className="mt-4 max-h-[60vh] space-y-4 overflow-y-auto">
+        <div className="mt-4 max-h-[calc(60vh/var(--z))] space-y-4 overflow-y-auto">
           {item.groups.map((g) => (
             <fieldset key={g.id}>
               <legend className="mb-1.5 text-sm font-semibold">

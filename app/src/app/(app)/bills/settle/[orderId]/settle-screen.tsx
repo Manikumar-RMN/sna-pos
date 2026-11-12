@@ -114,7 +114,7 @@ export function SettleScreen({
   const blocked = !canPay ? "You do not have permission to take payments." : dayClosed ? "This bill's day is closed." : balance <= 0 ? "This bill is already paid." : null;
 
   return (
-    <div className="flex min-h-[calc(100dvh-7rem)] flex-col">
+    <div className="flex min-h-[calc(100dvh/var(--z)_-_7rem)] flex-col">
       <div className="mb-2 flex items-center justify-between">
         <h1 className="text-base font-bold">
           {tableNumber ? `Table No : ${tableNumber}` : "Counter"} <span style={{ color: "var(--color-ink-3)" }}>· Settlement</span>

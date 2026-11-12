@@ -39,6 +39,16 @@
   --radius-card: 22px;
 }
 
+/* Big screens: scale the whole app up so it fills the display instead of sitting small in the middle.
+   --z is also used by height calculations (100vh / var(--z)) so sticky panels still fit the window. */
+:root { --z: 1; }
+@media (min-width: 1700px) { :root { --z: 1.15; } }
+@media (min-width: 2200px) { :root { --z: 1.3; } }
+@media (min-width: 2800px) { :root { --z: 1.6; } }
+html { zoom: var(--z); }
+.min-h-screen { min-height: calc(100vh / var(--z)); }
+@media print { :root { --z: 1 !important; } }
+
 :root {
   color-scheme: light;
 }

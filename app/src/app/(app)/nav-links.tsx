@@ -165,7 +165,7 @@ function DropList({ id, item, path, pos, box, onPick }: { id: string; item: NavI
       ref={box}
       id={id}
       className="fixed z-50 w-60 max-w-[calc(100vw-16px)] overflow-y-auto rounded-2xl border p-1.5 shadow-lg"
-      style={{ left: pos.left, top: pos.top, maxHeight: "calc(100vh - 24px)", background: "var(--color-surface)", borderColor: "var(--color-line)", color: "var(--color-ink)" }}
+      style={{ left: pos.left, top: pos.top, maxHeight: "calc(100vh / var(--z) - 24px)", background: "var(--color-surface)", borderColor: "var(--color-line)", color: "var(--color-ink)" }}
     >
       <ul className="m-0 list-none p-0">
         {item.children?.map((c, i) => {

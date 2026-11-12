@@ -227,7 +227,7 @@ export function OrderDesk({
         </div>
       )}
 
-      <div className={`${showTables ? "hidden " : ""}${billMode ? "grid gap-4 pb-16 xl:h-[calc(100dvh-8.5rem)] xl:grid-cols-[400px_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)_auto]" : hasBill ? "grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]" : ""}`}>
+      <div className={`${showTables ? "hidden " : ""}${billMode ? "grid gap-4 pb-16 xl:h-[calc(100dvh/var(--z)_-_8.5rem)] xl:grid-cols-[400px_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)_auto]" : hasBill ? "grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]" : ""}`}>
         <div id="order-menu" className={hasBill && tab !== "order" ? `hidden ${billMode ? "xl:contents" : "xl:block"}` : billMode ? "xl:contents" : undefined}>
           <PosTerminal
             key={`${selKey}:${nonce}`}

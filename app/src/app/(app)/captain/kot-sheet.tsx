@@ -142,7 +142,7 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
 
   return (
     <div className="fixed inset-0 z-50 grid items-end sm:place-items-center sm:p-4" style={{ background: "rgba(10,8,20,.55)" }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="card max-h-[88vh] w-full max-w-md overflow-y-auto rounded-b-none p-5 sm:rounded-b-2xl" style={{ background: "var(--color-surface)" }} role="dialog" aria-label="Sent to the kitchen">
+      <div className="card max-h-[calc(88vh/var(--z))] w-full max-w-md overflow-y-auto rounded-b-none p-5 sm:rounded-b-2xl" style={{ background: "var(--color-surface)" }} role="dialog" aria-label="Sent to the kitchen">
         <div className="flex items-start justify-between gap-2">
           <div>
             <h3 className="text-lg font-bold">Sent to the kitchen</h3>

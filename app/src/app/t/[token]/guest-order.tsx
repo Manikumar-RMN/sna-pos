@@ -213,7 +213,7 @@ export function GuestOrder({ token, menu }: { token: string; menu: GuestMenu }) 
         <div className="fixed inset-0 z-40 flex items-end justify-center" style={{ background: "rgba(10,8,20,.5)" }} onClick={() => setCartOpen(false)}>
           <div className="w-full max-w-lg rounded-t-3xl p-4" style={{ background: "var(--color-surface)" }} onClick={(e) => e.stopPropagation()}>
             <h2 className="mb-3 text-lg font-bold">Your order</h2>
-            <ul className="mb-3 max-h-[40vh] space-y-2 overflow-y-auto">
+            <ul className="mb-3 max-h-[calc(40vh/var(--z))] space-y-2 overflow-y-auto">
               {lines.map((l) => (
                 <li key={l.key} className="flex items-center justify-between gap-2">
                   <div className="min-w-0 text-sm">
@@ -265,7 +265,7 @@ function OptionPicker({ item, currency, onClose, onAdd }: { item: Item; currency
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(10,8,20,.5)" }} onClick={onClose}>
       <div className="w-full max-w-lg rounded-t-3xl p-4" style={{ background: "var(--color-surface)" }} onClick={(e) => e.stopPropagation()}>
         <h2 className="mb-3 text-lg font-bold">{item.name}</h2>
-        <div className="max-h-[55vh] space-y-4 overflow-y-auto">
+        <div className="max-h-[calc(55vh/var(--z))] space-y-4 overflow-y-auto">
           {item.option_groups.map((g) => (
             <fieldset key={g.id}>
               <legend className="mb-2 text-sm font-bold">
