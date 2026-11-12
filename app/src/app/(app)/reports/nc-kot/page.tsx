@@ -17,7 +17,6 @@ type Row = {
   subtotal: number | null;
   dining_tables: { table_number: string } | null;
 };
-const LIMIT = 500;
 
 export default async function NcKotPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string }> }) {
   const r = await loadReport(await searchParams, { title: "No-charge KOT", need: "financial" });
@@ -25,15 +24,8 @@ export default async function NcKotPage({ searchParams }: { searchParams: Promis
   const { ctx } = r;
   const { supabase, from, to, scope, user } = ctx;
   const c = user.currency_code;
-  let q = supabase
-    .from("orders")
-    .select("id, bill_number, business_date, branch_id, comp_kind, comp_reason, comp_by, comp_charge_to, subtotal, dining_tables!orders_dining_table_id_fkey(table_number)")
-    .not("comp_kind", "is", null)
-    .neq("status", "voided")
-    .gte("business_date", from)
-    .lte("business_date", to);
-  if (scope.branchId) q = q.eq("branch_id", scope.branchId);
-  const { data, error } = await q.order("business_date", { ascending: false }).limit(LIMIT);
+  // A database function, so that All outlets really covers every outlet (reading the table directly only shows the outlet you work in).
+  const { data, error } = await supabase.rpc("report_nc_kot", { p_from: from, p_to: to });
   const rows = (error ? [] : (data ?? [])) as unknown as Row[];
   const ids = [...new Set(rows.map((x) => x.comp_by).filter((x): x is string => !!x))];
   const { data: us } = ids.length ? await supabase.from("users").select("id, full_name").in("id", ids) : { data: [] as { id: string; full_name: string }[] };

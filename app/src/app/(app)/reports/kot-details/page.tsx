@@ -24,13 +24,8 @@ export default async function KotDetailsPage({ searchParams }: { searchParams: P
   const { ctx } = r;
   const { supabase, from, to, scope, user } = ctx;
   const tz = user.timezone;
-  let q = supabase
-    .from("kitchen_tickets")
-    .select("id, ticket_number, created_at, status, station, cancel_reason, branch_id, orders(bill_number, dining_tables!orders_dining_table_id_fkey(table_number)), kitchen_ticket_items(product_name, quantity, status)")
-    .gte("created_at", localDayStartIso(from, tz))
-    .lt("created_at", localDayStartIso(addDays(to, 1), tz));
-  if (scope.branchId) q = q.eq("branch_id", scope.branchId);
-  const { data, error } = await q.order("created_at", { ascending: false }).limit(LIMIT);
+  // A database function, so that All outlets really covers every outlet (reading the table directly only shows the outlet you work in).
+  const { data, error } = await supabase.rpc("report_kot_details", { p_start: localDayStartIso(from, tz), p_end: localDayStartIso(addDays(to, 1), tz) });
   const rows = (error ? [] : (data ?? [])) as unknown as Row[];
   const head = ["Time", "KOT no", "Bill", "Table", ...(scope.all ? ["Outlet"] : []), "Station", "Status", "Items"];
   const items = (x: Row) => x.kitchen_ticket_items.map((i) => `${Number(i.quantity)} × ${i.product_name}${i.status === "cancelled" ? " (cancelled)" : ""}`).join(", ");

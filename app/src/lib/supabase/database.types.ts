@@ -8477,6 +8477,8 @@ export type Database = {
       report_sales_billwise: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_settlement_type: { Args: { p_from: string; p_to: string }; Returns: Json }
       report_advances: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_nc_kot: { Args: { p_from: string; p_to: string }; Returns: Json }
+      report_kot_details: { Args: { p_start: string; p_end: string }; Returns: Json }
       report_popular_split: { Args: { p_from: string; p_to: string; p_by: string }; Returns: Json }
       report_covers_by_group: { Args: { p_from: string; p_to: string }; Returns: Json }
       import_menu: { Args: { p_apply?: boolean; p_rows: Json }; Returns: Json }
