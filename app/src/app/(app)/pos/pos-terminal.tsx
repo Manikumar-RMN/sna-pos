@@ -1818,14 +1818,14 @@ export function PosTerminal({
 
       <div id="cart" className={inline ? (tableOrder ? "min-h-0 scroll-mt-4 sm:order-first" : billOrder ? "min-h-0 scroll-mt-4 pb-20 sm:order-first xl:col-start-1 xl:row-start-2 xl:pb-0" : "scroll-mt-4 pb-20 sm:order-first sm:sticky sm:top-2 sm:self-start sm:pb-0") : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
         <div className={`card flex flex-col ${winStyle ? "h-full" : "max-h-[calc(100vh-2rem)]"}`}>
-          <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
-            <div className="text-sm font-bold">{addTo ? "Items to add" : "Current bill"}</div>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
+            <div className="whitespace-nowrap text-sm font-bold">{addTo ? "Items to add" : "Current bill"}</div>
             {addTo ? (
               <span className="flex items-center gap-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
                 {!offline && (
                   <button
                     type="button"
-                    className="rounded-md border px-2 py-1 text-xs font-semibold"
+                    className="whitespace-nowrap rounded-md border px-2 py-1 text-xs font-semibold"
                     style={{ borderColor: "var(--color-line)", color: "var(--color-ink-2)" }}
                     onClick={repeatLastRound}
                     disabled={repeating || pending || !!saved}
