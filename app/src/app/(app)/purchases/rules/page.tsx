@@ -5,7 +5,8 @@ import { UpgradeNote } from "../../upgrade-note";
 import { RulesBoard } from "./rules-board";
 import { ApprovalBoard } from "./approval-board";
 
-export default async function RulesPage() {
+export default async function RulesPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
+  const fromSettings = (await searchParams).from === "settings";
   const user = await requireUser();
   if (!can(user, "stock.manage") && !can(user, "stock.view")) {
     return (
@@ -33,8 +34,8 @@ export default async function RulesPage() {
   const approvers = (people ?? []).filter((x) => !!x.auth_user_id && buyerRoles.has(x.role_id));
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href="/purchases" className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
-        ← Purchases
+      <Link href={fromSettings ? "/settings" : "/purchases"} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
+        {fromSettings ? "← Setup" : "← Purchases"}
       </Link>
       <h1 className="mt-2 text-xl font-bold tracking-tight">Purchase rules</h1>
       <p className="mt-1 mb-5 text-sm" style={{ color: "var(--color-ink-3)" }}>

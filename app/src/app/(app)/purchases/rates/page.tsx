@@ -5,7 +5,8 @@ import { todayIn } from "@/lib/format";
 import { UpgradeNote } from "../../upgrade-note";
 import { RateBoard, type RateRow } from "./rate-board";
 
-export default async function RatesPage() {
+export default async function RatesPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
+  const fromSettings = (await searchParams).from === "settings";
   const user = await requireUser();
   const canManage = can(user, "stock.manage");
   if (!canManage && !can(user, "stock.view")) {
@@ -42,8 +43,8 @@ export default async function RatesPage() {
   }));
   return (
     <div className="mx-auto max-w-4xl">
-      <Link href="/purchases" className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
-        ← Purchases
+      <Link href={fromSettings ? "/settings" : "/purchases"} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
+        {fromSettings ? "← Setup" : "← Purchases"}
       </Link>
       <h1 className="mt-2 text-xl font-bold tracking-tight">Agreed supplier rates</h1>
       <p className="mt-1 mb-5 text-sm" style={{ color: "var(--color-ink-3)" }}>
