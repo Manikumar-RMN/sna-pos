@@ -39,6 +39,6 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
   const order = ["General", "POS", "Inventory", "Reports"];
   return all
     .filter((s) => s.show)
-    .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group))
+    .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group) || a.label.localeCompare(b.label))
     .map(({ href, label, hint, group }) => ({ href, label, hint, group }));
 }
