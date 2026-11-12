@@ -306,7 +306,7 @@ export function SecurityEditor({ isOwner, groups, roles }: { isOwner: boolean; g
                     {g.rights.map((r) => {
                       const on = shownRights.has(r.key);
                       return (
-                        <label key={r.key} className={`flex min-h-11 items-center gap-3 text-sm font-semibold ${readOnly ? "" : "cursor-pointer"}`}>
+                        <label key={r.key} className={`flex min-h-11 items-start gap-3 py-2 text-sm font-semibold ${readOnly ? "" : "cursor-pointer"}`}>
                           <input type="checkbox" className="peer sr-only" checked={on} onChange={() => toggle(r.key)} disabled={readOnly} />
                           <span
                             aria-hidden="true"
