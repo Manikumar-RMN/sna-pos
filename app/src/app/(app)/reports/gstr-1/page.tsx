@@ -48,7 +48,7 @@ export default async function Gstr1Page({ searchParams }: { searchParams: Promis
   const nilRated = b2c.filter((x) => !x.rate);
   const b2cTaxed = b2c.filter((x) => !!x.rate);
   const rates = [...new Set(b2cTaxed.map((x) => x.rate as number))].sort((a, b) => a - b);
-  const numbers = sales.map((x) => x.number).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const numbers = [...sales, ...voided].map((x) => x.number).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   const csv: (string | number)[][] = [
     ...b2b.map((x) => ["4A B2B", x.number, x.date, x.buyer_gstin ?? "", x.buyer_name ?? "", x.rate ?? "", x.taxable, x.igst, x.cgst, x.sgst, x.total]),
