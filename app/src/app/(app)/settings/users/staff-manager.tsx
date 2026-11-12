@@ -187,7 +187,7 @@ export function StaffManager({
                       >
                         Details
                       </SmallBtn>
-                      {s.signInLocked && (
+                      {s.joined && s.active && !s.isMe && (
                         <SmallBtn disabled={pending} onClick={() => run(() => unlockSignIn(s.id))}>
                           Unlock sign-in
                         </SmallBtn>

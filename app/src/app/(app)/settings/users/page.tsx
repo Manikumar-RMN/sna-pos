@@ -12,7 +12,7 @@ export default async function StaffPage() {
   const [{ data: users }, { data: roles }, { data: rest }] = await Promise.all([
     supabase
       .from("users")
-      .select("id, full_name, employee_code, email, is_active, role_id, auth_user_id, pin_set_at, phone, department, designation, employee_no, relieving_date, login_locked_until")
+      .select("id, full_name, employee_code, email, is_active, role_id, auth_user_id, pin_set_at, phone, department, designation, employee_no, relieving_date")
       .is("deleted_at", null)
       .order("employee_code"),
     supabase.from("roles").select("id, name, role_permissions(permission_key)").order("name"),
@@ -76,7 +76,6 @@ export default async function StaffPage() {
           employeeNo: u.employee_no ?? "",
           relievingDate: u.relieving_date ?? "",
           isMe: u.id === current.user_id,
-          signInLocked: !!u.login_locked_until && new Date(u.login_locked_until).getTime() > Date.now(),
         }))}
       />
 
