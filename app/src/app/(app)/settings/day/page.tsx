@@ -8,7 +8,7 @@ export default async function DaySettings() {
   if (!can(user, "settings.manage")) return <NoAccess />;
   const supabase = await createClient();
   const [{ data: bs }, { data: sessions }] = await Promise.all([
-    supabase.from("branch_settings").select("shifts_enabled, day_cutoff").eq("branch_id", user.branch_id).maybeSingle(),
+    supabase.from("branch_settings").select("shifts_enabled, day_cutoff, night_audit_mode").eq("branch_id", user.branch_id).maybeSingle(),
     supabase.from("meal_sessions").select("id, branch_id, name, start_time, end_time, days, display_order").order("display_order"),
   ]);
   const own = (sessions ?? []).filter((x) => x.branch_id === user.branch_id);
@@ -24,7 +24,7 @@ export default async function DaySettings() {
       <SectionHead title="Day and sessions">
         How the business day works, and the meal sessions (breakfast, lunch, dinner…) that every bill is tagged with for reports.
       </SectionHead>
-      <DaySettingsForm shiftsEnabled={!!bs?.shifts_enabled} cutoff={String(bs?.day_cutoff ?? "04:00").slice(0, 5)} />
+      <DaySettingsForm shiftsEnabled={!!bs?.shifts_enabled} cutoff={String(bs?.day_cutoff ?? "04:00").slice(0, 5)} nightAudit={bs?.night_audit_mode === "manual" ? "manual" : "auto"} />
       <SessionsForm
         initial={rows}
         outlet={user.outlet_count > 1 ? { id: user.branch_id, name: user.branch_name, ownTimes: own.length > 0 } : null}

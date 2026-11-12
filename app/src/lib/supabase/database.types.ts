@@ -826,6 +826,7 @@ export type Database = {
           service_charge_taxable: boolean
           allow_no_tax: boolean
           shifts_enabled: boolean
+          night_audit_mode: string
           token_numbers: string
           updated_at: string
         }
@@ -851,6 +852,7 @@ export type Database = {
           service_charge_taxable?: boolean
           allow_no_tax?: boolean
           shifts_enabled?: boolean
+          night_audit_mode?: string
           token_numbers?: string
           updated_at?: string
         }
@@ -876,6 +878,7 @@ export type Database = {
           service_charge_taxable?: boolean
           allow_no_tax?: boolean
           shifts_enabled?: boolean
+          night_audit_mode?: string
           token_numbers?: string
           updated_at?: string
         }
@@ -8832,7 +8835,7 @@ export type Database = {
       }
       sales_report: { Args: { p_from: string; p_to: string }; Returns: Json }
       save_day_settings: {
-        Args: { p_cutoff: string; p_shifts_enabled: boolean }
+        Args: { p_cutoff: string; p_night_audit?: string; p_shifts_enabled: boolean }
         Returns: undefined
       }
       save_ingredient: {

@@ -16,10 +16,11 @@ function Msg({ m }: { m: { ok: boolean; text: string } | null }) {
   );
 }
 
-export function DaySettingsForm({ shiftsEnabled, cutoff }: { shiftsEnabled: boolean; cutoff: string }) {
+export function DaySettingsForm({ shiftsEnabled, cutoff, nightAudit }: { shiftsEnabled: boolean; cutoff: string; nightAudit: "auto" | "manual" }) {
   const router = useRouter();
   const [on, setOn] = useState(shiftsEnabled);
   const [cut, setCut] = useState(cutoff);
+  const [audit, setAudit] = useState<"auto" | "manual">(nightAudit);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
   return (
@@ -42,12 +43,33 @@ export function DaySettingsForm({ shiftsEnabled, cutoff }: { shiftsEnabled: bool
           Bills made after midnight but before this time count for the previous day (e.g. a 12:30 a.m. dinner bill). Between midnight and 8 a.m.
         </span>
       </label>
+      <fieldset className="space-y-2 text-sm">
+        <legend className="mb-1 font-semibold">Night audit (closing the day)</legend>
+        <label className="flex items-start gap-3">
+          <input type="radio" name="nightaudit" className="mt-1 h-5 w-5" checked={audit === "auto"} onChange={() => setAudit("auto")} />
+          <span>
+            <span className="block font-semibold">Automatic</span>
+            <span className="block text-xs" style={{ color: "var(--color-ink-3)" }}>
+              The day closes by itself when the next business day starts, if every bill is paid or voided. If a bill is still open, the day stays open until it is settled.
+            </span>
+          </span>
+        </label>
+        <label className="flex items-start gap-3">
+          <input type="radio" name="nightaudit" className="mt-1 h-5 w-5" checked={audit === "manual"} onChange={() => setAudit("manual")} />
+          <span>
+            <span className="block font-semibold">Manual</span>
+            <span className="block text-xs" style={{ color: "var(--color-ink-3)" }}>
+              The day never closes by itself. Someone runs Day close (the &quot;Day not closed - tap to close&quot; box at the top) after the last bill, and bills keep going on that day until then.
+            </span>
+          </span>
+        </label>
+      </fieldset>
       <button
         className="btn btn-primary"
         disabled={pending}
         onClick={() =>
           start(async () => {
-            const r = await saveDaySettings(on, cut);
+            const r = await saveDaySettings(on, cut, audit);
             setMsg(r.ok ? { ok: true, text: r.message ?? "Saved." } : { ok: false, text: r.error });
             if (r.ok) router.refresh();
           })

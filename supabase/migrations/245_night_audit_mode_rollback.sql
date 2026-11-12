@@ -1,0 +1,2 @@
+-- Rollback: restore try_auto_close_day (migration 073 version without the mode test) and the two-argument save_day_settings,
+-- then: alter table public.branch_settings drop column night_audit_mode;

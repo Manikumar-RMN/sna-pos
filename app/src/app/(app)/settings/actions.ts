@@ -320,13 +320,13 @@ export async function revokeApiKey(id: string): Promise<Result> {
 }
 
 /** Business day: shifts on/off and the time the day ends (after midnight). */
-export async function saveDaySettings(shiftsEnabled: boolean, cutoff: string): Promise<Result> {
+export async function saveDaySettings(shiftsEnabled: boolean, cutoff: string, nightAudit: "auto" | "manual" = "auto"): Promise<Result> {
   if (!/^\d{2}:\d{2}$/.test(cutoff)) return { ok: false, error: "Choose the time the day ends." };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("save_day_settings", { p_shifts_enabled: shiftsEnabled, p_cutoff: cutoff });
+  const { error } = await supabase.rpc("save_day_settings", { p_shifts_enabled: shiftsEnabled, p_cutoff: cutoff, p_night_audit: nightAudit });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/shift");
-  return done(shiftsEnabled ? "Saved. Cashiers now open a shift before billing." : "Saved. Billing starts without opening a shift.");
+  return done(nightAudit === "manual" ? "Saved. Night audit is manual: the day stays open until someone runs Day close." : shiftsEnabled ? "Saved. Cashiers now open a shift before billing." : "Saved. Billing starts without opening a shift.");
 }
 
 /** Meal sessions for the whole restaurant (outletId null) or one outlet. The database refuses overlaps. */
