@@ -1,7 +1,7 @@
 import { can, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { rightLabel, sortRoles } from "@/lib/permissions";
+import { sortRoles } from "@/lib/permissions";
 import { StaffManager } from "./staff-manager";
 
 
@@ -78,31 +78,6 @@ export default async function StaffPage() {
           isMe: u.id === current.user_id,
         }))}
       />
-
-      <h3 className="mb-3 mt-10 text-base font-bold">What each role can do</h3>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {sortRoles(roles ?? [])
-          .map((r) => {
-            const perms = (r.role_permissions ?? []).map((p) => p.permission_key).sort();
-            return (
-              <div key={r.id} className="card p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="font-semibold">{r.name}</span>
-                  <span className="text-xs tabular-nums" style={{ color: "var(--color-ink-3)" }}>
-                    {perms.length} permissions
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {perms.map((p) => (
-                    <span key={p} className="rounded px-1.5 py-0.5 text-[11px]" style={{ background: "var(--color-ground)", color: "var(--color-ink-2)" }}>
-                      {rightLabel(p)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-      </div>
     </div>
   );
 }
