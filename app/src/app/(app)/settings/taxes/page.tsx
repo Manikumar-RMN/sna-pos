@@ -4,6 +4,7 @@ import { todayIn } from "@/lib/format";
 import { TaxForm, type TaxGroupView } from "../settings-forms";
 import { currentComps, pendingRate, type RateRow } from "./schedule";
 import { NoAccess, SectionHead } from "../section-head";
+import Link from "next/link";
 import { LiquorCard } from "./liquor-card";
 
 export default async function TaxSettings() {
@@ -35,6 +36,12 @@ export default async function TaxSettings() {
   return (
     <div>
       <SectionHead title="Taxes">{taxName} rates for your menu. A change applies to new bills from now, or from a date you schedule; past bills keep the tax they were charged.</SectionHead>
+      <p className="mb-4 text-sm" style={{ color: "var(--color-ink-2)" }}>
+        Looking for the service charge, packing charge or rounding?{" "}
+        <Link href="/settings/charges" className="font-bold underline" style={{ color: "var(--color-brand)" }}>
+          Open Service charge
+        </Link>
+      </p>
       <TaxForm
         canEdit={can(user, "tax.manage")}
         groups={taxGroups}
