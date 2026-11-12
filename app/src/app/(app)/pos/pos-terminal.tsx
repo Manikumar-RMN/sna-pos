@@ -1818,7 +1818,8 @@ export function PosTerminal({
       )}
 
       <div id="cart" className={inline ? (tableOrder ? "min-h-0 scroll-mt-4 sm:order-first" : billOrder ? "min-h-0 scroll-mt-4 pb-20 sm:order-first xl:col-start-1 xl:row-start-2 xl:pb-0" : "scroll-mt-4 pb-20 sm:order-first sm:sticky sm:top-2 sm:self-start sm:pb-0") : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
-        <div className={`card flex flex-col ${winStyle ? "h-full" : "max-h-[calc(100vh/var(--z)_-_2rem)]"}`}>
+        <div className={`${merged && addTo && !stockStrip && !error && !saved && !(offline) ? "hidden " : ""}card flex flex-col ${winStyle ? "h-full" : "max-h-[calc(100vh/var(--z)_-_2rem)]"}`}>
+          {!(winStyle && addTo) && (
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
             <div className="whitespace-nowrap text-sm font-bold">{addTo ? "Items to add" : "Current bill"}</div>
             {addTo ? (
@@ -1857,6 +1858,7 @@ export function PosTerminal({
               </div>
             )}
           </div>
+          )}
 
           {!addTo && lockedTable && (
             <div className="border-b px-4 py-2 text-xs" style={{ borderColor: "var(--color-line)", color: "var(--color-ink-2)" }}>
@@ -2055,7 +2057,7 @@ export function PosTerminal({
                   <div className="font-semibold">{stockStrip.footer}</div>
                 </div>
               )}
-              {!(winStyle && lines.length === 0) && (
+              {!winStyle && (
                 <>
                   <div className="flex justify-between text-sm">
                     <span style={{ color: "var(--color-ink-3)" }}>New items {pricesIncludeTax ? "" : `(before ${taxName})`}</span>
@@ -2079,7 +2081,7 @@ export function PosTerminal({
                     Back to bill
                   </button>
                 )}
-                {inline && lines.length > 0 && (
+                {inline && !winStyle && lines.length > 0 && (
                   <button onClick={clearAll} disabled={pending || !!saved} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                     Clear
                   </button>
