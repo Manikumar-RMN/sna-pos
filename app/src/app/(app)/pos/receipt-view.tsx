@@ -241,7 +241,7 @@ export function ReceiptView({
 
   return (
     <div
-      className={hideBack && estimate ? "fixed inset-0 z-[70] overflow-y-auto p-4 [&>*]:mx-auto [&>*:not(#receipt)]:max-w-sm" : "mx-auto max-w-sm"}
+      className={hideBack && estimate ? "fixed inset-0 z-[70] overflow-y-auto p-4 [&>*]:mx-auto " : "mx-auto max-w-sm"}
       style={hideBack && estimate ? { background: "rgba(10,8,20,.55)" } : undefined}
     >
       <style>{`
@@ -285,7 +285,7 @@ export function ReceiptView({
         />
       )}
       {estimate && (
-        <div className={`no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm ${hideBack ? "mt-6 w-full max-w-sm" : ""}`} role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)" }}>
+        <div className={`no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm ${hideBack ? "mt-6" : ""}`} role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)", ...(hideBack ? { width: `${paper.screenPx + 32}px`, maxWidth: "100%" } : {}) }}>
           <span className="font-semibold">Estimate preview: not a tax invoice, not counted as a print.</span>
           <span className="flex gap-2">
             <button className="btn btn-primary h-9 px-3 text-sm" onClick={printEstimate}>
