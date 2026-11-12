@@ -147,7 +147,7 @@ export async function BillScreen({
   }
 
   return (
-    <div className={embedded ? "flex flex-col gap-3" : undefined}>
+    <div className={embedded ? "flex flex-col gap-3 [&_.max-w-sm]:max-w-[302px]" : undefined}>
       <div className={embedded ? "order-2" : undefined}>
       {offlineNotes.length > 0 && (
         <div className="no-print card mx-auto mb-3 max-w-sm p-3 text-sm" role="alert" style={{ borderColor: "var(--color-bad)" }}>
