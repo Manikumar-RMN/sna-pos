@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money, roundCash } from "@/lib/format";
 import { parseDiscountInput } from "@/lib/discount";
@@ -163,6 +163,13 @@ export function BillActions({
   const [splitWhy, setSplitWhy] = useState("");
   const [win, setWin] = useState<null | "pay" | "cancel" | "void" | "fix" | "refund" | "reopen">(null);
   const [showKots, setShowKots] = useState(false);
+  // Opening a window or panel starts clean: the message of the last action must not show up inside the next dialog.
+  useEffect(() => {
+    if (panel !== null || win !== null) {
+      setError(null);
+      setNotice(null);
+    }
+  }, [panel, win]);
   const [moveTo, setMoveTo] = useState("");
   const [mergeFrom, setMergeFrom] = useState("");
   const [splitQty, setSplitQty] = useState<Record<string, number>>({});
@@ -228,9 +235,11 @@ export function BillActions({
   const splitCount = Object.values(splitQty).reduce((s, q) => s + q, 0);
   const splitBlocked = hasPayments
     ? "This bill already has a payment, so it cannot be split. Split the payment instead."
-    : hasDiscount
-      ? "This bill has a discount, so it cannot be split. Split the payment instead."
-      : lines.length < 2 && (lines[0]?.qty ?? 0) < 2
+    : compNow
+      ? "This is a no-charge bill, so it cannot be split."
+      : adjust?.senior
+        ? "This bill has a senior / PWD discount, so it cannot be split. Split the payment instead."
+        : lines.length < 2 && (lines[0]?.qty ?? 0) < 2
         ? "There is only one item on this bill."
         : null;
   const mergeable = otherBills.filter((b) => b.mergeable);
@@ -949,7 +958,7 @@ export function BillActions({
                     adjustBill({
                       orderId,
                       discount: discNum,
-                      reason: discReason || null,
+                      reason: discNum > 0 ? discReason || null : null,
                       serviceCharge: adjust.scAvailable ? scWanted : null,
                     }),
                   )
@@ -1000,9 +1009,11 @@ export function BillActions({
                   <div className="mt-3 rounded-md border p-2" style={{ borderColor: "var(--color-line)" }}>
                     <div className="mb-1 text-xs font-bold">Options for the new bill (optional)</div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                      <label className="flex items-center gap-1.5">
-                        <input type="checkbox" checked={splitNoTax} onChange={(e) => setSplitNoTax(e.target.checked)} /> No tax
-                      </label>
+                      {discTools?.noTaxAllowed && (
+                        <label className="flex items-center gap-1.5">
+                          <input type="checkbox" checked={splitNoTax} onChange={(e) => setSplitNoTax(e.target.checked)} /> No tax
+                        </label>
+                      )}
                       <label className="flex items-center gap-1.5">
                         <input type="checkbox" checked={splitNoSc} onChange={(e) => setSplitNoSc(e.target.checked)} /> No service charge
                       </label>
@@ -1051,6 +1062,7 @@ export function BillActions({
                         }
                         if (!res.ok) return setError(res.error);
                         splitRef.current = null;
+                        setSplitQty({});
                         // Partial split options: set on the new bill only. If one is refused the bill still exists, so say so.
                         const disc = Number(splitDisc) || 0;
                         const why = splitWhy.trim();

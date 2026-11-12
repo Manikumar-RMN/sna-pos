@@ -31,14 +31,16 @@ export default async function BillChangesPage({ searchParams }: { searchParams: 
   const r = await loadReport(await searchParams, { title: "Bill changes audit", need: "financial" });
   if (!r.ok) return r.denied;
   const { ctx } = r;
-  const { supabase, from, to, scope, user } = ctx;
+  const { supabase, from, to, today, calendarToday, scope, user } = ctx;
   const tz = user.timezone;
   let q = supabase
     .from("audit_logs")
     .select("id, action, created_at, user_id, branch_id, entity_id, new_value, old_value")
     .in("action", Object.keys(ACTIONS))
-    .gte("created_at", localDayStartIso(from, tz))
-    .lt("created_at", localDayStartIso(addDays(to, 1), tz));
+    .gte("created_at", localDayStartIso(from, tz));
+  // The log has no business date, so it is read by calendar date. When the range reaches the open business day or today there is no
+  // upper bound, so changes made after midnight on a day that is still open are not cut off.
+  if (!(to >= today || to >= calendarToday)) q = q.lt("created_at", localDayStartIso(addDays(to, 1), tz));
   if (scope.branchId) q = q.eq("branch_id", scope.branchId);
   const { data, error } = await q.order("created_at", { ascending: false }).limit(EACH * 4);
   const rows = (error ? [] : (data ?? [])) as unknown as A[];

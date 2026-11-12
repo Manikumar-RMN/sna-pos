@@ -249,6 +249,8 @@ export function OrderDesk({
               setTab("order");
               if (showStrip) setShowTables(true);
               router.replace(deskUrl({ kind: "counter" }));
+              // The table tiles refresh a moment later, so the new total and KOT count show at once instead of after the next 20-second refresh.
+              setTimeout(() => router.refresh(), 700);
             }}
           />
         </div>

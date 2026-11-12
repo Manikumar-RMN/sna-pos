@@ -136,14 +136,14 @@ export async function BillScreen({
   const { data: serverRow } = serverId ? await supabase.from("users").select("full_name").eq("id", serverId).maybeSingle() : { data: null };
 
   // Winsar shows each round under its real KOT number, user and time. kitchen_ticket_items ties an item to its ticket.
-  const { data: kotRows } = await supabase
-    .from("kitchen_tickets")
-    .select("ticket_number, created_at, kitchen_ticket_items(order_item_id)")
-    .eq("order_id", bill.id)
-    .order("created_at");
+  // Looked up by item, not by bill: a bill split off from another keeps the original kitchen tickets of the items it took.
+  const lineIds = bill.lines.map((l) => l.id);
+  const { data: kotRows } = lineIds.length
+    ? await supabase.from("kitchen_ticket_items").select("order_item_id, kitchen_tickets(ticket_number, created_at)").in("order_item_id", lineIds)
+    : { data: [] };
   const lineKot: Record<string, { no: string; at: string }> = {};
-  for (const t of (kotRows ?? []) as unknown as { ticket_number: string; created_at: string; kitchen_ticket_items: { order_item_id: string | null }[] }[]) {
-    for (const it of t.kitchen_ticket_items ?? []) if (it.order_item_id) lineKot[it.order_item_id] = { no: t.ticket_number, at: t.created_at };
+  for (const it of (kotRows ?? []) as unknown as { order_item_id: string | null; kitchen_tickets: { ticket_number: string; created_at: string } | null }[]) {
+    if (it.order_item_id && it.kitchen_tickets) lineKot[it.order_item_id] = { no: it.kitchen_tickets.ticket_number, at: it.kitchen_tickets.created_at };
   }
 
   return (
