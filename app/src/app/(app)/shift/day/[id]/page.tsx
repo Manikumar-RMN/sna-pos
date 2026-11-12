@@ -66,7 +66,21 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
   const user = await requireUser();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("day_report", { p_day_id: id });
+  if (!error && !data) {
+    return (
+      <div className="card mx-auto max-w-md p-5 text-center text-sm" role="alert">
+        <b>This day is not in this outlet.</b> It may belong to another outlet &mdash; switch outlet at the top of the screen and open it again.
+      </div>
+    );
+  }
   if (error) {
+    if (/not found|no such|does not exist/i.test(error.message ?? "")) {
+      return (
+        <div className="card mx-auto max-w-md p-5 text-center text-sm" role="alert">
+          <b>This day is not in this outlet.</b> It may belong to another outlet &mdash; switch outlet at the top of the screen and open it again.
+        </div>
+      );
+    }
     return (
       <div className="card mx-auto max-w-md p-5 text-sm" role="alert">
         {friendlyDbError(error)}
