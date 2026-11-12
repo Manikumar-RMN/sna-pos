@@ -11,7 +11,7 @@ import { makeComplimentary } from "../bills/actions";
 import { NcChargeSelect } from "../bills/nc-charge-select";
 import { customerFavourites, findCustomer, type GuestFavourites, type RegularGuest } from "../bills/actions";
 import { regularChipText } from "../bills/loyalty-math";
-import { loadLastRound } from "./repeat-round";
+import { loadLastRound, loadOneLine } from "./repeat-round";
 import { createQuickDish } from "../menu/actions";
 import { mapRoundToMenu } from "@/lib/repeat-round";
 import { coversError, deskCarryUsable, needsInternetText, openPriceError, openPriceValue, parseCovers } from "@/lib/order-desk";
@@ -452,6 +452,9 @@ export function PosTerminal({
   /** Which table (or the counter) this order goes to, on the single order screen. */
   // Winsar flow: a table order ends at KOT; the money is taken on the bill (Check → Settle). The counter keeps its one-tap Charge.
   const tableOrder = inline && !!lockedTable;
+  /** A running bill on the single order screen (/pos?bill=): the new items use the same list-left, menu-right look and bottom bar as a new table order. */
+  const billOrder = inline && !!addTo && !!deskKey;
+  const winStyle = tableOrder || billOrder;
   const whereLabel = addTo ? (addTo.table ? `Table ${addTo.table}` : null) : lockedTable ? `Table ${lockedTable.number}` : deskKey ? "Counter" : null;
   // Bars: liquor and food may not share a bill.
   const mixedLiquor = lines.some((l) => l.item.liquor) && lines.some((l) => !l.item.liquor);
@@ -939,6 +942,39 @@ export function PosTerminal({
       setRepeating(false);
     }
   }
+  /** The "+" on a row of the running bill: one more of that dish, same options and note, put in the list of new items. */
+  async function addOneFrom(orderItemId: string) {
+    if (!addTo || savedRef.current) return;
+    if (offline) return setError(needsInternetText("add_to_bill"));
+    setError(null);
+    try {
+      const res = await loadOneLine(addTo.id, orderItemId);
+      if (!res.ok) return setError(res.error);
+      const mapped = mapRoundToMenu([{ ...res.line, q: 1 }], menu, packing?.productId ?? null);
+      const l = mapped.lines[0];
+      if (!l) return setError(mapped.message || "That dish is not on the menu now.");
+      if (l.item.is_open_price) return setError(`${l.item.name} needs a new price: tap it on the menu.`);
+      setCart((c) => {
+        const base = lineKey(l.item.id, l.options);
+        const key = l.item.byWeight ? `${base}#w${Date.now()}` : base;
+        const cur = c[key];
+        return { ...c, [key]: cur ? { ...cur, qty: cur.qty + 1 } : { key, item: l.item, options: l.options, qty: 1, note: l.note } };
+      });
+    } catch {
+      setError("Could not reach the server. Check the internet and try again.");
+    }
+  }
+  const addOneRef = useRef(addOneFrom);
+  addOneRef.current = addOneFrom;
+  useEffect(() => {
+    if (!addTo) return;
+    const on = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (typeof id === "string") void addOneRef.current(id);
+    };
+    window.addEventListener("sna-desk-plus", on);
+    return () => window.removeEventListener("sna-desk-plus", on);
+  }, [addTo]);
   function toggleHold(key: string) {
     setCart((c) => (c[key] ? { ...c, [key]: { ...c[key], hold: !c[key].hold } } : c));
   }
@@ -1286,8 +1322,8 @@ export function PosTerminal({
   }
 
   return (
-    <div className={inline ? `grid gap-3 sm:grid-cols-[270px_minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]${tableOrder ? " pb-16 sm:h-[calc(100dvh-8.5rem)] sm:overflow-hidden" : ""}` : "grid gap-4 lg:grid-cols-[1fr_360px]"}>
-      <div className={tableOrder ? "min-h-0 overflow-y-auto pr-1" : undefined}>
+    <div className={inline ? `grid gap-3 sm:grid-cols-[270px_minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]${tableOrder ? " pb-16 sm:h-[calc(100dvh-8.5rem)] sm:overflow-hidden" : ""}${billOrder ? " pb-16 xl:contents" : ""}` : "grid gap-4 lg:grid-cols-[1fr_360px]"}>
+      <div className={tableOrder ? "min-h-0 overflow-y-auto pr-1" : billOrder ? "min-h-0 overflow-y-auto pr-1 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:h-[calc(100dvh-8.5rem)]" : undefined}>
         <div className="mb-3 flex flex-wrap items-center gap-x-3">
           <h1 className={inline ? "text-base font-bold tracking-tight" : "text-xl font-bold tracking-tight"}>
             {addTo ? `${addTo.table ? `Table ${addTo.table}: add items to bill` : "Add items to bill"} ${addTo.billNumber}` : lockedTable ? (inline ? `Table : ${lockedTable.number}  ·  Cover : ${coversNum ?? 0}${ncKot ? "  ·  NC KOT" : ""}` : `Table ${lockedTable.number}: new order`) : deskKey ? "Counter: new order" : "Billing"}
@@ -1403,7 +1439,7 @@ export function PosTerminal({
                   }}
                   className="min-h-[40px] shrink-0 whitespace-nowrap rounded-lg border px-3 text-sm font-bold"
                   style={
-                    tableOrder
+                    winStyle
                       ? { borderColor: "#1D6FD0", background: on ? "#1D6FD0" : "#4DABF7", color: "#FFFFFF" }
                       : {
                           borderColor: on ? "var(--color-ink)" : "var(--color-line)",
@@ -1481,7 +1517,7 @@ export function PosTerminal({
             No items match “{search}”.
           </p>
         )}
-        {!searching && !tableOrder && topSellerIds.length > 0 && (
+        {!searching && !winStyle && topSellerIds.length > 0 && (
           <TopSellers ids={topSellerIds} menu={menu} onTap={tapItem} />
         )}
         <div className="space-y-5">
@@ -1490,16 +1526,16 @@ export function PosTerminal({
               <h2 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: "var(--color-ink-3)" }}>
                 {cat.name}
               </h2>
-              <div className={tableOrder ? "grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : inline ? "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid grid-cols-2 gap-2 sm:grid-cols-3"}>
+              <div className={winStyle ? "grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : inline ? "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid grid-cols-2 gap-2 sm:grid-cols-3"}>
                 {cat.items.map((item) => {
                   const inCart = item.variants ? item.variants.reduce((s, v) => s + qtyInCart(v.id), 0) : qtyInCart(item.id);
                   return (
                     <button
                       key={item.id}
                       onClick={() => tapItem(item)}
-                      className={`tap card relative flex flex-col items-start justify-between gap-1 text-left transition active:scale-[0.98] ${tableOrder ? "min-h-[58px] p-2" : "p-3"}`}
+                      className={`tap card relative flex flex-col items-start justify-between gap-1 text-left transition active:scale-[0.98] ${winStyle ? "min-h-[58px] p-2" : "p-3"}`}
                       style={
-                        tableOrder
+                        winStyle
                           ? { borderColor: inCart ? "var(--color-brand)" : "#9A8C82", background: inCart ? "var(--color-brand-soft)" : "#BCAFA5" }
                           : { borderColor: inCart ? "var(--color-brand)" : "var(--color-line)" }
                       }
@@ -1573,8 +1609,8 @@ export function PosTerminal({
         </button>
       )}
 
-      <div id="cart" className={inline ? (tableOrder ? "min-h-0 scroll-mt-4 sm:order-first" : "scroll-mt-4 pb-20 sm:order-first sm:sticky sm:top-2 sm:self-start sm:pb-0") : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
-        <div className={`card flex flex-col ${tableOrder ? "h-full" : "max-h-[calc(100vh-2rem)]"}`}>
+      <div id="cart" className={inline ? (tableOrder ? "min-h-0 scroll-mt-4 sm:order-first" : billOrder ? "min-h-0 scroll-mt-4 pb-20 sm:order-first xl:col-start-1 xl:row-start-2 xl:pb-0" : "scroll-mt-4 pb-20 sm:order-first sm:sticky sm:top-2 sm:self-start sm:pb-0") : "scroll-mt-4 pb-20 lg:sticky lg:top-4 lg:self-start lg:pb-0"}>
+        <div className={`card flex flex-col ${winStyle ? "h-full" : "max-h-[calc(100vh-2rem)]"}`}>
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--color-line)" }}>
             <div className="text-sm font-bold">{addTo ? "Items to add" : "Current bill"}</div>
             {addTo ? (
@@ -2277,7 +2313,7 @@ export function PosTerminal({
         </div>
       </div>
 
-      {tableOrder && (
+      {winStyle && (
         <div
           className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-1.5 border-t px-2 py-2"
           style={{ background: "var(--color-surface)", borderColor: "var(--color-line)" }}
@@ -2297,13 +2333,19 @@ export function PosTerminal({
             {repeating ? "…" : "Repeat"}
           </WinBtn>
           <span className="flex-1" />
-          <WinBtn tone="#1D4F9F" disabled={!deskTableId} title={deskTableId ? "Open the bill of this table" : "The bill opens once the first KOT is saved"} onClick={() => deskTableId && router.push("/pos")}>
-            Check ✓
-          </WinBtn>
+          {billOrder ? (
+            <WinBtn tone="#1D4F9F" title="Open the Check screen of this bill: split, discount, settle" onClick={() => window.dispatchEvent(new Event("sna-desk-check"))}>
+              Check ✓
+            </WinBtn>
+          ) : (
+            <WinBtn tone="#1D4F9F" disabled={!deskTableId} title={deskTableId ? "Open the bill of this table" : "The bill opens once the first KOT is saved"} onClick={() => deskTableId && router.push("/pos")}>
+              Check ✓
+            </WinBtn>
+          )}
           <WinBtn
             tone="#2E7D32"
-            disabled={pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved || lines.length === 0}
-            onClick={() => submit("unpaid")}
+            disabled={billOrder ? pending || offline || !!saved || lines.length === 0 : pending || quoting || !quote || !discountParsed.ok || needSeparate || !!saved || lines.length === 0}
+            onClick={() => (billOrder ? submitAdd() : submit("unpaid"))}
           >
             {pending ? "Saving…" : "Save Kot"}
           </WinBtn>

@@ -155,6 +155,13 @@ export function BillActions({
   const [confirm, setConfirm] = useState<null | "void" | "refund" | "cancel">(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [checkOpen, setCheckOpen] = useState(false);
+  // The "Check ✓" button in the bottom bar of the order screen.
+  useEffect(() => {
+    if (!embedded) return;
+    const on = () => setCheckOpen(true);
+    window.addEventListener("sna-desk-check", on);
+    return () => window.removeEventListener("sna-desk-check", on);
+  }, [embedded]);
   const [autoN, setAutoN] = useState(2);
   // Partial split options (Winsar): what the NEW bill gets when it is split off.
   const [splitNoTax, setSplitNoTax] = useState(false);
@@ -539,7 +546,7 @@ export function BillActions({
       )}
 
       {embedded && checkOpen && showPay && (
-        <div className="fixed inset-0 z-40 flex flex-col gap-3 overflow-y-auto p-3" style={{ background: "var(--color-surface-2, #f6f3ea)" }} role="dialog" aria-label="Check">
+        <div className="fixed inset-0 z-[45] flex flex-col gap-3 overflow-y-auto p-3" style={{ background: "var(--color-surface-2, #f6f3ea)" }} role="dialog" aria-label="Check">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-base font-bold">Check · bill {billNumber}</div>
             <div className="flex items-center gap-2">
@@ -631,6 +638,12 @@ export function BillActions({
             {showAdjust && !adjust?.senior && <PanelButton label="Complimentary / staff meal" active={panel === "comp"} onClick={() => setPanel("comp")} />}
             {canVoid && !hasPayments && <PanelButton label="KOT date transfer" active={panel === "date"} onClick={() => setPanel("date")} />}
             {canVoid && !hasPayments && outlets.length > 1 && <PanelButton label="Move to another outlet" active={panel === "outlet"} onClick={() => setPanel("outlet")} />}
+            <button type="button" className="btn border text-sm" style={{ borderColor: "var(--color-brand)", color: "var(--color-brand-strong)" }} title="Print the bill as an estimate for the guest. It is not a tax invoice." onClick={() => window.dispatchEvent(new Event("sna-desk-estimate"))}>
+              Estimate
+            </button>
+            <button type="button" className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => window.dispatchEvent(new Event("sna-desk-print"))}>
+              Print
+            </button>
             <button type="button" className="btn btn-pay text-sm" onClick={() => { setCheckOpen(false); setWin("pay"); }}>
               Settle · {m(balance)}
             </button>
@@ -682,6 +695,18 @@ export function BillActions({
                             }}
                           >
                             −
+                          </button>
+                        ) : null}
+                        {open && !dayClosed && online ? (
+                          <button
+                            type="button"
+                            className="h-6 w-6 shrink-0 rounded-full border text-sm font-bold leading-none"
+                            style={{ borderColor: "var(--color-line)", color: "var(--color-brand-strong)" }}
+                            aria-label={`Add one more ${l.name}`}
+                            title="Add one more to the new items"
+                            onClick={() => window.dispatchEvent(new CustomEvent("sna-desk-plus", { detail: l.id }))}
+                          >
+                            +
                           </button>
                         ) : null}
                         <span className="w-8 text-center">{l.qty}</span>

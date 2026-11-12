@@ -58,3 +58,29 @@ export async function loadLastRound(
   const newest = (tickets ?? []).filter((t) => roundIds.includes(t.id)).map((t) => t.created_at).sort().pop() ?? null;
   return { ok: true, lines, at: newest };
 }
+
+/**
+ * The "+" on a row of the running bill: one more of that dish with the same options and note, as a plain line (dish id, option ids,
+ * note). Like "Repeat last order", nothing is written and no price is returned: the screen maps it onto today's menu and the bill is
+ * priced by the database when the new items are sent.
+ */
+export async function loadOneLine(orderId: string, orderItemId: string): Promise<{ ok: true; line: RoundLine } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user || !can(user, "order.create")) return { ok: false, error: "Your role does not allow taking orders." };
+  if (!/^[0-9a-f-]{36}$/i.test(orderId) || !/^[0-9a-f-]{36}$/i.test(orderItemId)) return { ok: false, error: "Item not found." };
+  const supabase = await createClient();
+  const [{ data: oi, error: oe }, { data: mods, error: me }] = await Promise.all([
+    supabase.from("order_items").select("id, product_id, product_name, kitchen_note, cancelled_at").eq("id", orderItemId).eq("order_id", orderId).maybeSingle(),
+    supabase.from("order_item_modifiers").select("order_item_id, modifier_item_id").eq("order_item_id", orderItemId),
+  ]);
+  if (oe) return { ok: false, error: friendlyDbError(oe) };
+  if (me) return { ok: false, error: friendlyDbError(me) };
+  if (!oi || oi.cancelled_at) return { ok: false, error: "That item is no longer on the bill." };
+  const lines = buildRoundLines(
+    [{ order_item_id: oi.id, quantity: 1, status: "sent" }],
+    [{ id: oi.id, product_id: oi.product_id, product_name: oi.product_name, kitchen_note: oi.kitchen_note, cancelled_at: oi.cancelled_at }],
+    (mods ?? []).map((m) => ({ order_item_id: m.order_item_id, modifier_item_id: m.modifier_item_id })),
+  );
+  if (lines.length === 0) return { ok: false, error: "That item cannot be repeated." };
+  return { ok: true, line: lines[0] };
+}

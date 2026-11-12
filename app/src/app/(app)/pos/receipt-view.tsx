@@ -168,6 +168,30 @@ export function ReceiptView({
    * screen already printed the bill; otherwise the database decides (first print silent, later ones reprints). A role without the
    * reprint right gets a notice with a manager PIN button, and the print waits in the device queue until it is recorded.
    */
+  // The Check screen of the single order screen has its own Estimate and Print buttons: they ask this receipt to print.
+  const printRef = useRef({ print: printBillLogged, estimate: () => {} });
+  printRef.current = {
+    print: printBillLogged,
+    estimate: () => {
+      setEstimate(true);
+      setTimeout(() => {
+        void printBillLogged();
+        setTimeout(() => setEstimate(false), 1500);
+      }, 50);
+    },
+  };
+  useEffect(() => {
+    if (!hideBack) return;
+    const onPrint = () => void printRef.current.print();
+    const onEstimate = () => printRef.current.estimate();
+    window.addEventListener("sna-desk-print", onPrint);
+    window.addEventListener("sna-desk-estimate", onEstimate);
+    return () => {
+      window.removeEventListener("sna-desk-print", onPrint);
+      window.removeEventListener("sna-desk-estimate", onEstimate);
+    };
+  }, [hideBack]);
+
   async function logDeclaredPrint() {
     if (!orderId) return;
     const out = await recordDeclaredPrint({ kind: "bill", orderId, isReprint: printedHere.current }, (e) =>

@@ -60,6 +60,8 @@ export function OrderDesk({
   const router = useRouter();
   const online = useOnline();
   const hasBill = selection.kind === "bill" && !!billPanel;
+  /** A running bill that can take more items: the bill and the new items share the left column, the menu fills the right (Winsar's order screen). */
+  const billMode = hasBill && !!addTo;
   const selKey = selectionKey(selection);
   const currentUrl = deskUrl(selection.kind === "counter" ? { kind: "counter" } : selection.kind === "table" ? { kind: "table", tableId: selection.tableId } : { kind: "bill", billId: selection.billId });
 
@@ -225,8 +227,8 @@ export function OrderDesk({
         </div>
       )}
 
-      <div className={`${showTables ? "hidden " : ""}${hasBill ? "grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]" : ""}`}>
-        <div id="order-menu" className={hasBill && tab !== "order" ? "hidden xl:block" : undefined}>
+      <div className={`${showTables ? "hidden " : ""}${billMode ? "grid gap-4 pb-16 xl:h-[calc(100dvh-8.5rem)] xl:grid-cols-[400px_minmax(0,1fr)] xl:grid-rows-[auto_minmax(0,1fr)]" : hasBill ? "grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]" : ""}`}>
+        <div id="order-menu" className={hasBill && tab !== "order" ? `hidden ${billMode ? "xl:contents" : "xl:block"}` : billMode ? "xl:contents" : undefined}>
           <PosTerminal
             key={`${selKey}:${nonce}`}
             {...terminal}
@@ -255,7 +257,10 @@ export function OrderDesk({
           />
         </div>
         {hasBill && (
-          <aside className={`${tab === "bill" ? "" : "hidden"} xl:order-first xl:block xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto`} aria-label="Running bill">
+          <aside
+            className={`${tab === "bill" ? "" : "hidden"} xl:block ${billMode ? "xl:col-start-1 xl:row-start-1 xl:max-h-[48dvh] xl:overflow-y-auto" : "xl:order-first xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto"}`}
+            aria-label="Running bill"
+          >
             {billPanel}
           </aside>
         )}
