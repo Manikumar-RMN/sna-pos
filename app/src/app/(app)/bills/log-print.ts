@@ -25,7 +25,7 @@ export type LogPrintResult =
  * `isReprint: true` declares a reprint even when the log has no earlier print (a first copy that was never logged); the
  * database then still demands the right or a PIN and numbers it copy 2 or later.
  */
-export async function logPrint(input: { kind: "bill" | "kot"; orderId?: string; clientRef?: string; ticketIds?: string[]; isReprint?: boolean }): Promise<LogPrintResult> {
+export async function logPrint(input: { kind: "bill" | "kot"; orderId?: string; clientRef?: string; ticketIds?: string[]; isReprint?: boolean; /** Why a reprint is made (required for a reprint). */ reason?: string; /** A print the app could not hold back (Ctrl+P, offline queue): no reason can be asked, so a standard one is written. */ auto?: boolean }): Promise<LogPrintResult> {
   if (input.kind !== "bill" && input.kind !== "kot") return { ok: false, error: "Nothing to print." };
   const uuid = /^[0-9a-f-]{36}$/i;
   const ids = (input.ticketIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id));
@@ -45,6 +45,7 @@ export async function logPrint(input: { kind: "bill" | "kot"; orderId?: string; 
     p_ticket_ids: ids.length > 0 ? ids : undefined,
     // true when the screen already knows this bill was printed (it can only make the call stricter, never skip the check)
     p_is_reprint: input.isReprint === true ? true : undefined,
+    p_reason: (input.reason?.trim() || (input.auto ? "Printed from the browser menu or while offline (no reason asked)" : "")) || undefined,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   const r = (data ?? {}) as { reprint?: boolean; action?: string; print_no?: number };

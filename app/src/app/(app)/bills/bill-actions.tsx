@@ -145,6 +145,8 @@ export function BillActions({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** The line the cashier tapped in the order list: shown in blue, like the selected row in Winsar. */
+  const [selLine, setSelLine] = useState<string | null>(null);
   const m = (n: number) => money(n, currency);
 
   const [methodId, setMethodId] = useState(methods[0]?.id ?? "");
@@ -171,6 +173,10 @@ export function BillActions({
   const [splitNoSc, setSplitNoSc] = useState(false);
   const [splitDisc, setSplitDisc] = useState("");
   const [splitWhy, setSplitWhy] = useState("");
+  // Same options for Check 1 (the bill that stays), shown in one grid with Check 2.
+  const [split1NoTax, setSplit1NoTax] = useState(false);
+  const [split1NoSc, setSplit1NoSc] = useState(false);
+  const [split1Disc, setSplit1Disc] = useState("");
   const [win, setWin] = useState<null | "pay" | "cancel" | "void" | "fix" | "refund" | "reopen">(null);
   const [showKots, setShowKots] = useState(false);
   // Opening a window or panel starts clean: the message of the last action must not show up inside the next dialog.
@@ -285,25 +291,32 @@ export function BillActions({
         if (!res.ok) return setError(res.error);
         splitRef.current = null;
         setSplitQty({});
-        // Partial split options: set on the new bill only. If one is refused the bill still exists, so say so.
+        // Partial split options (grid): Check 2 = the new bill, Check 1 = this bill. If one is refused the bill still exists, so say so.
         const disc = Number(splitDisc) || 0;
+        const disc1 = Number(split1Disc) || 0;
         const why = splitWhy.trim();
-        if ((splitNoTax || disc > 0) && why.length < 3) {
-          return setError(`${res.message} Write a reason, then set the options on that bill from Running bills.`);
+        if ((splitNoTax || disc > 0 || split1NoTax || disc1 > 0) && why.length < 3) {
+          return setError(`${res.message} Write a reason, then set the options from Running bills.`);
         }
         try {
-          if (splitNoTax) {
-            const r1 = await setBillNoTax({ orderId: res.newOrderId, on: true, reason: why });
-            if (!r1.ok) return setError(`${res.message} But: ${r1.error}`);
-          }
-          if (disc > 0 || splitNoSc) {
-            const r2 = await adjustBill({ orderId: res.newOrderId, discount: disc, reason: disc > 0 ? why : null, serviceCharge: splitNoSc ? false : null });
-            if (!r2.ok) return setError(`${res.message} But: ${r2.error}`);
+          for (const [id, noTax, noSc, d] of [
+            [res.newOrderId, splitNoTax, splitNoSc, disc],
+            [orderId, split1NoTax, split1NoSc, disc1],
+          ] as const) {
+            if (noTax) {
+              const r1 = await setBillNoTax({ orderId: id, on: true, reason: why });
+              if (!r1.ok) return setError(`${res.message} But: ${r1.error}`);
+            }
+            if (d > 0 || noSc) {
+              const r2 = await adjustBill({ orderId: id, discount: d, reason: d > 0 ? why : null, serviceCharge: noSc ? false : null });
+              if (!r2.ok) return setError(`${res.message} But: ${r2.error}`);
+            }
           }
         } catch {
           return setError(`${res.message} The options could not be saved; open that bill and set them there.`);
         }
         setSplitNoTax(false); setSplitNoSc(false); setSplitDisc(""); setSplitWhy("");
+        setSplit1NoTax(false); setSplit1NoSc(false); setSplit1Disc("");
         router.push(embedded ? `/pos?bill=${res.newOrderId}` : `/bills/${res.newOrderId}`);
       });
   }
@@ -692,7 +705,13 @@ export function BillActions({
                       {g.at ? ` · ${new Date(g.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
                     </div>
                     {g.items.map((l) => (
-                      <div key={l.id} className="flex items-center justify-between gap-2 px-2 py-1" style={{ borderTop: "1px solid var(--color-line)" }}>
+                      <div
+                        key={l.id}
+                        onClick={() => setSelLine(selLine === l.id ? null : l.id)}
+                        aria-selected={selLine === l.id}
+                        className="flex cursor-pointer items-center justify-between gap-2 px-2 py-1"
+                        style={{ borderTop: "1px solid var(--color-line)", background: selLine === l.id ? "#1c64c8" : undefined, color: selLine === l.id ? "#fff" : undefined }}
+                      >
                         <span className="min-w-0 flex-1 truncate">
                           {l.name}
                           {l.options ? <span style={{ color: "var(--color-ink-3)" }}> · {l.options}</span> : null}
@@ -1197,28 +1216,42 @@ export function BillActions({
                     })}
                   </ul>
                   <div className="mt-3 rounded-md border p-2" style={{ borderColor: "var(--color-line)" }}>
-                    <div className="mb-1 text-xs font-bold">Options for the new bill (optional)</div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                      {discTools?.noTaxAllowed && (
-                        <label className="flex items-center gap-1.5">
-                          <input type="checkbox" checked={splitNoTax} onChange={(e) => setSplitNoTax(e.target.checked)} /> No tax
-                        </label>
-                      )}
-                      <label className="flex items-center gap-1.5">
-                        <input type="checkbox" checked={splitNoSc} onChange={(e) => setSplitNoSc(e.target.checked)} /> No service charge
-                      </label>
-                      <label className="flex items-center gap-1.5">
-                        Discount
-                        <input
-                          inputMode="decimal"
-                          className="field h-8 w-20 text-sm"
-                          value={splitDisc}
-                          onChange={(e) => setSplitDisc(e.target.value.replace(/[^0-9.]/g, ""))}
-                          placeholder="0.00"
-                        />
-                      </label>
-                    </div>
-                    {(splitNoTax || Number(splitDisc) > 0) && (
+                    <div className="mb-1 text-xs font-bold">Options for each check (optional)</div>
+                    <table className="w-full text-sm" aria-label="Split options">
+                      <thead>
+                        <tr className="text-left text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                          <th className="py-1 pr-2 font-semibold">Check</th>
+                          <th className="px-2 font-semibold">Discount</th>
+                          <th className="px-2 text-center font-semibold">No Tax</th>
+                          <th className="px-2 text-center font-semibold">No S.C.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {([1, 2] as const).map((n) => {
+                          const disc = n === 1 ? split1Disc : splitDisc;
+                          const setDisc = n === 1 ? setSplit1Disc : setSplitDisc;
+                          const noTax = n === 1 ? split1NoTax : splitNoTax;
+                          const setNoTax = n === 1 ? setSplit1NoTax : setSplitNoTax;
+                          const noSc = n === 1 ? split1NoSc : splitNoSc;
+                          const setNoSc = n === 1 ? setSplit1NoSc : setSplitNoSc;
+                          return (
+                            <tr key={n} className="border-t" style={{ borderColor: "var(--color-line)" }}>
+                              <td className="py-1 pr-2 text-xs font-semibold">{n === 1 ? "Check 1 (this bill)" : "Check 2 (new bill)"}</td>
+                              <td className="px-2">
+                                <input inputMode="decimal" className="field h-8 w-20 text-sm" aria-label={`Check ${n} discount`} value={disc} onChange={(e) => setDisc(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="0.00" />
+                              </td>
+                              <td className="px-2 text-center">
+                                <input type="checkbox" aria-label={`Check ${n} no tax`} disabled={!discTools?.noTaxAllowed} checked={noTax} onChange={(e) => setNoTax(e.target.checked)} />
+                              </td>
+                              <td className="px-2 text-center">
+                                <input type="checkbox" aria-label={`Check ${n} no service charge`} checked={noSc} onChange={(e) => setNoSc(e.target.checked)} />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {(splitNoTax || Number(splitDisc) > 0 || split1NoTax || Number(split1Disc) > 0) && (
                       <input
                         className="field mt-2 h-8 w-full text-sm"
                         value={splitWhy}
@@ -1227,7 +1260,7 @@ export function BillActions({
                       />
                     )}
                     <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-                      These apply to the new bill only. Each one needs the same manager right as on a normal bill.
+                      Applied right after the split. Each one needs the same manager right as on a normal bill. A discount typed for Check 1 replaces the discount it has now.
                     </p>
                   </div>
                   <button

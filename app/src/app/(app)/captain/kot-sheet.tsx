@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { logPrint } from "../bills/log-print";
+import { ReprintReasonPrompt, needsReason } from "../reprint-reason";
 import { dropPrint, recordDeclaredPrint, useBrowserPrint } from "@/lib/print-log";
 import { loadKotPrintInfo } from "../pos/kot/[orderId]/actions";
 import { useSlipPrinter, type KotSlip } from "../pos/kot/[orderId]/kot-print";
@@ -27,6 +28,7 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
   const [pending, start] = useTransition();
   // Reprint: the manager PIN prompt (for a role without the reprint right) and the ticket being reprinted.
   const [pinFor, setPinFor] = useState<Kot | null>(null);
+  const [askReason, setAskReason] = useState<Kot | null>(null);
   const [reprinting, setReprinting] = useState<string | null>(null);
   const printer = useSlipPrinter();
   // Ctrl+P / browser menu while the sheet is open: what happened to its log entry.
@@ -77,15 +79,16 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
    * Prints the ticket again. The reprint is logged first (log_print, migration 135): it needs the "Reprint bills and KOTs" right
    * or a manager PIN, and the ticket is printed only once the log is written.
    */
-  async function reprintKot(k: Kot) {
+  async function reprintKot(k: Kot, reason?: string) {
     setNote(null);
     setError(null);
     setReprinting(k.id);
     try {
       const pi = await loadKotPrintInfo(orderId);
       if (!pi.ok) return setError(pi.error);
-      const res = await logPrint({ kind: "kot", orderId, ticketIds: [k.id] });
+      const res = await logPrint({ kind: "kot", orderId, ticketIds: [k.id], reason });
       if (!res.ok) {
+        if (needsReason(res.error)) return setAskReason(k);
         if (neededRight(res.error) === "order.reprint") return setPinFor(k);
         return setError(cleanMessage(res.error));
       }
@@ -113,7 +116,7 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
   async function logDeclaredKot() {
     const ids = shownIds();
     if (ids.length === 0) return;
-    const out = await recordDeclaredPrint({ kind: "kot", orderId, ticketIds: ids, isReprint: true }, (e) => logPrint({ kind: "kot", orderId: e.orderId, ticketIds: e.ticketIds }));
+    const out = await recordDeclaredPrint({ kind: "kot", orderId, ticketIds: ids, isReprint: true }, (e) => logPrint({ kind: "kot", orderId: e.orderId, ticketIds: e.ticketIds, auto: true }));
     if (out.status === "recorded") return setDeclaredNote({ text: "Printed from the browser menu: recorded as a KOT reprint." });
     if (out.status === "offline") return setDeclaredNote({ text: "Printed from the browser menu. The record is saved on this device and is sent when the internet is back." });
     if (out.status === "needs_approval")
@@ -124,7 +127,7 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
 
   async function recordDeclaredWithPin(ref: string) {
     try {
-      const res = await logPrint({ kind: "kot", orderId, ticketIds: shownIds() });
+      const res = await logPrint({ kind: "kot", orderId, ticketIds: shownIds(), auto: true });
       if (res.ok) {
         dropPrint(ref);
         return setDeclaredNote({ text: "Browser-menu print recorded as a KOT reprint." });
@@ -313,6 +316,17 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
               const ref = pinForDeclared;
               setPinForDeclared(null);
               void recordDeclaredWithPin(ref);
+            }}
+          />
+        )}
+        {askReason && (
+          <ReprintReasonPrompt
+            what={`KOT ${askReason.number}`}
+            onCancel={() => setAskReason(null)}
+            onConfirm={(r) => {
+              const k = askReason;
+              setAskReason(null);
+              void reprintKot(k, r);
             }}
           />
         )}

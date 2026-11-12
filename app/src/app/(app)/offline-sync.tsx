@@ -13,7 +13,7 @@ const GUEST_TRIES = 5;
 
 /** One queued print (offline receipt, Ctrl+P, a failed log call) -> the logPrint action. Throws when the server cannot be reached. */
 async function sendPrint(ev: PrintEvent): Promise<SendResult> {
-  return toSendResult(await logPrint({ kind: ev.kind, orderId: ev.orderId, clientRef: ev.billClientRef, ticketIds: ev.ticketIds, isReprint: ev.isReprint }));
+  return toSendResult(await logPrint({ kind: ev.kind, orderId: ev.orderId, clientRef: ev.billClientRef, ticketIds: ev.ticketIds, isReprint: ev.isReprint, auto: true }));
 }
 
 /** Sends bills made offline on this device as soon as the server can be reached, and shows what is waiting. */

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { readDevicePrint, rememberPrinted } from "@/lib/device-print";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../../../approval";
+import { ReprintReasonPrompt, needsReason } from "../../../reprint-reason";
 import { logPrint } from "../../../bills/log-print";
 import { dropPrint, recordDeclaredPrint, useBrowserPrint } from "@/lib/print-log";
 import { claimTickets, loadKot } from "./actions";
@@ -57,6 +58,7 @@ export function KotPrinter({
   const [error, setError] = useState<string | null>(null);
   const [printError, setPrintError] = useState<string | null>(null);
   const [needsPin, setNeedsPin] = useState(false);
+  const [askReason, setAskReason] = useState(false);
   const [declaredNote, setDeclaredNote] = useState<{ text: string; ref?: string; needsPin?: boolean } | null>(null);
   const [pinForDeclared, setPinForDeclared] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -151,18 +153,19 @@ export function KotPrinter({
   }, [countdown, next, router]);
 
   /** Print again = a reprint: logged first; a role without the right gets the manager PIN prompt. Prints only when the log is written. */
-  async function printAgain() {
+  async function printAgain(reason?: string) {
     setCountdown(null);
     setPrintError(null);
     const again = printedHere.length > 0 ? printedHere : (slips ?? []);
     if (again.length === 0) return;
     let res: Awaited<ReturnType<typeof logPrint>>;
     try {
-      res = await logPrint({ kind: "kot", orderId, ticketIds: again.map((s) => s.id) });
+      res = await logPrint({ kind: "kot", orderId, ticketIds: again.map((s) => s.id), reason });
     } catch {
       return setPrintError("Could not record the reprint. Check the internet and try again.");
     }
     if (!res.ok) {
+      if (needsReason(res.error)) return setAskReason(true);
       if (neededRight(res.error) === "order.reprint") return setNeedsPin(true);
       return setPrintError(cleanMessage(res.error));
     }
@@ -177,7 +180,7 @@ export function KotPrinter({
     const ids = (printedHere.length > 0 ? printedHere : (slips ?? [])).map((s) => s.id);
     if (ids.length === 0) return;
     setCountdown(null);
-    const out = await recordDeclaredPrint({ kind: "kot", orderId, ticketIds: ids, isReprint: true }, (e) => logPrint({ kind: "kot", orderId: e.orderId, ticketIds: e.ticketIds }));
+    const out = await recordDeclaredPrint({ kind: "kot", orderId, ticketIds: ids, isReprint: true }, (e) => logPrint({ kind: "kot", orderId: e.orderId, ticketIds: e.ticketIds, auto: true }));
     if (out.status === "recorded") return setDeclaredNote({ text: "Printed from the browser menu: recorded as a KOT reprint." });
     if (out.status === "offline") return setDeclaredNote({ text: "Printed from the browser menu. The record is saved on this device and is sent when the internet is back." });
     if (out.status === "needs_approval")
@@ -189,7 +192,7 @@ export function KotPrinter({
   async function recordDeclaredWithPin(ref: string) {
     const ids = (printedHere.length > 0 ? printedHere : (slips ?? [])).map((s) => s.id);
     try {
-      const res = await logPrint({ kind: "kot", orderId, ticketIds: ids });
+      const res = await logPrint({ kind: "kot", orderId, ticketIds: ids, auto: true });
       if (res.ok) {
         dropPrint(ref);
         return setDeclaredNote({ text: "Browser-menu print recorded as a KOT reprint." });
@@ -298,7 +301,7 @@ export function KotPrinter({
               {backToBill ? "Back to the bill" : "Open the bill"}
             </Link>
           )}
-          <button className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} disabled={status !== "done" || list.length === 0} onClick={printAgain}>
+          <button className="btn border text-sm" style={{ borderColor: "var(--color-line)" }} disabled={status !== "done" || list.length === 0} onClick={() => void printAgain()}>
             Print KOT again
           </button>
         </div>
@@ -322,6 +325,16 @@ export function KotPrinter({
             const ref = pinForDeclared;
             setPinForDeclared(null);
             void recordDeclaredWithPin(ref);
+          }}
+        />
+      )}
+      {askReason && (
+        <ReprintReasonPrompt
+          what="these kitchen tickets"
+          onCancel={() => setAskReason(false)}
+          onConfirm={(r) => {
+            setAskReason(false);
+            void printAgain(r);
           }}
         />
       )}

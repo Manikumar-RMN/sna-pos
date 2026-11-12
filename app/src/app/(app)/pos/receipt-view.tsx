@@ -9,6 +9,7 @@ import { billFormat, billTextPx, paperWidth, type BillFormat } from "@/lib/bill-
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { logPrint } from "../bills/log-print";
+import { ReprintReasonPrompt, needsReason } from "../reprint-reason";
 import { loyaltyLines, type ReceiptLoyalty } from "@/lib/receipt-loyalty";
 import { dropPrint, markAppPrint, recordDeclaredPrint, useBrowserPrint } from "@/lib/print-log";
 
@@ -103,6 +104,7 @@ export function ReceiptView({
   hideBack?: boolean;
 }) {
   const [needsPin, setNeedsPin] = useState(false);
+  const [askReason, setAskReason] = useState(false);
   const printedHere = useRef(false);
   const [printError, setPrintError] = useState<string | null>(null);
   /** Winsar "Estimate": the same bill printed as a proforma, marked clearly as not a tax invoice. */
@@ -134,16 +136,18 @@ export function ReceiptView({
    * bill is silent, a later one is a reprint that needs the right or a manager PIN and is written to the audit log. Prints only
    * when the log is written. Ctrl+P / the browser's own menu is recorded by logDeclaredPrint ("beforeprint"); a bill shown without an id (the layout preview) is not logged.
    */
-  async function printBillLogged() {
+  async function printBillLogged(reason?: string) {
     setPrintError(null);
+    setEstimate(false);
     if (!orderId) return printBill();
     let res: Awaited<ReturnType<typeof logPrint>>;
     try {
-      res = await logPrint({ kind: "bill", orderId, isReprint: printedHere.current });
+      res = await logPrint({ kind: "bill", orderId, isReprint: printedHere.current, reason });
     } catch {
       return setPrintError("Could not record the print. Check the internet and try again.");
     }
     if (!res.ok) {
+      if (needsReason(res.error)) return setAskReason(true);
       if (neededRight(res.error) === "order.reprint") return setNeedsPin(true);
       return setPrintError(cleanMessage(res.error));
     }
@@ -152,9 +156,9 @@ export function ReceiptView({
   }
 
   /** Prints the bill the way this device is set up to (Settings → Printers). */
-  function printBill() {
+  function printBill(asEstimate = false) {
     if (readDevicePrint().method === "rawbt") {
-      const { lines, width } = billLines(data);
+      const { lines, width } = billLines(data, asEstimate);
       sendToRawbt(lines, width);
     } else {
       // The print was logged just before: the "beforeprint" listener below must not log it a second time.
@@ -169,17 +173,15 @@ export function ReceiptView({
    * reprint right gets a notice with a manager PIN button, and the print waits in the device queue until it is recorded.
    */
   // The Check screen of the single order screen has its own Estimate and Print buttons: they ask this receipt to print.
-  const printRef = useRef({ print: printBillLogged, estimate: () => {} });
+  const printRef = useRef({ print: () => {}, estimate: () => {} });
   printRef.current = {
-    print: printBillLogged,
-    estimate: () => {
-      setEstimate(true);
-      setTimeout(() => {
-        void printBillLogged();
-        setTimeout(() => setEstimate(false), 1500);
-      }, 50);
-    },
+    print: () => void printBillLogged(),
+    estimate: () => setEstimate(true),
   };
+  /** Estimate: a proforma for the guest to look at. It is not the bill, so it is never written to the print log (a real Print after it is still the first print). */
+  function printEstimate() {
+    printBill(true);
+  }
   useEffect(() => {
     if (!hideBack) return;
     const onPrint = () => void printRef.current.print();
@@ -195,7 +197,7 @@ export function ReceiptView({
   async function logDeclaredPrint() {
     if (!orderId) return;
     const out = await recordDeclaredPrint({ kind: "bill", orderId, isReprint: printedHere.current }, (e) =>
-      logPrint({ kind: "bill", orderId: e.orderId, isReprint: e.isReprint }),
+      logPrint({ kind: "bill", orderId: e.orderId, isReprint: e.isReprint, auto: true }),
     );
     if (out.status === "recorded") {
       printedHere.current = true;
@@ -212,7 +214,7 @@ export function ReceiptView({
   async function recordDeclaredWithPin(ref: string) {
     if (!orderId) return;
     try {
-      const res = await logPrint({ kind: "bill", orderId, isReprint: true });
+      const res = await logPrint({ kind: "bill", orderId, isReprint: true, auto: true });
       if (res.ok) {
         dropPrint(ref);
         printedHere.current = true;
@@ -269,6 +271,29 @@ export function ReceiptView({
           }}
         />
       )}
+      {askReason && (
+        <ReprintReasonPrompt
+          what="this bill"
+          onCancel={() => setAskReason(false)}
+          onConfirm={(r) => {
+            setAskReason(false);
+            void printBillLogged(r);
+          }}
+        />
+      )}
+      {estimate && (
+        <div className="no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)" }}>
+          <span className="font-semibold">Estimate preview: not a tax invoice, not counted as a print.</span>
+          <span className="flex gap-2">
+            <button className="btn btn-primary h-9 px-3 text-sm" onClick={printEstimate}>
+              Print estimate
+            </button>
+            <button className="btn border h-9 px-3 text-sm" style={{ borderColor: "var(--color-line)" }} onClick={() => setEstimate(false)}>
+              Close
+            </button>
+          </span>
+        </div>
+      )}
       <div className={`no-print mb-3 flex items-center ${hideBack ? "justify-end" : "justify-between"}`}>
         {!hideBack && (
           <Link href={backHref} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
@@ -278,16 +303,10 @@ export function ReceiptView({
         <span className="flex gap-2">
           {(data.state === "unpaid" || data.state === "part-paid") && (
             <button
-              onClick={() => {
-                setEstimate(true);
-                setTimeout(() => {
-                  void printBillLogged();
-                  setTimeout(() => setEstimate(false), 1500);
-                }, 50);
-              }}
+              onClick={() => setEstimate(true)}
               className="btn border h-10 px-4 text-sm"
               style={{ borderColor: "var(--color-brand)", color: "var(--color-brand-strong)" }}
-              title="Print the bill as an estimate for the guest to look at. It is not a tax invoice and takes no payment."
+              title="Show the bill as an estimate (preview) with a Print option. It is not a tax invoice, takes no payment and is not counted as a print."
             >
               Estimate
             </button>

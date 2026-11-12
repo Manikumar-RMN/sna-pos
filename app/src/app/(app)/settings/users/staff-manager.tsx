@@ -3,7 +3,7 @@
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { PasswordInput } from "@/components/password-input";
-import { addPasswordStaff, changeRole, copyAccess, resetPassword, setActive, updateStaffDetails, type StaffResult } from "./actions";
+import { addPasswordStaff, changeRole, copyAccess, resetPassword, setActive, unlockSignIn, updateStaffDetails, type StaffResult } from "./actions";
 
 type Staff = {
   id: string;
@@ -22,6 +22,7 @@ type Staff = {
   employeeNo: string;
   relievingDate: string;
   isMe: boolean;
+  signInLocked?: boolean;
 };
 type Role = { id: string; name: string; backOffice?: boolean };
 const isMadeUpEmail = (e: string | null) => !!e && e.endsWith("@staff.sna-pos.app");
@@ -186,6 +187,11 @@ export function StaffManager({
                       >
                         Details
                       </SmallBtn>
+                      {s.signInLocked && (
+                        <SmallBtn disabled={pending} onClick={() => run(() => unlockSignIn(s.id))}>
+                          Unlock sign-in
+                        </SmallBtn>
+                      )}
                       {!locked && (
                         <SmallBtn danger={s.active} disabled={pending} onClick={() => run(() => setActive(s.id, !s.active))}>
                           {s.active ? "Switch off access" : "Switch on access"}

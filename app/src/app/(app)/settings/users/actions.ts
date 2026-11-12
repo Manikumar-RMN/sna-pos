@@ -35,6 +35,16 @@ export async function setActive(userId: string, active: boolean): Promise<StaffR
   return { ok: true, message: active ? "Access switched back on." : "Access switched off. They can no longer sign in to this restaurant." };
 }
 
+/** Clears a sign-in lock (after too many wrong passwords) so the person can try again straight away. Manager right, audited. */
+export async function unlockSignIn(userId: string): Promise<StaffResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("unlock_staff_login", { p_user_id: userId });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  revalidatePath("/settings/users");
+  const name = (data as { name?: string } | null)?.name ?? "The person";
+  return { ok: true, message: `${name} can sign in again now.` };
+}
+
 export async function addPasswordStaff(input: {
   name: string;
   roleId: string;

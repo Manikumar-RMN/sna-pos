@@ -60,7 +60,7 @@ export async function requireUser(): Promise<CurrentUser> {
   if (!current) {
     const supabase = await createClient();
     const { data: state } = await supabase.rpc("my_account_state");
-    if (state === "device_locked" || state === "device_removed") redirect("/counter");
+    if (state === "device_locked" || state === "device_removed") redirect("/login"); // there is no separate counter page any more
     if (state === "must_change_password") redirect("/account/password");
     if (state === "signed_out") redirect("/login");
     if (state === "new" || state === "deactivated") redirect("/setup");

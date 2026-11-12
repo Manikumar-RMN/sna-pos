@@ -130,7 +130,7 @@ export function sendToRawbt(lines: Line[], width: number) {
 
 /* ------------------------------------------------------------------ bill */
 
-export function billLines(data: ReceiptData): { lines: Line[]; width: number } {
+export function billLines(data: ReceiptData, estimate = false): { lines: Line[]; width: number } {
   const f = billFormat(data.format);
   const W = columns(f.paper);
   const m = (n: number) => plain(money(n, data.currency));
@@ -143,8 +143,9 @@ export function billLines(data: ReceiptData): { lines: Line[]; width: number } {
     L.push({ text: data.comp.kind === "complimentary" ? "COMPLIMENTARY - NO CHARGE" : "STAFF MEAL - NO CHARGE", align: "center", bold: true });
     if (data.comp.reason) L.push({ text: data.comp.reason, align: "center" });
   }
-  if (data.state === "unpaid") L.push({ text: "UNPAID - NOT A TAX INVOICE", align: "center", bold: true });
-  if (data.state === "part-paid") L.push({ text: `PART PAID - BALANCE ${m(data.balance)}`, align: "center", bold: true });
+  if (estimate && (data.state === "unpaid" || data.state === "part-paid")) L.push({ text: "ESTIMATE - NOT A TAX INVOICE", align: "center", bold: true });
+  else if (data.state === "unpaid") L.push({ text: "UNPAID - NOT A TAX INVOICE", align: "center", bold: true });
+  else if (data.state === "part-paid") L.push({ text: `PART PAID - BALANCE ${m(data.balance)}`, align: "center", bold: true });
   if (data.invoiceTitle && data.state !== "unpaid" && data.state !== "part-paid") L.push({ text: data.invoiceTitle.toUpperCase(), align: "center", bold: true });
 
   L.push({ text: data.header, align: "center", big: true });

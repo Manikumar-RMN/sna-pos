@@ -8532,7 +8532,11 @@ export type Database = {
       kiosk_set_auto: { Args: { p_id: string; p_user: string }; Returns: undefined }
       liquor_prefix_info: { Args: never; Returns: Json }
       log_print: {
-        Args: { p_kind: string; p_order: string; p_ticket_ids?: string[]; p_is_reprint?: boolean }
+        Args: { p_kind: string; p_order: string; p_ticket_ids?: string[]; p_is_reprint?: boolean; p_reason?: string }
+        Returns: Json
+      }
+      unlock_staff_login: {
+        Args: { p_user_id: string }
         Returns: Json
       }
       login_staff: {
