@@ -63,39 +63,46 @@ export function PlanView({ plan, isOwner }: { plan: Plan; isOwner: boolean }) {
         </div>
       )}
 
-      <div className="card p-5">
-        <h3 className="font-display text-lg font-bold">Add-on modules</h3>
-        <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-          Charged monthly.
-        </p>
-        <ul className="mt-3 divide-y" style={{ borderColor: "var(--color-line)" }}>
-          {addons.map((m) => (
-            <li key={m.key} className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <div className="min-w-0">
-                <div className="font-semibold">{m.name}</div>
-                <div className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-                  {m.description}
-                  {price(m.key) ? ` · ${price(m.key)}/month` : ""}
-                </div>
-              </div>
-              {m.on ? (
-                <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: "var(--color-brand-soft)", color: "var(--color-brand)" }}>
-                  On
-                </span>
-              ) : isOwner ? (
-                <button
-                  className="btn h-10 min-h-0 px-4 text-sm"
-                  style={{ background: "var(--color-brand-soft)", color: "var(--color-brand)" }}
-                  disabled={pending || open("module", m.key)}
-                  onClick={() => run(requestPlanChange({ kind: "module", module: m.key }))}
-                >
-                  {open("module", m.key) ? "Requested" : "Ask to switch on"}
-                </button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      </div>
+      {[
+        { title: "Included", note: "Part of your plan.", items: addons.filter((m) => !price(m.key)) },
+        { title: "Add-on modules", note: "Charged monthly. Ask here and the SNA team switches it on.", items: addons.filter((m) => !!price(m.key)) },
+      ]
+        .filter((g) => g.items.length > 0)
+        .map((g) => (
+          <div key={g.title} className="card p-5">
+            <h3 className="font-display text-lg font-bold">{g.title}</h3>
+            <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
+              {g.note}
+            </p>
+            <ul className="mt-3 divide-y" style={{ borderColor: "var(--color-line)" }}>
+              {g.items.map((m) => (
+                <li key={m.key} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <div className="font-semibold">{m.name}</div>
+                    <div className="text-sm" style={{ color: "var(--color-ink-3)" }}>
+                      {m.name === "Reports" ? "Reports for every module you use" : m.description}
+                      {price(m.key) ? ` · ${price(m.key)}/month` : ""}
+                    </div>
+                  </div>
+                  {m.on ? (
+                    <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: "var(--color-brand-soft)", color: "var(--color-brand)" }}>
+                      On
+                    </span>
+                  ) : isOwner ? (
+                    <button
+                      className="btn h-10 min-h-0 px-4 text-sm"
+                      style={{ background: "var(--color-brand-soft)", color: "var(--color-brand)" }}
+                      disabled={pending || open("module", m.key)}
+                      onClick={() => run(requestPlanChange({ kind: "module", module: m.key }))}
+                    >
+                      {open("module", m.key) ? "Requested" : "Ask to switch on"}
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
 
       <div className="card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
