@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { BillMissing } from "../../bill-missing";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -14,7 +14,7 @@ export default async function SettlePage({ params }: { params: Promise<{ orderId
   const { orderId } = await params;
   const user = await requireUser();
   const bill = await getBill(orderId);
-  if (!bill) notFound();
+  if (!bill) return <BillMissing />;
   const supabase = await createClient();
 
   const [{ data: methods }, { data: others }] = await Promise.all([

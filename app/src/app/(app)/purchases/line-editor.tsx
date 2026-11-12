@@ -97,7 +97,7 @@ export function LineEditor({
                   {qtyLabel} (line {n})
                 </span>
                 <span className="flex items-center gap-2">
-                  <input className="field h-10 min-w-0 flex-1 text-sm" inputMode="decimal" placeholder="0" value={l.qty} onChange={(e) => set(i, { qty: e.target.value })} disabled={disabled} />
+                  <input className="field h-10 min-w-0 flex-1 text-sm" inputMode="decimal" placeholder="0" value={l.qty} onFocus={(e) => e.currentTarget.select()} onChange={(e) => set(i, { qty: e.target.value })} disabled={disabled} />
                   <span className="w-9 shrink-0 text-sm font-semibold" style={{ color: "var(--color-ink-3)" }}>
                     {shown}
                   </span>
@@ -119,7 +119,7 @@ export function LineEditor({
                 <span className="mb-1 block text-xs font-semibold sm:sr-only" style={{ color: "var(--color-ink-2)" }}>
                   Cost per {shown || "unit"} (line {n})
                 </span>
-                <input className="field h-10 text-sm" inputMode="decimal" placeholder="0.00" value={l.cost} onChange={(e) => set(i, { cost: e.target.value })} disabled={disabled} />
+                <input className="field h-10 text-sm" inputMode="decimal" placeholder="0.00" value={l.cost} onFocus={(e) => e.currentTarget.select()} onChange={(e) => set(i, { cost: e.target.value })} disabled={disabled} />
                 {agreed?.[l.ingredient_id] != null && !l.buy && (
                   <span className="mt-1 block text-xs" style={{ color: Number(l.cost) === agreed[l.ingredient_id] ? "var(--color-ink-3)" : "var(--color-warn)" }}>
                     Agreed rate {money(agreed[l.ingredient_id], currency)}
@@ -131,7 +131,7 @@ export function LineEditor({
                 <span className="mb-1 block text-xs font-semibold sm:sr-only" style={{ color: "var(--color-ink-2)" }}>
                   Tax % (line {n})
                 </span>
-                <input className="field h-10 text-sm" inputMode="decimal" placeholder="Tax %" value={l.taxRate ?? ""} onChange={(e) => set(i, { taxRate: e.target.value })} disabled={disabled} />
+                <input className="field h-10 text-sm" inputMode="decimal" placeholder="Tax %" value={l.taxRate ?? ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => set(i, { taxRate: e.target.value })} disabled={disabled} />
               </label>
               )}
               <div className="flex items-center justify-between text-sm sm:block sm:text-right">

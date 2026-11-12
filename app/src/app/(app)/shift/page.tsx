@@ -9,7 +9,7 @@ export default async function ShiftPage() {
   const supabase = await createClient();
   const canSeeMoney = can(user, "shift.close") || can(user, "report.view_financial");
 
-  const [{ data: current }, { data: history }, { data: day }] = await Promise.all([
+  const [{ data: current }, { data: history }, { data: day }, { count: pendingKots }] = await Promise.all([
     supabase.rpc("current_shift"),
     supabase
       .from("shifts")
@@ -18,6 +18,8 @@ export default async function ShiftPage() {
       .order("closed_at", { ascending: false })
       .limit(10),
     supabase.rpc("day_status"),
+    // Kitchen tickets still waiting or being cooked (shown as a warning on day close).
+    supabase.from("kitchen_tickets").select("id", { count: "exact", head: true }).in("status", ["new", "preparing"]),
   ]);
   const shiftsOn = !!(day as unknown as { shifts_enabled?: boolean } | null)?.shifts_enabled;
   // Shifts off: the automatic drawer is not shown as a shift; cash is counted when the day is closed.
@@ -74,7 +76,7 @@ export default async function ShiftPage() {
       ) : null}
 
       {day && (can(user, "day.close") || can(user, "day.reopen") || can(user, "report.view_sales") || can(user, "payment.take")) && (
-        <DayPanel status={day as unknown as DayStatus} currency={c} canAsk={can(user, "payment.take")} />
+        <DayPanel status={{ ...(day as unknown as DayStatus), pending_kots: pendingKots ?? 0 }} currency={c} canAsk={can(user, "payment.take")} />
       )}
 
       {figures && (movements ?? []).length > 0 && canSeeMoney && (

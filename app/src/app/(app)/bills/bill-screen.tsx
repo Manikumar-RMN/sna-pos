@@ -1,5 +1,5 @@
+import { BillMissing } from "./bill-missing";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { can, has, requireUser } from "@/lib/auth";
 import { getBill } from "@/lib/bill";
 import { createClient } from "@/lib/supabase/server";
@@ -32,7 +32,7 @@ export async function BillScreen({
 }) {
   const user = await requireUser();
   const bill = await getBill(orderId);
-  if (!bill) notFound();
+  if (!bill) return <BillMissing />;
 
   const r = bill.receipt;
   const tz = r.timezone;

@@ -106,7 +106,7 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
         <Row label="Bills" value={`${z.bills}${z.first_bill ? ` (${z.first_bill} – ${z.last_bill})` : ""}`} />
         <Rule />
         <Row label="Gross sales" value={m(z.gross_sales)} />
-        <Row label="Discounts" value={`-${m(z.discounts)}`} />
+        <Row label="Discounts" value={z.discounts > 0 ? `-${m(z.discounts)}` : m(0)} />
         {Number(z.service_charge) > 0 && <Row label="Service charge" value={m(z.service_charge)} />}
         <Row label={Number(z.tax_included) > 0 ? "Tax (incl. in prices)" : "Tax"} value={m(z.tax)} />
         {Math.abs(Number(z.rounding)) >= 0.005 && <Row label="Rounding" value={m(z.rounding)} />}

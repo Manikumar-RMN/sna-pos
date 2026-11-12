@@ -18,6 +18,8 @@ export type DayStatus = {
   /** Shifts switched on in Settings → Day and sessions. Off: one automatic drawer per day, counted at day close. */
   shifts_enabled?: boolean;
   expected_cash?: number | null;
+  /** Kitchen tickets still new or being prepared (a warning only; it does not block closing). */
+  pending_kots?: number;
 };
 
 function niceDate(d: string) {
@@ -92,6 +94,11 @@ export function DayPanel({ status, currency, canAsk }: { status: DayStatus; curr
           {waiting > 0 && (
             <p className="mb-2 rounded-lg px-3 py-2 text-xs" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
               {waiting} bill{waiting === 1 ? " made" : "s made"} offline on this device {waiting === 1 ? "has" : "have"} not been sent yet. Wait for the internet, then close the day.
+            </p>
+          )}
+          {(status.pending_kots ?? 0) > 0 && (
+            <p className="mb-2 rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
+              {status.pending_kots} kitchen ticket{status.pending_kots === 1 ? " is" : "s are"} still pending. Check the Kitchen screen before you close the day.
             </p>
           )}
           {status.unpaid.length > 0 && (

@@ -304,7 +304,7 @@ export default async function SalesSummaryPage({
                     ])}
                   />
                   <p className="mt-2 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-                    Match each line with your cash drawer, card machine settlement and UPI / wallet statements. The CSV lists every
+                    Match each line with your cash drawer, card machine settlement and UPI / wallet statements. The Excel and CSV list every
                     payment with its reference.
                   </p>
                 </>

@@ -123,7 +123,8 @@ export function OrderDesk({
    * internet (the other table cannot load) is staff asked first.
    */
   function go(url: string, target: DeskSelectionTarget) {
-    if (url === currentUrl) return;
+    // Tapping the table that is already open just closes the table screen (it used to need a second tap).
+    if (url === currentUrl) { setShowTables(false); return; }
     const plan = planSwitch({ itemsInCart: cartCount, online, destLabel: destinationLabel(target.label) });
     if (plan.action === "confirm") {
       if (!window.confirm(plan.question)) return;
