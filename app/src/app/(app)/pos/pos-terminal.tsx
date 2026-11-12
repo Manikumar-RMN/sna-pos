@@ -348,7 +348,8 @@ export function PosTerminal({
   // The kinds of bill this outlet uses (Settings → Service charge); the screen starts on the outlet's choice.
   const kinds: OrderType[] = orderTypes.length ? orderTypes : ["dine_in", "takeaway", "delivery"];
   const [orderType, setOrderType] = useState<OrderType>(() =>
-    lockedTable ? "dine_in" : startType && kinds.includes(startType as OrderType) ? (startType as OrderType) : kinds[0],
+    // The Counter tile on the single order screen is labelled Takeaway, so it opens on Takeaway when the outlet uses it.
+    lockedTable ? "dine_in" : inline && askCovers && kinds.includes("takeaway") ? "takeaway" : startType && kinds.includes(startType as OrderType) ? (startType as OrderType) : kinds[0],
   );
   const [tableId, setTableId] = useState<string | null>(lockedTable?.id ?? null);
   /** The cashier chose to start a second bill on a table that already has an open one. */

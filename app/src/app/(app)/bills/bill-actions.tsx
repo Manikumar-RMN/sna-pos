@@ -681,6 +681,11 @@ export function BillActions({
             <Link href={`/bills/settle/${orderId}`} className="btn border text-center text-sm" style={{ borderColor: "var(--color-brand)", color: "var(--color-brand-strong)" }}>
               Settlement screen
             </Link>
+            {showVoid && (
+              <button type="button" className="btn border text-center text-sm" style={{ borderColor: "var(--color-bad)", color: "var(--color-bad)" }} onClick={() => { setCheckOpen(false); setWin("void"); }}>
+                Void bill…
+              </button>
+            )}
           </div>
         </div>
       )}

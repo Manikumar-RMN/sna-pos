@@ -364,7 +364,7 @@ export function ReceiptView({
         )}
 
         <div className="text-center">
-          {data.invoiceTitle && data.state !== "unpaid" && data.state !== "part-paid" && (
+          {data.invoiceTitle && data.state !== "unpaid" && data.state !== "part-paid" && data.state !== "voided" && (
             <div className="mb-1 text-[1em] font-bold uppercase tracking-wide">{data.invoiceTitle}</div>
           )}
           {f.logo && data.logo && (
