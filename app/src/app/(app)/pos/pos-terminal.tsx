@@ -1823,7 +1823,7 @@ export function PosTerminal({
             <div className="whitespace-nowrap text-sm font-bold">{addTo ? "Items to add" : "Current bill"}</div>
             {addTo ? (
               <span className="flex items-center gap-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
-                {!offline && (
+                {!offline && !winStyle && (
                   <button
                     type="button"
                     className="whitespace-nowrap rounded-md border px-2 py-1 text-xs font-semibold"
@@ -2055,13 +2055,17 @@ export function PosTerminal({
                   <div className="font-semibold">{stockStrip.footer}</div>
                 </div>
               )}
-              <div className="flex justify-between text-sm">
-                <span style={{ color: "var(--color-ink-3)" }}>New items {pricesIncludeTax ? "" : `(before ${taxName})`}</span>
-                <span className="font-semibold">{m(addSubtotal)}</span>
-              </div>
-              <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-                The bill&rsquo;s tax, service charge and total are worked out again when you add. A new kitchen ticket is sent for these items only.
-              </p>
+              {!(winStyle && lines.length === 0) && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: "var(--color-ink-3)" }}>New items {pricesIncludeTax ? "" : `(before ${taxName})`}</span>
+                    <span className="font-semibold">{m(addSubtotal)}</span>
+                  </div>
+                  <p className="mt-1 text-[11px]" style={{ color: "var(--color-ink-3)" }}>
+                    The bill&rsquo;s tax, service charge and total are worked out again when you add. A new kitchen ticket is sent for these items only.
+                  </p>
+                </>
+              )}
               {offline && !saved && (
                 <p className="mt-3 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-warn)" }}>
                   No connection. {needsInternetText("add_to_bill")}
@@ -2075,8 +2079,8 @@ export function PosTerminal({
                     Back to bill
                   </button>
                 )}
-                {inline && (
-                  <button onClick={clearAll} disabled={pending || lines.length === 0 || !!saved} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
+                {inline && lines.length > 0 && (
+                  <button onClick={clearAll} disabled={pending || !!saved} className="btn border px-3 text-sm" style={{ borderColor: "var(--color-line)", background: "var(--color-surface)" }}>
                     Clear
                   </button>
                 )}
