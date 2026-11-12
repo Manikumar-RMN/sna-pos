@@ -163,7 +163,7 @@ export default async function SalesSummaryPage({
     ...sec("By meal session", ["Session", "Bills", "Total", "Average bill"], sessions.map((x) => [x.session, x.bills, x.total, x.average])),
     ...sec("Order type", ["Type", "Bills", "Total"], rep.by_type.map((t) => [orderTypeLabel[t.type] ?? t.type, t.bills, t.total])),
     ...sec("Settlement by payment mode", ["Payment mode", "Payments", "Collected", "Refunded", "Voided", "Net"], (settle?.methods ?? []).map((m) => [m.method, m.payments, m.collected, m.refunded, m.voided, m.net])),
-    ...sec("GST / tax collected", ["Component", "Rate %", "Taxable value", "Tax"], rep.tax.map((x) => [x.component, x.rate, x.taxable, x.tax])),
+    ...sec("GST - tax collected", ["Component", "Rate %", "Taxable value", "Tax"], rep.tax.map((x) => [x.component, x.rate, x.taxable, x.tax])),
     ...sec("Accounting export", ["Date", "Account", "Debit", "Credit", "Narration"], ((journalData ?? []) as unknown as JournalRow[]).map((r) => [r.date, r.account, r.debit, r.credit, r.narration])),
     ...sec("GST bill register", ["Type", "Date", "Number", "Against bill", "Status", "Customer GSTIN", "Customer name", "GST rate %", "Taxable value", "CGST", "SGST/UTGST", "IGST", "Total"], ((registerData ?? []) as unknown as RegisterRow[]).map((r) => [r.type, r.date, r.number, r.against ?? "", r.status, r.buyer_gstin ?? "", r.buyer_name ?? "", r.rate ?? "", r.taxable, r.cgst, r.sgst, r.igst, r.total])),
     ...sec("Items sold", ["Item", "Quantity", "Amount before tax"], rep.by_item.map((i) => [i.item, i.qty, i.amount])),

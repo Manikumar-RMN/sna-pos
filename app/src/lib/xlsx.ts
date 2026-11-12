@@ -21,7 +21,7 @@ function colName(i: number): string {
 }
 
 const sheetName = (raw: string, used: Set<string>) => {
-  let base = raw.replace(/[\[\]:*?/\\]/g, " ").trim().slice(0, 31) || "Sheet";
+  let base = raw.replace(/[\[\]:*?/\\]/g, "-").trim().slice(0, 31) || "Sheet";
   let name = base;
   for (let k = 2; used.has(name.toLowerCase()); k++) name = `${base.slice(0, 28)} ${k}`;
   used.add(name.toLowerCase());
