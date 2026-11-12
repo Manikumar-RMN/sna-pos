@@ -51,7 +51,7 @@ export function ReportShell({
   const { from, to, user, scope } = ctx;
   const dates = rangeText(from, to, longDate);
   return (
-    <div className={`report-root mx-auto max-w-6xl${landscape ? " rpt-landscape" : ""}`}>
+    <div className={`report-root mx-auto ${landscape ? "max-w-[100rem] rpt-landscape" : "max-w-6xl"}`}>
       <section className="rpt-panel">
         <div className="rpt-titlebar">
           <h1>{title}</h1>

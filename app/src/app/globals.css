@@ -297,6 +297,17 @@ h2,
   border-spacing: 0;
   font-size: 13px;
 }
+/* Tables with many columns use tighter spacing so they fit the page without sliding sideways. */
+.rpt-table:has(th:nth-child(10)) {
+  font-size: 12px;
+}
+.rpt-table:has(th:nth-child(10)) th,
+.rpt-table:has(th:nth-child(10)) td {
+  padding: 6px 5px;
+}
+.rpt-table:has(th:nth-child(10)) thead th {
+  font-size: 10.5px;
+}
 /* Summary tables with just a label and a value should not stretch across the whole page. */
 .rpt-scroll:has(.rpt-table:not(:has(th:nth-child(3)))) {
   max-width: 34rem;

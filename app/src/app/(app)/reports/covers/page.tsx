@@ -50,7 +50,7 @@ export default async function CoversPage({ searchParams }: { searchParams: Promi
         {err ? <Err e={err} /> : !rep || !t || rep.byDay.length === 0 ? <Empty text="No dine-in bills in this period." /> : (
           <>
             <p className="text-sm">
-              <b>{t.covers}</b> guests on {plural(t.billsWithCovers, "bill")} with a guest count
+              <b>{t.covers}</b> guests on {t.billsWithCovers} of {plural(t.bills, "bill")}{t.billsWithCovers < t.bills ? ` (${plural(t.bills - t.billsWithCovers, "bill")} without a guest count)` : ""}
               {showMoney && t.salesPerCover !== null ? <> · <b>{money(t.salesPerCover, c)}</b> sales per guest</> : null}.
             </p>
 

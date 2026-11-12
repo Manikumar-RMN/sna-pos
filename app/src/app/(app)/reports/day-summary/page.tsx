@@ -31,7 +31,7 @@ export default async function DaySummaryPage({ searchParams }: { searchParams: P
         ["Bills", String(s.bills)],
         ["Guests (covers)", String(s.covers)],
         ["Gross sales (before discount)", m(s.gross)],
-        ["Discounts", `− ${m(s.discounts)}`],
+        ["Less: discounts", m(s.discounts)],
         ["Service charge", m(s.service_charge)],
         ["Tax", m(s.tax)],
         ["Rounding", m(s.rounding)],
