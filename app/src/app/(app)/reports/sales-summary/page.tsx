@@ -149,6 +149,28 @@ export default async function SalesSummaryPage({
   const unpaidBills = Number(rep?.summary.unpaid_bills ?? 0);
   const unpaidCount = `${unpaidBills} bill${unpaidBills === 1 ? "" : "s"}`;
 
+  const sec = (title: string, head: string[], body: (string | number)[][]): (string | number)[][] =>
+    body.length === 0 ? [] : [[], [title], head, ...body];
+  const exportRows: (string | number)[][] = rep ? [
+    ...sec("Summary", ["Item", "Value"], [
+      ["Bills", rep.summary.bills], ["Gross sales", rep.summary.gross_sales], ["Discounts", rep.summary.discounts], ["Net sales", rep.summary.net_sales],
+      ["Service charge", rep.summary.service_charge], ["Tax", rep.summary.tax], ["Rounding", rep.summary.rounding], ["Total billed", rep.summary.total_billed],
+      ["Average bill", rep.summary.average_bill], ["Voided bills", rep.summary.voided_bills], ["Voided value", rep.summary.voided_value],
+      ["Refunds", rep.summary.refunds], ["Net collected", rep.summary.net_collected],
+    ]),
+    ...sec("Outlets compared", ["Outlet", "Bills", "Sales", "Average bill", "Discounts", "Voids", "Void value"], compare.map((r) => [r.outlet, r.bills, r.total, r.average, r.discounts, r.voids, r.void_value])),
+    ...sec("By meal session", ["Session", "Bills", "Total", "Average bill"], sessions.map((x) => [x.session, x.bills, x.total, x.average])),
+    ...sec("Order type", ["Type", "Bills", "Total"], rep.by_type.map((t) => [orderTypeLabel[t.type] ?? t.type, t.bills, t.total])),
+    ...sec("Settlement by payment mode", ["Payment mode", "Payments", "Collected", "Refunded", "Voided", "Net"], (settle?.methods ?? []).map((m) => [m.method, m.payments, m.collected, m.refunded, m.voided, m.net])),
+    ...sec("GST / tax collected", ["Component", "Rate %", "Taxable value", "Tax"], rep.tax.map((x) => [x.component, x.rate, x.taxable, x.tax])),
+    ...sec("Accounting export", ["Date", "Account", "Debit", "Credit", "Narration"], ((journalData ?? []) as unknown as JournalRow[]).map((r) => [r.date, r.account, r.debit, r.credit, r.narration])),
+    ...sec("GST bill register", ["Type", "Date", "Number", "Against bill", "Status", "Customer GSTIN", "Customer name", "GST rate %", "Taxable value", "CGST", "SGST/UTGST", "IGST", "Total"], ((registerData ?? []) as unknown as RegisterRow[]).map((r) => [r.type, r.date, r.number, r.against ?? "", r.status, r.buyer_gstin ?? "", r.buyer_name ?? "", r.rate ?? "", r.taxable, r.cgst, r.sgst, r.igst, r.total])),
+    ...sec("Items sold", ["Item", "Quantity", "Amount before tax"], rep.by_item.map((i) => [i.item, i.qty, i.amount])),
+    ...(from === to
+      ? sec("By hour", ["Hour", "Bills", "Total"], rep.by_hour.map((h) => [`${String(h.hour).padStart(2, "0")}:00`, h.bills, h.total]))
+      : sec("By day", ["Date", "Bills", "Total billed"], rep.by_day.map((d) => [d.day, d.bills, d.total]))),
+  ] : [];
+
   return (
     <div className="report-root mx-auto max-w-6xl">
       <section className="rpt-panel">
@@ -197,6 +219,15 @@ export default async function SalesSummaryPage({
       )}
 
       <FilterForm basePath="/reports/sales-summary" from={from} to={to} range={range} max={today}>
+        {rep && (
+          <CsvButton
+            filename={`sales_summary_${from}_${to}.csv`}
+            label="Excel (CSV)"
+            className="rpt-btn"
+            header={["Sales summary", scope.label, from, to]}
+            rows={exportRows}
+          />
+        )}
         <PrintButton />
       </FilterForm>
       <div className="mb-5" />
@@ -256,15 +287,6 @@ export default async function SalesSummaryPage({
 
             <Card
               title="Settlement by payment mode"
-              action={
-                settle && settle.payments.length > 0 ? (
-                  <CsvButton
-                    filename={`settlement_${from}_${to}.csv`}
-                    header={["Time", "Bill", "Payment mode", "Amount", "Reference", "Status", "Taken by"]}
-                    rows={settle.payments.map((p) => [dateTime(p.at, user.timezone), p.bill, p.method, p.amount, p.reference ?? "", p.status === "refunded" ? "Voided" : "Paid", p.by ?? ""])}
-                  />
-                ) : null
-              }
             >
               {!settle || settle.methods.length === 0 ? (
                 <Empty />
@@ -291,15 +313,6 @@ export default async function SalesSummaryPage({
             {rep.financial && (
               <Card
                 title="GST / tax collected"
-                action={
-                  rep.tax.length > 0 ? (
-                    <CsvButton
-                      filename={`tax_${from}_${to}.csv`}
-                      header={["Component", "Rate %", "Taxable value", "Tax"]}
-                      rows={rep.tax.map((t) => [t.component, t.rate, t.taxable, t.tax])}
-                    />
-                  ) : null
-                }
               >
                 {rep.tax.length === 0 ? <Empty /> : (
                   <Table
@@ -316,15 +329,6 @@ export default async function SalesSummaryPage({
             {showJournal && (
               <Card
                 title="Accounting export"
-                action={
-                  ((journalData ?? []) as unknown as JournalRow[]).length > 0 ? (
-                    <CsvButton
-                      filename={`journal_${from}_${to}.csv`}
-                      header={["Date", "Account", "Debit", "Credit", "Narration"]}
-                      rows={((journalData ?? []) as unknown as JournalRow[]).map((r) => [r.date, r.account, r.debit, r.credit, r.narration])}
-                    />
-                  ) : null
-                }
               >
                 {((journalData ?? []) as unknown as JournalRow[]).length === 0 ? (
                   <Empty />
@@ -352,29 +356,6 @@ export default async function SalesSummaryPage({
             {showRegister && (
               <Card
                 title="GST bill register"
-                action={
-                  ((registerData ?? []) as unknown as RegisterRow[]).length > 0 ? (
-                    <CsvButton
-                      filename={`gst_register_${from}_${to}.csv`}
-                      header={["Type", "Date", "Number", "Against bill", "Status", "Customer GSTIN", "Customer name", "GST rate %", "Taxable value", "CGST", "SGST/UTGST", "IGST", "Total"]}
-                      rows={((registerData ?? []) as unknown as RegisterRow[]).map((r) => [
-                        r.type,
-                        r.date,
-                        r.number,
-                        r.against ?? "",
-                        r.status,
-                        r.buyer_gstin ?? "",
-                        r.buyer_name ?? "",
-                        r.rate ?? "",
-                        r.taxable,
-                        r.cgst,
-                        r.sgst,
-                        r.igst,
-                        r.total,
-                      ])}
-                    />
-                  ) : null
-                }
               >
                 {((registerData ?? []) as unknown as RegisterRow[]).length === 0 ? (
                   <Empty />
@@ -419,15 +400,6 @@ export default async function SalesSummaryPage({
 
             <Card
               title="Items sold"
-              action={
-                rep.by_item.length > 0 ? (
-                  <CsvButton
-                    filename={`items_${from}_${to}.csv`}
-                    header={["Item", "Quantity", "Amount before tax"]}
-                    rows={rep.by_item.map((i) => [i.item, i.qty, i.amount])}
-                  />
-                ) : null
-              }
             >
               {rep.by_item.length === 0 ? <Empty /> : (
                 <Table
@@ -438,15 +410,6 @@ export default async function SalesSummaryPage({
             </Card>
 
             <Card title={from === to ? "By hour" : "By day"}
-              action={
-                from !== to && rep.by_day.length > 0 ? (
-                  <CsvButton
-                    filename={`daily_${from}_${to}.csv`}
-                    header={["Date", "Bills", "Total billed"]}
-                    rows={rep.by_day.map((d) => [d.day, d.bills, d.total])}
-                  />
-                ) : null
-              }
             >
               {from === to ? (
                 rep.by_hour.length === 0 ? <Empty /> : (
