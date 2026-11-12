@@ -53,7 +53,6 @@ export function PlanView({ plan, isOwner }: { plan: Plan; isOwner: boolean }) {
     });
   }
 
-  const proFeatures = plan.modules.filter((m) => m.kind === "professional");
   const addons = plan.modules.filter((m) => m.kind === "addon");
 
   return (
@@ -65,51 +64,9 @@ export function PlanView({ plan, isOwner }: { plan: Plan; isOwner: boolean }) {
       )}
 
       <div className="card p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="text-xs font-bold uppercase" style={{ color: "var(--color-ink-3)" }}>
-              Your edition
-            </div>
-            <div className="font-display text-2xl font-bold">{pro ? "Professional" : "Basic"}</div>
-            <div className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-              {plan.outlets} outlet{plan.outlets === 1 ? "" : "s"}
-              {price(plan.edition) ? ` · ${price(plan.edition)} per outlet per month` : ""}
-            </div>
-          </div>
-          {!pro && isOwner && (
-            <button
-              className="btn btn-pay h-11 min-h-0 px-5 text-sm"
-              disabled={pending || open("upgrade")}
-              onClick={() => run(requestPlanChange({ kind: "upgrade" }))}
-            >
-              {open("upgrade") ? "Upgrade requested" : `Upgrade to Professional${price("professional") ? ` · ${price("professional")}/month` : ""}`}
-            </button>
-          )}
-        </div>
-        {!pro && (
-          <p className="mt-3 text-sm" style={{ color: "var(--color-ink-2)" }}>
-            Basic: 1 outlet, 2 counter tablets, 10 staff, 300 menu items. Professional removes these limits and adds the features below.
-          </p>
-        )}
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {proFeatures.map((m) => (
-            <div key={m.key} className="flex items-start gap-2 text-sm">
-              <span aria-hidden="true" style={{ color: m.on ? "var(--color-brand)" : "var(--color-ink-3)" }}>
-                {m.on ? "✓" : "○"}
-              </span>
-              <span>
-                <span className="font-semibold">{m.name}</span>
-                <span style={{ color: "var(--color-ink-3)" }}> — {m.description}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="card p-5">
         <h3 className="font-display text-lg font-bold">Add-on modules</h3>
         <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-          Work with both editions. Charged monthly on top of your edition.
+          Charged monthly.
         </p>
         <ul className="mt-3 divide-y" style={{ borderColor: "var(--color-line)" }}>
           {addons.map((m) => (

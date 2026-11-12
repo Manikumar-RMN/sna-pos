@@ -14,7 +14,7 @@ export default async function PlanSettings() {
   return (
     <div>
       <SectionHead title="Plan and modules">
-        Your edition, the add-on modules you use and your outlets. Ask for a change here; the SNA team switches it on for you.
+        The add-on modules you use and your outlets. Ask for a change here; the SNA team switches it on for you.
       </SectionHead>
       <PlanView plan={data as unknown as Plan} isOwner={user.role_name === "Owner"} />
     </div>
