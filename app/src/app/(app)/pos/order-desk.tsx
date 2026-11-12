@@ -162,13 +162,13 @@ export function OrderDesk({
           <Link href="/pos/kot-cancel" className="btn border text-xs" style={{ borderColor: "var(--color-line)" }}>
             KOT cancel
           </Link>
-          <Link href="/dashboard" className="btn border text-sm" style={{ borderColor: "var(--color-line)" }}>
+          <Link href="/dashboard" className="btn border text-xs" style={{ borderColor: "var(--color-line)" }}>
             ☰ Menu
           </Link>
           {showStrip && !showTables && (
             <button
               type="button"
-              className="btn btn-primary text-sm"
+              className="btn btn-primary text-xs"
               onClick={() => {
                 if (selection.kind === "counter") setShowTables(true);
                 else go("/pos", { key: "counter", runningBill: false, label: { kind: "counter" } });

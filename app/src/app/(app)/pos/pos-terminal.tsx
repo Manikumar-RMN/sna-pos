@@ -1365,15 +1365,13 @@ export function PosTerminal({
             )}
             {inline && lines.length > 0 && (
               <div
-                className="mb-1 flex items-center justify-between border-b pb-1 text-[11px] font-bold uppercase tracking-wide"
+                className="mb-1 flex items-center gap-2 border-b pb-1 text-[11px] font-bold uppercase tracking-wide"
                 style={{ borderColor: "var(--color-line)", color: "var(--color-ink-3)" }}
                 aria-hidden="true"
               >
-                <span>Item</span>
-                <span className="flex items-center gap-6">
-                  <span>Qty</span>
-                  <span>Price</span>
-                </span>
+                <span className="min-w-0 flex-1">Item</span>
+                <span className="w-24 text-center">Qty</span>
+                <span className="w-20 text-right">Price</span>
               </div>
             )}
             {lines.length === 0 ? (
@@ -1562,8 +1560,8 @@ export function PosTerminal({
           {customerDisplay && (
             <button
               type="button"
-              className="ml-auto text-xs font-bold"
-              style={{ color: "var(--color-brand)" }}
+              className="btn border ml-auto text-xs"
+              style={{ borderColor: "var(--color-line)", color: "var(--color-brand-strong)" }}
               onClick={() => window.open("/display", "sna-customer-display", "popup,width=900,height=640")}
             >
               Open customer screen
@@ -1600,9 +1598,9 @@ export function PosTerminal({
           />
           <input
             className="field shrink-0"
-            style={{ width: 120, flex: "0 0 120px" }}
+            style={{ width: 150, flex: "0 0 150px" }}
             aria-label="Item code"
-            placeholder="Code + Enter"
+            placeholder="Item code ⏎"
             value={code}
             maxLength={20}
             onChange={(e) => {
@@ -1745,7 +1743,7 @@ export function PosTerminal({
                       className={`tap card relative flex flex-col items-start justify-between gap-1 text-left transition active:scale-[0.98] ${winStyle ? "min-h-[58px] p-2" : "p-3"}`}
                       style={
                         winStyle
-                          ? { borderColor: inCart ? "var(--color-brand)" : "#9A8C82", background: inCart ? "var(--color-brand-soft)" : "#BCAFA5" }
+                          ? { borderColor: inCart ? "var(--color-brand)" : "#DDD3C8", background: inCart ? "var(--color-brand-soft)" : "#F4EFE8" }
                           : { borderColor: inCart ? "var(--color-brand)" : "var(--color-line)" }
                       }
                     >
@@ -3042,7 +3040,7 @@ function WinBtn({ children, tone, onClick, disabled = false, title }: { children
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="min-h-10 shrink-0 rounded-md px-3 text-xs font-bold text-white disabled:opacity-40"
+      className="min-h-11 min-w-[72px] shrink-0 rounded-lg px-3.5 text-sm font-bold text-white shadow-sm disabled:opacity-40"
       style={{ background: tone }}
     >
       {children}

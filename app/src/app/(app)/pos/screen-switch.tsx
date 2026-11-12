@@ -16,8 +16,8 @@ export function ScreenSwitch({ to, after = "/pos" }: { to: ScreenMode; after?: s
   return (
     <button
       type="button"
-      className="no-print text-xs font-semibold underline"
-      style={{ color: "var(--color-ink-3)" }}
+      className="no-print btn border text-xs"
+      style={{ borderColor: "var(--color-line)", color: "var(--color-ink-2)" }}
       disabled={pending}
       onClick={() =>
         start(async () => {
