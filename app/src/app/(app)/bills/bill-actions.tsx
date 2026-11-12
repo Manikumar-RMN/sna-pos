@@ -807,17 +807,9 @@ export function BillActions({
               </Link>
             )}
             {embedded && (
-              <PanelButton label="Check ✓" active={checkOpen} onClick={() => setCheckOpen(true)} />
-            )}
-            {embedded && (
-              <>
-                <button type="button" className="btn btn-pay col-span-2 text-sm" onClick={() => setWin("pay")}>
-                  Settle · {m(balance)}
-                </button>
-                <Link href={`/bills/settle/${orderId}`} className="btn col-span-2 border text-sm" style={{ borderColor: "var(--color-brand)", color: "var(--color-brand-strong)" }} title="The full settlement screen: several payments, tips and a running balance">
-                  Settlement screen
-                </Link>
-              </>
+              <button type="button" className="btn btn-pay col-span-2 text-sm" onClick={() => setWin("pay")}>
+                Settle · {m(balance)}
+              </button>
             )}
             {!embedded && (<>
             <PanelButton label="Split bill" active={panel === "split"} onClick={() => setPanel(panel === "split" ? null : "split")} />
@@ -1695,6 +1687,12 @@ export function BillActions({
             </button>
           </section>
         </PanelFrame>
+      )}
+
+      {embedded && showPay && (
+        <Link href={`/bills/settle/${orderId}`} className="btn order-last w-full border text-center text-sm" style={{ borderColor: "var(--color-brand)", color: "var(--color-brand-strong)" }} title="The full settlement screen: several payments, tips and a running balance">
+          Settlement screen
+        </Link>
       )}
     </div>
   );

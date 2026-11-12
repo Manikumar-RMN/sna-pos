@@ -109,6 +109,8 @@ export function ReceiptView({
   const [printError, setPrintError] = useState<string | null>(null);
   /** Winsar "Estimate": the same bill printed as a proforma, marked clearly as not a tax invoice. */
   const [estimate, setEstimate] = useState(false);
+  /** On the single order screen the bill paper is folded away until asked for (it is still there for printing). */
+  const [showPaper, setShowPaper] = useState(false);
   // Ctrl+P / browser-menu print: what happened to its log entry (shown as a small notice, never blocks the print).
   const [declaredNote, setDeclaredNote] = useState<{ text: string; ref?: string; needsPin?: boolean } | null>(null);
   const [pinForDeclared, setPinForDeclared] = useState<string | null>(null);
@@ -297,12 +299,17 @@ export function ReceiptView({
           </span>
         </div>
       )}
-      <div className={`no-print mb-3 items-center ${hideBack ? (estimate ? "hidden" : "flex justify-end") : "flex justify-between"}`}>
+      <div className={`no-print mb-3 items-center ${hideBack ? (estimate ? "hidden" : "flex") : "flex justify-between"}`}>
         {!hideBack && (
           <Link href={backHref} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
             ← {backLabel}
           </Link>
         )}
+        {hideBack ? (
+          <button type="button" onClick={() => setShowPaper((v) => !v)} className="btn border h-10 w-full px-4 text-sm" style={{ borderColor: "var(--color-line)" }} aria-expanded={showPaper}>
+            {showPaper ? "Hide bill" : "Show bill"}
+          </button>
+        ) : (
         <span className="flex gap-2">
           {(data.state === "unpaid" || data.state === "part-paid") && (
             <button
@@ -318,6 +325,7 @@ export function ReceiptView({
             Print
           </button>
         </span>
+        )}
       </div>
       {declaredNote && (
         <p className="no-print mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs" role="status" style={{ background: "var(--color-warn-soft)", color: "var(--color-ink)" }}>
@@ -342,7 +350,7 @@ export function ReceiptView({
 
       <div
         id="receipt"
-        className="card mx-auto p-4"
+        className={`card mx-auto p-4${hideBack && !showPaper && !estimate ? " hidden print:block" : ""}`}
         style={{ width: `${paper.screenPx}px`, fontSize: `${px}px`, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", color: "#111" }}
       >
         {data.state === "voided" && (

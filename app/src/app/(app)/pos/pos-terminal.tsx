@@ -2391,7 +2391,6 @@ export function PosTerminal({
           <WinBtn tone="#E8590C" disabled={!addTo || repeating || pending || !!saved} title={addTo ? "Put the items of the last kitchen round back in the list" : "Only on a table that already has a round"} onClick={repeatLastRound}>
             {repeating ? "…" : "Repeat"}
           </WinBtn>
-          <span className="flex-1" />
           {billOrder ? (
             <WinBtn tone="#1D4F9F" title="Open the Check screen of this bill: split, discount, settle" onClick={() => window.dispatchEvent(new Event("sna-desk-check"))}>
               Check ✓

@@ -1,4 +1,6 @@
 import { BillMissing } from "./bill-missing";
+import { Fold } from "./fold";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { can, has, requireUser } from "@/lib/auth";
 import { getBill } from "@/lib/bill";
@@ -233,6 +235,7 @@ export async function BillScreen({
       )}
 
       {has(user, "loyalty") && r.state !== "voided" && (
+        <FoldIf on={embedded} label="Loyalty and gift cards">
         <LoyaltyPanel
           orderId={bill.id}
           open={open}
@@ -247,6 +250,7 @@ export async function BillScreen({
           senior={bill.adjust.senior}
           hasPayments={r.payments.length > 0}
         />
+        </FoldIf>
       )}
 
       {open && accounts && (
@@ -258,11 +262,13 @@ export async function BillScreen({
       )}
 
       {has(user, "whatsapp") && r.state !== "voided" && (
-        <WhatsAppShare
-          orderId={bill.id}
-          country={user.country_code}
-          text={`${user.trading_name} — bill ${r.billNumber}, total ${money(r.grandTotal, r.currency)}.`}
-        />
+        <FoldIf on={embedded} label="Send bill on WhatsApp">
+          <WhatsAppShare
+            orderId={bill.id}
+            country={user.country_code}
+            text={`${user.trading_name} — bill ${r.billNumber}, total ${money(r.grandTotal, r.currency)}.`}
+          />
+        </FoldIf>
       )}
 
       </div>
@@ -323,4 +329,9 @@ export async function BillScreen({
       />
     </div>
   );
+}
+
+/** Folds its content behind a button on the single order screen; elsewhere it shows the content as before. */
+function FoldIf({ on, label, children }: { on: boolean; label: string; children: ReactNode }) {
+  return on ? <Fold label={label}>{children}</Fold> : <>{children}</>;
 }
