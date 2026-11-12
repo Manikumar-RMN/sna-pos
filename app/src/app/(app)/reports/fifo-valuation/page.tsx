@@ -41,6 +41,7 @@ export default async function FifoValuationPage({ searchParams }: { searchParams
       {err ? <Err e={err} /> : rows.length === 0 ? <Empty text="There is no stock on hand." /> : (
         <>
           <ReportTable
+            groupBy={multi ? { col: 0, sums: { [head.length - 3]: rows.map((x) => n(x.avg_value)), [head.length - 2]: rows.map((x) => n(x.fifo_value)), [head.length - 1]: rows.map((x) => n(x.diff)) }, format: (_, v) => money(v, c) } : undefined}
             head={head}
             textCols={textCols}
             rows={cells}

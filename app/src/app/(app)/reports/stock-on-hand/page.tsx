@@ -80,7 +80,7 @@ export default async function StockOnHandPage({ searchParams }: { searchParams: 
               Stock worth <b>{m(sum.value)}</b> across {sum.items} item{sum.items === 1 ? "" : "s"}.
               {sum.negative > 0 ? <> <b style={{ color: "var(--color-bad)" }}>{sum.negative} below zero.</b></> : null}
             </p>
-            <ReportTable head={head} textCols={textCols} total={total} rows={rows.map(cells)} />
+            <ReportTable groupBy={scope.all ? { col: 0, sums: { 6: rows.map((x) => x.value ?? 0) }, format: (_, v) => m(v) } : undefined} head={head} textCols={textCols} total={total} rows={rows.map(cells)} />
             <Note>
               Value is the quantity on hand times the current average cost per unit (the Stock ledger adds up each movement at its own day's cost, so the two can differ when prices have changed). Ingredients below zero are valued at 0 and counted
               separately: a negative balance means more was used than was recorded as bought, so check purchases and the recipes.

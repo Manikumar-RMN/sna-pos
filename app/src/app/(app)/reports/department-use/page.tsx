@@ -34,7 +34,7 @@ export default async function DepartmentUsePage({ searchParams }: { searchParams
           {o.truncated === true && <Notice>Only the first {n(o.row_limit)} lines are listed. Choose a shorter period to see every line.</Notice>}
           <ReportTable head={["Department", "Value issued"]} textCols={[0]} rows={depts.map((d) => [s(d.department), money(n(d.value), c)])} total={["TOTAL", money(n(t.value), c)]} />
           <div className="h-4" />
-          <ReportTable head={head} textCols={text} rows={cells} total={["TOTAL", ...head.slice(1, -1).map(() => ""), money(n(t.value), c)]} />
+          <ReportTable groupBy={scope.all ? { col: head.indexOf("Outlet"), sums: { [head.length - 1]: rows.map((x) => n(x.value)) }, format: (_, v) => money(v, c) } : undefined} head={head} textCols={text} rows={cells} total={["TOTAL", ...head.slice(1, -1).map(() => ""), money(n(t.value), c)]} />
           <Note>Only stock issued through Material issue is counted. Value is quantity times the cost on the day of issue.</Note>
         </>
       )}

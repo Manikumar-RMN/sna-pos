@@ -53,7 +53,7 @@ export default async function ProductionReportPage({ searchParams }: { searchPar
               </section>
               <section>
                 <h3 className="mb-2 text-sm font-bold">Every batch</h3>
-                <ReportTable head={head} textCols={text} rows={cells} />
+                <ReportTable groupBy={scope.all ? { col: 2, sums: { 6: rows.map((x) => n(x.value)) }, format: (_, v) => money(v, c) } : undefined} head={head} textCols={text} rows={cells} />
               </section>
             </>
           )}

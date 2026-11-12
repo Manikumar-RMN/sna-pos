@@ -54,7 +54,7 @@ export default async function KotDetailsPage({ searchParams }: { searchParams: P
       excel={rows.length > 0 ? { filename: `kot_details_${from}_${to}.csv`, header: head, rows: table } : null}
     >
       {error ? <Err e={{ message: "Could not read the kitchen tickets." }} /> : rows.length === 0 ? <Empty text="No kitchen ticket was sent in this period." /> : (
-        <ReportTable head={head} textCols={head.map((_, i) => i)} zebra rows={table} />
+        <ReportTable groupBy={scope.all ? { col: head.indexOf("Outlet"), sums: {} } : undefined} head={head} textCols={head.map((_, i) => i)} zebra rows={table} />
       )}
       <Note>Shows the latest {LIMIT} tickets in the period. Choose a shorter range to see older ones.</Note>
     </ReportShell>

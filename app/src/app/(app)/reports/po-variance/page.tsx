@@ -32,7 +32,7 @@ export default async function PoVariancePage({ searchParams }: { searchParams: P
       {err ? <Err e={err} /> : rows.length === 0 ? <Empty text="No deliveries against purchase orders in this period." /> : (
         <>
           {o.truncated === true && <Notice>Only the newest {n(o.row_limit)} lines are listed. Choose a shorter period to see every line.</Notice>}
-          <ReportTable head={head} textCols={text} rows={cells} total={["TOTAL", ...head.slice(1, -1).map(() => ""), money(n(t.variance), c)]} />
+          <ReportTable groupBy={scope.all ? { col: head.indexOf("Outlet"), sums: { [head.length - 1]: rows.map((x) => n(x.variance)) }, format: (_, v) => money(v, c) } : undefined} head={head} textCols={text} rows={cells} total={["TOTAL", ...head.slice(1, -1).map(() => ""), money(n(t.variance), c)]} />
           <Note>
             Difference is quantity times (paid rate less ordered rate): a plus means you paid more than the order said. Paid more in total {money(n(t.over), c)}, paid less {money(Math.abs(n(t.under)), c)}.
           </Note>

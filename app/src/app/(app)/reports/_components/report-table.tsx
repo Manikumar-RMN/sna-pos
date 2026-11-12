@@ -11,6 +11,18 @@ import type { ReactNode } from "react";
  * heading row, its rows, and, when `subtotal` is given, a subtotal row. `subtotal` receives the original row numbers of that group and
  * returns cells lined up with `head`. The TOTAL row at the bottom stays the grand total.
  */
+/**
+ * How to split rows by a column. Either give `subtotal` (full control) or `sums`: for some columns, the plain numbers behind each row
+ * (same order as `rows`), and `format` to show a sum as text. A "Subtotal" row is then written for every group.
+ */
+export type GroupBy = {
+  col: number;
+  subtotal?: (rowNumbers: number[]) => ReactNode[];
+  sums?: Record<number, number[]>;
+  format?: (col: number, value: number) => string;
+  label?: string;
+};
+
 export function ReportTable({
   head,
   rows,
@@ -24,7 +36,7 @@ export function ReportTable({
   total?: ReactNode[];
   textCols?: number[];
   zebra?: boolean;
-  groupBy?: { col: number; subtotal?: (rowNumbers: number[]) => ReactNode[] };
+  groupBy?: GroupBy;
 }) {
   const align = (i: number) => (textCols.includes(i) ? "text-left" : "text-right");
   return (
@@ -60,7 +72,21 @@ export function ReportTable({
                       ))}
                     </tr>
                   ))}
-                  {groupBy.subtotal && <TotalRow cells={groupBy.subtotal(idx)} textCols={textCols} />}
+                  {groupBy.subtotal ? (
+                    <TotalRow cells={groupBy.subtotal(idx)} textCols={textCols} />
+                  ) : groupBy.sums ? (
+                    <TotalRow
+                      cells={head.map((_, j) => {
+                        if (j === 0 && groupBy.col !== 0) return `${groupBy.label ?? "Subtotal"} (${idx.length})`;
+                        if (j === 0) return `${groupBy.label ?? "Subtotal"}: ${g || "—"} (${idx.length})`;
+                        const col = groupBy.sums?.[j];
+                        if (!col) return "";
+                        const v = idx.reduce((a, i) => a + (col[i] ?? 0), 0);
+                        return groupBy.format ? groupBy.format(j, v) : String(Math.round(v * 100) / 100);
+                      })}
+                      textCols={textCols}
+                    />
+                  ) : null}
                 </tbody>
               );
             })

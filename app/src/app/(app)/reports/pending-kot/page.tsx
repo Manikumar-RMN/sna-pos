@@ -46,6 +46,7 @@ export default async function PendingKotPage({ searchParams }: { searchParams: P
         {err ? <Err e={err} /> : rows.length === 0 ? <Empty text="No kitchen tickets are waiting for this period." /> : (
           <>
             <ReportTable
+              groupBy={scope.all ? { col: head.indexOf("Outlet"), sums: {} } : undefined}
               head={head}
               textCols={textCols}
               rows={rows.map(cells)}

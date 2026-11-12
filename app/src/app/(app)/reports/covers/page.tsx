@@ -94,6 +94,7 @@ export default async function CoversPage({ searchParams }: { searchParams: Promi
             <section>
               <h3 className="mb-2 text-sm font-bold">By waiter</h3>
               <ReportTable
+                groupBy={scope.all ? { col: 1, sums: {} } : undefined}
                 head={["Waiter", ...(scope.all ? ["Outlet"] : []), ...numHead]}
                 textCols={scope.all ? [0, 1] : [0]}
                 total={["TOTAL", ...(scope.all ? [""] : []), ...totalCells]}

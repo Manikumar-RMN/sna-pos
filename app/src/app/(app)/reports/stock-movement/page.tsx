@@ -46,6 +46,7 @@ export default async function StockMovementPage({ searchParams }: { searchParams
             <section>
               <h3 className="mb-2 text-sm font-bold">By ingredient</h3>
               <ReportTable
+                groupBy={scope.all ? { col: 0, sums: {} } : undefined}
                 head={sumHead}
                 textCols={sumText}
                 rows={rep.summary.map((x) => [
@@ -67,6 +68,7 @@ export default async function StockMovementPage({ searchParams }: { searchParams
             <section>
               <h3 className="mb-2 text-sm font-bold">Every line</h3>
               <ReportTable
+                groupBy={scope.all ? { col: 2, sums: { 7: rep.rows.map((x) => x.value ?? 0) }, format: (_, v) => m(v) } : undefined}
                 head={detHead}
                 textCols={detText}
                 rows={rep.rows.map((x) => [

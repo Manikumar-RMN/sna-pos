@@ -39,7 +39,7 @@ export default async function MrAuditPage({ searchParams }: { searchParams: Prom
             head={["Requests", "Waiting", "Issued", "Rejected", "Cancelled", "Average hours to decide"]}
             rows={[[String(n(t.requests)), String(n(t.waiting)), String(n(t.issued)), String(n(t.rejected)), String(n(t.cancelled)), t.avg_hours === null || t.avg_hours === undefined ? "—" : `${n(t.avg_hours)} h`]]}
           />
-          <ReportTable head={head} textCols={text} rows={cells} />
+          <ReportTable groupBy={scope.all ? { col: head.indexOf("Outlet"), sums: {} } : undefined} head={head} textCols={text} rows={cells} />
           <Note>Items shows how many of the requested items were issued in full. Hours taken is from the request to the first decision.</Note>
         </div>
       )}

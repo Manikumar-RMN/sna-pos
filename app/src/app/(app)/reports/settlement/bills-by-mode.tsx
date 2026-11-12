@@ -29,15 +29,32 @@ export function BillsByMode({ rows, currency, showOutlet, showTime = false, show
             {[...lead, ...modes, "Total"].map((h, i) => <th key={`${h}-${i}`} scope="col" className={i < lead.length ? "text-left" : "text-right"}>{h}</th>)}
           </tr>
         </thead>
-        <tbody>
-          {list.map((b, i) => (
-            <tr key={i}>
-              {[b.bill, b.date, ...(showTime ? [b.time] : []), b.by, ...(showOutlet ? [b.outlet] : []), ...(showRef ? [[...b.refs].join(", ") || "—"] : [])].map((x, j) => <td key={j} className="text-left">{x}</td>)}
-              {modes.map((mode) => <td key={mode} className="text-right">{m(b.paid.get(mode) ?? 0)}</td>)}
-              <td className="text-right font-semibold">{money(rowTotal(b), currency)}</td>
-            </tr>
-          ))}
-        </tbody>
+        {(showOutlet ? [...new Set(list.map((b) => b.outlet))] : [""]).map((outlet) => {
+          const part = showOutlet ? list.filter((b) => b.outlet === outlet) : list;
+          const width = lead.length + modes.length + 1;
+          return (
+            <tbody key={outlet || "all"}>
+              {showOutlet && (
+                <tr><td colSpan={width} className="text-left font-bold" style={{ background: "var(--color-brand-soft)" }}>Outlet: {outlet}</td></tr>
+              )}
+              {part.map((b, i) => (
+                <tr key={i}>
+                  {[b.bill, b.date, ...(showTime ? [b.time] : []), b.by, ...(showOutlet ? [b.outlet] : []), ...(showRef ? [[...b.refs].join(", ") || "—"] : [])].map((x, j) => <td key={j} className="text-left">{x}</td>)}
+                  {modes.map((mode) => <td key={mode} className="text-right">{m(b.paid.get(mode) ?? 0)}</td>)}
+                  <td className="text-right font-semibold">{money(rowTotal(b), currency)}</td>
+                </tr>
+              ))}
+              {showOutlet && (
+                <tr className="rpt-total">
+                  <td className="text-left">{`Outlet total (${part.length} bills)`}</td>
+                  {Array.from({ length: lead.length - 1 }, (_, i) => <td key={i} />)}
+                  {modes.map((mode) => <td key={mode} className="text-right">{money(part.reduce((x, b) => x + (b.paid.get(mode) ?? 0), 0), currency)}</td>)}
+                  <td className="text-right">{money(part.reduce((x, b) => x + rowTotal(b), 0), currency)}</td>
+                </tr>
+              )}
+            </tbody>
+          );
+        })}
         <tfoot>
           <tr className="rpt-total">
             <td className="text-left">{`TOTAL (${list.length} bills)`}</td>

@@ -55,7 +55,7 @@ export default async function NcKotPage({ searchParams }: { searchParams: Promis
       excel={rows.length > 0 ? { filename: `nc_kot_${from}_${to}.csv`, header: head, rows: csv } : null}
     >
       {error ? <Err e={{ message: "Could not read the no-charge bills." }} /> : rows.length === 0 ? <Empty text="No bill was given free in this period." /> : (
-        <ReportTable head={head} textCols={head.map((_, i) => i).filter((i) => i !== head.length - 1)} zebra rows={table} total={[...head.slice(0, -1).map((_, i) => (i === 0 ? "TOTAL" : "")), money(total, c)]} />
+        <ReportTable groupBy={scope.all ? { col: head.indexOf("Outlet"), sums: { [head.length - 1]: rows.map((x) => Number(x.subtotal ?? 0)) }, format: (_, v) => money(v, c) } : undefined} head={head} textCols={head.map((_, i) => i).filter((i) => i !== head.length - 1)} zebra rows={table} total={[...head.slice(0, -1).map((_, i) => (i === 0 ? "TOTAL" : "")), money(total, c)]} />
       )}
       <Note>"Value given" is the menu value of the items before tax, as it would have been billed. Bills that were later charged again are not listed.</Note>
     </ReportShell>

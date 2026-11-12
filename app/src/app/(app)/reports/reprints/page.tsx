@@ -61,6 +61,7 @@ export default async function ReprintsPage({ searchParams }: { searchParams: Pro
             <section>
               <h3 className="mb-2 text-sm font-bold">Every reprint</h3>
               <ReportTable
+                groupBy={scope.all ? { col: head.indexOf("Outlet"), sums: {} } : undefined}
                 head={head}
                 textCols={head.map((_, i) => i)}
                 zebra

@@ -73,6 +73,7 @@ export default async function WastagePage({ searchParams }: { searchParams: Prom
             <section>
               <h3 className="mb-2 text-sm font-bold">Every line</h3>
               <ReportTable
+                groupBy={scope.all ? { col: 2, sums: { 5: rep.rows.map((x) => Number(x.value) || 0) }, format: (_, v) => m(v) } : undefined}
                 head={["Day", "Time", ...(scope.all ? ["Outlet"] : []), "Ingredient", "Quantity", "Value", "Reason", "Note", "By"]}
                 textCols={scope.all ? [0, 1, 2, 3, 6, 7, 8] : [0, 1, 2, 5, 6, 7]}
                 rows={rep.rows.map((x) => [

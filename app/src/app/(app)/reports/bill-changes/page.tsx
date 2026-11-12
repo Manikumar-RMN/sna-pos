@@ -75,7 +75,7 @@ export default async function BillChangesPage({ searchParams }: { searchParams: 
       excel={rows.length > 0 ? { filename: `bill_changes_${from}_${to}.csv`, header: head, rows: table } : null}
     >
       {error ? <Err e={{ message: "Could not read the activity log." }} /> : rows.length === 0 ? <Empty text="No bill was re-opened, moved, merged, split or re-charged in this period." /> : (
-        <ReportTable head={head} textCols={head.map((_, i) => i)} zebra rows={table} />
+        <ReportTable groupBy={scope.all ? { col: head.indexOf("Outlet"), sums: {} } : undefined} head={head} textCols={head.map((_, i) => i)} zebra rows={table} />
       )}
       <Note>Voids, cancelled items and refunds are in "Voids, cancels and refunds"; reprints are in "Reprints".</Note>
     </ReportShell>

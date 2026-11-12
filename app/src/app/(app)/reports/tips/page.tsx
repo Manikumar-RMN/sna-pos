@@ -56,6 +56,7 @@ export default async function TipsPage({ searchParams }: { searchParams: Promise
             <section>
               <h3 className="mb-2 text-sm font-bold">By waiter</h3>
               <ReportTable
+                groupBy={scope.all ? { col: 1, sums: { 2: rep.byWaiter.map((x) => x.tips), 3: rep.byWaiter.map((x) => x.amount) }, format: (j, v) => (j === 2 ? String(v) : money(v, c)) } : undefined}
                 head={["Waiter", ...(scope.all ? ["Outlet"] : []), "Tips", "Amount"]}
                 textCols={scope.all ? [0, 1] : [0]}
                 total={["TOTAL", ...(scope.all ? [""] : []), ...totalCells]}

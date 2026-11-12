@@ -59,6 +59,7 @@ export default async function PendingBillsPage({ searchParams }: { searchParams:
         {err ? <Err e={err} /> : rows.length === 0 ? <Empty text="No open or unpaid bills for this period." /> : (
           <>
             <ReportTable
+              groupBy={scope.all ? { col: head.indexOf("Outlet"), sums: { [head.length - 3]: rows.map((b) => b.amount), [head.length - 2]: rows.map((b) => b.paid), [head.length - 1]: rows.map((b) => b.balance) }, format: (_, v) => money(v, c) } : undefined}
               head={head}
               textCols={Array.from({ length: textCount }, (_, i) => i)}
               rows={rows.map((b) => [...line(b), money(b.amount, c), money(b.paid, c), money(b.balance, c)])}

@@ -76,6 +76,7 @@ export default async function LoyaltyLedgerPage({ searchParams }: { searchParams
                 <section>
                   <h3 className="mb-2 text-sm font-bold">Every line</h3>
                   <ReportTable
+                    groupBy={scope.all ? { col: 5, sums: { 3: rep.rows.map((x) => Number(x.points) || 0) }, format: (_, v) => signedPoints(v) } : undefined}
                     head={["Time", "Customer", "Type", "Points", "Bill", ...(scope.all ? ["Outlet"] : []), "By"]}
                     textCols={scope.all ? [0, 1, 2, 4, 5, 6] : [0, 1, 2, 4, 5]}
                     rows={rep.rows.map((x) => [

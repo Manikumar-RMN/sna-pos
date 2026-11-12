@@ -123,6 +123,7 @@ export default async function SettlementPage({ searchParams }: { searchParams: P
                 <BillsByMode rows={s.rows} currency={c} showOutlet={scope.all} showTime={showTime} showRef={showRef} timezone={user.timezone} />
               ) : (
                 <ReportTable
+                  groupBy={scope.all && !cut ? { col: detailHead.indexOf("Outlet"), sums: { [detailHead.length - 2]: s.rows.map((p) => p.amount), [detailHead.length - 1]: s.rows.map((p) => p.rounding) }, format: (_, v) => money(v, c) } : undefined}
                   head={detailHead}
                   textCols={Array.from({ length: detailText }, (_, i) => i)}
                   zebra

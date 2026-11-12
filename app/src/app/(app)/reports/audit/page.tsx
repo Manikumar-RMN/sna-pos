@@ -120,7 +120,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       <div>
         {auditError ? <Err e={auditError} /> : auditRows.length === 0 ? <Empty text="Nothing was voided, cancelled or refunded in this period." /> : (
           <>
-            <ReportTable head={head} rows={tableRows} textCols={textCols} zebra />
+            <ReportTable groupBy={scope.all ? { col: head.indexOf("Outlet"), sums: {} } : undefined} head={head} rows={tableRows} textCols={textCols} zebra />
             {auditHitLimit && <Note>Showing the latest {AUDIT_EACH} of each kind. Choose a shorter range to see older entries.</Note>}
           </>
         )}

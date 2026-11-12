@@ -149,6 +149,8 @@ export default async function SalesSummaryPage({
   const c = user.currency_code;
   const unpaidAmount = Number(rep?.summary.unpaid_amount ?? 0);
   const unpaidBills = Number(rep?.summary.unpaid_bills ?? 0);
+  const freeBills = Number(rep?.summary.complimentary_bills ?? 0) + Number(rep?.summary.staff_meal_bills ?? 0);
+  const inAll = freeBills > 0 ? ` · all ${Number(rep?.summary.bills ?? 0) + freeBills} bills, free ones included` : "";
   const unpaidCount = `${unpaidBills} bill${unpaidBills === 1 ? "" : "s"}`;
 
   const sec = (name: string, header: string[], rows: (string | number)[][]): XlsxSheet[] => (rows.length === 0 ? [] : [{ name, header, rows }]);
@@ -245,7 +247,7 @@ export default async function SalesSummaryPage({
               note={unpaidAmount > 0 ? `Not yet paid: ${money(unpaidAmount, c)} · ${unpaidCount}` : undefined}
               warn
             />
-            <Kpi label="Bills" value={String(rep.summary.bills)} />
+            <Kpi label="Bills" value={String(rep.summary.bills)} note={freeBills > 0 ? `Plus ${freeBills} free (complimentary / staff meal) · ${rep.summary.bills + freeBills} in all` : undefined} />
             <Kpi label="Average bill" value={money(rep.summary.average_bill, c)} />
             <Kpi
               label="Money received"
@@ -373,7 +375,7 @@ export default async function SalesSummaryPage({
               </Card>
             )}
 
-            <Card title="By meal session">
+            <Card title={`By meal session${inAll}`}>
               {sessions.length === 0 ? <Empty /> : (
                 <Table
                   head={["Session", "Bills", "Total", "Average bill", "Top items"]}
@@ -388,7 +390,7 @@ export default async function SalesSummaryPage({
               )}
             </Card>
 
-            <Card title="Order type">
+            <Card title={`Order type${inAll}`}>
               {rep.by_type.length === 0 ? <Empty /> : (
                 <Table
                   head={["Type", "Bills", "Total"]}
@@ -408,7 +410,7 @@ export default async function SalesSummaryPage({
               )}
             </Card>
 
-            <Card title={from === to ? "By hour" : "By day"}
+            <Card title={`${from === to ? "By hour" : "By day"}${inAll}`}
             >
               {from === to ? (
                 rep.by_hour.length === 0 ? <Empty /> : (

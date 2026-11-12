@@ -44,7 +44,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
           </section>
           <section>
             <h3 className="mb-2 text-sm font-bold">Every issue</h3>
-            <ReportTable head={head} textCols={text} rows={cells} />
+            <ReportTable groupBy={scope.all ? { col: head.indexOf("Outlet"), sums: { [head.length - 1]: rows.map((x) => n(x.value)) }, format: (_, v) => money(v, c) } : undefined} head={head} textCols={text} rows={cells} />
           </section>
           <Note>Only stock issued here is listed. Ingredients used in dishes come off stock when the dish is billed and show in Stock movement.</Note>
         </div>
