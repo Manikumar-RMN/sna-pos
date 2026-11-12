@@ -5,9 +5,12 @@ import { Empty, Err, Note } from "../_components/ui";
 import { loadReport } from "../_components/report-context";
 import { ReportShell } from "../_components/report-shell";
 import { ReportTable } from "../_components/report-table";
+import { BillsByMode } from "./bills-by-mode";
 
-export default async function SettlementPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string }> }) {
-  const r = await loadReport(await searchParams, { title: "Settlement", need: "financial" });
+export default async function SettlementPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string; bybill?: string }> }) {
+  const sp = await searchParams;
+  const byBill = sp.bybill === "1";
+  const r = await loadReport(sp, { title: "Settlement", need: "financial" });
   if (!r.ok) return r.denied;
   const { ctx } = r;
   const { supabase, from, to, scope, user } = ctx;
@@ -63,6 +66,7 @@ export default async function SettlementPage({ searchParams }: { searchParams: P
       basePath="/reports/settlement"
       basis="payments on finished bills · refunds by the day they were given"
       landscape
+      toggles={[{ name: "bybill", label: "Payment detail: one line per bill, a column for each mode", checked: byBill }]}
       excel={excel}
     >
       <div>
@@ -113,6 +117,8 @@ export default async function SettlementPage({ searchParams }: { searchParams: P
               {cut && <Note>{cut}</Note>}
               {s.rows.length === 0 ? (
                 <Empty text="No payments in this period." />
+              ) : byBill ? (
+                <BillsByMode rows={s.rows} currency={c} showOutlet={scope.all} />
               ) : (
                 <ReportTable
                   head={detailHead}
