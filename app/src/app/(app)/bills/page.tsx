@@ -100,7 +100,7 @@ export default async function BillsPage({
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-3 gap-3">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
         <Stat label="Bills" value={String(live.length)} />
         <Stat label="Total billed" value={money(total, user.currency_code)} />
         <Stat label="Unpaid" value={`${unpaid.length} · ${money(unpaid.reduce((s, o) => s + Number(o.grand_total) - Number(o.paid_total ?? 0), 0), user.currency_code)}`} warn={unpaid.length > 0} />
@@ -129,7 +129,7 @@ export default async function BillsPage({
         </div>
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full whitespace-nowrap text-sm">
             <thead>
               <tr style={{ color: "var(--color-ink-3)" }}>
                 <th className="px-4 py-3 text-left text-xs font-semibold">Bill</th>
@@ -189,7 +189,7 @@ function Stat({ label, value, warn }: { label: string; value: string; warn?: boo
       <div className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
         {label}
       </div>
-      <div className="mt-1 text-lg font-bold tabular-nums" style={warn ? { color: "var(--color-warn)" } : undefined}>
+      <div className="mt-1 whitespace-nowrap text-lg font-bold tabular-nums" style={warn ? { color: "var(--color-warn)" } : undefined}>
         {value}
       </div>
     </div>
