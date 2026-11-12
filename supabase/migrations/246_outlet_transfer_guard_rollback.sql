@@ -1,0 +1,1 @@
+-- Rollback: restore app.protect_completed_orders (branch change always refused) and the order_outlet_transfer from 244.
