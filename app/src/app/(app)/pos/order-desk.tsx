@@ -258,7 +258,7 @@ export function OrderDesk({
         </div>
         {hasBill && (
           <aside
-            className={`${tab === "bill" ? "" : "hidden"} xl:block ${billMode ? "xl:col-start-1 xl:row-start-1 xl:max-h-[48dvh] xl:overflow-y-auto" : "xl:order-first xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto"}`}
+            className={`${tab === "bill" ? "" : "hidden"} xl:block ${billMode ? "xl:col-start-1 xl:row-start-1 xl:max-h-[40dvh] xl:overflow-y-auto" : "xl:order-first xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto"}`}
             aria-label="Running bill"
           >
             {billPanel}
