@@ -70,7 +70,7 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {modulesFor(user).map((m) => (
           <Link key={m.key} href={m.href} className="card block p-4">
             <p className="text-base font-bold">{m.title}</p>
