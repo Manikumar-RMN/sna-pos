@@ -5,7 +5,9 @@ import { UpgradeNote } from "../../upgrade-note";
 import { ListsBoard } from "./lists-board";
 
 export default async function StockListsPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
-  const fromSettings = (await searchParams).from === "settings";
+  const from = (await searchParams).from;
+  const fromSettings = from === "settings";
+  const embedded = from === "embedded";
   const user = await requireUser();
   if (!can(user, "stock.manage") && !can(user, "stock.view")) {
     return (
@@ -26,9 +28,11 @@ export default async function StockListsPage({ searchParams }: { searchParams: P
   const items = (data ?? []).map((r) => ({ id: r.id, kind: r.kind === "department" ? ("department" as const) : ("category" as const), name: r.name, is_active: r.is_active }));
   return (
     <div className="mx-auto max-w-2xl">
-      <Link href={fromSettings ? "/settings" : "/stock"} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
-        {fromSettings ? "← Setup" : "← Stock"}
-      </Link>
+      {!embedded && (
+        <Link href={fromSettings ? "/settings" : "/stock"} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
+          {fromSettings ? "← Setup" : "← Stock"}
+        </Link>
+      )}
       <h1 className="mt-2 text-xl font-bold tracking-tight">Item groups and departments</h1>
       <p className="mt-1 mb-5 text-sm" style={{ color: "var(--color-ink-3)" }}>
         Keep one spelling for each group and department, so reports add up. Items that already have a group keep it even if you switch the group off.

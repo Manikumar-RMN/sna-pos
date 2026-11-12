@@ -6,7 +6,9 @@ import { RulesBoard } from "./rules-board";
 import { ApprovalBoard } from "./approval-board";
 
 export default async function RulesPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
-  const fromSettings = (await searchParams).from === "settings";
+  const from = (await searchParams).from;
+  const fromSettings = from === "settings";
+  const embedded = from === "embedded";
   const user = await requireUser();
   if (!can(user, "stock.manage") && !can(user, "stock.view")) {
     return (
@@ -34,9 +36,11 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
   const approvers = (people ?? []).filter((x) => !!x.auth_user_id && buyerRoles.has(x.role_id));
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href={fromSettings ? "/settings" : "/purchases"} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
-        {fromSettings ? "← Setup" : "← Purchases"}
-      </Link>
+      {!embedded && (
+        <Link href={fromSettings ? "/settings" : "/purchases"} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
+          {fromSettings ? "← Setup" : "← Purchases"}
+        </Link>
+      )}
       <h1 className="mt-2 text-xl font-bold tracking-tight">Purchase rules</h1>
       <p className="mt-1 mb-5 text-sm" style={{ color: "var(--color-ink-3)" }}>
         How strict receiving and ordering should be. Only the owner can change these. Who may enter earlier dates is set per role in Settings → Security profiles (rights &ldquo;earlier date&rdquo; and &ldquo;future date&rdquo;).

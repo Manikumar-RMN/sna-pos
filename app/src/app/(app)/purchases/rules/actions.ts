@@ -23,6 +23,7 @@ export async function savePurchaseRules(input: { direct: boolean; rateCheck: str
     if (e2) return { ok: false, error: friendlyDbError(e2) };
   }
   revalidatePath("/purchases");
+  revalidatePath("/settings/purchase-rules");
   return { ok: true, message: "Purchase rules saved." };
 }
 
@@ -42,5 +43,6 @@ export async function saveApprovalLevels(input: ApprovalInput): Promise<RulesRes
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases");
+  revalidatePath("/settings/purchase-rules");
   return { ok: true, message: input.levels.length === 0 ? "Approval is switched off: orders need no approval." : "Approval levels saved." };
 }

@@ -6,7 +6,9 @@ import { UpgradeNote } from "../../upgrade-note";
 import { RateBoard, type RateRow } from "./rate-board";
 
 export default async function RatesPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
-  const fromSettings = (await searchParams).from === "settings";
+  const from = (await searchParams).from;
+  const fromSettings = from === "settings";
+  const embedded = from === "embedded";
   const user = await requireUser();
   const canManage = can(user, "stock.manage");
   if (!canManage && !can(user, "stock.view")) {
@@ -43,9 +45,11 @@ export default async function RatesPage({ searchParams }: { searchParams: Promis
   }));
   return (
     <div className="mx-auto max-w-4xl">
-      <Link href={fromSettings ? "/settings" : "/purchases"} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
-        {fromSettings ? "← Setup" : "← Purchases"}
-      </Link>
+      {!embedded && (
+        <Link href={fromSettings ? "/settings" : "/purchases"} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
+          {fromSettings ? "← Setup" : "← Purchases"}
+        </Link>
+      )}
       <h1 className="mt-2 text-xl font-bold tracking-tight">Agreed supplier rates</h1>
       <p className="mt-1 mb-5 text-sm" style={{ color: "var(--color-ink-3)" }}>
         The price a supplier has agreed for an ingredient. New deliveries from that supplier start from this price, and the Rate variance report shows where the price paid was different. Rates are before tax and per stock unit.

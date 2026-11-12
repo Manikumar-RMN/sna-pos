@@ -14,6 +14,7 @@ export async function addListItem(kind: "category" | "department", name: string)
   const { error } = await supabase.rpc("save_stock_list_item", { p_kind: kind, p_name: n });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/stock", "layout");
+  revalidatePath("/settings/item-groups");
   return { ok: true, message: `${n} added.` };
 }
 
@@ -22,6 +23,7 @@ export async function setListItemActive(id: string, active: boolean): Promise<Li
   const { error } = await supabase.rpc("set_stock_list_item_active", { p_id: id, p_active: active });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/stock", "layout");
+  revalidatePath("/settings/item-groups");
   return { ok: true, message: active ? "Switched on." : "Switched off. Items already using it keep it." };
 }
 
@@ -30,5 +32,6 @@ export async function startLists(): Promise<ListResult> {
   const { error } = await supabase.rpc("seed_stock_lists_from_use");
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/stock", "layout");
+  revalidatePath("/settings/item-groups");
   return { ok: true, message: "Lists started from what you already use." };
 }

@@ -26,7 +26,9 @@ export async function saveRate(input: { supplierId: string; ingredientId: string
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases/rates");
+  revalidatePath("/settings/purchase-rates");
   revalidatePath("/purchases");
+  revalidatePath("/settings/purchase-rates");
   return { ok: true, message: "Rate saved." };
 }
 
@@ -36,6 +38,8 @@ export async function stopRate(id: string): Promise<RateResult> {
   const { error } = await supabase.rpc("stop_supplier_rate", { p_id: id });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases/rates");
+  revalidatePath("/settings/purchase-rates");
   revalidatePath("/purchases");
+  revalidatePath("/settings/purchase-rates");
   return { ok: true, message: "Rate stopped." };
 }
