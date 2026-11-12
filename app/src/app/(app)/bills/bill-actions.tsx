@@ -1240,7 +1240,7 @@ export function BillActions({
                             <tr key={n} className="border-t" style={{ borderColor: "var(--color-line)" }}>
                               <td className="py-1 pr-2 text-xs font-semibold">{n === 1 ? "Check 1 (this bill)" : "Check 2 (new bill)"}</td>
                               <td className="px-2">
-                                <input inputMode="decimal" className="field h-8 w-20 text-sm" aria-label={`Check ${n} discount`} value={disc} onChange={(e) => setDisc(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="0.00" />
+                                <input inputMode="decimal" className="field h-8 text-sm" style={{ width: 80 }} aria-label={`Check ${n} discount`} value={disc} onChange={(e) => setDisc(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="0.00" />
                               </td>
                               <td className="px-2 text-center">
                                 <input type="checkbox" aria-label={`Check ${n} no tax`} disabled={!discTools?.noTaxAllowed} checked={noTax} onChange={(e) => setNoTax(e.target.checked)} />
@@ -1446,7 +1446,7 @@ export function BillActions({
             ))}
           </select>
           <div className="mt-2 flex gap-2">
-            <input className="field h-10 w-20 shrink-0 text-center text-sm" inputMode="numeric" value={cancelQty} onChange={(e) => setCancelQty(e.target.value)} aria-label="How many to cancel" />
+            <input className="field h-10 shrink-0 text-center text-sm" style={{ width: 80 }} inputMode="numeric" value={cancelQty} onChange={(e) => setCancelQty(e.target.value)} aria-label="How many to cancel" />
             <input className="field h-10 min-w-0 flex-1 text-sm" placeholder="Reason (required)" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
           </div>
           {confirm === "cancel" ? (

@@ -63,8 +63,13 @@ h2,
   min-height: 48px;
 }
 
+/* Full width by default, but in the base layer so a width class on the field (w-20, w-32, flex-1...) really applies. */
+@layer base {
+  .field {
+    width: 100%;
+  }
+}
 .field {
-  width: 100%;
   min-height: 50px;
   padding: 0 16px;
   border: 1px solid var(--color-line);
