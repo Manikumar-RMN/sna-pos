@@ -315,7 +315,7 @@ h2,
 }
 .rpt-table td:first-child {
   white-space: normal;
-  min-width: 7rem;
+  min-width: 9rem;
   font-weight: 600;
 }
 .rpt-table thead th {
