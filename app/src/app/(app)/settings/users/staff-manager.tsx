@@ -42,6 +42,8 @@ export function StaffManager({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [showInactive, setShowInactive] = useState(false);
+  const inactiveCount = staff.filter((x) => !x.active).length;
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [secret, setSecret] = useState<{ kind: "password"; value: string; name: string; userCode?: string; clientCode?: string } | null>(null);
@@ -123,6 +125,12 @@ export function StaffManager({
         </p>
       )}
 
+      {inactiveCount > 0 && (
+        <label className="flex min-h-11 w-fit cursor-pointer items-center gap-2 text-sm font-semibold">
+          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="h-5 w-5" />
+          Show inactive users ({inactiveCount})
+        </label>
+      )}
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -134,7 +142,7 @@ export function StaffManager({
             </tr>
           </thead>
           <tbody>
-            {staff.map((s) => {
+            {staff.filter((s) => s.active || showInactive).map((s) => {
               const locked = s.isMe || s.roleName === "Owner";
               return (
                 <tr key={s.id} style={{ borderTop: "1px solid var(--color-line)" }}>
