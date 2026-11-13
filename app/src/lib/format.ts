@@ -162,3 +162,13 @@ export function fromZonedInput(value: string, tz: string): string {
   t = guess.getTime() - tzOffsetMs(new Date(t), tz); // once more, in case a clock change sits between
   return new Date(t).toISOString();
 }
+
+/**
+ * Until a bill is made (printed from Check, settled, charged to an account or made complimentary) an order carries an internal
+ * reference like OPEN-00012 instead of a bill number (migration 258). These turn either into words for the screen and paper.
+ */
+export const isOrderRef = (no: string | null | undefined): boolean => /^OPEN-/.test(no ?? "");
+/** "Order 00012" for an order not billed yet, "Bill 01126-0007" for a bill. */
+export const billRef = (no: string | null | undefined): string => (isOrderRef(no) ? `Order ${(no ?? "").slice(5)}` : `Bill ${no ?? ""}`);
+/** The same in lower case, for the middle of a sentence: "order 00012" / "bill 01126-0007". */
+export const billRefLc = (no: string | null | undefined): string => (isOrderRef(no) ? `order ${(no ?? "").slice(5)}` : `bill ${no ?? ""}`);

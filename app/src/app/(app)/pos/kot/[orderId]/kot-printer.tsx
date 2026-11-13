@@ -1,5 +1,6 @@
 "use client";
 
+import { billRef } from "@/lib/format";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -228,7 +229,7 @@ export function KotPrinter({
         {status === "loading" ? "Sending to the kitchen…" : error ? "Saved, not sent yet" : list.length > 0 ? "Sent to the kitchen" : "Saved"}
       </h1>
       <p className="mt-1 text-sm" style={{ color: "var(--color-ink-2)" }}>
-        {where ? `${where} · ` : ""}Bill {billNumber}
+        {where ? `${where} · ` : ""}{billRef(billNumber)}
         {token != null ? ` · Token ${token}` : ""}
       </p>
 

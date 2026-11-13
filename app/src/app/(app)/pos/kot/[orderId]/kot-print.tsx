@@ -1,5 +1,6 @@
 "use client";
 
+import { billRef } from "@/lib/format";
 import { useEffect, useState } from "react";
 import { readDevicePrint } from "@/lib/device-print";
 import { kotLines, sendToRawbt } from "@/lib/rawbt";
@@ -89,7 +90,7 @@ export function KotTicketsPrint({ slips, info }: { slips: KotSlip[]; info: KotPr
               <span className="shrink-0">{new Date(t.createdAt).toLocaleTimeString("en-IN", { timeZone: info.timezone, hour: "2-digit", minute: "2-digit" })}</span>
             </div>
             <div className="text-[12px]">
-              {t.number} · Bill {info.billNumber}
+              {t.number} · {billRef(info.billNumber)}
               {t.prepMin ? ` · ~${t.prepMin} min` : ""}
             </div>
             <div className="my-1 border-t border-dashed border-black" />

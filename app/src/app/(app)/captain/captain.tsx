@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { money } from "@/lib/format";
+import { money, billRefLc } from "@/lib/format";
 import { STATE_LABEL, STATE_ORDER, STATE_STYLE, classifyTable, type FloorRow, type TableState } from "@/lib/table-status";
 import { useFloorClock } from "../floor/use-floor-clock";
 import { DishName } from "../lang";
@@ -197,7 +197,7 @@ function StartSheet({ table, currency, onCancel, onPick }: { table: CaptainTable
                 style={{ borderColor: "var(--color-line)" }}
                 onClick={() => onPick({ table, billId: b.id, billNumber: b.billNumber, covers: b.covers })}
               >
-                <span className="font-semibold">Add to bill {b.billNumber}</span>
+                <span className="font-semibold">Add to {billRefLc(b.billNumber)}</span>
                 <span style={{ color: "var(--color-ink-2)" }}>{money(b.total, currency)}</span>
               </button>
             ))}
@@ -314,7 +314,7 @@ function OrderView({
       if (target.billId) {
         const r = await addToBill(target.billId, items, ref.current);
         if (!r.ok) return setError(r.error);
-        onSent(`Sent to the kitchen: ${count} item${count === 1 ? "" : "s"} for table ${target.table.number} (bill ${target.billNumber}).`);
+        onSent(`Sent to the kitchen: ${count} item${count === 1 ? "" : "s"} for table ${target.table.number} (${billRefLc(target.billNumber)}).`);
       } else {
         const r = await placeOrder({
           items,
@@ -331,7 +331,7 @@ function OrderView({
           covers: target.covers,
         });
         if (!r.ok) return setError(r.error);
-        onSent(`Sent to the kitchen: table ${target.table.number}, bill ${r.billNumber}.`);
+        onSent(`Sent to the kitchen: table ${target.table.number}, ${billRefLc(r.billNumber)}.`);
       }
     });
   }
@@ -345,7 +345,7 @@ function OrderView({
         <div className="min-w-0 flex-1">
           <div className="font-bold">Table {target.table.number}</div>
           <div className="truncate text-[11px]" style={{ color: "var(--color-ink-3)" }}>
-            {target.billId ? `Adding to bill ${target.billNumber}` : "New order"}
+            {target.billId ? `Adding to ${billRefLc(target.billNumber)}` : "New order"}
             {target.covers ? ` · ${target.covers} guests` : ""}
           </div>
         </div>

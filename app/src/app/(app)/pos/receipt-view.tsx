@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { useRouter } from "next/navigation";
 import { readDevicePrint } from "@/lib/device-print";
 import { billLines, sendToRawbt } from "@/lib/rawbt";
-import { money, orderTypeLabel } from "@/lib/format";
+import { money, orderTypeLabel, billRef, isOrderRef } from "@/lib/format";
 import { billFormat, billTextPx, paperWidth, type BillFormat } from "@/lib/bill-format";
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
@@ -87,7 +89,7 @@ export type ReceiptData = {
 };
 
 export function ReceiptView({
-  data,
+  data: dataIn,
   backHref = "/pos",
   backLabel = "New bill",
   showNextBill = true,
@@ -103,6 +105,10 @@ export function ReceiptView({
   /** The single order screen shows the receipt in a side panel and has its own way back. */
   hideBack?: boolean;
 }) {
+  const router = useRouter();
+  // The first print of an order gives it its bill number (migration 258): the paper must carry that number, not the order reference.
+  const [numbered, setNumbered] = useState<string | null>(null);
+  const data = useMemo(() => (numbered && isOrderRef(dataIn.billNumber) ? { ...dataIn, billNumber: numbered } : dataIn), [dataIn, numbered]);
   const [needsPin, setNeedsPin] = useState(false);
   const [askReason, setAskReason] = useState(false);
   const printedHere = useRef(false);
@@ -154,13 +160,16 @@ export function ReceiptView({
       return setPrintError(cleanMessage(res.error));
     }
     printedHere.current = true; // any later press on this screen is declared a reprint, whatever the log shows
-    printBill();
+    const no = res.billNumber && res.billNumber !== data.billNumber ? res.billNumber : null;
+    if (no) flushSync(() => setNumbered(no)); // the paper on screen now shows the bill number, before the print starts
+    printBill(false, no ?? undefined);
+    if (no) router.refresh(); // the rest of the screen (titles, lists) picks the number up
   }
 
   /** Prints the bill the way this device is set up to (Settings → Printers). */
-  function printBill(asEstimate = false) {
+  function printBill(asEstimate = false, billNo?: string) {
     if (readDevicePrint().method === "rawbt") {
-      const { lines, width } = billLines(data, asEstimate);
+      const { lines, width } = billLines(billNo ? { ...data, billNumber: billNo } : data, asEstimate);
       sendToRawbt(lines, width);
     } else {
       // The print was logged just before: the "beforeprint" listener below must not log it a second time.
@@ -398,7 +407,7 @@ export function ReceiptView({
         <Rule />
 
         <div className="flex justify-between text-[1em]">
-          <span>Bill: {data.billNumber}</span>
+          <span>{isOrderRef(data.billNumber) ? `Order: ${data.billNumber.slice(5)}` : `Bill: ${data.billNumber}`}</span>
           <span>
             {orderTypeLabel[data.orderType] ?? data.orderType}
             {data.tableNumber ? ` · T${data.tableNumber}` : ""}
@@ -559,7 +568,7 @@ export function ReceiptView({
           <>
             <Rule />
             <div className="flex justify-center py-1">
-              <UpiQr upiId={data.upi.id} payee={data.upi.payee} amount={data.balance} note={`Bill ${data.billNumber}`} size={140} />
+              <UpiQr upiId={data.upi.id} payee={data.upi.payee} amount={data.balance} note={billRef(data.billNumber)} size={140} />
             </div>
           </>
         )}

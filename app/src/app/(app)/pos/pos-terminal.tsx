@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { money, orderTypeLabel, roundCash } from "@/lib/format";
+import { money, orderTypeLabel, roundCash, billRefLc } from "@/lib/format";
 import { parseDiscountInput } from "@/lib/discount";
 import { UpiQr } from "../upi-qr";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
@@ -1534,7 +1534,7 @@ export function PosTerminal({
       <div className={tableOrder ? "min-h-0 overflow-y-auto pr-1" : billOrder ? "min-h-0 overflow-y-auto pr-1 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:h-[calc(100dvh-8.5rem)]" : undefined}>
         <div className="mb-3 flex flex-wrap items-center gap-x-3">
           <h1 className={inline ? "text-base font-bold tracking-tight" : "text-xl font-bold tracking-tight"}>
-            {addTo ? `${addTo.table ? `Table ${addTo.table}: add items to bill` : "Add items to bill"} ${addTo.billNumber}` : lockedTable ? (inline ? `Table : ${lockedTable.number}  ·  Cover : ${coversNum ?? 0}${ncKot ? "  ·  NC KOT" : ""}` : `Table ${lockedTable.number}: new order`) : deskKey ? "Counter: new order" : "Billing"}
+            {addTo ? `${addTo.table ? `Table ${addTo.table}: add items to` : "Add items to"} ${billRefLc(addTo.billNumber)}` : lockedTable ? (inline ? `Table : ${lockedTable.number}  ·  Cover : ${coversNum ?? 0}${ncKot ? "  ·  NC KOT" : ""}` : `Table ${lockedTable.number}: new order`) : deskKey ? "Counter: new order" : "Billing"}
           </h1>
           {offline && (
             <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
@@ -1836,7 +1836,7 @@ export function PosTerminal({
                     {repeating ? "Loading…" : "Repeat last order"}
                   </button>
                 )}
-                {addTo.table ? `Table ${addTo.table} · ` : ""}bill {addTo.billNumber}
+                {addTo.table ? `Table ${addTo.table} · ` : ""}{billRefLc(addTo.billNumber)}
               </span>
             ) : lockedTable ? (
               <span className="text-xs font-semibold" style={{ color: "var(--color-ink-2)" }}>

@@ -12,7 +12,7 @@
 import type { ReceiptData } from "@/app/(app)/pos/receipt-view";
 import { billFormat } from "@/lib/bill-format";
 import { loyaltyLines } from "@/lib/receipt-loyalty";
-import { money, orderTypeLabel } from "@/lib/format";
+import { isOrderRef, money, orderTypeLabel } from "@/lib/format";
 import type { OfflineBill, Snapshot } from "@/lib/offline";
 
 export type Line =
@@ -159,7 +159,7 @@ export function billLines(data: ReceiptData, estimate = false): { lines: Line[];
   L.push({ rule: true });
 
   const type = (orderTypeLabel[data.orderType] ?? data.orderType) + (data.tableNumber ? ` T${data.tableNumber}` : "");
-  row(`Bill: ${data.billNumber}`, type);
+  row(isOrderRef(data.billNumber) ? `Order: ${data.billNumber.slice(5)}` : `Bill: ${data.billNumber}`, type);
   L.push({
     text: new Date(data.createdAt).toLocaleString("en-IN", {
       timeZone: data.timezone,

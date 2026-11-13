@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { friendlyDbError } from "@/lib/db-error";
 
 export type LogPrintResult =
-  | { ok: true; reprint: boolean; action: string; printNo?: number }
+  | { ok: true; reprint: boolean; action: string; printNo?: number; /** The bill number: the first print of an order gives it one (migration 258). */ billNumber?: string }
   | { ok: false; error: string; /** An offline bill that has not reached the server yet: wait, do not count it as a failure. */ notSynced?: boolean };
 
 /**
@@ -48,6 +48,6 @@ export async function logPrint(input: { kind: "bill" | "kot"; orderId?: string; 
     p_reason: (input.reason?.trim() || (input.auto ? "Printed from the browser menu or while offline (no reason asked)" : "")) || undefined,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
-  const r = (data ?? {}) as { reprint?: boolean; action?: string; print_no?: number };
-  return { ok: true, reprint: !!r.reprint, action: r.action ?? "", printNo: r.print_no };
+  const r = (data ?? {}) as { reprint?: boolean; action?: string; print_no?: number; bill_number?: string };
+  return { ok: true, reprint: !!r.reprint, action: r.action ?? "", printNo: r.print_no, billNumber: r.bill_number || undefined };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { billRefLc } from "@/lib/format";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
@@ -102,7 +103,7 @@ export function MoveItemPanel({
         />
       )}
       <p className="mb-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
-        Choose the items and the table they go to. They keep their price and tax; both bills are worked out again. Leave at least one item on bill {billNumber}.
+        Choose the items and the table they go to. They keep their price and tax; both bills are worked out again. Leave at least one item on {billRefLc(billNumber)}.
       </p>
       <ul className="space-y-1.5">
         {lines.map((l) => {

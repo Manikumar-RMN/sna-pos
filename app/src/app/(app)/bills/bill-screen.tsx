@@ -5,7 +5,7 @@ import Link from "next/link";
 import { can, has, requireUser } from "@/lib/auth";
 import { getBill } from "@/lib/bill";
 import { createClient } from "@/lib/supabase/server";
-import { dateTime, money } from "@/lib/format";
+import { dateTime, money, billRefLc } from "@/lib/format";
 import { ReceiptView, type ReceiptData } from "../pos/receipt-view";
 import { BillActions } from "./bill-actions";
 import { WhatsAppShare } from "./whatsapp-share";
@@ -165,7 +165,7 @@ export async function BillScreen({
         <div className="no-print card mx-auto mb-3 max-w-sm p-3 text-sm">
           This bill was merged into{" "}
           <Link href={embedded ? `/pos?bill=${mergedTo.id}` : `/bills/${mergedTo.id}`} className="font-semibold" style={{ color: "var(--color-brand)" }}>
-            bill {mergedTo.bill_number}
+            {billRefLc(mergedTo.bill_number)}
           </Link>
           .
         </div>
@@ -266,7 +266,7 @@ export async function BillScreen({
           <WhatsAppShare
             orderId={bill.id}
             country={user.country_code}
-            text={`${user.trading_name} — bill ${r.billNumber}, total ${money(r.grandTotal, r.currency)}.`}
+            text={`${user.trading_name} — ${billRefLc(r.billNumber)}, total ${money(r.grandTotal, r.currency)}.`}
           />
         </FoldIf>
       )}

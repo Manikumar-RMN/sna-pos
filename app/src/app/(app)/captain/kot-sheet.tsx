@@ -1,5 +1,6 @@
 "use client";
 
+import { billRef } from "@/lib/format";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { ApprovalPrompt, cleanMessage, neededRight } from "../approval";
 import { logPrint } from "../bills/log-print";
@@ -148,7 +149,7 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
             <h3 className="text-lg font-bold">Sent to the kitchen</h3>
             {billNumber && (
               <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
-                Bill {billNumber}
+                {billRef(billNumber)}
               </p>
             )}
           </div>

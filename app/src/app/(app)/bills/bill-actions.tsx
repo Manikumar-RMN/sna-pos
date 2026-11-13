@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { money, roundCash } from "@/lib/format";
+import { money, roundCash, billRef, billRefLc } from "@/lib/format";
 import { parseDiscountInput } from "@/lib/discount";
 import { UpiQr } from "../upi-qr";
 import { Dual } from "../lang";
@@ -498,7 +498,7 @@ export function BillActions({
 
               {upiMethod?.upi_id && upiPayee && due > 0 && (
                 <div className="mt-3 rounded-lg border p-3" style={{ borderColor: "var(--color-line)", background: "#fff" }}>
-                  <UpiQr upiId={upiMethod.upi_id} payee={upiPayee} amount={due} note={`Bill ${billNumber}`} />
+                  <UpiQr upiId={upiMethod.upi_id} payee={upiPayee} amount={due} note={billRef(billNumber)} />
                 </div>
               )}
               {askRef && !isCash && (
@@ -566,7 +566,7 @@ export function BillActions({
       {embedded && checkOpen && showPay && (
         <div className="fixed inset-0 z-[45] flex flex-col gap-3 overflow-y-auto p-3" style={{ background: "var(--color-surface-2, #f6f3ea)" }} role="dialog" aria-label="Check">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-base font-bold">Check · bill {billNumber}</div>
+            <div className="text-base font-bold">Check · {billRefLc(billNumber)}</div>
             <div className="flex items-center gap-2">
               {discTools && (
                 <button type="button" className="btn border text-sm" style={{ borderColor: discTools.noTax ? "var(--color-brand)" : "var(--color-line)" }} onClick={() => setPanel("itemdisc")} title="Take the tax off this bill (needs the owner's permission for this outlet)">
@@ -1391,7 +1391,7 @@ export function BillActions({
               ) : (
                 <>
                   <p className="mb-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
-                    The chosen bill&rsquo;s items move onto bill {billNumber}. The other bill is closed, marked &ldquo;Merged&rdquo;.
+                    The chosen bill&rsquo;s items move onto {billRefLc(billNumber)}. The other bill is closed, marked &ldquo;Merged&rdquo;.
                   </p>
                   <ul className="space-y-1.5">
                     {mergeable.map((b) => (
@@ -1399,7 +1399,7 @@ export function BillActions({
                         <label className="flex items-center gap-2 text-sm">
                           <input type="radio" name="merge" checked={mergeFrom === b.id} onChange={() => setMergeFrom(b.id)} />
                           <span className="flex-1">
-                            Bill {b.billNumber}
+                            {billRef(b.billNumber)}
                             {b.table ? ` · T${b.table}` : ""}
                           </span>
                           <span className="font-semibold">{m(b.total)}</span>

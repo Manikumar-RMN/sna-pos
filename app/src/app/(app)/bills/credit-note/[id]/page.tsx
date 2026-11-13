@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { dateTime, money } from "@/lib/format";
+import { dateTime, money, billRefLc } from "@/lib/format";
 import { PrintButton } from "../../../print-button";
 
 /** A credit note (credit memo / tax credit note): money given back on a paid bill, dated when it was issued. */
@@ -84,7 +84,7 @@ export default async function CreditNotePage({ params }: { params: Promise<{ id:
       <div className="no-print mt-3 space-y-2">
         <PrintButton label="Print credit note" />
         <Link href={`/bills/${cn.order_id}`} className="btn w-full border text-sm" style={{ borderColor: "var(--color-line)" }}>
-          Back to bill {order?.bill_number}
+          Back to {billRefLc(order?.bill_number)}
         </Link>
       </div>
     </div>
