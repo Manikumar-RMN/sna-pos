@@ -329,6 +329,14 @@ export async function saveDaySettings(shiftsEnabled: boolean, cutoff: string, ni
   return done(nightAudit === "manual" ? "Saved. Night audit is manual: the day stays open until someone runs Day close." : shiftsEnabled ? "Saved. Cashiers now open a shift before billing." : "Saved. Billing starts without opening a shift.");
 }
 
+/** "Take stock when a bill is made" for this outlet. Items with a recipe take stock; items without one never do. */
+export async function saveStockSettings(autoConsumption: boolean): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("save_stock_settings", { p_auto_consumption: autoConsumption });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  return done(autoConsumption ? "Saved. Bills now take stock for items that have a recipe." : "Saved. Bills no longer take stock. Adjust stock by hand.");
+}
+
 /** Meal sessions for the whole restaurant (outletId null) or one outlet. The database refuses overlaps. */
 export async function saveSessions(
   outletId: string | null,

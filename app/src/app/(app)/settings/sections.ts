@@ -35,6 +35,7 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
     { href: "/settings/outlets", label: "Outlets", hint: "Prices per outlet, who works where", group: "POS", show: user.outlet_count > 1 || has(user, "multi_outlet") },
     { href: "/settings/api", label: "API keys", hint: "Connect other software", group: "General", show: can(user, "settings.manage") && has(user, "open_api") },
     { href: "/settings/plan", label: "Plan and modules", hint: "Modules you have and what you can add", group: "General", show: true },
+    { href: "/settings/stock-on-sale", label: "Stock on sale", hint: "Whether a bill takes stock (recipes)", group: "Purchase and inventory", show: has(user, "stock") && can(user, "settings.manage") },
     { href: "/settings/item-groups", label: "Item groups and departments", hint: "How stock items are grouped", group: "Purchase and inventory", show: has(user, "stock") && can(user, "stock.manage") },
     { href: "/settings/purchase-rules", label: "Purchase rules", hint: "Who approves purchases, limits", group: "Purchase and inventory", show: has(user, "stock") && can(user, "stock.manage") },
     { href: "/settings/purchase-rates", label: "Agreed supplier rates", hint: "Rates fixed with each supplier", group: "Purchase and inventory", show: has(user, "stock") && can(user, "stock.manage") },
