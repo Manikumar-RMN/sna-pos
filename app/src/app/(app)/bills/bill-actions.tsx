@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { money, roundCash, billRef, billRefLc } from "@/lib/format";
+import { money, roundCash, billRef, billRefLc, isOrderRef } from "@/lib/format";
 import { parseDiscountInput } from "@/lib/discount";
 import { UpiQr } from "../upi-qr";
 import { Dual } from "../lang";
@@ -160,6 +160,16 @@ export function BillActions({
   const [confirm, setConfirm] = useState<null | "void" | "refund" | "cancel">(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [checkOpen, setCheckOpen] = useState(false);
+  // The bill number given when the bill is printed shows on the Check heading at once, without waiting for the page to reload.
+  const [givenNo, setGivenNo] = useState<string | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<{ orderId?: string; billNumber?: string }>).detail;
+      if (d?.orderId === orderId && d.billNumber) setGivenNo(d.billNumber);
+    };
+    window.addEventListener("sna-bill-numbered", on);
+    return () => window.removeEventListener("sna-bill-numbered", on);
+  }, [orderId]);
   // The "Check ✓" button in the bottom bar of the order screen.
   useEffect(() => {
     if (!embedded) return;
@@ -566,7 +576,7 @@ export function BillActions({
       {embedded && checkOpen && showPay && (
         <div className="fixed inset-0 z-[45] flex flex-col gap-3 overflow-y-auto p-3" style={{ background: "var(--color-surface-2, #f6f3ea)" }} role="dialog" aria-label="Check">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-base font-bold">Check · {billRefLc(billNumber)}</div>
+            <div className="text-base font-bold">Check · {billRefLc(isOrderRef(billNumber) && givenNo ? givenNo : billNumber)}</div>
             <div className="flex items-center gap-2">
               {discTools && (
                 <button type="button" className="btn border text-sm" style={{ borderColor: discTools.noTax ? "var(--color-brand)" : "var(--color-line)" }} onClick={() => setPanel("itemdisc")} title="Take the tax off this bill (needs the owner's permission for this outlet)">

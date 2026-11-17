@@ -162,6 +162,7 @@ export function ReceiptView({
     printedHere.current = true; // any later press on this screen is declared a reprint, whatever the log shows
     const no = res.billNumber && res.billNumber !== data.billNumber ? res.billNumber : null;
     if (no) flushSync(() => setNumbered(no)); // the paper on screen now shows the bill number, before the print starts
+    if (no) window.dispatchEvent(new CustomEvent("sna-bill-numbered", { detail: { orderId, billNumber: no } })); // the Check screen heading follows
     printBill(false, no ?? undefined);
     if (no) router.refresh(); // the rest of the screen (titles, lists) picks the number up
   }
