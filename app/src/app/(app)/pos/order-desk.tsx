@@ -276,6 +276,8 @@ export function OrderDesk({
               router.replace(deskUrl({ kind: "counter" }));
               // The table tiles refresh a moment later, so the new total and KOT count show at once instead of after the next 20-second refresh.
               setTimeout(() => router.refresh(), 700);
+              // A second look: on a slow connection the first one can still read the table as free.
+              setTimeout(() => router.refresh(), 2500);
             }}
           />
         </div>
