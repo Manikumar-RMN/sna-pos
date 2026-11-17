@@ -101,6 +101,20 @@ export function OrderDesk({
     return () => window.removeEventListener("sna-desk-order", show);
   }, []);
 
+  // A bill is settled: leave its panel and go back to the table strip with a fresh order form.
+  useEffect(() => {
+    const done = () => {
+      setNonce((n) => n + 1);
+      setCartCount(0);
+      setTab("order");
+      if (showStrip) setShowTables(true);
+      router.replace(deskUrl({ kind: "counter" }));
+      setTimeout(() => router.refresh(), 400);
+    };
+    window.addEventListener("sna-desk-settled", done);
+    return () => window.removeEventListener("sna-desk-settled", done);
+  }, [router, showStrip]);
+
   // Fresh tables and bill every 20 seconds, only while the screen is visible and the device has internet (a refresh that
   // cannot reach the server would make the browser reload the page and lose the items in the cart).
   useEffect(() => {

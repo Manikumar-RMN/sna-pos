@@ -347,6 +347,8 @@ export function BillActions({
         const url = new URL(window.location.href);
         url.searchParams.set("print", "1");
         window.history.replaceState(null, "", url.toString());
+        // Settled on the single order screen: after the receipt has had its moment to print, go back to the tables (like Winsar).
+        if (embedded) setTimeout(() => window.dispatchEvent(new Event("sna-desk-settled")), 2500);
       }
       setConfirm(null);
       setPanel(null);
