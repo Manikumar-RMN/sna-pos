@@ -187,12 +187,14 @@ export default async function AppLayout({ children }: Readonly<{ children: React
               <Mark size={36} />
               <div className="leading-tight">
                 <div className="font-display text-sm font-bold">SNA POS</div>
-                <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.75)" }}>
-                  {user.trading_name}
-                </div>
+                {user.trading_name.trim().toLowerCase() !== "sna pos" && (
+                  <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.75)" }}>
+                    {user.trading_name}
+                  </div>
+                )}
               </div>
             </Link>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
               <AccountDate initial={accountDate} onGreen />
               {actions(true)}
             </div>

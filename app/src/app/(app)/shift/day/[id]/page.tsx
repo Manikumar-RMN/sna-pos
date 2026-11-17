@@ -4,7 +4,7 @@ import { has, requireUser } from "@/lib/auth";
 import { WhatsAppSummary } from "./whatsapp-summary";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyDbError } from "@/lib/db-error";
-import { dateTime, money } from "@/lib/format";
+import { dateTime, money, orderTypeLabel } from "@/lib/format";
 import { PrintButton } from "../../../print-button";
 import { paidLaterNote, voidedAfterCloseNote } from "../../figures";
 
@@ -159,7 +159,7 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
             <Rule />
             <div className="font-bold">By order type</div>
             {z.by_type.map((t, i) => (
-              <Row key={i} label={`${t.type.replace("_", "-")} (${t.bills})`} value={m(t.total)} />
+              <Row key={i} label={`${Object.prototype.hasOwnProperty.call(orderTypeLabel, t.type) ? orderTypeLabel[t.type] : t.type.replace("_", "-")} (${t.bills})`} value={m(t.total)} />
             ))}
           </>
         )}

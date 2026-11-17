@@ -576,7 +576,7 @@ export function BillActions({
       )}
 
       {embedded && checkOpen && showPay && (
-        <div className="fixed inset-0 z-[45] flex flex-col gap-3 overflow-y-auto p-3" style={{ background: "var(--color-surface-2, #f6f3ea)" }} role="dialog" aria-label="Check">
+        <div className="fixed inset-0 z-[60] flex flex-col gap-3 overflow-y-auto p-3" style={{ background: "var(--color-surface-2, #f6f3ea)" }} role="dialog" aria-label="Check">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-base font-bold">Check · {billRefLc(isOrderRef(billNumber) && givenNo ? givenNo : billNumber)}</div>
             <div className="flex items-center gap-2">
@@ -664,7 +664,6 @@ export function BillActions({
             <PanelButton label="Move item" active={panel === "moveItem"} disabled={!online} title={online ? undefined : needsInternetText("move_item")} onClick={() => setPanel("moveItem")} />
             {canMerge && <PanelButton label="Merge bills" active={panel === "merge"} onClick={() => setPanel("merge")} />}
             {open && (canVoid || canAsk) && lines.length > 0 && !dayClosed && <PanelButton label="Cancel item" active={win === "cancel"} onClick={() => setWin("cancel")} />}
-            {showVoid && <PanelButton label="Void bill" active={win === "void"} onClick={() => setWin("void")} />}
             {showAdjust && !adjust?.senior && <PanelButton label="Complimentary / staff meal" active={panel === "comp"} onClick={() => setPanel("comp")} />}
             {canVoid && !hasPayments && <PanelButton label="KOT date transfer" active={panel === "date"} onClick={() => setPanel("date")} />}
             {canVoid && !hasPayments && outlets.length > 1 && <PanelButton label="Move to another outlet" active={panel === "outlet"} onClick={() => setPanel("outlet")} />}
