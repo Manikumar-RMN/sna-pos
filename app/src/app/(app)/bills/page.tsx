@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { readAccountDate } from "../account-date-action";
 import {
   addDays,
   billState,
   isYmd,
-  localDayStartIso,
   longDate,
   money,
   orderTypeLabel,
@@ -28,7 +28,8 @@ export default async function BillsPage({
   const user = await requireUser();
   const sp = await searchParams;
   const tz = user.timezone;
-  const today = todayIn(tz);
+  // Bills belong to the account (business) date, which can differ from the calendar day after midnight or on an old open day.
+  const today = (await readAccountDate())?.date ?? todayIn(tz);
   const date = isYmd(sp.date) ? sp.date : today;
   const show = FILTERS.some((f) => f.key === sp.show) ? (sp.show as string) : "all";
 
@@ -36,8 +37,7 @@ export default async function BillsPage({
   let q = supabase
     .from("orders")
     .select("id, bill_number, created_at, order_type, grand_total, paid_total, status, payment_status, dining_table_id, cashier_id, merged_into, guest_name, token_no")
-    .gte("created_at", localDayStartIso(date, tz))
-    .lt("created_at", localDayStartIso(addDays(date, 1), tz))
+    .eq("business_date", date)
     .order("created_at", { ascending: false })
     .limit(500);
   if (show === "unpaid") q = q.in("payment_status", ["unpaid", "partial"]).neq("status", "voided");
