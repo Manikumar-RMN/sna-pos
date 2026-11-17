@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { money, roundCash, billRef, billRefLc, isOrderRef } from "@/lib/format";
 import { parseDiscountInput } from "@/lib/discount";
@@ -348,7 +349,11 @@ export function BillActions({
         url.searchParams.set("print", "1");
         window.history.replaceState(null, "", url.toString());
         // Settled on the single order screen: after the receipt has had its moment to print, go back to the tables (like Winsar).
-        if (embedded) setTimeout(() => window.dispatchEvent(new Event("sna-desk-settled")), 2500);
+        if (embedded) {
+          // The page may reload after a payment, which would drop the timer: the flag lets the order screen finish the job on load.
+          try { sessionStorage.setItem("sna-desk-settled", String(Date.now())); } catch { /* storage blocked: the timer below still works */ }
+          setTimeout(() => window.dispatchEvent(new Event("sna-desk-settled")), 2500);
+        }
       }
       setConfirm(null);
       setPanel(null);
@@ -575,7 +580,7 @@ export function BillActions({
         </PanelFrame>
       )}
 
-      {embedded && checkOpen && showPay && (
+      {embedded && checkOpen && showPay && createPortal(
         <div className="fixed inset-0 z-[60] flex flex-col gap-3 overflow-y-auto p-3" style={{ background: "var(--color-surface-2, #f6f3ea)" }} role="dialog" aria-label="Check">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-base font-bold">Check · {billRefLc(isOrderRef(billNumber) && givenNo ? givenNo : billNumber)}</div>
@@ -699,7 +704,7 @@ export function BillActions({
             )}
           </div>
         </div>
-      )}
+      , document.body)}
 
       {showPay && (
         <section className={embedded ? "card order-first p-4" : "card p-4"}>

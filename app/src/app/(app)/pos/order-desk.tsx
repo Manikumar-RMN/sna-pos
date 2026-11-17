@@ -104,6 +104,7 @@ export function OrderDesk({
   // A bill is settled: leave its panel and go back to the table strip with a fresh order form.
   useEffect(() => {
     const done = () => {
+      try { sessionStorage.removeItem("sna-desk-settled"); } catch { /* ignore */ }
       setNonce((n) => n + 1);
       setCartCount(0);
       setTab("order");
@@ -112,8 +113,18 @@ export function OrderDesk({
       setTimeout(() => router.refresh(), 400);
     };
     window.addEventListener("sna-desk-settled", done);
-    return () => window.removeEventListener("sna-desk-settled", done);
-  }, [router, showStrip]);
+    // The page reloaded right after a payment: finish the return to the tables (after the receipt had its moment to print).
+    let late: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const at = Number(sessionStorage.getItem("sna-desk-settled") ?? 0);
+      if (at && Date.now() - at < 60_000 && selection.kind === "bill") late = setTimeout(done, Math.max(500, 2500 - (Date.now() - at)));
+      else if (at) sessionStorage.removeItem("sna-desk-settled");
+    } catch { /* ignore */ }
+    return () => {
+      window.removeEventListener("sna-desk-settled", done);
+      if (late) clearTimeout(late);
+    };
+  }, [router, showStrip, selection.kind]);
 
   // Fresh tables and bill every 20 seconds, only while the screen is visible and the device has internet (a refresh that
   // cannot reach the server would make the browser reload the page and lose the items in the cart).
