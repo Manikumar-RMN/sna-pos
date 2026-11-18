@@ -11,11 +11,10 @@ export default async function SnaStaffPage() {
     <div>
       <h1 className="text-2xl font-bold">SNA staff</h1>
       <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-        Sales set licences, record sales and approve upgrades, modules and outlets. Implementers set up approved outlets. Support can create clients, keep
-        contacts and write notes. Admins do everything. Add a new person below with their email: they get a temporary password and sign in at the SNA console.
+        Who can sign in to this console, and what each person may do. Add a new person with their email: they get a temporary password and sign in at the SNA console.
       </p>
       {error && <div className="card mt-3 p-3 text-sm">{error.message}</div>}
-      <StaffEditor staff={(data ?? []) as unknown as SnaStaff[]} />
+      <StaffEditor staff={(data ?? []) as unknown as SnaStaff[]} myEmail={String((me as { email?: string } | null)?.email ?? "").toLowerCase()} />
     </div>
   );
 }

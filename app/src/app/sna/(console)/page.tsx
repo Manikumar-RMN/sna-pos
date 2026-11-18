@@ -30,7 +30,8 @@ export default async function SnaHome({ searchParams }: { searchParams: Promise<
   const rows = data?.rows ?? [];
   const all = (everyone ?? null) as unknown as ClientList | null;
   const counts = all?.counts ?? data?.counts;
-  const income = totalsByCurrency(all?.rows ?? []);
+  // Only clients that can still bill count as income: not expired, suspended or cancelled.
+  const income = totalsByCurrency((all?.rows ?? []).filter((r) => clientState(r.status, r.days_left).tone !== "bad"));
   const activeClients = Math.max(0, (counts?.all ?? 0) - (counts?.expired ?? 0));
   const needsAction = requests.length + (counts?.followup ?? 0) + (counts?.expired ?? 0);
   const href = (key: string) => `/sna?list=${key}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
@@ -55,7 +56,7 @@ export default async function SnaHome({ searchParams }: { searchParams: Promise<
         <Stat
           label="Monthly income"
           value={income.length === 0 ? "None yet" : money(income[0].total, income[0].currency)}
-          hint={income.length > 1 ? income.slice(1).map((i) => money(i.total, i.currency)).join(" · ") : "from all clients"}
+          hint={income.length > 1 ? income.slice(1).map((i) => money(i.total, i.currency)).join(" · ") : "clients still active"}
         />
         <Stat label="Needs action" value={String(needsAction)} hint="requests, follow-ups, expired" tone={needsAction > 0 ? "bad" : undefined} />
         <Stat label="Expiring soon" value={String(counts?.expiring ?? 0)} hint="licence ends within 30 days" tone={(counts?.expiring ?? 0) > 0 ? "warn" : undefined} href={href("expiring")} />
