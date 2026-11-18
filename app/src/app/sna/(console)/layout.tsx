@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createConsoleClient as createClient } from "@/lib/supabase/server";
 import { CONSOLE_COOKIE } from "../console-cookie";
 import { signOutOfConsole } from "../login/actions";
+import { ConsoleNav } from "./console-nav";
 
 export const metadata: Metadata = { title: "SNA console", robots: { index: false, follow: false } };
 
@@ -50,26 +51,37 @@ export default async function SnaLayout({ children }: Readonly<{ children: React
           <div className="leading-tight">
             <div className="font-display text-lg font-bold">SNA console</div>
             <div className="text-xs" style={{ color: "rgba(255,255,255,0.8)" }}>
-              {me.full_name} · {me.role}
+              For SNA staff
             </div>
           </div>
-          <nav className="flex flex-wrap gap-1 text-sm">
-            {links.map((l) => (
-              <Link key={l.href} href={l.href} className="rounded-xl px-3 py-2 font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>
-                {l.label}
+          <ConsoleNav links={links} />
+          <details className="relative ml-auto">
+            <summary
+              className="flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-xl border px-3 text-xs font-bold"
+              style={{ borderColor: "rgba(255,255,255,0.3)" }}
+            >
+              <span aria-hidden className="flex h-6 w-6 items-center justify-center rounded-full text-[11px]" style={{ background: "rgba(255,255,255,0.2)" }}>
+                {me.full_name.trim().charAt(0).toUpperCase()}
+              </span>
+              Account
+            </summary>
+            <div className="absolute right-0 z-20 mt-2 w-56 rounded-xl border p-2 text-sm shadow-lg" style={{ background: "var(--color-surface)", borderColor: "var(--color-line)", color: "var(--color-ink)" }}>
+              <div className="px-3 py-2">
+                <div className="font-semibold">{me.full_name}</div>
+                <div className="text-xs capitalize" style={{ color: "var(--color-ink-3)" }}>
+                  {me.role} · {me.email}
+                </div>
+              </div>
+              <Link href="/sna/password" className="block rounded-lg px-3 py-2 font-semibold">
+                Change password
               </Link>
-            ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-3">
-            <Link href="/sna/password" className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.85)" }}>
-              Change password
-            </Link>
-            <form action={signOutOfConsole}>
-              <button className="min-h-10 rounded-xl border px-3 text-xs font-bold" style={{ borderColor: "rgba(255,255,255,0.3)" }}>
-                Sign out
-              </button>
-            </form>
-          </div>
+              <form action={signOutOfConsole}>
+                <button className="w-full rounded-lg px-3 py-2 text-left font-semibold" style={{ color: "var(--color-bad)" }}>
+                  Sign out
+                </button>
+              </form>
+            </div>
+          </details>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-5">{children}</main>

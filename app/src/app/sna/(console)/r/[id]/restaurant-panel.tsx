@@ -5,7 +5,7 @@ import { money } from "@/lib/format";
 import { addOutletRequest, createOutlet, setBusinessType, setEdition, setModule } from "../../actions";
 import { BUSINESS_TYPES } from "@/lib/business-types";
 import { RequestRow, requestLabel, type SnaRequest } from "../../request-row";
-import { eventLabel } from "../../crm";
+import { eventLabel, indiaDateTime } from "../../crm";
 
 type Mod = { key: string; name: string; kind: "professional" | "addon"; on: boolean; price: number | null };
 export type SnaRestaurant = {
@@ -157,16 +157,38 @@ export function RestaurantPanel({ r, role }: { r: SnaRestaurant; role: string })
 
       <div className="card p-5">
         <h2 className="font-display text-lg font-bold">History</h2>
-        <ul className="mt-2 space-y-1 text-sm">
-          {r.events.map((e, i) => (
-            <li key={i}>
-              <span style={{ color: "var(--color-ink-3)" }}>{new Date(e.created_at).toLocaleString()}</span> · <span className="font-semibold">{eventLabel(e.event)}</span>
-              {e.by ? ` · ${e.by}` : ""}
-              {e.details && (e.details as { note?: string }).note ? ` — ${(e.details as { note?: string }).note}` : ""}
+        {(() => {
+          const line = (e: SnaRestaurant["events"][number], i: number) => (
+            <li key={i} className="flex flex-wrap gap-x-2">
+              <span className="w-40 shrink-0" style={{ color: "var(--color-ink-3)" }}>
+                {indiaDateTime(e.created_at)}
+              </span>
+              <span>
+                <span className="font-semibold">{eventLabel(e.event)}</span>
+                {e.by ? ` · ${e.by}` : ""}
+                {e.details && (e.details as { note?: string }).note ? ` — ${(e.details as { note?: string }).note}` : ""}
+              </span>
             </li>
-          ))}
-          {r.events.length === 0 && <li style={{ color: "var(--color-ink-3)" }}>Nothing yet.</li>}
-        </ul>
+          );
+          const recent = r.events.slice(0, 5);
+          const older = r.events.slice(5);
+          return (
+            <>
+              <ul className="mt-2 space-y-1.5 text-sm">
+                {recent.map(line)}
+                {r.events.length === 0 && <li style={{ color: "var(--color-ink-3)" }}>Nothing yet.</li>}
+              </ul>
+              {older.length > 0 && (
+                <details className="mt-2 text-sm">
+                  <summary className="cursor-pointer font-semibold" style={{ color: "var(--color-brand)" }}>
+                    Show {older.length} older {older.length === 1 ? "entry" : "entries"}
+                  </summary>
+                  <ul className="mt-2 space-y-1.5">{older.map((e, i) => line(e, i + 5))}</ul>
+                </details>
+              )}
+            </>
+          );
+        })()}
         <p className="mt-3 text-xs" style={{ color: "var(--color-ink-3)" }}>
           Past requests: {r.requests.filter((q) => !openReqs.includes(q)).map((q) => `${requestLabel(q)} (${q.status})`).join(" · ") || "none"}
         </p>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { decideRequest } from "./actions";
+import { moduleName } from "./crm";
 
 export type SnaRequest = {
   id: string;
@@ -20,7 +21,7 @@ export type SnaRequest = {
 
 export function requestLabel(r: SnaRequest) {
   if (r.kind === "upgrade") return "Upgrade to Professional";
-  if (r.kind === "module") return `Add-on: ${r.module_key}`;
+  if (r.kind === "module") return `Add-on: ${moduleName(r.module_key)}`;
   return `New outlet: ${r.outlet_name}${r.outlet_city ? `, ${r.outlet_city}` : ""}`;
 }
 
@@ -51,7 +52,7 @@ export function RequestRow({ request: r, role }: { request: SnaRequest; role: st
           {requestLabel(r)}
         </div>
         <div style={{ color: "var(--color-ink-3)" }}>
-          {new Date(r.created_at).toLocaleString()} · {r.status === "approved" ? "Approved — waiting for implementer" : "Waiting for sales"}
+          {new Date(r.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} · {r.status === "approved" ? "Approved — waiting for implementer" : "Waiting for sales"}
           {r.note ? ` · “${r.note}”` : ""}
         </div>
         {msg && <div className="mt-1 font-semibold">{msg}</div>}
@@ -59,7 +60,7 @@ export function RequestRow({ request: r, role }: { request: SnaRequest; role: st
       {r.status === "requested" && canDecide && (
         <div className="flex flex-wrap items-center gap-2">
           <input className="field h-10 w-48" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-          <button className="btn btn-pay h-10 min-h-0 px-4 text-sm" disabled={pending} onClick={() => decide(true)}>
+          <button className="btn h-10 min-h-0 px-4 text-sm" style={{ background: "var(--color-ink)", color: "#fff" }} disabled={pending} onClick={() => decide(true)}>
             Approve
           </button>
           <button className="btn h-10 min-h-0 px-4 text-sm" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }} disabled={pending} onClick={() => decide(false)}>
@@ -68,7 +69,7 @@ export function RequestRow({ request: r, role }: { request: SnaRequest; role: st
         </div>
       )}
       {r.status === "approved" && r.kind === "outlet" && canBuild && (
-        <Link href={`/sna/r/${r.restaurant_id}?tab=plan#outlet-${r.id}`} className="btn btn-pay h-10 min-h-0 px-4 text-sm">
+        <Link href={`/sna/r/${r.restaurant_id}?tab=plan#outlet-${r.id}`} className="btn h-10 min-h-0 px-4 text-sm" style={{ background: "var(--color-ink)", color: "#fff" }}>
           Set up outlet
         </Link>
       )}

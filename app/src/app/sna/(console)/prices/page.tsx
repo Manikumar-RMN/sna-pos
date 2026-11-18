@@ -23,7 +23,7 @@ export default async function SnaPricesPage() {
     <div>
       <h1 className="text-2xl font-bold">Monthly prices</h1>
       <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-        What each restaurant is charged per month, in its own currency. Empty means not priced yet. Changes apply to the monthly figure at once.
+        What each restaurant is charged per month, in its own currency. Pick a currency, then type each price. A price saves when you click out of the box. Changes apply to the monthly figure at once.
       </p>
       <PriceEditor items={items} currencies={curr} initial={map} />
     </div>

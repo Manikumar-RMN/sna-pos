@@ -193,6 +193,35 @@ export function eventLabel(event: string): string {
     "reminder.on": "Renewal reminder switched on",
     "module.on": "Add-on switched on",
     "module.off": "Add-on switched off",
+    "request.module": "Add-on requested",
+    "request.upgrade": "Upgrade requested",
+    "request.outlet": "New outlet requested",
+    "request.approved": "Request approved",
+    "request.rejected": "Request rejected",
+    "request.cancelled": "Request cancelled",
+    "outlet.created": "Outlet set up",
   };
-  return map[event] ?? event;
+  if (map[event]) return map[event];
+  const t = event.replace(/[._]/g, " ").trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/** Plain names for the add-on keys the database uses. */
+export const MODULE_NAMES: Record<string, string> = {
+  whatsapp: "WhatsApp",
+  qr_ordering: "QR table ordering",
+  loyalty: "Loyalty and gift cards",
+  owner_app: "Owner mobile app",
+  customer_display: "Customer display",
+  purchase: "Purchase and inventory",
+  reports: "Reports",
+  pos: "POS billing and kitchen",
+};
+export const moduleName = (key: string | null | undefined) => (key ? (MODULE_NAMES[key] ?? key.replace(/_/g, " ")) : "");
+
+/** Money per currency, e.g. "₹7,998 · AED 249", for a total across clients that pay in different currencies. */
+export function totalsByCurrency(rows: { currency: string; monthly: number }[]): { currency: string; total: number }[] {
+  const m = new Map<string, number>();
+  for (const r of rows) m.set(r.currency, (m.get(r.currency) ?? 0) + Number(r.monthly || 0));
+  return [...m.entries()].filter(([, t]) => t > 0).map(([currency, total]) => ({ currency, total }));
 }
