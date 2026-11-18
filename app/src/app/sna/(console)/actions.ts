@@ -112,6 +112,16 @@ export async function addSnaStaff(email: string, fullName: string, role: string)
   return { ok: true, message: `Added. They sign in at the SNA console with ${address} and the temporary password ${temp}.`, tempPassword: temp };
 }
 
+/** Set or clear the date a sale should be paid by. */
+export async function setSaleDue(id: string, due: string): Promise<SnaResult> {
+  const supabase = await createClient();
+  const value = due.trim();
+  if (value !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(value)) return { ok: false, error: "Enter a date." };
+  const { error } = await supabase.rpc("sna_set_sale_due", { p_id: id, p_due: (value === "" ? null : value) as string });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  return done(value === "" ? "Due date cleared." : "Due date saved.");
+}
+
 export async function setPrice(item: string, currency: string, price: string): Promise<SnaResult> {
   const supabase = await createClient();
   const value = price.trim() === "" ? null : Number(price);

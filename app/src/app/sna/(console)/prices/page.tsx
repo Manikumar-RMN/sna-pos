@@ -1,15 +1,17 @@
 import { redirect } from "next/navigation";
 import { createConsoleClient as createClient } from "@/lib/supabase/server";
 import { PriceEditor } from "./price-editor";
+import { PriceLog, type PriceLogRow } from "./price-log";
 
 export default async function SnaPricesPage() {
   const supabase = await createClient();
   const { data: me } = await supabase.rpc("sna_me");
   if ((me as { role?: string } | null)?.role !== "admin") redirect("/sna");
-  const [{ data: prices }, { data: modules }, { data: currencies }] = await Promise.all([
+  const [{ data: prices }, { data: modules }, { data: currencies }, { data: log }] = await Promise.all([
     supabase.from("plan_prices").select("item, currency_code, monthly_price"),
     supabase.from("modules").select("key, name, kind").eq("kind", "addon").order("display_order"),
     supabase.from("countries").select("default_currency").eq("is_supported", true),
+    supabase.rpc("sna_price_log"),
   ]);
   const curr = [...new Set((currencies ?? []).map((c) => c.default_currency as string))].sort();
   const items = [
@@ -26,6 +28,7 @@ export default async function SnaPricesPage() {
         What each restaurant is charged per month, in its own currency. Pick a currency, then type each price. A price saves when you click out of the box. Changes apply to the monthly figure at once.
       </p>
       <PriceEditor items={items} currencies={curr} initial={map} />
+      <PriceLog rows={(log ?? []) as unknown as PriceLogRow[]} names={Object.fromEntries(items.map((i) => [i.key, i.name]))} />
     </div>
   );
 }

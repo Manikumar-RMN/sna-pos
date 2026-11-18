@@ -18,11 +18,12 @@ export default async function SnaHome({ searchParams }: { searchParams: Promise<
   const { q, list } = await searchParams;
   const filter = LISTS.some((l) => l.key === list) ? (list as string) : "all";
   const supabase = await createClient();
-  const [{ data: me }, { data: reqs, error: reqErr }, { data: book, error: bookErr }, { data: everyone }] = await Promise.all([
+  const [{ data: me }, { data: reqs, error: reqErr }, { data: book, error: bookErr }, { data: everyone }, { data: unpaid }] = await Promise.all([
     supabase.rpc("sna_me"),
     supabase.rpc("sna_requests", { p_status: "open" }),
     supabase.rpc("sna_clients", { p_search: q ?? undefined, p_filter: filter }),
     supabase.rpc("sna_clients", { p_filter: "all" }),
+    supabase.rpc("sna_unpaid"),
   ]);
   const role = (me as { role?: string } | null)?.role ?? "support";
   const requests = (reqs ?? []) as unknown as SnaRequest[];
@@ -33,7 +34,8 @@ export default async function SnaHome({ searchParams }: { searchParams: Promise<
   // Only clients that can still bill count as income: not expired, suspended or cancelled.
   const income = totalsByCurrency((all?.rows ?? []).filter((r) => clientState(r.status, r.days_left).tone !== "bad"));
   const activeClients = Math.max(0, (counts?.all ?? 0) - (counts?.expired ?? 0));
-  const needsAction = requests.length + (counts?.followup ?? 0) + (counts?.expired ?? 0);
+  const overduePayments = ((unpaid as unknown as { rows?: { days_overdue: number | null }[] } | null)?.rows ?? []).filter((x) => x.days_overdue !== null).length;
+  const needsAction = requests.length + (counts?.followup ?? 0) + (counts?.expired ?? 0) + overduePayments;
   const href = (key: string) => `/sna?list=${key}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
 
   return (
@@ -58,7 +60,7 @@ export default async function SnaHome({ searchParams }: { searchParams: Promise<
           value={income.length === 0 ? "None yet" : money(income[0].total, income[0].currency)}
           hint={income.length > 1 ? income.slice(1).map((i) => money(i.total, i.currency)).join(" · ") : "clients still active"}
         />
-        <Stat label="Needs action" value={String(needsAction)} hint="requests, follow-ups, expired" tone={needsAction > 0 ? "bad" : undefined} />
+        <Stat label="Needs action" value={String(needsAction)} hint="requests, follow-ups, expired, overdue" tone={needsAction > 0 ? "bad" : undefined} />
         <Stat label="Expiring soon" value={String(counts?.expiring ?? 0)} hint="licence ends within 30 days" tone={(counts?.expiring ?? 0) > 0 ? "warn" : undefined} href={href("expiring")} />
       </div>
 
@@ -76,6 +78,11 @@ export default async function SnaHome({ searchParams }: { searchParams: Promise<
             {(counts?.expired ?? 0) > 0 && (
               <Link href={href("expired")} className="rounded-full px-3 py-1" style={toneStyle.bad}>
                 {counts?.expired} licence expired
+              </Link>
+            )}
+            {overduePayments > 0 && (
+              <Link href="/sna/money" className="rounded-full px-3 py-1" style={toneStyle.bad}>
+                {overduePayments} {overduePayments === 1 ? "payment" : "payments"} overdue
               </Link>
             )}
           </div>

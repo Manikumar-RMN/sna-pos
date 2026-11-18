@@ -200,6 +200,8 @@ export function eventLabel(event: string): string {
     "request.rejected": "Request rejected",
     "request.cancelled": "Request cancelled",
     "outlet.created": "Outlet set up",
+    "price.set": "Price changed",
+    "sale.due": "Payment due date set",
   };
   if (map[event]) return map[event];
   const t = event.replace(/[._]/g, " ").trim();

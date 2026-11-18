@@ -9156,6 +9156,9 @@ export type Database = {
         Returns: string
       }
       sna_remove_contact: { Args: { p_id: string }; Returns: undefined }
+      sna_price_log: { Args: never; Returns: Json }
+      sna_unpaid: { Args: never; Returns: Json }
+      sna_set_sale_due: { Args: { p_id: string; p_due: string }; Returns: undefined }
       sna_requests: { Args: { p_status?: string }; Returns: Json }
       sna_restaurant: { Args: { p_id: string }; Returns: Json }
       sna_restaurants: { Args: { p_search?: string }; Returns: Json }
