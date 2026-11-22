@@ -5,7 +5,7 @@ import Link from "next/link";
 import { can, has, requireUser } from "@/lib/auth";
 import { getBill } from "@/lib/bill";
 import { createClient } from "@/lib/supabase/server";
-import { dateTime, money, billRefLc } from "@/lib/format";
+import { dateTime, money, billRefLc, isOrderRef } from "@/lib/format";
 import { ReceiptView, type ReceiptData } from "../pos/receipt-view";
 import { BillActions } from "./bill-actions";
 import { WhatsAppShare } from "./whatsapp-share";
@@ -13,6 +13,7 @@ import { LoyaltyPanel, type RedeemSettings } from "./loyalty-panel";
 import { discountPool, receiptLoyalty } from "./loyalty-math";
 import { GuestDetails } from "./guest-details";
 import { AccountPanel } from "./account-panel";
+import { BillingOnly } from "./billing-mode";
 import { byTableNumber } from "@/lib/table-order";
 import { describeOfflineFlags } from "@/lib/offline-flags";
 
@@ -39,6 +40,8 @@ export async function BillScreen({
   const r = bill.receipt;
   const tz = r.timezone;
   const open = r.state === "unpaid" || r.state === "part-paid";
+  // The order screen shows the billing options only once the bill is made (see billing-mode.tsx).
+  const billed = !isOrderRef(r.billNumber);
 
   const supabase = await createClient();
   // Loyalty: the guest on this bill and their points.
@@ -182,6 +185,7 @@ export async function BillScreen({
         </div>
       )}
 
+      <BillingOnly orderId={bill.id} billed={billed} embedded={embedded} always={r.orderType !== "dine_in"}>
       <GuestDetails
         orderId={bill.id}
         token={r.token ?? null}
@@ -190,7 +194,9 @@ export async function BillScreen({
         showPoints={has(user, "loyalty")}
         canEdit={r.state !== "voided" && !bill.dayClosed && can(user, "order.create")}
       />
+      </BillingOnly>
 
+      <BillingOnly orderId={bill.id} billed={billed} embedded={embedded}>
       <ReceiptView
         data={receipt}
         backHref={from === "pos" ? "/pos" : "/bills"}
@@ -199,6 +205,7 @@ export async function BillScreen({
         orderId={bill.id}
         hideBack={embedded}
       />
+      </BillingOnly>
 
       {(bill.refunds.length > 0 || bill.voidedAt || bill.cancelled.length > 0 || bill.creditNotes.length > 0) && (
         <div className="no-print card mx-auto mt-4 max-w-sm p-4 text-sm">
@@ -234,6 +241,7 @@ export async function BillScreen({
         </div>
       )}
 
+      <BillingOnly orderId={bill.id} billed={billed} embedded={embedded}>
       {has(user, "loyalty") && r.state !== "voided" && (
         <FoldIf on={embedded} label="Loyalty and gift cards">
         <LoyaltyPanel
@@ -270,6 +278,7 @@ export async function BillScreen({
           />
         </FoldIf>
       )}
+      </BillingOnly>
 
       </div>
 

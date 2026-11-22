@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { money, roundCash, billRef, billRefLc, isOrderRef } from "@/lib/format";
+import { useBillingMode } from "./billing-mode";
 import { parseDiscountInput } from "@/lib/discount";
 import { UpiQr } from "../upi-qr";
 import { Dual } from "../lang";
@@ -161,6 +162,8 @@ export function BillActions({
   const [confirm, setConfirm] = useState<null | "void" | "refund" | "cancel">(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [checkOpen, setCheckOpen] = useState(false);
+  // On the order screen the billing buttons wait until the bill is made (Bill pressed, or a real bill number).
+  const billingMode = useBillingMode(orderId, !isOrderRef(billNumber), embedded);
   // The bill number given when the bill is printed shows on the Check heading at once, without waiting for the page to reload.
   const [givenNo, setGivenNo] = useState<string | null>(null);
   useEffect(() => {
@@ -823,7 +826,7 @@ export function BillActions({
               </Link>
             )}
             {embedded && (
-              <button type="button" className="btn btn-pay col-span-2 text-sm" onClick={() => setWin("pay")}>
+              <button type="button" className={`btn btn-pay col-span-2 text-sm${billingMode ? "" : " hidden!"}`} onClick={() => setWin("pay")}>
                 Settle · {m(balance)}
               </button>
             )}
@@ -1491,7 +1494,7 @@ export function BillActions({
       )}
 
       {showBuyer && (
-        <details className="card p-4" open={!!buyer}>
+        <details className={`card p-4${billingMode ? "" : " hidden!"}`} open={!!buyer}>
           <summary className="cursor-pointer text-sm font-bold">Business customer ({taxIdLabel} on the bill)</summary>
           <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
             For a company that wants to claim the tax back. Printed on the bill and listed in the GST register.
@@ -1706,7 +1709,7 @@ export function BillActions({
       )}
 
       {embedded && showPay && (
-        <Link href={`/bills/settle/${orderId}`} className="btn order-last w-full border text-center text-sm" style={{ borderColor: "var(--color-brand)", color: "var(--color-brand-strong)" }} title="The full settlement screen: several payments, tips and a running balance">
+        <Link href={`/bills/settle/${orderId}`} className={`btn order-last w-full border text-center text-sm${billingMode ? "" : " hidden!"}`} style={{ borderColor: "var(--color-brand)", color: "var(--color-brand-strong)" }} title="The full settlement screen: several payments, tips and a running balance">
           Settlement screen
         </Link>
       )}
