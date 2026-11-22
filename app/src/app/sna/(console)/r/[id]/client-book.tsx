@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { money } from "@/lib/format";
 import { ConfirmButton } from "@/app/(app)/settings/confirm-button";
-import { addNote, addSale, cancelSale, removeContact, saveAccount, saveContact, setFollowUp, setReminder, setSalePaid, type SnaResult } from "../../actions";
+import { addNote, addSale, cancelSale, removeContact, saveAccount, saveContact, setFollowUp, setReminder, setSaleDue, setSalePaid, type SnaResult } from "../../actions";
 import { ACCOUNT_CHOICES, CONTACT_KINDS, NOTE_KINDS, SALE_KINDS, accountChoice, indiaDateTime, labelOf, shortDate, toneStyle, type Client, type Contact, type LicenceNow, type SalesExtra } from "../../crm";
 
 /** Runs a save and shows what the server said, in words, next to the form. */
@@ -467,6 +467,15 @@ export function NotesPanel({ c }: { c: Client }) {
 
 // ---------------------------------------------------------------- Sales history
 
+function addDays(iso: string, n: number) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function daysBetween(fromIso: string, toIso: string) {
+  return Math.round((Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`)) / 86400000);
+}
+
 export function SalesPanel({ c, extra, canEdit }: { c: Client; extra: SalesExtra; canEdit: boolean }) {
   const { pending, msg, run } = useSave();
   const row = useSave();
@@ -479,6 +488,7 @@ export function SalesPanel({ c, extra, canEdit }: { c: Client; extra: SalesExtra
     periodTo: "",
     invoiceNo: "",
     paidOn: "",
+    dueOn: addDays(c.today, 15),
     note: "",
     extendLicence: false,
     modules: [] as string[],
@@ -493,6 +503,9 @@ export function SalesPanel({ c, extra, canEdit }: { c: Client; extra: SalesExtra
       return { ...x, modules: has ? rest : [...rest, key] };
     });
   const [f, setF] = useState(blank);
+  const [dueTouched, setDueTouched] = useState(false);
+  const [editingDue, setEditingDue] = useState<string | null>(null);
+  const [dueValue, setDueValue] = useState("");
   const [open, setOpen] = useState(false);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [reason, setReason] = useState("");
@@ -524,6 +537,7 @@ export function SalesPanel({ c, extra, canEdit }: { c: Client; extra: SalesExtra
               e.preventDefault();
               run(addSale({ restaurantId: c.id, ...f }), () => {
                 setF(blank);
+                setDueTouched(false);
                 setOpen(false);
               });
             }}
@@ -548,7 +562,7 @@ export function SalesPanel({ c, extra, canEdit }: { c: Client; extra: SalesExtra
                 <input id="sl-amount" className="field" inputMode="decimal" value={f.amount} required onChange={(e) => set({ amount: e.target.value })} />
               </Field>
               <Field label="Sale date" htmlFor="sl-date">
-                <input id="sl-date" type="date" className="field" value={f.saleDate} max={c.today} required onChange={(e) => set({ saleDate: e.target.value })} />
+                <input id="sl-date" type="date" className="field" value={f.saleDate} max={c.today} required onChange={(e) => set(dueTouched ? { saleDate: e.target.value } : { saleDate: e.target.value, dueOn: e.target.value ? addDays(e.target.value, 15) : "" })} />
               </Field>
               <Field label="Invoice number" htmlFor="sl-inv">
                 <input id="sl-inv" className="field" value={f.invoiceNo} maxLength={60} placeholder="As printed on the invoice" onChange={(e) => set({ invoiceNo: e.target.value })} />
@@ -561,6 +575,20 @@ export function SalesPanel({ c, extra, canEdit }: { c: Client; extra: SalesExtra
               </Field>
               <Field label="Paid on (leave empty if not paid)" htmlFor="sl-paid">
                 <input id="sl-paid" type="date" className="field" value={f.paidOn} max={c.today} onChange={(e) => set({ paidOn: e.target.value })} />
+              </Field>
+              <Field label="Payment due on" htmlFor="sl-due" hint={f.paidOn ? "Not needed, the sale is paid." : "Filled in as 15 days after the sale date. Change it if you agreed something else."}>
+                <input
+                  id="sl-due"
+                  type="date"
+                  className="field"
+                  value={f.paidOn ? "" : f.dueOn}
+                  min={f.saleDate || undefined}
+                  disabled={!!f.paidOn}
+                  onChange={(e) => {
+                    setDueTouched(true);
+                    set({ dueOn: e.target.value });
+                  }}
+                />
               </Field>
             </div>
             <fieldset>
@@ -634,6 +662,7 @@ export function SalesPanel({ c, extra, canEdit }: { c: Client; extra: SalesExtra
               <th className="px-4 py-2">Period</th>
               <th className="px-4 py-2 text-right">Amount</th>
               <th className="px-4 py-2">Paid</th>
+              <th className="px-4 py-2">Due</th>
               <th className="px-4 py-2">
                 <span className="sr-only">Actions</span>
               </th>
@@ -687,6 +716,32 @@ export function SalesPanel({ c, extra, canEdit }: { c: Client; extra: SalesExtra
                     </span>
                   )}
                 </td>
+                <td className="whitespace-nowrap px-4 py-2.5">
+                  {s.cancelled || s.paid_on ? (
+                    <span style={{ color: "var(--color-ink-3)" }}>{s.paid_on && !s.cancelled ? "Paid" : ""}</span>
+                  ) : s.due_on ? (
+                    (() => {
+                      const late = daysBetween(s.due_on, c.today);
+                      return (
+                        <>
+                          {late > 0 ? (
+                            <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={toneStyle.bad}>
+                              Overdue {late} {late === 1 ? "day" : "days"}
+                            </span>
+                          ) : (
+                            <span className="text-sm font-semibold">{late === 0 ? "Due today" : `In ${-late} ${late === -1 ? "day" : "days"}`}</span>
+                          )}
+                          <div className="text-xs" style={{ color: "var(--color-ink-3)" }}>
+                            {late > 0 ? "was due " : "due "}
+                            {shortDate(s.due_on)}
+                          </div>
+                        </>
+                      );
+                    })()
+                  ) : (
+                    <span style={{ color: "var(--color-ink-3)" }}>No due date</span>
+                  )}
+                </td>
                 <td className="px-4 py-2.5 text-right">
                   {canEdit && !s.cancelled && (
                     <div className="flex flex-wrap justify-end gap-1">
@@ -699,6 +754,20 @@ export function SalesPanel({ c, extra, canEdit }: { c: Client; extra: SalesExtra
                       >
                         {s.paid_on ? "Mark not paid" : "Mark paid today"}
                       </button>
+                      {!s.paid_on && (
+                        <button
+                          type="button"
+                          className="rounded-lg px-2 py-1.5 text-xs font-semibold"
+                          style={{ color: "var(--color-brand)" }}
+                          disabled={row.pending}
+                          onClick={() => {
+                            setEditingDue(editingDue === s.id ? null : s.id);
+                            setDueValue(s.due_on ?? addDays(s.sale_date, 15));
+                          }}
+                        >
+                          {s.due_on ? "Change due date" : "Set due date"}
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="rounded-lg px-2 py-1.5 text-xs font-semibold"
@@ -712,6 +781,28 @@ export function SalesPanel({ c, extra, canEdit }: { c: Client; extra: SalesExtra
                         Cancel entry
                       </button>
                     </div>
+                  )}
+                  {editingDue === s.id && (
+                    <form
+                      className="mt-2 flex flex-wrap justify-end gap-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        row.run(setSaleDue(s.id, dueValue), () => setEditingDue(null));
+                      }}
+                    >
+                      <label htmlFor={`due-${s.id}`} className="sr-only">
+                        Payment due on
+                      </label>
+                      <input id={`due-${s.id}`} type="date" className="field h-10 w-44" style={{ minHeight: 40 }} value={dueValue} min={s.sale_date} required onChange={(e) => setDueValue(e.target.value)} />
+                      <button type="submit" className="btn h-10 min-h-0 px-3 text-xs" style={dark} disabled={row.pending || !dueValue}>
+                        Save due date
+                      </button>
+                      {s.due_on && (
+                        <button type="button" className="btn h-10 min-h-0 px-3 text-xs" style={ghost} disabled={row.pending} onClick={() => row.run(setSaleDue(s.id, ""), () => setEditingDue(null))}>
+                          Clear
+                        </button>
+                      )}
+                    </form>
                   )}
                   {cancelling === s.id && (
                     <form
@@ -735,7 +826,7 @@ export function SalesPanel({ c, extra, canEdit }: { c: Client; extra: SalesExtra
             ))}
             {c.sales.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center" style={{ color: "var(--color-ink-3)" }}>
+                <td colSpan={8} className="px-4 py-6 text-center" style={{ color: "var(--color-ink-3)" }}>
                   Nothing sold yet.
                 </td>
               </tr>

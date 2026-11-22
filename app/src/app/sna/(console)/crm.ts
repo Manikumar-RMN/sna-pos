@@ -43,6 +43,7 @@ export type Sale = {
   period_to: string | null;
   invoice_no: string | null;
   paid_on: string | null;
+  due_on?: string | null;
   note: string | null;
   cancelled: boolean;
   cancel_reason: string | null;

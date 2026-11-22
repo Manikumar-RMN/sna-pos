@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { createClientAccount, type NewClientResult } from "../actions";
+import { BUSINESS_TYPES } from "@/lib/business-types";
 
 type Country = { code: string; name: string; taxName: string; taxIdLabel: string; note: string };
 
@@ -15,6 +16,7 @@ const blank = {
   branchName: "Main Branch",
   branchCode: "MN",
   taxNo: "",
+  businessType: "restaurant",
   edition: "basic",
   licenceStart: "",
   licenceExpiry: "",
@@ -63,6 +65,11 @@ export function NewClientForm({ countries, canSell }: { countries: Country[]; ca
             <dd className="break-all text-base font-bold">{res.ownerEmail}</dd>
           </div>
         </dl>
+        {res.typeWarning && (
+          <p role="alert" className="rounded-2xl p-4 text-sm font-semibold" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
+            {res.typeWarning}
+          </p>
+        )}
         {res.tempPassword ? (
           <div className="rounded-2xl p-4" style={{ background: "var(--color-warn-soft)" }}>
             <div className="text-xs font-bold" style={{ color: "var(--color-warn)" }}>
@@ -127,6 +134,15 @@ export function NewClientForm({ countries, canSell }: { countries: Country[]; ca
           </Field>
           <Field label={`${country?.taxIdLabel ?? "Tax number"} (optional)`} htmlFor="nc-tax">
             <input id="nc-tax" className="field uppercase" value={f.taxNo} maxLength={f.countryCode === "IN" ? 15 : 30} onChange={(e) => set({ taxNo: e.target.value })} />
+          </Field>
+          <Field label="Type of business" htmlFor="nc-type" hint={`${BUSINESS_TYPES.find((t) => t.key === f.businessType)?.hint ?? ""}. Sets the starting settings and which go-live checklist items apply. It can be changed later on the Plan and outlets tab.`}>
+            <select id="nc-type" className="field" value={f.businessType} onChange={(e) => set({ businessType: e.target.value })}>
+              {BUSINESS_TYPES.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="First outlet" htmlFor="nc-branch">
             <input id="nc-branch" className="field" value={f.branchName} maxLength={120} required onChange={(e) => set({ branchName: e.target.value })} />

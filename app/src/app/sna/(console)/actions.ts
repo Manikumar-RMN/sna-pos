@@ -226,13 +226,15 @@ export async function addSale(input: {
   modules: string[];
   /** Also switch on what was bought. */
   switchOn: boolean;
+  /** When payment is due; used only when the sale is not yet paid. */
+  dueOn?: string;
 }): Promise<SnaResult> {
   const amount = Number(input.amount);
   if (input.amount.trim() === "" || !Number.isFinite(amount)) return { ok: false, error: "Enter the amount as a number." };
   const saleDate = dateOrNull(input.saleDate);
   if (!saleDate) return { ok: false, error: "Enter the sale date." };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("sna_record_sale", {
+  const { data: saleId, error } = await supabase.rpc("sna_record_sale", {
     p_restaurant: input.restaurantId,
     p_kind: input.kind,
     p_description: input.description,
@@ -248,6 +250,11 @@ export async function addSale(input: {
     p_switch_on: input.switchOn && input.modules.length > 0,
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
+  const due = dateOrNull(input.dueOn ?? "");
+  if (due && !dateOrNull(input.paidOn) && saleId) {
+    const { error: dueError } = await supabase.rpc("sna_set_sale_due", { p_id: saleId as string, p_due: due });
+    if (dueError) return done(`Sale recorded, but the due date was not saved: ${friendlyDbError(dueError)}`, clientPath(input.restaurantId));
+  }
   const did = [input.extendLicence ? "the licence end date moved" : "", input.switchOn && input.modules.length > 0 ? "what was bought switched on" : ""].filter(Boolean);
   return done(did.length ? `Sale recorded, ${did.join(" and ")}.` : "Sale recorded.", clientPath(input.restaurantId));
 }
@@ -278,7 +285,7 @@ export async function setReminder(restaurantId: string, on: boolean): Promise<Sn
 // ---------- New client: the only way a restaurant is created
 
 export type NewClientResult =
-  | { ok: true; id: string; clientCode: string; tradingName: string; ownerEmail: string; tempPassword: string | null }
+  | { ok: true; id: string; clientCode: string; tradingName: string; ownerEmail: string; tempPassword: string | null; typeWarning: string | null }
   | { ok: false; error: string };
 
 /** Easy to read out and type: no 0/O, 1/I/L. Three groups of four, e.g. T7KM-9QXP-4HRA. */
@@ -300,6 +307,8 @@ export async function createClientAccount(input: {
   edition: string;
   licenceStart: string;
   licenceExpiry: string;
+  /** Type of business; "restaurant" is what a new client gets anyway. */
+  businessType?: string;
 }): Promise<NewClientResult> {
   const supabase = await createClient();
   // Only SNA staff reach the steps below. (The database checks again.)
@@ -340,6 +349,13 @@ export async function createClientAccount(input: {
   });
   if (error) return { ok: false, error: friendlyDbError(error) };
   const made = data as unknown as { id: string; client_code: string; owner_email: string; kept_password: boolean };
+  // 3. The type of business, with its starting settings on the first outlet. A failure here
+  //    does not undo the client; the type can still be set on the Plan tab.
+  let typeWarning: string | null = null;
+  if (input.businessType && input.businessType !== "restaurant") {
+    const { error: typeError } = await supabase.rpc("sna_set_business_type", { p_restaurant: made.id, p_type: input.businessType, p_apply: true });
+    if (typeError) typeWarning = `The type of business was not saved (${friendlyDbError(typeError)}). Set it on the client's Plan and outlets tab.`;
+  }
   revalidatePath("/sna", "layout");
   return {
     ok: true,
@@ -348,6 +364,7 @@ export async function createClientAccount(input: {
     tradingName: input.tradingName.trim(),
     ownerEmail: made.owner_email,
     tempPassword: made.kept_password ? null : tempPassword,
+    typeWarning,
   };
 }
 
