@@ -151,6 +151,19 @@ export async function BillScreen({
     if (it.order_item_id && it.kitchen_tickets) lineKot[it.order_item_id] = { no: it.kitchen_tickets.ticket_number, at: it.kitchen_tickets.created_at };
   }
 
+  // On a table order the guest form lives on the Bill screen (as in Winsar); delivery, parcel and token orders keep it on the order panel.
+  const guestInBill = embedded && r.orderType === "dine_in";
+  const guestEl = (
+      <GuestDetails
+        orderId={bill.id}
+        token={r.token ?? null}
+        guest={r.guest ?? null}
+        delivery={r.orderType === "delivery"}
+        showPoints={has(user, "loyalty")}
+        canEdit={r.state !== "voided" && !bill.dayClosed && can(user, "order.create")}
+      />
+  );
+
   return (
     <div className={embedded ? "flex flex-col gap-3 [&_.max-w-sm]:max-w-[302px]" : undefined}>
       <div className={embedded ? "order-2" : undefined}>
@@ -185,16 +198,7 @@ export async function BillScreen({
         </div>
       )}
 
-      <BillingOnly orderId={bill.id} billed={billed} embedded={embedded} always={r.orderType !== "dine_in"}>
-      <GuestDetails
-        orderId={bill.id}
-        token={r.token ?? null}
-        guest={r.guest ?? null}
-        delivery={r.orderType === "delivery"}
-        showPoints={has(user, "loyalty")}
-        canEdit={r.state !== "voided" && !bill.dayClosed && can(user, "order.create")}
-      />
-      </BillingOnly>
+      {!guestInBill && guestEl}
 
       <BillingOnly orderId={bill.id} billed={billed} embedded={embedded}>
       <ReceiptView
@@ -283,6 +287,7 @@ export async function BillScreen({
       </div>
 
       <BillActions
+        guestPanel={guestInBill ? guestEl : undefined}
         totals={{ subtotal: r.subtotal, discount: r.discount, tax: r.taxTotal }}
         orderId={bill.id}
         billNumber={r.billNumber}

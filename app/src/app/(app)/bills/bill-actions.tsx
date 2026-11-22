@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { money, roundCash, billRef, billRefLc, isOrderRef } from "@/lib/format";
@@ -50,6 +50,7 @@ export function BillActions({
   dayClosed = false,
   heldCount = 0,
   buyer = null,
+  guestPanel,
   taxIdLabel = "GSTIN",
   paymentList = [],
   upiPayee = null,
@@ -105,6 +106,8 @@ export function BillActions({
   heldCount?: number;
   /** B2B customer on the bill (India: GSTIN). Undefined hides the panel. */
   buyer?: { taxId: string; name: string | null } | null;
+  /** The guest details form, shown inside the Bill screen on a table order (the server page passes it in). */
+  guestPanel?: ReactNode;
   taxIdLabel?: string;
   paymentList?: PaymentRow[];
   /** Name shown in the customer's UPI app (India). Null hides the QR. */
@@ -378,6 +381,31 @@ export function BillActions({
   const showBuyer = buyer !== undefined && state !== "voided" && !dayClosed && (canPay || canVoid);
   const showFire = open && heldCount > 0 && !dayClosed;
   if (!showPay && !showRefund && !showVoid && !showFix && !showBuyer && !showFire && !showReopen && !canKots && !notice) return null;
+
+  const buyerBlock = showBuyer ? (
+        <details className="card p-4" open={!!buyer}>
+          <summary className="cursor-pointer text-sm font-bold">Business customer ({taxIdLabel} on the bill)</summary>
+          <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
+            For a company that wants to claim the tax back. Printed on the bill and listed in the GST register.
+          </p>
+          <input
+            className="field mt-3 h-10 text-sm uppercase"
+            placeholder={`${taxIdLabel}, e.g. 33AAACA0000A1Z5`}
+            maxLength={15}
+            value={buyerId}
+            onChange={(e) => setBuyerId(e.target.value.toUpperCase())}
+          />
+          <input className="field mt-2 h-10 text-sm" placeholder="Business name" maxLength={120} value={buyerName} onChange={(e) => setBuyerName(e.target.value)} />
+          <button
+            className="btn mt-3 w-full border text-sm"
+            style={{ borderColor: "var(--color-line)" }}
+            disabled={pending || (buyerId.trim() !== "" && buyerName.trim() === "")}
+            onClick={() => run(() => setBillCustomer({ orderId, taxId: buyerId, name: buyerName }))}
+          >
+            {pending ? "Saving…" : buyer && !buyerId.trim() ? "Remove from bill" : "Save on bill"}
+          </button>
+        </details>
+  ) : null;
 
   return (
     <div className="no-print mx-auto mt-4 max-w-sm space-y-3">
@@ -660,6 +688,24 @@ export function BillActions({
           )}
 
           {(error || notice) && <p className="text-sm" style={{ color: error ? "var(--color-bad)" : undefined }}>{error ?? notice}</p>}
+
+          {(buyerBlock || guestPanel) && (
+            <section className="card space-y-3 p-3" aria-label="Customer">
+              <h3 className="text-sm font-bold">Customer</h3>
+              {guestPanel}
+              {buyerBlock}
+              {error && (
+                <p role="alert" className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
+                  {error}
+                </p>
+              )}
+              {notice && (
+                <p role="status" className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: "var(--color-ok-soft)", color: "var(--color-ok)" }}>
+                  {notice}
+                </p>
+              )}
+            </section>
+          )}
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
             <button type="button" className="btn btn-primary text-sm" disabled={pending || !!splitBlocked || splitCount === 0 || splitCount >= lines.reduce((t, l) => t + l.qty, 0)} onClick={runSplit}>
@@ -1493,30 +1539,7 @@ export function BillActions({
         </PanelFrame>
       )}
 
-      {showBuyer && (
-        <details className={`card p-4${billingMode ? "" : " hidden!"}`} open={!!buyer}>
-          <summary className="cursor-pointer text-sm font-bold">Business customer ({taxIdLabel} on the bill)</summary>
-          <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-            For a company that wants to claim the tax back. Printed on the bill and listed in the GST register.
-          </p>
-          <input
-            className="field mt-3 h-10 text-sm uppercase"
-            placeholder={`${taxIdLabel}, e.g. 33AAACA0000A1Z5`}
-            maxLength={15}
-            value={buyerId}
-            onChange={(e) => setBuyerId(e.target.value.toUpperCase())}
-          />
-          <input className="field mt-2 h-10 text-sm" placeholder="Business name" maxLength={120} value={buyerName} onChange={(e) => setBuyerName(e.target.value)} />
-          <button
-            className="btn mt-3 w-full border text-sm"
-            style={{ borderColor: "var(--color-line)" }}
-            disabled={pending || (buyerId.trim() !== "" && buyerName.trim() === "")}
-            onClick={() => run(() => setBillCustomer({ orderId, taxId: buyerId, name: buyerName }))}
-          >
-            {pending ? "Saving…" : buyer && !buyerId.trim() ? "Remove from bill" : "Save on bill"}
-          </button>
-        </details>
-      )}
+      {!embedded && buyerBlock}
 
       {showFix && fixRow && (!embedded || win === "fix") && (
         <PanelFrame modal={embedded} title="Change payment mode" error={error} notice={notice} onClose={() => setWin(null)}>
