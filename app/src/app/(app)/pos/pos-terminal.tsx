@@ -2392,12 +2392,12 @@ export function PosTerminal({
             {repeating ? "…" : "Repeat"}
           </WinBtn>
           {billOrder ? (
-            <WinBtn tone="#1D4F9F" title="Open the Check screen of this bill: split, discount, settle" onClick={() => window.dispatchEvent(new Event("sna-desk-check"))}>
-              Check ✓
+            <WinBtn tone="#1D4F9F" title="Open the Bill screen: split, discount, settle" onClick={() => window.dispatchEvent(new Event("sna-desk-check"))}>
+              Bill
             </WinBtn>
           ) : (
             <WinBtn tone="#1D4F9F" disabled={!deskTableId} title={deskTableId ? "Open the bill of this table" : "The bill opens once the first KOT is saved"} onClick={() => deskTableId && router.push("/pos")}>
-              Check ✓
+              Bill
             </WinBtn>
           )}
           <WinBtn

@@ -581,9 +581,9 @@ export function BillActions({
       )}
 
       {embedded && checkOpen && showPay && createPortal(
-        <div className="fixed inset-0 z-[60] flex flex-col gap-3 overflow-y-auto p-3" style={{ background: "var(--color-surface-2, #f6f3ea)" }} role="dialog" aria-label="Check">
+        <div className="fixed inset-0 z-[60] flex flex-col gap-3 overflow-y-auto p-3" style={{ background: "var(--color-surface-2, #f6f3ea)" }} role="dialog" aria-label="Bill">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-base font-bold">Check · {billRefLc(isOrderRef(billNumber) && givenNo ? givenNo : billNumber)}</div>
+            <div className="text-base font-bold">Bill · {billRefLc(isOrderRef(billNumber) && givenNo ? givenNo : billNumber)}</div>
             <div className="flex items-center gap-2">
               {discTools && (
                 <button type="button" className="btn border text-sm" style={{ borderColor: discTools.noTax ? "var(--color-brand)" : "var(--color-line)" }} onClick={() => setPanel("itemdisc")} title="Take the tax off this bill (needs the owner's permission for this outlet)">
