@@ -256,7 +256,7 @@ export function ReceiptView({
 
   return (
     <div
-      className={hideBack && estimate ? "fixed inset-0 z-[70] overflow-y-auto p-4 [&>*]:mx-auto " : "mx-auto max-w-sm"}
+      className={hideBack && estimate ? "fixed inset-0 z-[80] overflow-y-auto p-4 [&>*]:mx-auto " : "mx-auto max-w-sm"}
       style={hideBack && estimate ? { background: "rgba(10,8,20,.55)" } : undefined}
     >
       <style>{`

@@ -638,7 +638,7 @@ export function BillActions({
 
           {splitBlocked && <p className="rounded-md border p-2 text-xs" style={{ borderColor: "var(--color-line)", color: "var(--color-ink-3)" }}>{splitBlocked}</p>}
 
-          <div className="grid min-h-0 gap-3 md:grid-cols-2">
+          <div className="grid shrink-0 gap-3 md:grid-cols-2">
             {([1, 2] as const).map((n) => {
               const rows = lines
                 .map((l) => ({ l, q: n === 1 ? l.qty - (splitQty[l.id] ?? 0) : splitQty[l.id] ?? 0 }))
@@ -1741,7 +1741,7 @@ export function BillActions({
 function PanelFrame({ modal, title, error, notice, onClose, children }: { modal: boolean; title: string; error: string | null; notice: string | null; onClose: () => void; children: React.ReactNode }) {
   if (!modal) return <>{children}</>;
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+    <div className="fixed inset-0 z-[70] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
       <div className="card max-h-[calc(85vh/var(--z))] w-full max-w-md overflow-y-auto p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold">{title}</h2>
