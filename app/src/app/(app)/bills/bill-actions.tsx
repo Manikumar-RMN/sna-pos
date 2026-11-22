@@ -51,6 +51,8 @@ export function BillActions({
   heldCount = 0,
   buyer = null,
   guestPanel,
+  loyaltyPanel,
+  sharePanel,
   taxIdLabel = "GSTIN",
   paymentList = [],
   upiPayee = null,
@@ -108,6 +110,10 @@ export function BillActions({
   buyer?: { taxId: string; name: string | null } | null;
   /** The guest details form, shown inside the Bill screen on a table order (the server page passes it in). */
   guestPanel?: ReactNode;
+  /** Loyalty and gift cards, shown inside the Bill screen on a table order. */
+  loyaltyPanel?: ReactNode;
+  /** Send the bill on WhatsApp, shown inside the Bill screen on a table order. */
+  sharePanel?: ReactNode;
   taxIdLabel?: string;
   paymentList?: PaymentRow[];
   /** Name shown in the customer's UPI app (India). Null hides the QR. */
@@ -689,11 +695,13 @@ export function BillActions({
 
           {(error || notice) && <p className="text-sm" style={{ color: error ? "var(--color-bad)" : undefined }}>{error ?? notice}</p>}
 
-          {(buyerBlock || guestPanel) && (
+          {(buyerBlock || guestPanel || loyaltyPanel || sharePanel) && (
             <section className="card space-y-3 p-3" aria-label="Customer">
               <h3 className="text-sm font-bold">Customer</h3>
               {guestPanel}
               {buyerBlock}
+              {loyaltyPanel}
+              {sharePanel}
               {error && (
                 <p role="alert" className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: "var(--color-bad-soft)", color: "var(--color-bad)" }}>
                   {error}

@@ -153,6 +153,44 @@ export async function BillScreen({
 
   // On a table order the guest form lives on the Bill screen (as in Winsar); delivery, parcel and token orders keep it on the order panel.
   const guestInBill = embedded && r.orderType === "dine_in";
+  // Winsar keeps the customer and bill tools inside the Check (Bill) screen; SNA does the same on a table order.
+  const panelsInBill = embedded;
+  const loyaltyEl = (
+    <>
+      {has(user, "loyalty") && r.state !== "voided" && (
+        <FoldIf on={embedded} label="Loyalty and gift cards">
+        <LoyaltyPanel
+          orderId={bill.id}
+          open={open}
+          canPay={can(user, "payment.take")}
+          currency={r.currency}
+          guest={guest}
+          settings={redeemSettings}
+          applied={loyalApplied}
+          pool={pool}
+          manualDiscount={bill.adjust.discount}
+          due={bill.balance}
+          senior={bill.adjust.senior}
+          hasPayments={r.payments.length > 0}
+        />
+        </FoldIf>
+      )}
+
+    </>
+  );
+  const shareEl = (
+    <>
+      {has(user, "whatsapp") && r.state !== "voided" && (
+        <FoldIf on={embedded} label="Send bill on WhatsApp">
+          <WhatsAppShare
+            orderId={bill.id}
+            country={user.country_code}
+            text={`${user.trading_name} — ${billRefLc(r.billNumber)}, total ${money(r.grandTotal, r.currency)}.`}
+          />
+        </FoldIf>
+      )}
+    </>
+  );
   const guestEl = (
       <GuestDetails
         orderId={bill.id}
@@ -208,6 +246,7 @@ export async function BillScreen({
         showNextBill={from === "pos" && !open}
         orderId={bill.id}
         hideBack={embedded}
+        hidePreview={embedded}
       />
       </BillingOnly>
 
@@ -245,49 +284,24 @@ export async function BillScreen({
         </div>
       )}
 
-      <BillingOnly orderId={bill.id} billed={billed} embedded={embedded}>
-      {has(user, "loyalty") && r.state !== "voided" && (
-        <FoldIf on={embedded} label="Loyalty and gift cards">
-        <LoyaltyPanel
-          orderId={bill.id}
-          open={open}
-          canPay={can(user, "payment.take")}
-          currency={r.currency}
-          guest={guest}
-          settings={redeemSettings}
-          applied={loyalApplied}
-          pool={pool}
-          manualDiscount={bill.adjust.discount}
-          due={bill.balance}
-          senior={bill.adjust.senior}
-          hasPayments={r.payments.length > 0}
-        />
-        </FoldIf>
-      )}
-
+      {!panelsInBill && loyaltyEl}
       {open && accounts && (
         <AccountPanel
           orderId={bill.id}
           currency={r.currency}
+          askedOnly={embedded}
           accounts={accounts as unknown as { id: string; name: string; phone: string | null; company: string | null; limit: number | null; balance: number }[]}
         />
       )}
 
-      {has(user, "whatsapp") && r.state !== "voided" && (
-        <FoldIf on={embedded} label="Send bill on WhatsApp">
-          <WhatsAppShare
-            orderId={bill.id}
-            country={user.country_code}
-            text={`${user.trading_name} — ${billRefLc(r.billNumber)}, total ${money(r.grandTotal, r.currency)}.`}
-          />
-        </FoldIf>
-      )}
-      </BillingOnly>
+      {!panelsInBill && shareEl}
 
       </div>
 
       <BillActions
         guestPanel={guestInBill ? guestEl : undefined}
+        loyaltyPanel={panelsInBill ? loyaltyEl : undefined}
+        sharePanel={panelsInBill ? shareEl : undefined}
         totals={{ subtotal: r.subtotal, discount: r.discount, tax: r.taxTotal }}
         orderId={bill.id}
         billNumber={r.billNumber}

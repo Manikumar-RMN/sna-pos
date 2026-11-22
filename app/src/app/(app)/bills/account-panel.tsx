@@ -8,7 +8,7 @@ import { chargeToAccount } from "../accounts/actions";
 type Acc = { id: string; name: string; phone: string | null; company: string | null; limit: number | null; balance: number };
 
 /** On an unpaid bill: charge what is left to a customer's credit account (pay later). */
-export function AccountPanel({ orderId, accounts, currency }: { orderId: string; accounts: Acc[]; currency: string }) {
+export function AccountPanel({ orderId, accounts, currency, askedOnly = false }: { orderId: string; accounts: Acc[]; currency: string; askedOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +26,8 @@ export function AccountPanel({ orderId, accounts, currency }: { orderId: string;
   }, []);
   const usable = accounts.filter((a) => a.limit != null);
   if (usable.length === 0) return null;
+  // Table orders: no button on the order panel; the Bill screen's Company button opens this box.
+  if (askedOnly && !open) return null;
   const shown = usable.filter((a) => !q.trim() || `${a.name} ${a.phone ?? ""} ${a.company ?? ""}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 8);
   return (
     <div ref={boxRef} className="no-print card mx-auto mt-3 max-w-sm p-4">

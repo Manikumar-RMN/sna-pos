@@ -95,6 +95,7 @@ export function ReceiptView({
   showNextBill = true,
   orderId,
   hideBack = false,
+  hidePreview = false,
 }: {
   data: ReceiptData;
   backHref?: string;
@@ -104,6 +105,8 @@ export function ReceiptView({
   orderId?: string;
   /** The single order screen shows the receipt in a side panel and has its own way back. */
   hideBack?: boolean;
+  /** Table orders: the Bill screen has Estimate and Print, so the panel needs no Preview button. */
+  hidePreview?: boolean;
 }) {
   const router = useRouter();
   // The first print of an order gives it its bill number (migration 258): the paper must carry that number, not the order reference.
@@ -309,7 +312,7 @@ export function ReceiptView({
           </span>
         </div>
       )}
-      <div className={`no-print mb-3 items-center ${hideBack ? (estimate ? "hidden" : "flex") : "flex justify-between"}`}>
+      <div className={`no-print mb-3 items-center ${hideBack ? (estimate || hidePreview ? "hidden" : "flex") : "flex justify-between"}`}>
         {!hideBack && (
           <Link href={backHref} className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
             ← {backLabel}
