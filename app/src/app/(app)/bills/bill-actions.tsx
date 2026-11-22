@@ -5,7 +5,6 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from "reac
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { money, roundCash, billRef, billRefLc, isOrderRef } from "@/lib/format";
-import { useBillingMode } from "./billing-mode";
 import { parseDiscountInput } from "@/lib/discount";
 import { UpiQr } from "../upi-qr";
 import { Dual } from "../lang";
@@ -172,7 +171,6 @@ export function BillActions({
   const [panel, setPanel] = useState<Panel>(null);
   const [checkOpen, setCheckOpen] = useState(false);
   // On the order screen the billing buttons wait until the bill is made (Bill pressed, or a real bill number).
-  const billingMode = useBillingMode(orderId, !isOrderRef(billNumber), embedded);
   // The bill number given when the bill is printed shows on the Check heading at once, without waiting for the page to reload.
   const [givenNo, setGivenNo] = useState<string | null>(null);
   useEffect(() => {
@@ -879,11 +877,7 @@ export function BillActions({
                 + Add items
               </Link>
             )}
-            {embedded && (
-              <button type="button" className={`btn btn-pay col-span-2 text-sm${billingMode ? "" : " hidden!"}`} onClick={() => setWin("pay")}>
-                Settle · {m(balance)}
-              </button>
-            )}
+            {/* Table orders take the money from the Bill screen (Settle, Settlement screen), as in Winsar: no second route here. */}
             {!embedded && (<>
             <PanelButton label="Split bill" active={panel === "split"} onClick={() => setPanel(panel === "split" ? null : "split")} />
             <PanelButton label="Move table" active={panel === "move"} onClick={() => setPanel(panel === "move" ? null : "move")} />
@@ -1739,11 +1733,6 @@ export function BillActions({
         </PanelFrame>
       )}
 
-      {embedded && showPay && (
-        <Link href={`/bills/settle/${orderId}`} className={`btn order-last w-full border text-center text-sm${billingMode ? "" : " hidden!"}`} style={{ borderColor: "var(--color-brand)", color: "var(--color-brand-strong)" }} title="The full settlement screen: several payments, tips and a running balance">
-          Settlement screen
-        </Link>
-      )}
     </div>
   );
 }
