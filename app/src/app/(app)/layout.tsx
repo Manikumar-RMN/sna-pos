@@ -57,7 +57,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const visibleLinksAll = [
     { href: "/dashboard", label: "Home", show: true },
     { href: "/owner", label: "Owner", show: misOn && (has(user, "owner_app") && can(user, "report.view_sales")) },
-    { href: "/pos", label: "Bill", show: posOn && (can(user, "order.create")) },
+    { href: "/pos", label: "KOT", show: posOn && (can(user, "order.create")) },
     { href: "/captain", label: "Captain", show: posOn && (can(user, "order.create")) },
     { href: "/preorders", label: "Pre-orders", show: posOn && (can(user, "order.create")) },
     { href: "/deliveries", label: "Deliveries", show: posOn && (can(user, "order.create")) },
