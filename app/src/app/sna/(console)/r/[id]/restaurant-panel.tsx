@@ -166,7 +166,10 @@ export function RestaurantPanel({ r, role }: { r: SnaRestaurant; role: string })
               <span>
                 <span className="font-semibold">{eventLabel(e.event)}</span>
                 {e.by ? ` · ${e.by}` : ""}
-                {e.details && (e.details as { note?: string }).note ? ` — ${(e.details as { note?: string }).note}` : ""}
+                {e.details && (e.details as { override?: boolean }).override ? " (with checklist items still open)" : ""}
+                {e.details && ((e.details as { note?: string }).note || (e.details as { reason?: string }).reason)
+                  ? ` — ${(e.details as { note?: string }).note ?? (e.details as { reason?: string }).reason}`
+                  : ""}
               </span>
             </li>
           );

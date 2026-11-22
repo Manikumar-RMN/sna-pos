@@ -360,6 +360,14 @@ export async function setLive(restaurantId: string, live: boolean, reason: strin
   return done(live ? "Marked as Live. Its data can no longer be erased." : "Live taken off. Its data can be erased again.", clientPath(restaurantId));
 }
 
+/** Tick or untick one item on the go-live checklist. Who and when are kept by the database. */
+export async function goLiveTick(restaurantId: string, item: string, on: boolean, note: string): Promise<SnaResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("sna_golive_tick", { p_restaurant: restaurantId, p_item: item, p_on: on, p_note: note.trim() || undefined });
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  return done(on ? "Ticked." : "Unticked.", clientPath(restaurantId));
+}
+
 export async function eraseData(input: {
   restaurantId: string;
   posTx: boolean;

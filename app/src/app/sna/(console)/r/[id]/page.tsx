@@ -5,6 +5,7 @@ import { money } from "@/lib/format";
 import { RestaurantPanel, type SnaRestaurant } from "./restaurant-panel";
 import { AccountPanel, ContactsPanel, NotesPanel, SalesPanel } from "./client-book";
 import { ErasePanel, type ErasePreview } from "./erase-panel";
+import { GoLiveLine, GoLivePanel, type GoLiveStatus } from "./golive-panel";
 import { clientState, licenceState, shortDate, toneStyle, type Client, type LicenceNow, type SalesExtra } from "../../crm";
 
 const TABS = [
@@ -13,26 +14,29 @@ const TABS = [
   { key: "notes", label: "Notes and follow-up" },
   { key: "sales", label: "Sales history" },
   { key: "plan", label: "Plan and outlets" },
-  { key: "erase", label: "Go-live and erase" },
+  { key: "golive", label: "Go-live" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
 /** One client: who they are, where their licence stands, and everything SNA has noted or sold. */
 export default async function SnaClientPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { id } = await params;
-  const { tab: asked } = await searchParams;
+  const { tab: askedRaw } = await searchParams;
+  // Older links used tab=erase; the erase section now sits inside the Go-live tab.
+  const asked = askedRaw === "erase" ? "golive" : askedRaw;
   const tab: TabKey = TABS.some((t) => t.key === asked) ? (asked as TabKey) : "overview";
   // An address that is not a client id is simply "not found", not a database error on screen.
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
 
   const supabase = await createClient();
-  const [{ data, error }, { data: me }, plan, { data: lic0 }, extra, preview] = await Promise.all([
+  const [{ data, error }, { data: me }, plan, { data: lic0 }, extra, preview, golive] = await Promise.all([
     supabase.rpc("sna_client", { p_id: id }),
     supabase.rpc("sna_me"),
     tab === "plan" ? supabase.rpc("sna_restaurant", { p_id: id }) : Promise.resolve({ data: null, error: null }),
     supabase.rpc("sna_licence", { p_id: id }),
     tab === "sales" ? supabase.rpc("sna_sales_list", { p_id: id }) : Promise.resolve({ data: null, error: null }),
-    tab === "erase" ? supabase.rpc("sna_erase_preview", { p_id: id }) : Promise.resolve({ data: null, error: null }),
+    tab === "golive" ? supabase.rpc("sna_erase_preview", { p_id: id }) : Promise.resolve({ data: null, error: null }),
+    tab === "golive" || tab === "overview" ? supabase.rpc("sna_golive_status", { p_id: id }) : Promise.resolve({ data: null, error: null }),
   ]);
   if (error?.message?.includes("not found")) notFound();
   if (error || !data) return <div className="card p-5 text-sm">{error?.message ?? "Could not load."}</div>;
@@ -118,16 +122,29 @@ export default async function SnaClientPage({ params, searchParams }: { params: 
       </nav>
 
       <div className="mt-4">
-        {tab === "overview" && <AccountPanel c={c} now={now} canEdit={canSell} />}
+        {tab === "overview" && (
+          <div className="space-y-4">
+            {golive.data && <GoLiveLine restaurantId={c.id} st={golive.data as unknown as GoLiveStatus} />}
+            <AccountPanel c={c} now={now} canEdit={canSell} />
+          </div>
+        )}
         {tab === "contacts" && <ContactsPanel c={c} />}
         {tab === "notes" && <NotesPanel c={c} />}
         {tab === "sales" && <SalesPanel c={c} extra={salesExtra} canEdit={canSell} />}
-        {tab === "erase" &&
-          (preview.data ? (
-            <ErasePanel restaurantId={c.id} p={preview.data as unknown as ErasePreview} isAdmin={role === "admin"} />
-          ) : (
-            <div className="card p-5 text-sm">{preview.error?.message ?? "Could not load."}</div>
-          ))}
+        {tab === "golive" && (
+          <div className="space-y-4">
+            {golive.data ? (
+              <GoLivePanel restaurantId={c.id} st={golive.data as unknown as GoLiveStatus} isAdmin={role === "admin"} />
+            ) : (
+              <div className="card p-5 text-sm">{golive.error?.message ?? "Could not load the checklist."}</div>
+            )}
+            {preview.data ? (
+              <ErasePanel restaurantId={c.id} p={preview.data as unknown as ErasePreview} isAdmin={role === "admin"} />
+            ) : (
+              <div className="card p-5 text-sm">{preview.error?.message ?? "Could not load."}</div>
+            )}
+          </div>
+        )}
         {tab === "plan" &&
           (plan.data ? (
             <RestaurantPanel r={plan.data as unknown as SnaRestaurant} role={role} />

@@ -9135,6 +9135,11 @@ export type Database = {
         Returns: Json
       }
       sna_erase_preview: { Args: { p_id: string }; Returns: Json }
+      sna_golive_status: { Args: { p_id: string }; Returns: Json }
+      sna_golive_tick: {
+        Args: { p_item: string; p_note?: string; p_on: boolean; p_restaurant: string }
+        Returns: undefined
+      }
       sna_licence: { Args: { p_id: string }; Returns: Json }
       sna_me: { Args: never; Returns: Json }
       sna_record_sale: {

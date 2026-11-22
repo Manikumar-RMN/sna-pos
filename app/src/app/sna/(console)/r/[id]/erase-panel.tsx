@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { eraseData, setLive, type SnaResult } from "../../actions";
-import { indiaDateTime, toneStyle } from "../../crm";
+import { toneStyle } from "../../crm";
 
 type Group = { rows: number; tables: Record<string, number> };
 export type ErasePreview = {
@@ -51,7 +51,6 @@ export function ErasePanel({ restaurantId, p, isAdmin }: { restaurantId: string;
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [offReason, setOffReason] = useState("");
-  const [askLive, setAskLive] = useState(false);
 
   // The erase, in three steps: which part → transactions or masters → confirm.
   const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
@@ -93,63 +92,38 @@ export function ErasePanel({ restaurantId, p, isAdmin }: { restaurantId: string;
           <Said msg={msg} />
         </div>
       )}
-      {/* ------------------------------------------------ Live switch */}
-      <div className="card space-y-3 p-5">
-        <h2 className="font-display text-lg font-bold">Go-live</h2>
-        <div role="status" className="rounded-2xl px-4 py-3 text-sm font-semibold" style={p.live ? toneStyle.ok : toneStyle.warn}>
-          {p.live
-            ? `Live since ${p.live_at ? indiaDateTime(p.live_at) : ""}${p.live_by ? `, marked by ${p.live_by}` : ""}. Its data cannot be erased.`
-            : "Not live yet. Bills made now are treated as test or training data and can be erased below."}
-        </div>
-        {!p.live &&
-          (askLive ? (
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="font-semibold">Mark {p.trading_name} as Live? After this its data cannot be erased, and only an SNA admin can undo it.</span>
-              <button type="button" className="btn h-10 min-h-0 px-4 text-sm" style={dark} disabled={pending} onClick={() => run(setLive(restaurantId, true, ""), () => setAskLive(false))}>
-                Yes, mark as Live
-              </button>
-              <button type="button" className="btn h-10 min-h-0 px-4 text-sm" style={ghost} disabled={pending} onClick={() => setAskLive(false)}>
-                Not yet
-              </button>
-            </div>
-          ) : (
-            <button type="button" className="btn px-5" style={dark} onClick={() => setAskLive(true)}>
-              Mark as Live
-            </button>
-          ))}
-        {p.live &&
-          (isAdmin ? (
-            <form
-              className="flex flex-wrap items-end gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                run(setLive(restaurantId, false, offReason), () => setOffReason(""));
-              }}
-            >
-              <div className="min-w-0 flex-1 basis-72">
-                <label htmlFor="live-off-reason" className="mb-1 block text-xs font-bold" style={{ color: "var(--color-ink-2)" }}>
-                  Take Live off (admin only). Why?
-                </label>
-                <input id="live-off-reason" className="field" value={offReason} maxLength={300} required minLength={5} placeholder="e.g. marked live by mistake" onChange={(e) => setOffReason(e.target.value)} />
-              </div>
-              <button type="submit" className="btn px-4" style={ghost} disabled={pending || offReason.trim().length < 5}>
-                Take Live off
-              </button>
-            </form>
-          ) : (
-            <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-              Only an SNA admin can take Live off.
-            </p>
-          ))}
-      </div>
-
-      {/* ------------------------------------------------ Erase */}
+      {/* ------------------------------------------------ Erase (the Live switch is now in the checklist above) */}
       <div className="card space-y-4 p-5">
         <h2 className="font-display text-lg font-bold">Erase data</h2>
         {p.live ? (
-          <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
-            This client is live. These are real bills that the restaurant must keep, so nothing can be erased.
-          </p>
+          <>
+            <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
+              This client is live. These are real bills that the restaurant must keep, so nothing can be erased.
+            </p>
+            {isAdmin ? (
+              <form
+                className="flex flex-wrap items-end gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  run(setLive(restaurantId, false, offReason), () => setOffReason(""));
+                }}
+              >
+                <div className="min-w-0 flex-1 basis-72">
+                  <label htmlFor="live-off-reason" className="mb-1 block text-xs font-bold" style={{ color: "var(--color-ink-2)" }}>
+                    Take Live off (admin only). Why?
+                  </label>
+                  <input id="live-off-reason" className="field" value={offReason} maxLength={300} required minLength={5} placeholder="e.g. marked live by mistake" onChange={(e) => setOffReason(e.target.value)} />
+                </div>
+                <button type="submit" className="btn px-4" style={ghost} disabled={pending || offReason.trim().length < 5}>
+                  Take Live off
+                </button>
+              </form>
+            ) : (
+              <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
+                Only an SNA admin can take Live off.
+              </p>
+            )}
+          </>
         ) : step === 0 ? (
           <>
             <p className="text-sm" style={{ color: "var(--color-ink-2)" }}>
