@@ -58,7 +58,7 @@ export const REPORT_LINKS: ReportLink[] = [
   { group: "Purchase and inventory", href: "/reports/supplier-ageing", title: "Supplier ageing", blurb: "What you owe each supplier, by how many days past the due date.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/rate-variance", title: "Rate variance", blurb: "Price paid against the rate agreed with the supplier.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/issues", title: "Issues and department use", blurb: "Stock issued to kitchen, bar and other departments, with totals.", need: "stock" },
-  { group: "Purchase and inventory", href: "/reports/requests", title: "Request and requisition status", blurb: "Stock requests still to be issued and purchase requisitions and their orders.", need: "stock" },
+  { group: "Purchase and inventory", href: "/reports/requests", title: "Stock and purchase request status", blurb: "Stock requests still to be issued and purchase requests and their orders.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/count-variance", title: "Stock count variance", blurb: "Where a stock count found more or less than the system, with value.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/non-moving", title: "Non-moving stock", blurb: "Stock that has not been used for a number of days.", need: "stock" },
   { group: "Purchase and inventory", href: "/reports/high-value-stock", title: "High-value stock", blurb: "Stock worth at least an amount you choose.", need: "stock" },

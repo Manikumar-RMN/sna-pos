@@ -20,17 +20,17 @@ export async function sendRequisition(input: { lines: { ingredient_id: string; q
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases/requisitions");
   const r = (data ?? {}) as { number?: string };
-  return { ok: true, message: `${r.number ?? "Requisition"} sent for approval.` };
+  return { ok: true, message: `${r.number ?? "Purchase request"} sent for approval.` };
 }
 
 export async function decideRequisition(id: string, action: "approve" | "reject" | "cancel", reason: string): Promise<PrResult> {
-  if (!UUID.test(id)) return { ok: false, error: "Requisition not found." };
+  if (!UUID.test(id)) return { ok: false, error: "Purchase request not found." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("decide_requisition", { p_id: id, p_action: action, p_reason: reason || (undefined as unknown as string) });
   if (error) return { ok: false, error: friendlyDbError(error) };
   revalidatePath("/purchases/requisitions");
   const r = (data ?? {}) as { number?: string };
-  return { ok: true, message: `${r.number ?? "Requisition"} ${action === "approve" ? "approved" : action === "reject" ? "turned down" : "withdrawn"}.` };
+  return { ok: true, message: `${r.number ?? "Purchase request"} ${action === "approve" ? "approved" : action === "reject" ? "turned down" : "withdrawn"}.` };
 }
 
 export async function makeOrder(id: string, supplierId: string): Promise<PrResult> {

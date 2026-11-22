@@ -48,7 +48,7 @@ export default async function RequisitionsPage() {
       <Link href="/purchases" className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
         ← Purchases
       </Link>
-      <h1 className="mt-2 text-xl font-bold tracking-tight">Purchase requisitions · {user.branch_name}</h1>
+      <h1 className="mt-2 text-xl font-bold tracking-tight">Purchase requests · {user.branch_name}</h1>
       <p className="mt-1 mb-5 text-sm" style={{ color: "var(--color-ink-3)" }}>
         Ask to buy something. A manager approves it, then it becomes a purchase order. Costs shown are the current cost of each ingredient, so the total is an estimate.
       </p>

@@ -27,7 +27,7 @@ export function RulesBoard({ canEdit, initial }: { canEdit: boolean; initial: Ru
     <div className="card divide-y px-4" style={{ borderColor: "var(--color-line)" }}>
       <Row title="Allow receiving goods without an order" text="Untick to make staff choose a purchase order for every delivery." checked={r.direct} on={(v) => upd({ direct: v })} />
       <Row title="Allow receiving more than was ordered" text="Untick to stop a delivery from going over what is still due on its order." checked={r.excess} on={(v) => upd({ excess: v })} />
-      <Row title="Orders only from approved requisitions" text="Tick to stop staff writing a new order directly; they must raise a requisition first." checked={r.needsRequisition} on={(v) => upd({ needsRequisition: v })} />
+      <Row title="Orders only from approved purchase requests" text="Tick to stop staff writing a new order directly; they must raise a purchase request first." checked={r.needsRequisition} on={(v) => upd({ needsRequisition: v })} />
       <Row title="Do not issue stock that has expired" text="Tick to stop issuing an item to a department while some of it has passed its best-before date. Write the expired stock off first. Needs expiry dates on the deliveries." checked={r.blockExpired} on={(v) => upd({ blockExpired: v })} />
       <div className="py-3">
         <Field label="Check the rate against the order or the agreed rate" hint="(before tax)">

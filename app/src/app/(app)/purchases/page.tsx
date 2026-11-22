@@ -94,7 +94,7 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
           </Link>
         ))}
         <Link href="/purchases/requisitions" className={pill} style={pillStyle(false)}>
-          Requisitions
+          Purchase requests
         </Link>
         <Link href="/purchases/rates" className={pill} style={pillStyle(false)}>
           Agreed rates

@@ -32,18 +32,18 @@ export function RequisitionBoard({ canManage, isOwner, currency, limit, ingredie
     <div className="space-y-5">
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-primary px-4 text-sm" onClick={() => setAsking(!asking)}>
-          New requisition
+          New purchase request
         </button>
       </div>
       <Msg msg={note} />
       {asking && <NewForm ingredients={ingredients} onDone={done} onClose={() => setAsking(false)} />}
       {isOwner && <LimitBox limit={limit} currency={currency} onDone={done} />}
       <section>
-        <h2 className="mb-2 text-sm font-bold">Requisitions</h2>
+        <h2 className="mb-2 text-sm font-bold">Purchase requests</h2>
         <div className="card">
           {requisitions.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm" style={{ color: "var(--color-ink-3)" }}>
-              No requisitions yet.
+              No purchase requests yet.
             </p>
           ) : (
             <ul>
@@ -77,7 +77,7 @@ function LimitBox({ limit, currency, onDone }: { limit: number | null; currency:
     <section className="card p-4">
       <h2 className="text-sm font-bold">Approval limit</h2>
       <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
-        A manager can approve a requisition up to this amount ({currency}). Above it, only a user who can change settings can approve. Leave empty for no limit.
+        A manager can approve a purchase request up to this amount ({currency}). Above it, only a user who can change settings can approve. Leave empty for no limit.
       </p>
       <div className="mt-2 flex flex-wrap items-end gap-2">
         <Field label="Limit" className="w-40">
@@ -243,7 +243,7 @@ function NewForm({ ingredients, onDone, onClose }: { ingredients: Ing[]; onDone:
   }
   return (
     <section className="card p-4">
-      <h2 className="text-sm font-bold">New requisition</h2>
+      <h2 className="text-sm font-bold">New purchase request</h2>
       <ul className="mt-3 space-y-2">
         {rows.map((r, i) => {
           const ing = ingredients.find((x) => x.id === r.id);
