@@ -5,11 +5,11 @@ import { loadReport } from "../_components/report-context";
 import { ReportShell } from "../_components/report-shell";
 import { ReportTable } from "../_components/report-table";
 
-/** Product group sales (Winsar "Outlet Product Group Sales"): what each menu group sold in the period. */
+/** Item group sales (Winsar "Outlet Product Group Sales"): what each menu group sold in the period. */
 type Row = { group: string; units: number; amount: number; discount: number };
 
 export default async function GroupSalesPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string }> }) {
-  const r = await loadReport(await searchParams, { title: "Product group sales" });
+  const r = await loadReport(await searchParams, { title: "Item group sales" });
   if (!r.ok) return r.denied;
   const { ctx } = r;
   const { supabase, from, to, user } = ctx;
@@ -18,12 +18,12 @@ export default async function GroupSalesPage({ searchParams }: { searchParams: P
   const err = reportRpcError(error);
   const rows = err ? [] : ((data ?? []) as unknown as Row[]);
   const total = rows.reduce((t, x) => t + Number(x.amount), 0);
-  const head = ["Product group", "Units", "Sales", "Discount", "Share"];
+  const head = ["Item group", "Units", "Sales", "Discount", "Share"];
   const table = rows.map((x) => [x.group, String(Number(x.units)), money(Number(x.amount), c), money(Number(x.discount), c), total > 0 ? `${((Number(x.amount) / total) * 100).toFixed(1)}%` : "—"]);
   return (
     <ReportShell
       ctx={ctx}
-      title="Product group sales"
+      title="Item group sales"
       basePath="/reports/group-sales"
       basis="completed bills by business day · before tax, cancelled items left out"
       excel={rows.length > 0 ? { filename: `group_sales_${from}_${to}.csv`, header: head, rows: rows.map((x) => [x.group, Number(x.units), Number(x.amount), Number(x.discount), total > 0 ? Number(((Number(x.amount) / total) * 100).toFixed(1)) : 0]) } : null}

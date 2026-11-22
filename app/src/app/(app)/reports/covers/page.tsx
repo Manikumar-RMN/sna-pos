@@ -56,7 +56,7 @@ export default async function CoversPage({ searchParams }: { searchParams: Promi
       basis="dine-in bills · finished, not merged · by business day"
       landscape={scope.all}
       toggles={showMoney ? [{ name: "group", label: "By product group", checked: byGroup }] : undefined}
-      excel={byGroup ? (gRows.length > 0 ? { filename: `covers_by_group_${from}_${to}.csv`, header: ["Product group", "Units", "Sales", "Bills", "Sales per cover"], rows: gRows.map((x) => [x.group, x.units, x.amount, x.bills, gCovers > 0 ? Math.round((x.amount / gCovers) * 100) / 100 : ""]) } : null) : rep && rep.byDay.length > 0 ? { filename: `covers_${from}_${to}.csv`, header: ["Group", "Name", "Outlet", ...numHead], rows: csv } : null}
+      excel={byGroup ? (gRows.length > 0 ? { filename: `covers_by_group_${from}_${to}.csv`, header: ["Item group", "Units", "Sales", "Bills", "Sales per cover"], rows: gRows.map((x) => [x.group, x.units, x.amount, x.bills, gCovers > 0 ? Math.round((x.amount / gCovers) * 100) / 100 : ""]) } : null) : rep && rep.byDay.length > 0 ? { filename: `covers_${from}_${to}.csv`, header: ["Group", "Name", "Outlet", ...numHead], rows: csv } : null}
     >
       <div className="space-y-6">
         {byGroup ? (
@@ -64,7 +64,7 @@ export default async function CoversPage({ searchParams }: { searchParams: Promi
             <>
               <p className="text-sm"><b>{gCovers}</b> guests on {plural(num(gObj.bills), "dine-in bill")} with a guest count.</p>
               <ReportTable
-                head={["Product group", "Units", "Sales", "Bills", "Sales per cover"]}
+                head={["Item group", "Units", "Sales", "Bills", "Sales per cover"]}
                 textCols={[0]}
                 rows={gRows.map((x) => [x.group, String(x.units), m(x.amount), String(x.bills), perCover(x.amount)])}
                 total={["TOTAL", String(gRows.reduce((a, x) => a + x.units, 0)), m(gRows.reduce((a, x) => a + x.amount, 0)), "", perCover(gRows.reduce((a, x) => a + x.amount, 0))]}

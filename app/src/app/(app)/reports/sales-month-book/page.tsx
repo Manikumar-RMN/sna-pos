@@ -7,7 +7,7 @@ import { ReportShell } from "../_components/report-shell";
 import { ReportTable } from "../_components/report-table";
 
 export default async function SalesMonthBookPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string }> }) {
-  const r = await loadReport(await searchParams, { title: "Sales day book monthwise", need: "financial" });
+  const r = await loadReport(await searchParams, { title: "Sales day book, month-wise", need: "financial" });
   if (!r.ok) return r.denied;
   const { ctx } = r;
   const { supabase, from, to, scope, user } = ctx;
@@ -27,7 +27,7 @@ export default async function SalesMonthBookPage({ searchParams }: { searchParam
   return (
     <ReportShell
       ctx={ctx}
-      title="Sales day book monthwise"
+      title="Sales day book, month-wise"
       basePath="/reports/sales-month-book"
       basis="finished bills · by business day"
       landscape

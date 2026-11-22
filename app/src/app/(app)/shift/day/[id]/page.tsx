@@ -228,7 +228,7 @@ export default async function DayReportPage({ params }: { params: Promise<{ id: 
           />
         )}
         <Link href="/shift" className="btn w-full border text-sm" style={{ borderColor: "var(--color-line)" }}>
-          Back to Shift and day close
+          Back to Shift and day end
         </Link>
       </div>
     </div>

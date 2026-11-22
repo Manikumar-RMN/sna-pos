@@ -10,7 +10,7 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const monthLabel = (m: string) => `${MONTHS[Number(m.slice(5, 7)) - 1] ?? m.slice(5, 7)} ${m.slice(0, 4)}`;
 
 export default async function ConsumptionMonthlyPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string }> }) {
-  const r = await loadReport(await searchParams, { title: "Item consumption monthwise", need: "stock" });
+  const r = await loadReport(await searchParams, { title: "Item consumption, month-wise", need: "stock" });
   if (!r.ok) return r.denied;
   const { ctx } = r;
   const { supabase, from, to, user } = ctx;
@@ -31,7 +31,7 @@ export default async function ConsumptionMonthlyPage({ searchParams }: { searchP
   return (
     <ReportShell
       ctx={ctx}
-      title="Item consumption monthwise"
+      title="Item consumption, month-wise"
       basePath="/reports/consumption-monthly"
       basis="by business day · sold in dishes, wasted, sent to another outlet, issued or used in a batch"
       landscape

@@ -71,7 +71,7 @@ export default async function OwnerPage() {
 
       <section className="card p-4">
         <h2 className="mb-2 text-sm font-bold">Alerts</h2>
-        {(alerts ?? []).length === 0 && <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>No alerts yet. Voids, refunds, discounts, cash differences and day close show here.</p>}
+        {(alerts ?? []).length === 0 && <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>No alerts yet. Voids, refunds, discounts, cash differences and day end show here.</p>}
         <ul className="space-y-2">
           {(alerts ?? []).map((a) => (
             <li key={a.id} className="border-b pb-2 text-sm" style={{ borderColor: "var(--color-line)" }}>

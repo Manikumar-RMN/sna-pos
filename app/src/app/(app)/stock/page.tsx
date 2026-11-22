@@ -69,7 +69,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
   return (
     <div className="mx-auto max-w-4xl">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold tracking-tight">Stock</h1>
+        <h1 className="text-xl font-bold tracking-tight">Inventory</h1>
         {canManage && (
           <Link href="/stock/lists" className="text-sm font-semibold" style={{ color: "var(--color-brand)" }}>
             Groups and departments

@@ -21,7 +21,7 @@ const WHAT: Record<Key, { title: string; removes: string }> = {
   pos_tx: {
     title: "POS transactions",
     removes:
-      "Bills, payments, credit notes, kitchen tickets, shifts, cash in / out, day closes, guest QR orders, bookings, timesheets, loyalty points, gift cards, owner alerts and the activity log. The stock those bills used is put back. Bill numbers start again at 0001.",
+      "Bills, payments, credit notes, kitchen tickets, shifts, cash in / out, day ends, guest QR orders, reservations, timesheets, loyalty points, gift cards, owner alerts and the activity log. The stock those bills used is put back. Bill numbers start again at 0001.",
   },
   pos_master: {
     title: "POS masters",

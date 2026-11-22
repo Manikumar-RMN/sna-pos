@@ -158,7 +158,7 @@ export function LicenceGate({
         <div className="mt-2 flex flex-wrap gap-2">
           {[
             { href: "/bills", label: "Bills (pay open bills, print)" },
-            { href: "/shift", label: "Day close" },
+            { href: "/shift", label: "Day end" },
             { href: "/reports", label: "Reports" },
             { href: "/dashboard", label: "Home" },
           ].map((l) => (

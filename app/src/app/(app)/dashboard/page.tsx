@@ -92,7 +92,7 @@ export default async function DashboardPage() {
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Link href="/shift" className="card p-4">
           <div className="text-xs font-semibold" style={{ color: "var(--color-ink-3)" }}>
-            {shiftsOn ? "Shift" : "Day close"}
+            {shiftsOn ? "Shift" : "Day end"}
           </div>
           {!shiftsOn ? (
             <div className="mt-1 text-sm">

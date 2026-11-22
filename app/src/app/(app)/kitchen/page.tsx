@@ -108,7 +108,7 @@ export default async function KitchenPage() {
     <div>
       <div className="mb-4 flex items-end justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Kitchen</h1>
+          <h1 className="text-xl font-bold tracking-tight">Kitchen display</h1>
           <p className="mt-1 text-sm" style={{ color: "var(--color-ink-3)" }}>
             Every bill sends a ticket to its station. Tap to move it along. Refreshes every 10 seconds.
           </p>

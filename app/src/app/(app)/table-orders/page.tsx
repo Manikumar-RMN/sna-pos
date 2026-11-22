@@ -50,7 +50,7 @@ export default async function TableOrdersPage() {
     <div className="mx-auto max-w-3xl space-y-4">
       <AutoRefresh seconds={10} />
       <div>
-        <h1 className="text-xl font-bold tracking-tight">Table orders</h1>
+        <h1 className="text-xl font-bold tracking-tight">QR orders</h1>
         <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
           Orders guests sent from the table QR. Accept to add them to the table&apos;s bill and send them to the kitchen. This page refreshes itself.
         </p>

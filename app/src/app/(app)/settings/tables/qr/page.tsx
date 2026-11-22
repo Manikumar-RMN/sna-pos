@@ -18,7 +18,7 @@ export default async function TableQrCodes() {
     <div>
       <SectionHead title="Table QR codes">
         Print this page and put each code on its table. Guests scan it, choose dishes and send the order; your staff accept it on the
-        Table orders screen. Pay at the counter or to the steward as usual.
+        QR orders screen. Pay at the counter or to the steward as usual.
       </SectionHead>
       {error && <p className="card p-4 text-sm" style={{ color: "var(--color-bad)" }}>{friendlyDbError(error)}</p>}
       <QrSheet restaurant={user.trading_name} origin={origin} codes={codes} />

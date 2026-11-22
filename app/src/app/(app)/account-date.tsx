@@ -60,7 +60,7 @@ export function AccountDate({ initial, onGreen }: { initial: AccountDateInfo; on
       href="/shift"
       className="rounded-lg px-2 py-1"
       style={style}
-      title="The previous day is still open (unpaid bills or an open shift). New bills go on this date until it is closed. Open Day close."
+      title="The previous day is still open (unpaid bills or an open shift). New bills go on this date until it is closed. Open Day end."
     >
       {body}
     </Link>

@@ -95,7 +95,7 @@ export function Bookings({
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <h1 className="text-xl font-bold tracking-tight">Bookings and waiting list</h1>
+      <h1 className="text-xl font-bold tracking-tight">Reservations and waiting list</h1>
       {canEdit && (
         <section className="card space-y-2 p-4">
           <h2 className="text-sm font-bold">New booking or walk-in</h2>

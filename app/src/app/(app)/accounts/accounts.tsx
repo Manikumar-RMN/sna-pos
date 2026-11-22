@@ -28,7 +28,7 @@ export function Accounts({ accounts, methods, currency, canManage, canPay }: { a
     <div className="mx-auto max-w-4xl space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Customer accounts</h1>
+          <h1 className="text-xl font-bold tracking-tight">Credit accounts</h1>
           <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
             Eat now, pay later — canteen staff, companies, regulars. Charge a bill to an account from the bill screen. Outstanding: <b>{m(total)}</b>
           </p>

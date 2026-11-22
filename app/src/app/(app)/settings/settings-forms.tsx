@@ -896,7 +896,7 @@ function MethodOptions({
       </div>
       {isCash ? (
         <p className="text-xs" style={{ color: "var(--color-ink-3)" }}>
-          Cash goes into the drawer and is counted at day close.
+          Cash goes into the drawer and is counted at day end.
         </p>
       ) : (
         <Toggle

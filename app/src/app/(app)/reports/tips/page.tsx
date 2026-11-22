@@ -13,7 +13,7 @@ export default async function TipsPage({ searchParams }: { searchParams: Promise
   const { supabase, from, to, scope, user } = ctx;
   const c = user.currency_code;
 
-  // Tips are a memo: they are not part of sales, payments, shift cash or the day close. A tip on a voided bill is left out.
+  // Tips are a memo: they are not part of sales, payments, shift cash or the day end. A tip on a voided bill is left out.
   const { data, error } = await supabase.rpc("report_tips", { p_from: from, p_to: to });
   const err = reportRpcError(error);
   const rep = err ? null : parseTips(data as unknown);
@@ -70,7 +70,7 @@ export default async function TipsPage({ searchParams }: { searchParams: Promise
               </section>
             )}
             <Note>
-              Tips are a memo only: they are not included in sales, payments, shift cash or the day close, and they are not refunded by credit notes.
+              Tips are a memo only: they are not included in sales, payments, shift cash or the day end, and they are not refunded by credit notes.
               The waiter is the one recorded with the tip, otherwise the person who took it. Tips on voided bills are not counted.
             </Note>
           </>

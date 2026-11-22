@@ -14,7 +14,7 @@ export function modulesFor(user: CurrentUser): ModuleCard[] {
     {
       key: "pos",
       title: "POS",
-      blurb: "Billing, tables, kitchen, shifts and day close",
+      blurb: "Billing, tables, kitchen, shifts and day end",
       href: "/pos",
       show: has(user, "pos") && (can(user, "order.create") || can(user, "shift.open") || can(user, "day.close")),
     },
@@ -34,7 +34,7 @@ export function modulesFor(user: CurrentUser): ModuleCard[] {
     },
     {
       key: "settings",
-      title: "Setup and users",
+      title: "Settings and users",
       blurb: "Menu, staff, security profiles, company",
       href: "/settings",
       show: can(user, "settings.manage"),

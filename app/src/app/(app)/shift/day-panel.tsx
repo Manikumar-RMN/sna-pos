@@ -15,7 +15,7 @@ export type DayStatus = {
   recent: { id: string; business_date: string; status: string; closed_at: string | null; total: number | null }[];
   can_close: boolean;
   can_reopen: boolean;
-  /** Shifts switched on in Settings → Day and sessions. Off: one automatic drawer per day, counted at day close. */
+  /** Shifts switched on in Settings → Day and sessions. Off: one automatic drawer per day, counted at day end. */
   shifts_enabled?: boolean;
   expected_cash?: number | null;
   /** Kitchen tickets still new or being prepared (a warning only; it does not block closing). */

@@ -5,7 +5,7 @@ import { parseTip, suggestTip, tipText } from "./tip";
 /**
  * Optional tip box for the payment panel. It only collects a number; the server (pay_order, p_tip) records it as a memo.
  * A tip is NOT part of the bill or of the payment, so it never changes "Take ..." or the change due, and it does not
- * go into the shift cash or the day close.
+ * go into the shift cash or the day end.
  *
  * Wiring (see docs/handover/WS-C/tip-wiring.md): hold `const [tip, setTip] = useState("")` in BillActions, render
  * <TipField value={tip} onChange={setTip} base={balance} disabled={pending} />, disable the pay button while

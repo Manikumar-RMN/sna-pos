@@ -5,11 +5,11 @@ import { loadReport } from "../_components/report-context";
 import { ReportShell } from "../_components/report-shell";
 import { ReportTable } from "../_components/report-table";
 
-/** Table wise sales (Winsar "Table Wise Sales"): bills, covers and sales for each table. */
+/** Table-wise sales (Winsar "Table Wise Sales"): bills, covers and sales for each table. */
 type Row = { table: string; bills: number; covers: number; amount: number };
 
 export default async function TableSalesPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string }> }) {
-  const r = await loadReport(await searchParams, { title: "Table wise sales" });
+  const r = await loadReport(await searchParams, { title: "Table-wise sales" });
   if (!r.ok) return r.denied;
   const { ctx } = r;
   const { supabase, from, to, user } = ctx;
@@ -22,7 +22,7 @@ export default async function TableSalesPage({ searchParams }: { searchParams: P
   return (
     <ReportShell
       ctx={ctx}
-      title="Table wise sales"
+      title="Table-wise sales"
       basePath="/reports/table-sales"
       basis="completed bills by business day · bill totals with tax"
       excel={rows.length > 0 ? { filename: `table_sales_${from}_${to}.csv`, header: head, rows: rows.map((x) => [x.table, Number(x.bills), Number(x.covers), Number(x.amount), Number(avg(x).toFixed(2))]) } : null}

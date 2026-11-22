@@ -1,5 +1,5 @@
 // Tip entry helpers. A tip is a MEMO: it is recorded next to the payment (migration 133) and never counted in the bill,
-// the payment, shift cash, day close or tax. Nothing here works out money that the database owns; the percent chips only
+// the payment, shift cash, day end or tax. Nothing here works out money that the database owns; the percent chips only
 // suggest a number to type into the box, and the server stores exactly what is sent.
 
 /** Largest tip the till accepts (the database refuses anything above 99,999,999). */

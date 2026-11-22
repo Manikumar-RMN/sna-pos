@@ -91,7 +91,7 @@ export function AlertsSwitch({ vapidKey }: { vapidKey: string }) {
       <div className="text-sm">
         <b>Alerts on this phone</b>
         <div style={{ color: "var(--color-ink-3)" }}>
-          {state === "on" && "On — you will get voids, refunds, discounts, cash differences and day close."}
+          {state === "on" && "On — you will get voids, refunds, discounts, cash differences and day end."}
           {state === "off" && "Off."}
           {state === "blocked" && "Blocked in this browser's settings. Allow notifications for this site, then try again."}
           {state === "unsupported" && "This browser cannot show alerts. On iPhone, install the app first (Share → Add to Home Screen)."}

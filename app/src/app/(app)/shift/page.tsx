@@ -18,7 +18,7 @@ export default async function ShiftPage() {
       .order("closed_at", { ascending: false })
       .limit(10),
     supabase.rpc("day_status"),
-    // Kitchen tickets still waiting or being cooked (shown as a warning on day close).
+    // Kitchen tickets still waiting or being cooked (shown as a warning on day end).
     supabase.from("kitchen_tickets").select("id", { count: "exact", head: true }).in("status", ["new", "preparing"]),
   ]);
   const shiftsOn = !!(day as unknown as { shifts_enabled?: boolean } | null)?.shifts_enabled;
@@ -47,7 +47,7 @@ export default async function ShiftPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-xl font-bold tracking-tight">{shiftsOn ? "Shift and day close" : "Day close"}</h1>
+      <h1 className="text-xl font-bold tracking-tight">{shiftsOn ? "Shift and day end" : "Day end"}</h1>
       <p className="mt-1 mb-5 text-sm" style={{ color: "var(--color-ink-3)" }}>
         {!shiftsOn
           ? "Shifts are off, so billing starts straight away. Count the drawer when you close the day. Turn shifts on in Settings → Day and sessions if each cashier should count their own drawer."

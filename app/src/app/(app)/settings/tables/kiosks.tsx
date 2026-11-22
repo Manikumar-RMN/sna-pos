@@ -23,9 +23,9 @@ export function Kiosks({
       <h2 className="text-sm font-bold">Self-order kiosks</h2>
       <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
         Put a tablet at the counter and open its link in the browser (full screen). Guests choose dishes and send the order; it appears on the
-        Table orders screen, and accepting it makes a takeaway bill and the kitchen ticket. The kiosk then shows the guest&rsquo;s bill and token number
+        QR orders screen, and accepting it makes a takeaway bill and the kitchen ticket. The kiosk then shows the guest&rsquo;s bill and token number
         to pay at the counter, and clears itself for the next guest. Choose &ldquo;Bill at once as …&rdquo; to skip the staff tap: the bill and
-        kitchen ticket are made the moment the guest orders (if anything stops it, the order waits on Table orders as usual).
+        kitchen ticket are made the moment the guest orders (if anything stops it, the order waits on QR orders as usual).
       </p>
       <div className="mt-3 space-y-2">
         {kiosks.map((k) => {

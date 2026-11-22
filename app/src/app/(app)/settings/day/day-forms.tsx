@@ -50,7 +50,7 @@ export function DaySettingsForm({ shiftsEnabled, cutoff, nightAudit }: { shiftsE
           <span>
             <span className="block font-semibold">Automatic</span>
             <span className="block text-xs" style={{ color: "var(--color-ink-3)" }}>
-              The day closes by itself when the next business day starts, if every bill is paid or voided. If a bill is still open, the day stays open until it is settled.
+              The day ends by itself when the next business day starts, if every bill is paid or voided. If a bill is still open, the day stays open until it is settled.
             </span>
           </span>
         </label>
@@ -59,7 +59,7 @@ export function DaySettingsForm({ shiftsEnabled, cutoff, nightAudit }: { shiftsE
           <span>
             <span className="block font-semibold">Manual</span>
             <span className="block text-xs" style={{ color: "var(--color-ink-3)" }}>
-              The day never closes by itself. Someone runs Day close (the &quot;Day not closed - tap to close&quot; box at the top) after the last bill, and bills keep going on that day until then.
+              The day never closes by itself. Someone runs Day end (the &quot;Day not closed - tap to close&quot; box at the top) after the last bill, and bills keep going on that day until then.
             </span>
           </span>
         </label>

@@ -229,7 +229,7 @@ export function ShiftPanel({
 
       {canClose && (
         <div className="card p-4">
-          <h2 className="text-sm font-bold">Close shift (day close)</h2>
+          <h2 className="text-sm font-bold">Close shift (day end)</h2>
           <p className="mt-1 text-xs" style={{ color: "var(--color-ink-3)" }}>
             Count every note and coin in the drawer and enter the total. SNA POS compares it with the expected cash and records any difference.
           </p>

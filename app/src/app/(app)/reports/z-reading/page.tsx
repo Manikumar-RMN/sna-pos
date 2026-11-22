@@ -6,7 +6,7 @@ import { ReportShell } from "../_components/report-shell";
 import { ReportTable } from "../_components/report-table";
 
 /**
- * Z reading (Winsar "BIR Reading Report"). Every day close already saves a full reading in business_days.z_report;
+ * Z reading (Winsar "BIR Reading Report"). Every day end already saves a full reading in business_days.z_report;
  * this screen is where it can be read and printed. It also shows the **Z number** (how many days this outlet has
  * closed) and the **accumulated grand total** (every closed day added up), which tax offices such as the BIR in the
  * Philippines ask a till to keep. Nothing is worked out again here: the figures are the ones saved at the close.
@@ -35,7 +35,7 @@ type DayRow = { id: string; business_date: string; closed_at: string | null; z_r
 
 export default async function ZReadingPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string; day?: string }> }) {
   const sp = await searchParams;
-  const r = await loadReport(sp, { title: "Z reading", need: "financial" });
+  const r = await loadReport(sp, { title: "Z report", need: "financial" });
   if (!r.ok) return r.denied;
   const { ctx } = r;
   const { supabase, from, to, user } = ctx;
@@ -72,9 +72,9 @@ export default async function ZReadingPage({ searchParams }: { searchParams: Pro
   return (
     <ReportShell
       ctx={ctx}
-      title={one ? `Z reading — ${one.business_date}` : "Z reading"}
+      title={one ? `Z report — ${one.business_date}` : "Z report"}
       basePath="/reports/z-reading"
-      basis="closed business days · the figures saved at each day close"
+      basis="closed business days · the figures saved at each day end"
       excel={
         one
           ? null
