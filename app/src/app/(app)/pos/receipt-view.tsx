@@ -317,7 +317,7 @@ export function ReceiptView({
         )}
         {hideBack ? (
           <button type="button" onClick={() => setShowPaper((v) => !v)} className="btn border h-10 w-full px-4 text-sm" style={{ borderColor: "var(--color-line)" }} aria-expanded={showPaper}>
-            {showPaper ? "Hide bill" : "Show bill"}
+            {showPaper ? "Hide preview" : "Preview bill"}
           </button>
         ) : (
         <span className="flex gap-2">

@@ -2407,9 +2407,12 @@ export function PosTerminal({
           >
             {pending ? "Saving…" : "Save Kot"}
           </WinBtn>
-          <WinBtn tone="#6B7280" disabled={pending} onClick={() => router.push("/pos")}>
-            ‹ Back
-          </WinBtn>
+          {/* On a table the top "← Tables" button already goes back; keep Back only where there is no table strip. */}
+          {!(tableOrder || addTo?.table) && (
+            <WinBtn tone="#6B7280" disabled={pending} onClick={() => router.push("/pos")}>
+              ‹ Back
+            </WinBtn>
+          )}
         </div>
       )}
 
