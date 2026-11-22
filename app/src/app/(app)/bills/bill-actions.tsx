@@ -813,7 +813,7 @@ export function BillActions({
             {embedded ? (
               <button
                 type="button"
-                className="btn btn-primary text-sm xl:hidden"
+                className="btn btn-primary text-sm xl:hidden!"
                 disabled={!online}
                 title={online ? undefined : needsInternetText("add_to_bill")}
                 onClick={() => window.dispatchEvent(new Event("sna-desk-order"))}
