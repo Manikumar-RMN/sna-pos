@@ -3,6 +3,7 @@ import { can, has, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { NavLinks, NavRail, type NavItem } from "./nav-links";
+import { navItems } from "./nav-items";
 import { ModuleSidebar, type SideGroup } from "./module-sidebar";
 import { REPORT_LINKS, REPORT_SECTIONS, groupReportLinks, sectionKey } from "./reports/_components/report-links";
 import { OfflineSync } from "./offline-sync";
@@ -52,32 +53,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // The same four groups as the side menu: POS, Purchase and inventory, Loyalty and Audit reports (only the ones this client has).
   const reportItems = REPORT_SECTIONS.filter((x) => groupReportLinks(reportAccess, x.key).length > 0).map((x) => ({ href: x.href, label: x.title, also: REPORT_LINKS.filter((r) => r.href !== "/reports" && sectionKey(r) === x.key).map((r) => r.href) })).sort((a, b) => a.label.localeCompare(b.label));
   // Modules the client bought: POS and Reports/MIS are switchable like the others.
-  const posOn = has(user, "pos");
-  const misOn = has(user, "reports_mis");
-  const visibleLinksAll = [
-    { href: "/dashboard", label: "Home", show: true },
-    { href: "/owner", label: "Owner", show: misOn && (has(user, "owner_app") && can(user, "report.view_sales")) },
-    { href: "/pos", label: "KOT", show: posOn && (can(user, "order.create")) },
-    { href: "/captain", label: "Captain", show: posOn && (can(user, "order.create")) },
-    { href: "/preorders", label: "Pre-orders", show: posOn && (can(user, "order.create")) },
-    { href: "/deliveries", label: "Deliveries", show: posOn && (can(user, "order.create")) },
-    { href: "/online-orders", label: "Online orders", show: posOn && (can(user, "order.create") && has(user, "open_api")) },
-    { href: "/accounts", label: "Credit accounts", show: posOn && (can(user, "payment.take") || can(user, "customer.manage")) },
-    { href: "/customers", label: "Customers", show: posOn && (can(user, "customer.view") || can(user, "customer.manage")) },
-    { href: "/bills", label: "Bills", show: posOn && (true) },
-    { href: "/kitchen", label: "Kitchen display", show: posOn && (true) },
-    { href: "/table-orders", label: "QR orders", show: posOn && (can(user, "order.create") && has(user, "qr_ordering")) },
-    { href: "/shift", label: shiftsOn ? "Shift" : "Day end", show: posOn && (can(user, "shift.open") || can(user, "shift.close") || can(user, "cash.movement") || can(user, "day.close")) },
-    { href: "/reports", label: "Reports", show: misOn && (can(user, "report.view_sales")) },
-    { href: "/stock", label: "Inventory", show: (can(user, "stock.manage") || can(user, "stock.view") || can(user, "stock.adjust")) && has(user, "stock") },
-    { href: "/purchases", label: "Purchases", show: can(user, "stock.manage") && has(user, "stock") },
-    { href: "/reservations", label: "Reservations", show: posOn && (can(user, "order.create") && has(user, "reservations")) },
-    { href: "/loyalty", label: "Loyalty", show: posOn && (has(user, "loyalty") && (can(user, "payment.take") || can(user, "settings.manage"))) },
-    { href: "/timesheets", label: "Timesheets", show: has(user, "timesheets") },
-    // Menu, users and security profiles live inside Settings.
-    { href: "/settings", label: "Settings", show: true },
-    { href: "/help", label: "Help", show: true },
-  ];
+  const visibleLinksAll = navItems(user, shiftsOn);
   const visibleLinks = visibleLinksAll.filter((l) => l.show);
   const links = visibleLinks.map(({ href, label }): NavItem => (href === "/reports" ? { href, label, children: reportItems } : { href, label }));
 
@@ -85,7 +61,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const hospitality = !isCounter;
   const pick = (hrefs: string[]) => visibleLinks.filter((l) => hrefs.includes(l.href)).map(({ href, label }) => ({ href, label }));
   const sideGroups: SideGroup[] = [
-    { key: "home", title: "Home", icon: "home", items: [{ href: "/dashboard", label: "Home" }] },
+    { key: "home", title: "Home", icon: "home", items: [{ href: "/dashboard", label: "Home" }, { href: "/operations", label: "Operations" }] },
     {
       key: "pos", title: "POS", icon: "pos",
       items: pick(["/pos", "/captain", "/table-orders", "/kitchen", "/bills", "/preorders", "/deliveries", "/online-orders", "/accounts", "/customers", "/reservations", "/loyalty", "/shift", "/timesheets"]).sort((a, b) => a.label.localeCompare(b.label)),
