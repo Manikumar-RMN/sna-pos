@@ -282,6 +282,8 @@ export type KotTicket = {
   bill: string;
   /** Longest preparation time among the items, in minutes; printed as "~12 min" when set. */
   prepMin?: number | null;
+  /** A reprint: "*** DUPLICATE ***" is printed above the title. */
+  duplicate?: boolean;
   items: { name: string; qty: number; note: string | null; cancelled: boolean }[];
 };
 
@@ -290,6 +292,7 @@ export function kotLines(tickets: KotTicket[], opts: { paper?: string; timezone:
   const W = columns(opts.paper);
   const L: Line[] = [];
   for (const t of tickets) {
+    if (t.duplicate) L.push({ text: "*** DUPLICATE ***", align: "center", bold: true });
     L.push({ text: `KOT - ${t.station}`, align: "center", big: true });
     if (t.token != null) L.push({ text: `TOKEN ${t.token}`, align: "center", big: true });
     const time = new Date(t.createdAt).toLocaleTimeString("en-IN", { timeZone: opts.timezone, hour: "2-digit", minute: "2-digit" });

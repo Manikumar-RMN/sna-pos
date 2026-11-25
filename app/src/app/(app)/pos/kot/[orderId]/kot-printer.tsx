@@ -170,7 +170,7 @@ export function KotPrinter({
       if (neededRight(res.error) === "order.reprint") return setNeedsPin(true);
       return setPrintError(cleanMessage(res.error));
     }
-    setPrinting(again);
+    setPrinting(again.map((s) => ({ ...s, duplicate: true })));
   }
 
   /**

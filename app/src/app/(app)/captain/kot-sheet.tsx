@@ -99,6 +99,7 @@ export function KotSheet({ orderId, billNumber, onClose, onChanged }: { orderId:
         station: k.station,
         createdAt: k.createdAt,
         printed: true,
+        duplicate: true,
         items: k.items.map((i) => ({ name: i.name, local: null, qty: i.qty, note: i.note, cancelled: i.cancelled })),
       };
       await printer.print([slip], pi.info);

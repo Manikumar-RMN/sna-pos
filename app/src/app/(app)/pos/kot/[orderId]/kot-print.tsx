@@ -13,6 +13,8 @@ export type KotSlip = {
   station: string;
   createdAt: string;
   printed: boolean;
+  /** A reprint: the ticket says DUPLICATE at the top so the kitchen does not cook it twice. */
+  duplicate?: boolean;
   /** The longest preparation time among the items, in minutes ("~12 min" on the slip); null/absent when none is set. */
   prepMin?: number | null;
   items: { name: string; local: string | null; qty: number; note: string | null; cancelled: boolean }[];
@@ -83,6 +85,7 @@ export function KotTicketsPrint({ slips, info }: { slips: KotSlip[]; info: KotPr
       <div id="kot-print" aria-hidden="true" className="pointer-events-none fixed left-[-9999px] top-0" style={{ width: `${info.printMm}mm`, color: "#000", background: "#fff" }}>
         {slips.map((t) => (
           <div key={t.id} className="kot-page p-2 font-mono">
+            {t.duplicate && <div className="text-center text-[16px] font-bold">*** DUPLICATE ***</div>}
             <div className="text-center text-[18px] font-bold">KOT · {t.station}</div>
             {info.token != null && <div className="text-center text-[28px] font-bold leading-tight">Token {info.token}</div>}
             <div className="flex justify-between gap-2 text-[14px] font-bold">
