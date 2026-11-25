@@ -3,6 +3,13 @@ import type { SettingsLink } from "./settings-nav";
 
 /** Setup is grouped by module: General (shared by every module), POS, Inventory, POS reports. A module the client did not buy shows no group. */
 
+const FIRST = ["/settings/company", "/settings/taxes", "/settings/payments"];
+/** Position among the sections that come first; everything else shares the same rank. */
+function first(href: string): number {
+  const i = FIRST.indexOf(href);
+  return i < 0 ? FIRST.length : i;
+}
+
 /** Settings sections this person may open, in menu order. */
 export function settingsSections(user: CurrentUser, taxName: string): SettingsLink[] {
   const setup = can(user, "settings.manage") || can(user, "tax.manage");
@@ -43,6 +50,7 @@ export function settingsSections(user: CurrentUser, taxName: string): SettingsLi
   const order = ["General", "POS", "Purchase and inventory", "Reports"];
   return all
     .filter((s) => s.show)
-    .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group) || a.label.localeCompare(b.label))
+    // Inside a group: the first things set up come first (Company, Taxes, Payment methods), the rest A to Z.
+    .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group) || first(a.href) - first(b.href) || a.label.localeCompare(b.label))
     .map(({ href, label, hint, group }) => ({ href, label, hint, group }));
 }
