@@ -38,7 +38,7 @@ export default async function SnaLayout({ children }: Readonly<{ children: React
     ...(me.role === "admin"
       ? [
           { href: "/sna/prices", label: "Prices" },
-          { href: "/sna/staff", label: "SNA staff" },
+          { href: "/sna/staff", label: "Our team" },
         ]
       : []),
     { href: "/sna/help", label: "Help" },

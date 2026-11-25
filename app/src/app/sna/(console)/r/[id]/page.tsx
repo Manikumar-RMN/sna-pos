@@ -12,7 +12,7 @@ const TABS = [
   { key: "overview", label: "Overview" },
   { key: "contacts", label: "Contacts" },
   { key: "notes", label: "Notes and follow-up" },
-  { key: "sales", label: "Sales history" },
+  { key: "sales", label: "Sales and payments" },
   { key: "plan", label: "Plan and outlets" },
   { key: "golive", label: "Go-live" },
 ] as const;

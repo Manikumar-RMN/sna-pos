@@ -61,7 +61,7 @@ export default async function SnaMoney() {
           <span className="rounded-full px-3 py-1 text-xs font-bold" style={toneStyle.ok}>
             All paid
           </span>
-          <p className="mt-3">Nothing is waiting to be paid. Record a sale on a client&rsquo;s Sales history tab and it will show here until it is marked paid.</p>
+          <p className="mt-3">Nothing is waiting to be paid. Record a sale on a client&rsquo;s Sales and payments tab and it will show here until it is marked paid.</p>
           <Link href="/sna" className="mt-2 inline-block font-semibold" style={{ color: "var(--color-brand)" }}>
             Back to clients
           </Link>

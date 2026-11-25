@@ -9,7 +9,7 @@ export default async function SnaStaffPage() {
   const { data, error } = await supabase.rpc("sna_staff_list");
   return (
     <div>
-      <h1 className="text-2xl font-bold">SNA staff</h1>
+      <h1 className="text-2xl font-bold">Our team</h1>
       <p className="text-sm" style={{ color: "var(--color-ink-3)" }}>
         Who can sign in to this console, and what each person may do. Add a new person with their email: they get a temporary password and sign in at the SNA console.
       </p>

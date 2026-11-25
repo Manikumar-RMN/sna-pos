@@ -148,7 +148,7 @@ export function AccountPanel({ c, now, canEdit }: { c: Client; now: LicenceNow; 
           )}
           <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
             Switching the reminder off does not move the end date: the restaurant still becomes read-only after {c.licence_expiry ? shortDate(c.licence_expiry) : "the end date"}.
-            To renew, record the sale on the Sales history tab and tick &ldquo;Move the licence end date&rdquo;.
+            To renew, record the sale on the Sales and payments tab and tick &ldquo;Move the licence end date&rdquo;.
           </p>
         </div>
       </form>

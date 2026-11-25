@@ -189,7 +189,7 @@ export function NewClientForm({ countries, canSell }: { countries: Country[]; ca
         )}
         <p className="mt-2 text-xs" style={{ color: "var(--color-ink-3)" }}>
           With no end date the restaurant is not limited. With an end date it sees a reminder from 15 days before, and becomes read-only the morning after.
-          Add-ons and the invoice go on the client&rsquo;s Sales history tab afterwards.
+          Add-ons and the invoice go on the client&rsquo;s Sales and payments tab afterwards.
         </p>
       </div>
 
